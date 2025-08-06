@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define basic constants
-define('QUIZ_EXTENDED_VERSION', '1.0.0');
+define('QUIZ_EXTENDED_VERSION', '0.1.0');
 define('QUIZ_EXTENDED_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('QUIZ_EXTENDED_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -67,6 +67,7 @@ class QuizExtended
         $this->load_textdomain();
         $this->includes();
         $this->init_features();
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
     }
 
     /**
@@ -123,6 +124,17 @@ class QuizExtended
             <p><?php _e('Quiz Extended requires that Tutor LMS is installed and active.', 'quiz-extended'); ?></p>
         </div>
         <?php
+    }
+
+    public function enqueue_admin_scripts()
+    {
+        wp_enqueue_script(
+            'quiz-extended-builder', // Un nombre único para nuestro script
+            QUIZ_EXTENDED_PLUGIN_URL . 'assets/js/questions/quiz-builder.js', // La ruta a nuestro archivo JS
+            ['jquery'], // Dependencias, necesita jQuery
+            QUIZ_EXTENDED_VERSION, // Versión
+            true // Cargar en el footer
+        );
     }
 
     public function includes()

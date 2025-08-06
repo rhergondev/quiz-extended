@@ -23,51 +23,8 @@ class Quiz_Extended_Difficulty_Manager
 
     public function __construct()
     {
-        // Add custom field to question edit screen
-        add_action('tutor_question_editor_right_sidebar_after_question_type', array($this, 'add_difficulty_field_html'));
-
         // Save the custom field value when the question is saved
         add_action('tutor_after_save_question', array($this, 'save_difficulty_field_value'));
-    }
-
-    /**
-     * Render the HTML for the difficulty field
-     */
-    public function add_difficulty_field_html()
-    {
-        global $post;
-
-        $difficulty_options = array(
-            'easy' => __('Easy', 'quiz-extended'),
-            'medium' => __('Medium', 'quiz-extended'),
-            'hard' => __('Hard', 'quiz-extended'),
-        );
-
-        // Get the current difficulty value if it exists
-        $current_difficulty = get_post_meta($post->ID, '_question_difficulty', true);
-        if (empty($current_difficulty)) {
-            $current_difficulty = 'Easy'; // Default value
-        }
-
-        ?>
-        <div class="tutor-option-field-row">
-            <div class="tutor-option-field-label">
-                <label for="question_difficulty">
-                    <?php _e('Question Difficulty', 'quiz-extended'); ?>
-                </label>
-            </div>
-            <div class="tutor-option-field">
-                <select name="question_difficulty" id="question_difficulty">
-                    <option value=""><?php _e('Select difficulty', 'quiz-extended'); ?></option>
-                    <?php
-                    foreach ($difficulty_options as $key => $value) {
-                        echo "<option value='{$key}' " . selected($current_difficulty, $key, false) . ">{$value}</option>";
-                    }
-                    ?>
-                </select>
-            </div>
-        </div>
-        <?php
     }
 
     /**
