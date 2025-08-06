@@ -1,5 +1,4 @@
 <?php
-<?php
 /**
  * Plugin Name: Quiz Extended
  * Plugin URI: https://github.com/rhergondev/quiz-extended
