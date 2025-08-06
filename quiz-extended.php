@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Definir constantes
-define('QUIZ_EXTENDED_VERSION', '1.0.0');
+define('QUIZ_EXTENDED_VERSION', '0.1.0');
 define('QUIZ_EXTENDED_FILE', __FILE__);
 define('QUIZ_EXTENDED_PATH', plugin_dir_path(__FILE__));
 define('QUIZ_EXTENDED_URL', plugin_dir_url(__FILE__));
@@ -37,6 +37,8 @@ class QuizExtendedExtension {
     
     private function __construct() {
         $this->init_hooks();
+        register_activation_hook(__FILE__, array($this, 'activate'));
+        register_deactivation_hook(__FILE__, array($this, 'deactivate'));
     }
     
     private function init_hooks() {
@@ -82,9 +84,11 @@ class QuizExtendedExtension {
     
     private function includes() {
         // Incluir clases y archivos necesarios
+        require_once QUIZ_EXTENDED_PATH . 'includes/class-database.php';
         require_once QUIZ_EXTENDED_PATH . 'includes/class-admin.php';
         require_once QUIZ_EXTENDED_PATH . 'includes/class-frontend.php';
         require_once QUIZ_EXTENDED_PATH . 'includes/class-hooks.php';
+        require_once QUIZ_EXTENDED_PATH . 'includes/class-difficulty-manager.php';
     }
     
     private function tutor_hooks() {
@@ -94,9 +98,11 @@ class QuizExtendedExtension {
         add_filter('tutor_course_loop_content', array($this, 'modify_course_loop'), 10, 2);
         
         // Inicializar clases
+        new QuizExtended_Database();
         new QuizExtended_Admin();
         new QuizExtended_Frontend();
         new QuizExtended_Hooks();
+        new QuizExtended_Difficulty_Manager();
     }
     
     public function on_course_complete($course_id) {
@@ -113,26 +119,43 @@ class QuizExtendedExtension {
         // Modificar el contenido del loop de cursos
         return $content;
     }
+    
+    public function activate() {
+        if (!$this->is_tutor_active()) {
+            deactivate_plugins(plugin_basename(__FILE__));
+            wp_die(__('Este plugin requiere Tutor LMS para funcionar.', 'quiz-extended'));
+        }
+        
+        // Crear/actualizar tablas
+        QuizExtended_Database::create_tables();
+        flush_rewrite_rules();
+    }
+    
+    public function deactivate() {
+        flush_rewrite_rules();
+    }
 }
 
 // Inicializar el plugin
-function QuizExtended() {
-    return QuizExtended::get_instance();
+function quiz_extended() {
+    return QuizExtendedExtension::get_instance();
 }
 
 // Activar el plugin
-QuizExtended();
+quiz_extended();
 
 // Hooks de activación y desactivación
-register_activation_hook(__FILE__, 'QuizExtended_activate');
-register_deactivation_hook(__FILE__, 'QuizExtended_deactivate');
+register_activation_hook(__FILE__, 'quiz_extended_activate');
+register_deactivation_hook(__FILE__, 'quiz_extended_deactivate');
 
-function QuizExtended_activate() {
+function quiz_extended_activate() {
     // Lógica de activación
-    flush_rewrite_rules();
+    $instance = quiz_extended();
+    $instance->activate();
 }
 
-function QuizExtended_deactivate() {
+function quiz_extended_deactivate() {
     // Lógica de desactivación
-    flush_rewrite_rules();
+    $instance = quiz_extended();
+    $instance->deactivate();
 }
