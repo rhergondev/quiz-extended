@@ -1,0 +1,185 @@
+/* Integración específica con Tutor LMS Admin */
+
+.qe-difficulty-field {
+    margin: 20px 0 !important;
+    background: #f8f9fa !important;
+    padding: 15px !important;
+    border-radius: 8px !important;
+    border: 1px solid #e9ecef !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+}
+
+.qe-difficulty-field label {
+    display: flex !important;
+    align-items: center !important;
+    font-weight: 600 !important;
+    margin-bottom: 10px !important;
+    color: #495057 !important;
+    font-size: 14px !important;
+}
+
+.qe-difficulty-field label i {
+    margin-right: 8px !important;
+    color: #007cba !important;
+    font-size: 16px !important;
+}
+
+.qe-required {
+    color: #dc3545 !important;
+    margin-left: 3px !important;
+    font-weight: bold !important;
+}
+
+.qe-difficulty-select {
+    width: 100% !important;
+    padding: 12px 15px !important;
+    border: 2px solid #ced4da !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    background: #fff !important;
+    transition: all 0.3s ease !important;
+    cursor: pointer !important;
+}
+
+.qe-difficulty-select:focus {
+    border-color: #007cba !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 124, 186, 0.25) !important;
+    outline: none !important;
+}
+
+.qe-difficulty-select:hover {
+    border-color: #007cba !important;
+}
+
+/* Colores por dificultad */
+.qe-difficulty-select.difficulty-easy {
+    border-color: #28a745 !important;
+    background: #f8fff9 !important;
+}
+
+.qe-difficulty-select.difficulty-medium {
+    border-color: #ffc107 !important;
+    background: #fffef8 !important;
+}
+
+.qe-difficulty-select.difficulty-hard {
+    border-color: #dc3545 !important;
+    background: #fff8f8 !important;
+}
+
+.qe-form-feedback {
+    margin-top: 8px !important;
+    font-size: 12px !important;
+    color: #6c757d !important;
+    display: flex !important;
+    align-items: center !important;
+    background: #e7f3ff !important;
+    padding: 8px 12px !important;
+    border-radius: 4px !important;
+    border-left: 3px solid #007cba !important;
+}
+
+.qe-form-feedback i {
+    margin-right: 6px !important;
+    color: #007cba !important;
+    flex-shrink: 0 !important;
+}
+
+/* Estilos para modales de Tutor */
+.tutor-modal .qe-difficulty-field {
+    background: #fff !important;
+    border: 1px solid #ddd !important;
+    margin: 15px 0 !important;
+}
+
+.tutor-modal .qe-difficulty-select {
+    border-color: #ddd !important;
+}
+
+/* Compatibilidad con diferentes temas de admin */
+.wp-admin .qe-difficulty-field {
+    font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif !important;
+}
+
+/* Estados de validación */
+.qe-difficulty-select:required:invalid {
+    border-color: #dc3545 !important;
+}
+
+.qe-difficulty-select:required:valid {
+    border-color: #28a745 !important;
+}
+
+/* Animaciones */
+.qe-difficulty-field {
+    animation: qe-fadeIn 0.3s ease-in-out;
+}
+
+@keyframes qe-fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .qe-difficulty-field {
+        padding: 10px !important;
+        margin: 15px 0 !important;
+    }
+    
+    .qe-difficulty-select {
+        padding: 10px !important;
+        font-size: 13px !important;
+    }
+    
+    .qe-form-feedback {
+        font-size: 11px !important;
+        padding: 6px 10px !important;
+    }
+}
+
+/* Modo oscuro */
+@media (prefers-color-scheme: dark) {
+    .qe-difficulty-field {
+        background: #2c3e50 !important;
+        border-color: #34495e !important;
+        color: #ecf0f1 !important;
+    }
+    
+    .qe-difficulty-field label {
+        color: #ecf0f1 !important;
+    }
+    
+    .qe-difficulty-select {
+        background: #34495e !important;
+        color: #ecf0f1 !important;
+        border-color: #4a5f7a !important;
+    }
+    
+    .qe-form-feedback {
+        background: #34495e !important;
+        color: #bdc3c7 !important;
+    }
+}
+
+/* Soporte para RTL */
+[dir="rtl"] .qe-difficulty-field label i {
+    margin-right: 0 !important;
+    margin-left: 8px !important;
+}
+
+[dir="rtl"] .qe-form-feedback i {
+    margin-right: 0 !important;
+    margin-left: 6px !important;
+}
+
+[dir="rtl"] .qe-form-feedback {
+    border-left: none !important;
+    border-right: 3px solid #007cba !important;
+}
