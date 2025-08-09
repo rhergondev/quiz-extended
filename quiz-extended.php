@@ -33,123 +33,22 @@ define('QUIZ_EXTENDED_PLUGIN_URL', plugin_dir_url(__FILE__));
  */
 class QuizExtended
 {
-    private static $instance = null;
-
-    public static function get_instance()
+    public function __construct()
     {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
     }
 
-    private function __construct()
+    public function enqueue_scripts()
     {
-        add_action('plugins_loaded', array($this, 'init'));
+        $asset_file = include(plugin_dir_path(__FILE__) . 'build/index.asset.php');
 
-        // Register Activation and Deactivation hooks
-        register_activation_hook(__FILE__, array($this, 'activate'));
-        register_deactivation_hook(__FILE__, array($this, 'deactivate'));
-    }
-
-    /**
-     * Initialize the plugin
-     */
-    public function init()
-    {
-        // Check if Tutor LMS is active
-        if (!$this->is_tutor_active()) {
-            add_action('admin_notices', array($this, 'tutor_not_active_notice'));
-            return;
-        }
-
-        // Load plugin functionalities
-        $this->load_textdomain();
-        $this->includes();
-        $this->init_features();
-        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
-    }
-
-    /**
-     * Check if Tutor LMS is active
-     */
-    private function is_tutor_active()
-    {
-        return function_exists('tutor') || class_exists('TUTOR\Tutor');
-    }
-
-    /**
-     * Load translations
-     */
-    private function load_textdomain()
-    {
-        load_plugin_textdomain(
-            'quiz-extended',
-            false,
-            dirname(plugin_basename(__FILE__)) . '/languages/'
-        );
-    }
-
-    /**
-     * Activate the plugin
-     */
-    public function activate()
-    {
-        // Check dependencies on activation
-        if (!$this->is_tutor_active()) {
-            deactivate_plugins(plugin_basename(__FILE__));
-            wp_die(__('Quiz Extended requires that Tutor LMS is active.', 'quiz-extended'));
-        }
-
-        // Create basic options if needed
-        add_option('quiz_extended_version', QUIZ_EXTENDED_VERSION);
-    }
-
-    /**
-     * Deactivate the plugin
-     */
-    public function deactivate()
-    {
-        // Limpiar tareas programadas u otros recursos si es necesario
-        delete_option('quiz_extended_version');
-    }
-
-    /**
-     * Show notice if Tutor is not active
-     */
-    public function tutor_not_active_notice()
-    {
-        ?>
-        <div class="notice notice-error">
-            <p><?php _e('Quiz Extended requires that Tutor LMS is installed and active.', 'quiz-extended'); ?></p>
-        </div>
-        <?php
-    }
-
-    public function enqueue_admin_scripts()
-    {
         wp_enqueue_script(
-            'quiz-extended-builder', // Un nombre único para nuestro script
-            QUIZ_EXTENDED_PLUGIN_URL . 'assets/js/questions/quiz-builder.js', // La ruta a nuestro archivo JS
-            ['jquery'], // Dependencias, necesita jQuery
-            QUIZ_EXTENDED_VERSION, // Versión
-            true // Cargar en el footer
+            'quiz-extended-script',
+            QUIZ_EXTENDED_PLUGIN_URL . 'build/index.js',
+            $asset_file['dependencies'], // WordPress sabe que necesita 'react', 'wp-element', etc.
+            $asset_file['version'],      // Versión automática para evitar problemas de caché
+            true
         );
-    }
-
-    public function includes()
-    {
-        // Check if file exists before including
-        $difficulty_manager_file = QUIZ_EXTENDED_PLUGIN_DIR . 'includes/questions/class-difficulty-manager.php';
-        if (file_exists($difficulty_manager_file)) {
-            require_once $difficulty_manager_file;
-        }
-    }
-
-    public function init_features()
-    {
-        // Initialize features like custom fields, hooks, etc.
-        new Quiz_Extended_Difficulty_Manager();
     }
 }
 
