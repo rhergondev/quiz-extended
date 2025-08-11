@@ -2,23 +2,26 @@
   "name": "quiz-extended",
   "version": "1.0.0",
   "description": "Tutor LMS extension for advanced questionnaires",
-  "main": "index.js",
+  "main": "build/index.js",
   "scripts": {
     "build": "wp-scripts build",
-    "start": "wp-scripts start"
+    "start": "wp-scripts start",
+    "dev": "wp-scripts start"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rhergondev/quiz-extended.git"
   },
-  "keywords": [],
+  "keywords": ["wordpress", "plugin", "quiz", "tutor-lms"],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/rhergondev/quiz-extended/issues"
   },
   "homepage": "https://github.com/rhergondev/quiz-extended#readme",
+  "dependencies": {
+    "@wordpress/element": "^6.8.0"
+  },
   "devDependencies": {
     "@wordpress/scripts": "^30.21.0"
   }
