@@ -90,4 +90,14 @@ function quiz_extended_enqueue_admin_scripts($hook)
         $asset_file['version'],      // Versión para evitar caché.
         true                         // Cargar en el footer.
     );
+
+    wp_localize_script(
+        'quiz-extended-admin-script',
+        'quizExtendedData',
+        [
+            'nonce'     => wp_create_nonce('wp_rest'), // Lo dejamos, no hace daño.
+            'author_id' => get_current_user_id()     // Obtenemos el ID del usuario actual.
+        ]
+    );
 }
+
