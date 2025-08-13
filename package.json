@@ -28,7 +28,8 @@
   "homepage": "https://github.com/rhergondev/quiz-extended#readme",
   "dependencies": {
     "@wordpress/element": "^6.8.0",
-    "lucide-react": "^0.539.0"
+    "lucide-react": "^0.539.0",
+    "react-quill": "^2.0.0"
   },
   "devDependencies": {
     "@wordpress/scripts": "^30.21.0",
