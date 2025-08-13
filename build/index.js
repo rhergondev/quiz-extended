@@ -1,1 +1,165 @@
-(()=>{"use strict";const e=window.React,t=window.wp.element,o=window.ReactJSXRuntime,s=({label:e,children:t,htmlFor:s})=>(0,o.jsxs)("div",{style:{marginBottom:"15px"},children:[(0,o.jsx)("label",{htmlFor:s,style:{fontWeight:"600",display:"block",marginBottom:"5px",fontSize:"14px"},children:e}),t]}),n=()=>{const{author_id:t}=window.quizExtendedData,n="Basic "+btoa("key_e6c6f22ea04bf8f1b2618a86067e6345:secret_2cb92b66c737d6a6bd96ec6e797691eaba149009cdab8d653b2a0528ee1b321d"),r={post_title:"",post_content:"",post_excerpt:"",course_level:"beginner",course_benefits:"",duration_hours:"1",duration_minutes:"30"},[i,l]=(0,e.useState)(r),[a,d]=(0,e.useState)({message:"Rellena los campos para crear un nuevo curso.",type:"info"}),[p,c]=(0,e.useState)(!1),u=e=>{const{name:t,value:o}=e.target;l(e=>({...e,[t]:o}))};return(0,o.jsxs)("div",{style:{padding:"20px",margin:"20px",backgroundColor:"#f6f7f7",border:"1px solid #c3c4c7",borderRadius:"4px",fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif'},children:[(0,o.jsx)("h1",{style:{fontSize:"23px",fontWeight:"400",margin:"0 0 20px"},children:"Creador de Cursos Personalizado"}),(0,o.jsxs)("div",{style:{backgroundColor:"white",padding:"20px",border:"1px solid #c3c4c7"},children:[(0,o.jsx)(s,{label:"Título del Curso",htmlFor:"post_title",children:(0,o.jsx)("input",{type:"text",id:"post_title",name:"post_title",value:i.post_title,onChange:u,style:{width:"100%",padding:"8px"}})}),(0,o.jsx)(s,{label:"Descripción Principal",htmlFor:"post_content",children:(0,o.jsx)("textarea",{id:"post_content",name:"post_content",value:i.post_content,onChange:u,style:{width:"100%",padding:"8px",minHeight:"120px"}})}),(0,o.jsx)(s,{label:"Resumen (Descripción Corta)",htmlFor:"post_excerpt",children:(0,o.jsx)("textarea",{id:"post_excerpt",name:"post_excerpt",value:i.post_excerpt,onChange:u,style:{width:"100%",padding:"8px",minHeight:"60px"}})}),(0,o.jsx)(s,{label:"Beneficios del Curso",htmlFor:"course_benefits",children:(0,o.jsx)("input",{type:"text",id:"course_benefits",name:"course_benefits",value:i.course_benefits,onChange:u,placeholder:"Ej: Aprenderás X, Y y Z",style:{width:"100%",padding:"8px"}})}),(0,o.jsxs)("div",{style:{display:"flex",gap:"20px"},children:[(0,o.jsx)("div",{style:{flex:1},children:(0,o.jsx)(s,{label:"Nivel",htmlFor:"course_level",children:(0,o.jsxs)("select",{id:"course_level",name:"course_level",value:i.course_level,onChange:u,style:{width:"100%",padding:"8px"},children:[(0,o.jsx)("option",{value:"beginner",children:"Principiante"}),(0,o.jsx)("option",{value:"intermediate",children:"Intermedio"}),(0,o.jsx)("option",{value:"expert",children:"Experto"})]})})}),(0,o.jsx)("div",{style:{flex:1},children:(0,o.jsx)(s,{label:"Horas",htmlFor:"duration_hours",children:(0,o.jsx)("input",{type:"number",id:"duration_hours",name:"duration_hours",value:i.duration_hours,onChange:u,style:{width:"100%",padding:"8px"}})})}),(0,o.jsx)("div",{style:{flex:1},children:(0,o.jsx)(s,{label:"Minutos",htmlFor:"duration_minutes",children:(0,o.jsx)("input",{type:"number",id:"duration_minutes",name:"duration_minutes",value:i.duration_minutes,onChange:u,style:{width:"100%",padding:"8px"}})})})]}),(0,o.jsx)("button",{onClick:()=>{if(!i.post_title)return void d({message:"El título del curso es obligatorio.",type:"error"});c(!0),d({message:"Creando curso, por favor espera...",type:"info"});const e={post_author:t,post_title:i.post_title,post_content:i.post_content,post_excerpt:i.post_excerpt,post_status:"publish",course_level:i.course_level,additional_content:{course_benefits:i.course_benefits,course_duration:{hours:i.duration_hours,minutes:i.duration_minutes}}};fetch("http://localhost:8000/wp-json/tutor/v1/courses",{method:"POST",headers:{"Content-Type":"application/json",Authorization:n},body:JSON.stringify(e)}).then(async e=>{const t=await e.json();if(!e.ok)throw new Error(t.message||`Error HTTP ${e.status}`);return t}).then(e=>{d({message:`✅ ¡Éxito! Curso "${e.post_title}" creado con ID: ${e.ID}`,type:"success"}),l(r)}).catch(e=>{d({message:`❌ Fallo: ${e.message}`,type:"error"}),console.error("Detalles del error:",e)}).finally(()=>{c(!1)})},disabled:p,style:{marginTop:"10px",padding:"10px 20px",fontSize:"14px",cursor:"pointer",backgroundColor:"#2271b1",color:"white",border:"none",borderRadius:"3px"},children:p?"Creando...":"Crear Curso"}),a.message&&(0,o.jsx)("p",{style:{marginTop:"20px",padding:"10px",borderLeft:"4px solid "+("success"===a.type?"#4CAF50":"error"===a.type?"#F44336":"#2196F3"),backgroundColor:"#f8f8f8"},children:a.message})]})]})},r=document.getElementById("quiz-extended-react-admin-app");r&&(0,t.render)((0,o.jsx)(n,{}),r)})();
+/******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+/******/ 	var __webpack_modules__ = ({
+
+/***/ "./src/styles/index.css":
+/*!******************************!*\
+  !*** ./src/styles/index.css ***!
+  \******************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+// extracted by mini-css-extract-plugin
+
+
+/***/ }),
+
+/***/ "@wordpress/element":
+/*!*********************************!*\
+  !*** external ["wp","element"] ***!
+  \*********************************/
+/***/ ((module) => {
+
+module.exports = window["wp"]["element"];
+
+/***/ }),
+
+/***/ "react":
+/*!************************!*\
+  !*** external "React" ***!
+  \************************/
+/***/ ((module) => {
+
+module.exports = window["React"];
+
+/***/ }),
+
+/***/ "react/jsx-runtime":
+/*!**********************************!*\
+  !*** external "ReactJSXRuntime" ***!
+  \**********************************/
+/***/ ((module) => {
+
+module.exports = window["ReactJSXRuntime"];
+
+/***/ })
+
+/******/ 	});
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	var __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		if (cachedModule !== undefined) {
+/******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/************************************************************************/
+/******/ 	/* webpack/runtime/compat get default export */
+/******/ 	(() => {
+/******/ 		// getDefaultExport function for compatibility with non-harmony modules
+/******/ 		__webpack_require__.n = (module) => {
+/******/ 			var getter = module && module.__esModule ?
+/******/ 				() => (module['default']) :
+/******/ 				() => (module);
+/******/ 			__webpack_require__.d(getter, { a: getter });
+/******/ 			return getter;
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/define property getters */
+/******/ 	(() => {
+/******/ 		// define getter functions for harmony exports
+/******/ 		__webpack_require__.d = (exports, definition) => {
+/******/ 			for(var key in definition) {
+/******/ 				if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
+/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 				}
+/******/ 			}
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
+/******/ 	(() => {
+/******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/make namespace object */
+/******/ 	(() => {
+/******/ 		// define __esModule on exports
+/******/ 		__webpack_require__.r = (exports) => {
+/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 			}
+/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/************************************************************************/
+var __webpack_exports__ = {};
+// This entry needs to be wrapped in an IIFE because it needs to be isolated against other modules in the chunk.
+(() => {
+/*!**********************!*\
+  !*** ./src/index.js ***!
+  \**********************/
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "react");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _wordpress_element__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @wordpress/element */ "@wordpress/element");
+/* harmony import */ var _wordpress_element__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(_wordpress_element__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var _styles_index_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./styles/index.css */ "./src/styles/index.css");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! react/jsx-runtime */ "react/jsx-runtime");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__);
+
+
+
+
+// --- Componente Principal de la Aplicación ---
+
+const QuizExtendedApp = () => {
+  return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
+    style: {
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif'
+    },
+    children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
+      className: "bg-stone-100 min-h-screen flex items-center justify-center font-sans",
+      children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("div", {
+        className: "bg-indigo-600 text-white p-8 rounded-lg shadow-lg",
+        children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("h1", {
+          className: "text-3xl font-bold",
+          children: "\xA1Tailwind CSS est\xE1 funcionando!"
+        }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("p", {
+          className: "mt-2",
+          children: "Ahora puedes empezar a construir tu interfaz."
+        })]
+      })
+    })
+  });
+};
+
+// Renderizar la aplicación en el div target
+const targetDiv = document.getElementById('quiz-extended-react-admin-app');
+if (targetDiv) {
+  (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_1__.render)(/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(QuizExtendedApp, {}), targetDiv);
+}
+})();
+
+/******/ })()
+;
+//# sourceMappingURL=index.js.map

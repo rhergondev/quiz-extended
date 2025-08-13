@@ -1,0 +1,22 @@
+/*
+ * /src/styles/index.css
+ *
+ * Este es el archivo CSS principal de la aplicación.
+ * Aquí se importan las directivas de Tailwind CSS, que son la base
+ * para que las clases de utilidad funcionen en todo el proyecto.
+ *
+ * También puedes añadir estilos globales o base si es necesario.
+ */
+
+/* Importa las capas base, de componentes y de utilidades de Tailwind. */
+@import './tailwind.css';
+
+/*
+ * Ejemplo de estilos base globales.
+ * Estos se aplican a toda la aplicación para mejorar la consistencia
+ * y la apariencia de la tipografía.
+ */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

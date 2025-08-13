@@ -91,11 +91,19 @@ function quiz_extended_enqueue_admin_scripts($hook)
         true                         // Cargar en el footer.
     );
 
+    // Ponemos en cola nuestro CSS compilado con Tailwind.
+    wp_enqueue_style(
+        'quiz-extended-admin-style',
+        plugin_dir_url(__FILE__) . 'build/index.css',
+        [],
+        $asset_file['version']
+    );
+
     wp_localize_script(
         'quiz-extended-admin-script',
         'quizExtendedData',
         [
-            'nonce'     => wp_create_nonce('wp_rest'), // Lo dejamos, no hace daño.
+            'nonce' => wp_create_nonce('wp_rest'), // Lo dejamos, no hace daño.
             'author_id' => get_current_user_id()     // Obtenemos el ID del usuario actual.
         ]
     );
