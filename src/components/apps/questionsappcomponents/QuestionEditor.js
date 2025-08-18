@@ -11,8 +11,6 @@ const QuestionEditor = ({
   currentPosition = null,
   totalQuestions = null
 }) => {
-  // --- ESTADO ÚNICO Y CENTRALIZADO ---
-  // Contiene los datos de la pregunta y la configuración de la sidebar
   const [editorState, setEditorState] = useState({
     title: '',
     description: '',
@@ -129,38 +127,28 @@ const QuestionEditor = ({
   };
 
   return (
-    <div className="w-full">
-        {/* Header inteligente con contexto */}
-        <QuestionEditorHeader
-          questionId={questionId}
-          onBack={onBack}
-          context={context}
-          currentPosition={currentPosition}
-          totalQuestions={totalQuestions}
-          hasUnsavedChanges={hasUnsavedChanges}
-        />
-        
-        {/* Contenedor Flex para el área principal y la sidebar */}
-        <div className="flex">
-            {/* El área de la pregunta ahora recibe todo por props */}
-            <QuestionArea
-                questionData={editorState}
-                onDataChange={handleSimpleChange}
-                onOptionChange={handleOptionTextChange}
-                onSetCorrect={handleSetCorrectOption}
-                onAddOption={handleAddOption}
-                onRemoveOption={handleRemoveOption}
+    <div className="w-3/4 h-auto">
+      {/* Contenedor Flex para el área principal y la sidebar */}
+      <div className="flex">
+          {/* El área de la pregunta ahora recibe todo por props */}
+          <QuestionArea className="p-6"
+              questionData={editorState}
+              onDataChange={handleSimpleChange}
+              onOptionChange={handleOptionTextChange}
+              onSetCorrect={handleSetCorrectOption}
+              onAddOption={handleAddOption}
+              onRemoveOption={handleRemoveOption}
+          />
+          {/* La sidebar también debe ser controlada */}
+        <div className="bg-white p-0 shadow-md rounded-t-lg">
+            <ConfigSidebar
+                configuracion={editorState.config}
+                onChange={handleSimpleChange}
             />
-            {/* La sidebar también debe ser controlada */}
-            <div className="w-80 bg-white p-6 shadow-md rounded-t-lg">
-                <ConfigSidebar
-                    configuracion={editorState.config}
-                    onChange={handleSimpleChange}
-                />
-            </div>
         </div>
-        {/* El cabinet se renderiza debajo del contenedor flex */}
-        <QuestionEditorCabinet onSave={handleSave} onSaveAndNew={handleSaveAndNew} />
+      </div>
+      {/* El cabinet se renderiza debajo del contenedor flex */}
+      <QuestionEditorCabinet onSave={handleSave} onSaveAndNew={handleSaveAndNew} />
     </div>
   );
 };

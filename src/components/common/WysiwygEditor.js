@@ -1,25 +1,27 @@
-// WysiwygEditor.js
+// src/components/common/WysiwygEditor.js
+
 import React from 'react';
 import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css'; // Importa los estilos del tema 'snow'
+import 'react-quill/dist/quill.snow.css'; // Estilos base de Quill
+
+// -> 1. Importa un nuevo archivo CSS para los estilos personalizados
+import './WysiwygEditor.css'; 
 
 const WysiwygEditor = ({ label, name, value, onChange }) => {
-  // React Quill no usa e.target.value, sino que pasa el contenido HTML directamente.
-  // Creamos una función 'wrapper' para adaptarlo a nuestro 'handleChange' del formulario.
   const handleChange = (content) => {
-    // Simulamos la estructura del evento 'e' que esperan nuestros otros componentes
     const event = {
-      target: {
-        name: name,
-        value: content
-      }
+      target: { name: name, value: content }
     };
     onChange(event);
   };
 
   return (
-    <div>
-      <label>{label}</label>
+    // -> 2. Contenedor principal con la clase 'wysiwyg-container' para aplicar estilos
+    <div className="w-full wysiwyg-container">
+      {/* -> 3. Etiqueta con los mismos estilos que los otros componentes */}
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
       <ReactQuill
         theme="snow"
         value={value}

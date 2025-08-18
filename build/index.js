@@ -15306,7 +15306,7 @@ const QuestionsApp = () => {
   };
   if (currentView === 'editor') {
     return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
-      className: "min-h-screen bg-gray-100 font-sans p-8",
+      className: "max-w-3/4 min-h-screen bg-gray-100 font-sans p-8 h-screen",
       children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(_questionsappcomponents_QuestionEditor__WEBPACK_IMPORTED_MODULE_1__["default"], {
         questionId: editingQuestion,
         onBack: handleBackToList
@@ -15340,14 +15340,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "react");
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var _common_SelectDropdown_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../common/SelectDropdown.js */ "./src/components/common/SelectDropdown.js");
+/* harmony import */ var _common_Dropdown_jsx__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../common/Dropdown.jsx */ "./src/components/common/Dropdown.jsx");
 /* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! react/jsx-runtime */ "react/jsx-runtime");
 /* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__);
 
 
-
-// --- Datos de ejemplo para los 5 Dropdowns ---
-// En una aplicación real, estos datos podrían venir de una API o un archivo de configuración.
 
 const opcionesTipoPregunta = [{
   value: 'opcion_multiple',
@@ -15408,12 +15405,11 @@ const opcionesEstado = [{
 const ConfigSidebar = () => {
   // Estado único para almacenar la configuración de la barra lateral
   const [configuracion, setConfiguracion] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)({
-    tipoPregunta: 'opcion_multiple',
-    // Valor inicial
-    dificultad: 'media',
-    categoria: 'ciencia',
-    tiempoLimite: '30',
-    estado: 'borrador'
+    tipoPregunta: null,
+    dificultad: null,
+    categoria: null,
+    tiempoLimite: null,
+    estado: null
   });
 
   // Manejador único para todos los cambios en los dropdowns
@@ -15428,52 +15424,40 @@ const ConfigSidebar = () => {
     }));
   };
   return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsxs)("aside", {
+    className: "h-full w-full md:w-80 p-4 bg-gray-50 border-l border-gray-200 flex flex-col gap-5",
     children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("h3", {
+      className: "text-lg font-semibold text-gray-800 border-b pb-2",
       children: "Configuraci\xF3n de la Pregunta"
-    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)(_common_SelectDropdown_js__WEBPACK_IMPORTED_MODULE_1__["default"], {
-      label: "Tipo de Pregunta:",
+    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)(_common_Dropdown_jsx__WEBPACK_IMPORTED_MODULE_1__["default"], {
+      title: "Tipo de Pregunta:",
       name: "tipoPregunta",
       value: configuracion.tipoPregunta,
       onChange: handleChange,
       options: opcionesTipoPregunta
-    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)(_common_SelectDropdown_js__WEBPACK_IMPORTED_MODULE_1__["default"], {
-      label: "Dificultad:",
+    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)(_common_Dropdown_jsx__WEBPACK_IMPORTED_MODULE_1__["default"], {
+      title: "Dificultad:",
       name: "dificultad",
       value: configuracion.dificultad,
       onChange: handleChange,
       options: opcionesDificultad
-    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)(_common_SelectDropdown_js__WEBPACK_IMPORTED_MODULE_1__["default"], {
-      label: "Categor\xEDa:",
+    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)(_common_Dropdown_jsx__WEBPACK_IMPORTED_MODULE_1__["default"], {
+      title: "Categor\xEDa:",
       name: "categoria",
       value: configuracion.categoria,
       onChange: handleChange,
       options: opcionesCategoria
-    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)(_common_SelectDropdown_js__WEBPACK_IMPORTED_MODULE_1__["default"], {
-      label: "Tiempo L\xEDmite:",
+    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)(_common_Dropdown_jsx__WEBPACK_IMPORTED_MODULE_1__["default"], {
+      title: "Tiempo L\xEDmite:",
       name: "tiempoLimite",
       value: configuracion.tiempoLimite,
       onChange: handleChange,
       options: opcionesTiempo
-    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)(_common_SelectDropdown_js__WEBPACK_IMPORTED_MODULE_1__["default"], {
-      label: "Estado:",
+    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)(_common_Dropdown_jsx__WEBPACK_IMPORTED_MODULE_1__["default"], {
+      title: "Estado:",
       name: "estado",
       value: configuracion.estado,
       onChange: handleChange,
       options: opcionesEstado
-    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("hr", {
-      style: {
-        margin: '20px 0'
-      }
-    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsxs)("div", {
-      style: {
-        fontFamily: 'monospace',
-        fontSize: '12px'
-      },
-      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("h4", {
-        children: "Estado Actual de la Configuraci\xF3n:"
-      }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("pre", {
-        children: JSON.stringify(configuracion, null, 2)
-      })]
     })]
   });
 };
@@ -15582,8 +15566,6 @@ const QuestionEditor = ({
   currentPosition = null,
   totalQuestions = null
 }) => {
-  // --- ESTADO ÚNICO Y CENTRALIZADO ---
-  // Contiene los datos de la pregunta y la configuración de la sidebar
   const [editorState, setEditorState] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)({
     title: '',
     description: '',
@@ -15726,17 +15708,11 @@ const QuestionEditor = ({
     setNextId(3);
   };
   return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
-    className: "w-full",
-    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)(_QuestionEditorHeader__WEBPACK_IMPORTED_MODULE_4__["default"], {
-      questionId: questionId,
-      onBack: onBack,
-      context: context,
-      currentPosition: currentPosition,
-      totalQuestions: totalQuestions,
-      hasUnsavedChanges: hasUnsavedChanges
-    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
+    className: "w-3/4 h-auto",
+    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsxs)("div", {
       className: "flex",
       children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)(_QuestionArea__WEBPACK_IMPORTED_MODULE_1__["default"], {
+        className: "p-6",
         questionData: editorState,
         onDataChange: handleSimpleChange,
         onOptionChange: handleOptionTextChange,
@@ -15744,7 +15720,7 @@ const QuestionEditor = ({
         onAddOption: handleAddOption,
         onRemoveOption: handleRemoveOption
       }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)("div", {
-        className: "w-80 bg-white p-6 shadow-md rounded-t-lg",
+        className: "bg-white p-0 shadow-md rounded-t-lg",
         children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_5__.jsx)(_ConfigSidebar__WEBPACK_IMPORTED_MODULE_2__["default"], {
           configuracion: editorState.config,
           onChange: handleSimpleChange
@@ -16161,6 +16137,97 @@ const Button = ({
 
 /***/ }),
 
+/***/ "./src/components/common/Dropdown.jsx":
+/*!********************************************!*\
+  !*** ./src/components/common/Dropdown.jsx ***!
+  \********************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "react");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react/jsx-runtime */ "react/jsx-runtime");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__);
+
+
+// 1. Aceptamos las nuevas props: name, value (valor actual), y onChange (manejador del padre)
+
+const Dropdown = ({
+  options,
+  title,
+  placeholder = "Select an option",
+  name,
+  value,
+  onChange
+}) => {
+  const [isOpen, setIsOpen] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
+  const selectedOption = options.find(option => option.value === value);
+  const handleSelect = option => {
+    if (onChange) {
+      onChange({
+        target: {
+          name: name,
+          value: option.value
+        }
+      });
+    }
+    setIsOpen(false);
+  };
+  return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsxs)("div", {
+    className: "w-full",
+    children: [title && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("label", {
+      className: "block text-sm font-medium text-gray-700 mb-1",
+      children: title
+    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsxs)("div", {
+      className: "relative inline-block w-full text-left",
+      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("div", {
+        children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsxs)("button", {
+          type: "button",
+          className: "inline-flex justify-between w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+          onClick: () => setIsOpen(!isOpen),
+          children: [selectedOption ? selectedOption.label : placeholder, /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("svg", {
+            className: "-mr-1 ml-2 h-5 w-5",
+            xmlns: "http://www.w3.org/2000/svg",
+            viewBox: "0 0 20 20",
+            fill: "currentColor",
+            "aria-hidden": "true",
+            children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("path", {
+              fillRule: "evenodd",
+              d: "M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z",
+              clipRule: "evenodd"
+            })
+          })]
+        })
+      }), isOpen && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("div", {
+        className: "origin-top-right absolute right-0 mt-2 w-full rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10",
+        children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("div", {
+          className: "py-1",
+          role: "menu",
+          "aria-orientation": "vertical",
+          "aria-labelledby": "options-menu",
+          children: options.map(option => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("a", {
+            href: "#",
+            className: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900",
+            role: "menuitem",
+            onClick: e => {
+              e.preventDefault();
+              handleSelect(option);
+            },
+            children: option.label
+          }, option.value))
+        })
+      })]
+    })]
+  });
+};
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (Dropdown);
+
+/***/ }),
+
 /***/ "./src/components/common/InputField.js":
 /*!*********************************************!*\
   !*** ./src/components/common/InputField.js ***!
@@ -16176,7 +16243,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react/jsx-runtime */ "react/jsx-runtime");
 /* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__);
-// InputField.js
 
 
 const InputField = ({
@@ -16187,18 +16253,29 @@ const InputField = ({
   onChange,
   placeholder
 }) => {
-  return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsxs)("div", {
-    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("label", {
-      htmlFor: name,
-      children: label
-    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("input", {
-      type: type,
-      name: name,
-      value: value,
-      onChange: onChange,
-      placeholder: placeholder
-    })]
-  });
+  return (
+    /*#__PURE__*/
+    // Contenedor principal que organiza la etiqueta y el input verticalmente
+    (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsxs)("div", {
+      className: "w-full",
+      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("label", {
+        htmlFor: name,
+        className: "block text-sm font-medium text-gray-700 mb-1",
+        children: label
+      }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("input", {
+        type: type,
+        id: name // 'id' debe coincidir con el 'htmlFor' de la etiqueta para accesibilidad
+        ,
+        name: name,
+        value: value,
+        onChange: onChange,
+        placeholder: placeholder
+        // Clases de Tailwind para el estilo
+        ,
+        className: " block w-full px-3 py-2  border border-gray-300 rounded-md shadow-sm  placeholder-gray-400  focus:outline-none focus:ring-indigo-500 focus:border-indigo-500  sm:text-sm "
+      })]
+    })
+  );
 };
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (InputField);
 
@@ -16218,9 +16295,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "react");
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var _Button__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./Button */ "./src/components/common/Button.js");
-/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! react/jsx-runtime */ "react/jsx-runtime");
-/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var _shared_icons__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../shared/icons */ "./src/components/shared/icons.js");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! react/jsx-runtime */ "react/jsx-runtime");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__);
 
+ // Tu componente de botón reutilizable
 
 
 const MultipleChoiceEditor = ({
@@ -16230,89 +16309,74 @@ const MultipleChoiceEditor = ({
   onAddOption,
   onRemoveOption
 }) => {
-  return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsxs)("div", {
-    className: "my-8",
-    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("label", {
-      className: "block text-gray-700 text-sm font-bold mb-2",
-      children: "Opciones de Respuesta:"
-    }), options.map((option, index) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsxs)("div", {
-      className: "flex items-center mb-3",
-      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("input", {
-        type: "text",
-        placeholder: `Opción ${index + 1}`,
-        value: option.text,
-        onChange: e => onOptionChange(option.id, e.target.value),
-        className: "flex-grow p-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("button", {
-        type: "button",
-        onClick: () => onSetCorrect(option.id),
-        className: `p-2 border-t border-b transition-colors ${option.isCorrect ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-gray-200 hover:bg-gray-300'}`,
-        title: "Marcar como correcta",
-        children: "\u2713"
-      }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("button", {
-        type: "button",
-        onClick: () => onRemoveOption(option.id),
-        className: "bg-red-500 text-white p-2 rounded-r-md hover:bg-red-600 transition-colors",
-        title: "Eliminar opci\xF3n",
-        children: "X"
+  return (
+    /*#__PURE__*/
+    // Contenedor principal con un ancho máximo para controlar el ensanchamiento.
+    (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("div", {
+      className: "w-full mx-auto my-6",
+      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("label", {
+        className: "block text-sm font-medium text-gray-700 mb-2",
+        children: "Opciones de Respuesta"
+      }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
+        className: "space-y-3",
+        children: options.map((option, index) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("div", {
+          className: "flex items-center gap-2",
+          children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("input", {
+            type: "text",
+            placeholder: `Opción ${index + 1}`,
+            value: option.text,
+            onChange: e => onOptionChange(option.id, e.target.value),
+            className: " block w-full px-3 py-2 flex-grow border border-gray-300 rounded-md shadow-sm  placeholder-gray-400  focus:outline-none focus:ring-indigo-500 focus:border-indigo-500  sm:text-sm "
+          }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("div", {
+            className: "flex-shrink-0 flex items-center",
+            children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("button", {
+              type: "button",
+              onClick: () => onSetCorrect(option.id),
+              className: `
+                  p-2 border rounded-l-md transition-colors duration-150
+                  ${option.isCorrect ? 'bg-green-500 text-white hover:bg-green-600 border-green-500' : 'bg-white hover:bg-gray-100 border-gray-300 text-gray-500'}
+                `,
+              title: "Marcar como correcta",
+              children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(_shared_icons__WEBPACK_IMPORTED_MODULE_2__.Check, {
+                className: "h-5 w-5"
+              })
+            }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("button", {
+              type: "button",
+              onClick: () => onRemoveOption(option.id),
+              className: " bg-white text-gray-500 p-2 rounded-r-md border-t border-b border-r border-gray-300 hover:bg-red-500 hover:text-white transition-colors duration-150 ",
+              title: "Eliminar opci\xF3n",
+              children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(_shared_icons__WEBPACK_IMPORTED_MODULE_2__.Trash, {
+                className: "h-5 w-5"
+              })
+            })]
+          })]
+        }, option.id))
+      }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
+        className: "mt-4",
+        children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(_Button__WEBPACK_IMPORTED_MODULE_1__["default"], {
+          onClick: onAddOption,
+          type: "button",
+          variant: "secondary",
+          children: "+ A\xF1adir Opci\xF3n"
+        })
       })]
-    }, option.id)), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)(_Button__WEBPACK_IMPORTED_MODULE_1__["default"], {
-      onClick: onAddOption,
-      type: "button",
-      children: "A\xF1adir Opci\xF3n"
-    })]
-  });
+    })
+  );
 };
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (MultipleChoiceEditor);
 
 /***/ }),
 
-/***/ "./src/components/common/SelectDropdown.js":
+/***/ "./src/components/common/WysiwygEditor.css":
 /*!*************************************************!*\
-  !*** ./src/components/common/SelectDropdown.js ***!
+  !*** ./src/components/common/WysiwygEditor.css ***!
   \*************************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
-/* harmony export */ });
-/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "react");
-/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react/jsx-runtime */ "react/jsx-runtime");
-/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__);
-// SelectDropdown.js
+// extracted by mini-css-extract-plugin
 
-
-const SelectDropdown = ({
-  label,
-  name,
-  value,
-  onChange,
-  options
-}) => {
-  // It's a good practice to ensure 'options' is an array
-  if (!Array.isArray(options)) {
-    console.error("Options prop must be an array.");
-    return null;
-  }
-  return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsxs)("div", {
-    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("label", {
-      htmlFor: name,
-      children: label
-    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("select", {
-      name: name,
-      value: value,
-      onChange: onChange,
-      children: options.map(option => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("option", {
-        value: option.value,
-        children: option.label
-      }, option.value))
-    })]
-  });
-};
-/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (SelectDropdown);
 
 /***/ }),
 
@@ -16332,12 +16396,17 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react_quill__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react-quill */ "./node_modules/react-quill/lib/index.js");
 /* harmony import */ var react_quill__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react_quill__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var react_quill_dist_quill_snow_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! react-quill/dist/quill.snow.css */ "./node_modules/react-quill/dist/quill.snow.css");
-/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! react/jsx-runtime */ "react/jsx-runtime");
-/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__);
-// WysiwygEditor.js
+/* harmony import */ var _WysiwygEditor_css__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./WysiwygEditor.css */ "./src/components/common/WysiwygEditor.css");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! react/jsx-runtime */ "react/jsx-runtime");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4___default = /*#__PURE__*/__webpack_require__.n(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__);
+// src/components/common/WysiwygEditor.js
 
 
- // Importa los estilos del tema 'snow'
+
+ // Estilos base de Quill
+
+// -> 1. Importa un nuevo archivo CSS para los estilos personalizados
+
 
 const WysiwygEditor = ({
   label,
@@ -16345,10 +16414,7 @@ const WysiwygEditor = ({
   value,
   onChange
 }) => {
-  // React Quill no usa e.target.value, sino que pasa el contenido HTML directamente.
-  // Creamos una función 'wrapper' para adaptarlo a nuestro 'handleChange' del formulario.
   const handleChange = content => {
-    // Simulamos la estructura del evento 'e' que esperan nuestros otros componentes
     const event = {
       target: {
         name: name,
@@ -16357,17 +16423,457 @@ const WysiwygEditor = ({
     };
     onChange(event);
   };
-  return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("div", {
-    children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("label", {
-      children: label
-    }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)((react_quill__WEBPACK_IMPORTED_MODULE_1___default()), {
-      theme: "snow",
-      value: value,
-      onChange: handleChange
-    })]
-  });
+  return (
+    /*#__PURE__*/
+    // -> 2. Contenedor principal con la clase 'wysiwyg-container' para aplicar estilos
+    (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxs)("div", {
+      className: "w-full wysiwyg-container",
+      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)("label", {
+        className: "block text-sm font-medium text-gray-700 mb-1",
+        children: label
+      }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_4__.jsx)((react_quill__WEBPACK_IMPORTED_MODULE_1___default()), {
+        theme: "snow",
+        value: value,
+        onChange: handleChange
+      })]
+    })
+  );
 };
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (WysiwygEditor);
+
+/***/ }),
+
+/***/ "./src/components/shared/icons.js":
+/*!****************************************!*\
+  !*** ./src/components/shared/icons.js ***!
+  \****************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   AlignCenter: () => (/* binding */ AlignCenter),
+/* harmony export */   AlignLeft: () => (/* binding */ AlignLeft),
+/* harmony export */   AlignRight: () => (/* binding */ AlignRight),
+/* harmony export */   Bold: () => (/* binding */ Bold),
+/* harmony export */   Check: () => (/* binding */ Check),
+/* harmony export */   Eye: () => (/* binding */ Eye),
+/* harmony export */   Italic: () => (/* binding */ Italic),
+/* harmony export */   Link: () => (/* binding */ Link),
+/* harmony export */   List: () => (/* binding */ List),
+/* harmony export */   ListOrdered: () => (/* binding */ ListOrdered),
+/* harmony export */   Plus: () => (/* binding */ Plus),
+/* harmony export */   Save: () => (/* binding */ Save),
+/* harmony export */   Send: () => (/* binding */ Send),
+/* harmony export */   Trash: () => (/* binding */ Trash),
+/* harmony export */   Trash2: () => (/* binding */ Trash2),
+/* harmony export */   Underline: () => (/* binding */ Underline)
+/* harmony export */ });
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react/jsx-runtime */ "react/jsx-runtime");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__);
+
+const Eye = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", {
+    d: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("circle", {
+    cx: "12",
+    cy: "12",
+    r: "3"
+  })]
+});
+const Save = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", {
+    d: "M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("polyline", {
+    points: "17,21 17,13 7,13 7,21"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("polyline", {
+    points: "7,3 7,8 15,8"
+  })]
+});
+const Plus = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "12",
+    y1: "5",
+    x2: "12",
+    y2: "19"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "5",
+    y1: "12",
+    x2: "19",
+    y2: "12"
+  })]
+});
+const Trash2 = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("polyline", {
+    points: "3,6 5,6 21,6"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", {
+    d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "10",
+    y1: "11",
+    x2: "10",
+    y2: "17"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "14",
+    y1: "11",
+    x2: "14",
+    y2: "17"
+  })]
+});
+const Send = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "22",
+    y1: "2",
+    x2: "11",
+    y2: "13"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("polygon", {
+    points: "22,2 15,22 11,13 2,9 22,2"
+  })]
+});
+const Bold = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", {
+    d: "M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", {
+    d: "M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"
+  })]
+});
+const Italic = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "19",
+    y1: "4",
+    x2: "10",
+    y2: "4"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "14",
+    y1: "20",
+    x2: "5",
+    y2: "20"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "15",
+    y1: "4",
+    x2: "9",
+    y2: "20"
+  })]
+});
+const Underline = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", {
+    d: "M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "4",
+    y1: "21",
+    x2: "20",
+    y2: "21"
+  })]
+});
+const List = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "8",
+    y1: "6",
+    x2: "21",
+    y2: "6"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "8",
+    y1: "12",
+    x2: "21",
+    y2: "12"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "8",
+    y1: "18",
+    x2: "21",
+    y2: "18"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "3",
+    y1: "6",
+    x2: "3.01",
+    y2: "6"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "3",
+    y1: "12",
+    x2: "3.01",
+    y2: "12"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "3",
+    y1: "18",
+    x2: "3.01",
+    y2: "18"
+  })]
+});
+const ListOrdered = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "10",
+    y1: "6",
+    x2: "21",
+    y2: "6"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "10",
+    y1: "12",
+    x2: "21",
+    y2: "12"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "10",
+    y1: "18",
+    x2: "21",
+    y2: "18"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", {
+    d: "M4 6h1v4"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", {
+    d: "M4 10h2"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", {
+    d: "M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"
+  })]
+});
+const Link = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", {
+    d: "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", {
+    d: "M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+  })]
+});
+const AlignLeft = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "17",
+    y1: "10",
+    x2: "3",
+    y2: "10"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "21",
+    y1: "6",
+    x2: "3",
+    y2: "6"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "21",
+    y1: "14",
+    x2: "3",
+    y2: "14"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "17",
+    y1: "18",
+    x2: "3",
+    y2: "18"
+  })]
+});
+const AlignCenter = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "18",
+    y1: "10",
+    x2: "6",
+    y2: "10"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "21",
+    y1: "6",
+    x2: "3",
+    y2: "6"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "21",
+    y1: "14",
+    x2: "3",
+    y2: "14"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "18",
+    y1: "18",
+    x2: "6",
+    y2: "18"
+  })]
+});
+const AlignRight = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "21",
+    y1: "10",
+    x2: "7",
+    y2: "10"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "21",
+    y1: "6",
+    x2: "3",
+    y2: "6"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "21",
+    y1: "14",
+    x2: "3",
+    y2: "14"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", {
+    x1: "21",
+    y1: "18",
+    x2: "7",
+    y2: "18"
+  })]
+});
+const Check = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+  ...props,
+  children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("polyline", {
+    points: "20 6 9 17 4 12"
+  })
+});
+const Trash = ({
+  size = 16,
+  ...props
+}) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2",
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+  ...props,
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("polyline", {
+    points: "3 6 5 6 21 6"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", {
+    d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+  })]
+});
 
 /***/ }),
 

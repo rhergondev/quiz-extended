@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import Dropdown from '../../common/SelectDropdown.js';
-
-// --- Datos de ejemplo para los 5 Dropdowns ---
-// En una aplicación real, estos datos podrían venir de una API o un archivo de configuración.
+import Dropdown from '../../common/Dropdown.jsx';
 
 const opcionesTipoPregunta = [
   { value: 'opcion_multiple', label: 'Opción Múltiple' },
@@ -40,11 +37,11 @@ const opcionesEstado = [
 const ConfigSidebar = () => {
   // Estado único para almacenar la configuración de la barra lateral
   const [configuracion, setConfiguracion] = useState({
-    tipoPregunta: 'opcion_multiple', // Valor inicial
-    dificultad: 'media',
-    categoria: 'ciencia',
-    tiempoLimite: '30',
-    estado: 'borrador',
+    tipoPregunta: null,
+    dificultad: null,
+    categoria: null,
+    tiempoLimite: null,
+    estado: null,
   });
 
   // Manejador único para todos los cambios en los dropdowns
@@ -57,11 +54,14 @@ const ConfigSidebar = () => {
   };
 
   return (
-    <aside>
-      <h3>Configuración de la Pregunta</h3>
+    <aside className="h-full w-full md:w-80 p-4 bg-gray-50 border-l border-gray-200 flex flex-col gap-5">
+      
+      <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
+        Configuración de la Pregunta
+      </h3>
 
       <Dropdown
-        label="Tipo de Pregunta:"
+        title="Tipo de Pregunta:"
         name="tipoPregunta"
         value={configuracion.tipoPregunta}
         onChange={handleChange}
@@ -69,7 +69,7 @@ const ConfigSidebar = () => {
       />
 
       <Dropdown
-        label="Dificultad:"
+        title="Dificultad:"
         name="dificultad"
         value={configuracion.dificultad}
         onChange={handleChange}
@@ -77,7 +77,7 @@ const ConfigSidebar = () => {
       />
 
       <Dropdown
-        label="Categoría:"
+        title="Categoría:"
         name="categoria"
         value={configuracion.categoria}
         onChange={handleChange}
@@ -85,7 +85,7 @@ const ConfigSidebar = () => {
       />
 
       <Dropdown
-        label="Tiempo Límite:"
+        title="Tiempo Límite:"
         name="tiempoLimite"
         value={configuracion.tiempoLimite}
         onChange={handleChange}
@@ -93,20 +93,12 @@ const ConfigSidebar = () => {
       />
 
       <Dropdown
-        label="Estado:"
+        title="Estado:"
         name="estado"
         value={configuracion.estado}
         onChange={handleChange}
         options={opcionesEstado}
       />
-
-      {/* Bloque para depuración: Muestra el estado actual en tiempo real */}
-      <hr style={{margin: '20px 0'}} />
-      <div style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-        <h4>Estado Actual de la Configuración:</h4>
-        <pre>{JSON.stringify(configuracion, null, 2)}</pre>
-      </div>
-
     </aside>
   );
 };
