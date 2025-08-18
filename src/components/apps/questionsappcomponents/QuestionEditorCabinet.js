@@ -1,5 +1,5 @@
 import React from 'react';
-import Button from '../common/Button';
+import Button from '../../common/Button';
 
 // Este componente es "tonto", solo muestra los botones.
 // En el futuro, recibirá las funciones a ejecutar (onSave, onSaveAndNew) como props.

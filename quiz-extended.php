@@ -49,10 +49,31 @@ function quiz_extended_register_admin_page()
         'Quiz Extended',                    // Título de la página (en la pestaña del navegador).
         'Quiz Extended',                    // Texto del menú.
         'manage_options',                   // Capacidad requerida para ver este menú.
-        'quiz-extended-admin-app',          // 'slug' del menú (URL única).
-        'quiz_extended_render_admin_app',   // Función que renderizará el contenido de la página.
+        'quiz-extended-dashboard',          // 'slug' del menú (URL única).
+        'quiz_extended_render_dashboard',   // Función que renderizará el contenido de la página.
         'dashicons-welcome-learn-more',     // Icono del menú (de Dashicons).
         20                                  // Posición en el menú.
+    );
+
+    add_submenu_page(
+        'quiz-extended-dashboard',          // Slug del menú padre.
+        'Dashboard',                        // Título de la página.
+        'Dashboard',                        // Texto del submenú.
+        'manage_options',                   // Capacidad requerida.
+        'quiz-extended-dashboard',          // Mismo slug que el menú principal para evitar duplicación.
+        'quiz_extended_render_dashboard'    // Función que renderizará el contenido.
+    );
+
+    /**
+     * Añade submenú para Questions
+     */
+    add_submenu_page(
+        'quiz-extended-dashboard',          // Slug del menú padre.
+        'Questions',                        // Título de la página.
+        'Questions',                        // Texto del submenú.
+        'manage_options',                   // Capacidad requerida.
+        'quiz-extended-questions',          // Slug único para esta página.
+        'quiz_extended_render_questions_page' // Función que renderizará el contenido.
     );
 }
 
@@ -60,10 +81,20 @@ function quiz_extended_register_admin_page()
  * 2. Función para renderizar el contenedor de nuestra App de React.
  * Esta función es llamada por el 'add_menu_page' anterior.
  */
-function quiz_extended_render_admin_app()
+function quiz_extended_render_dashboard()
 {
     // Su único trabajo es imprimir el div con el ID donde React se montará.
     echo '<div id="quiz-extended-react-admin-app"></div>';
+}
+
+/**
+ * 3. Función para renderizar la página de Questions.
+ * Esta función renderizará el contenido específico para la sección de Questions.
+ */
+function quiz_extended_render_questions_page()
+{
+    // Contenedor para la aplicación React de Questions
+    echo '<div id="quiz-extended-questions-app"></div>';
 }
 
 
@@ -72,10 +103,14 @@ add_action('admin_enqueue_scripts', 'quiz_extended_enqueue_admin_scripts');
 
 function quiz_extended_enqueue_admin_scripts($hook)
 {
-    // $hook es el 'slug' de la página actual. Así nos aseguramos de no cargar
-    // nuestro script en todo el panel de administración de WordPress.
-    // 'toplevel_page_' es el prefijo que WordPress añade a las páginas de menú principal.
-    if ('toplevel_page_quiz-extended-admin-app' != $hook) {
+    // Lista de páginas donde queremos cargar nuestros scripts
+    $allowed_pages = [
+        'toplevel_page_quiz-extended-dashboard',     // Página principal (Dashboard)
+        'quiz-extended_page_quiz-extended-questions' // Página de Questions
+    ];
+
+    // Verificamos si estamos en una de nuestras páginas
+    if (!in_array($hook, $allowed_pages)) {
         return;
     }
 
@@ -104,7 +139,8 @@ function quiz_extended_enqueue_admin_scripts($hook)
         'quizExtendedData',
         [
             'nonce' => wp_create_nonce('wp_rest'), // Lo dejamos, no hace daño.
-            'author_id' => get_current_user_id()     // Obtenemos el ID del usuario actual.
+            'author_id' => get_current_user_id(),     // Obtenemos el ID del usuario actual.
+            'current_page' => $hook // Añadimos información sobre la página actual
         ]
     );
 }

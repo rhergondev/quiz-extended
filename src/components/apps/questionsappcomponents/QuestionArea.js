@@ -1,7 +1,7 @@
 import React from 'react';
-import InputField from '../common/InputField';
-import WysiwygEditor from '../common/WysiwygEditor';
-import MultipleChoiceEditor from '../common/MultipleChoiceEditor';
+import InputField from '../../common/InputField';
+import WysiwygEditor from '../../common/WysiwygEditor';
+import MultipleChoiceEditor from '../../common/MultipleChoiceEditor';
 
 // Este componente ahora es solo de presentación, no tiene lógica propia.
 const QuestionArea = ({ questionData, onDataChange, onOptionChange, onSetCorrect, onAddOption, onRemoveOption }) => {

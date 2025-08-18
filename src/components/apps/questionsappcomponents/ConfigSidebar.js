@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Dropdown from '../common/SelectDropdown.js';
+import Dropdown from '../../common/SelectDropdown.js';
 
 // --- Datos de ejemplo para los 5 Dropdowns ---
 // En una aplicación real, estos datos podrían venir de una API o un archivo de configuración.
