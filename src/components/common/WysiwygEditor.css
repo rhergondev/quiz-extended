@@ -1,34 +1,48 @@
-/* src/components/common/WysiwygEditor.css */
-
-/* Aplica estilos al contenedor general del editor de Quill */
-.wysiwyg-container .ql-container {
-  border-bottom-left-radius: 0.375rem; /* 6px */
-  border-bottom-right-radius: 0.375rem; /* 6px */
-  font-size: 0.875rem; /* text-sm */
-  min-height: 150px; /* Dale una altura mínima para que sea usable */
+.wysiwyg-container .ql-editor {
+  min-height: 100px;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-/* Estiliza la barra de herramientas */
 .wysiwyg-container .ql-toolbar {
-  border-top-left-radius: 0.375rem; /* 6px */
-  border-top-right-radius: 0.375rem; /* 6px */
-  border-color: #d1d5db; /* border-gray-300 */
-  background-color: #f9fafb; /* bg-gray-50 */
+  border-top: 1px solid #e5e7eb;
+  border-left: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: none;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
 }
 
-/* Unifica el color del borde para todo el componente */
-.wysiwyg-container .ql-toolbar,
 .wysiwyg-container .ql-container {
-  border-color: #d1d5db; /* border-gray-300 */
+  border-bottom: 1px solid #e5e7eb;
+  border-left: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  border-top: none;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
 }
 
-/* EL EFECTO DE FOCO: 
-  Cuando el editor esté activo ('ql-focus'), añadimos un borde y una sombra
-  que simulan el 'ring' de Tailwind.
-*/
-.wysiwyg-container .ql-container.ql-focus,
-.wysiwyg-container .ql-toolbar.ql-focus {
-  border-color: #6366f1; /* border-indigo-500 */
-  box-shadow: 0 0 0 1px #6366f1; /* ring-1 ring-indigo-500 */
-  z-index: 10; /* Asegura que el borde se vea por encima de otros elementos */
+.wysiwyg-container .ql-editor.ql-blank::before {
+  color: #9ca3af;
+  font-style: normal;
+}
+
+/* Estilos para cuando hay error */
+.wysiwyg-container .border-red-300 .ql-toolbar,
+.wysiwyg-container .border-red-300 .ql-container {
+  border-color: #fca5a5;
+}
+
+.wysiwyg-container .border-red-400 .ql-toolbar,
+.wysiwyg-container .border-red-400 .ql-container {
+  border-color: #f87171;
+}
+
+/* Hacer la toolbar más compacta */
+.wysiwyg-container .ql-toolbar.ql-snow {
+  padding: 8px;
+}
+
+.wysiwyg-container .ql-formats {
+  margin-right: 12px;
 }

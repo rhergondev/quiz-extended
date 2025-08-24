@@ -23,7 +23,7 @@ const QuestionsApp = () => {
 
     if (currentView === 'editor') {
         return (
-            <div className="max-w-3/4 min-h-screen bg-gray-100 font-sans p-8 h-screen">
+            <div className="w-full min-h-screen bg-gray-100 font-sans p-8 h-screen">
                 <QuestionEditor 
                     questionId={editingQuestion}
                     onBack={handleBackToList}
