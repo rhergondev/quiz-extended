@@ -21,10 +21,6 @@ class QE_Database
     /**
      * Crea todas las tablas personalizadas necesarias para el plugin.
      *
-     * Se ejecuta una sola vez durante la activación del plugin.
-     * Utiliza dbDelta para crear las tablas de forma segura, evitando duplicados
-     * y gestionando actualizaciones futuras de la estructura.
-     *
      * @since 1.0.0
      * @static
      */
@@ -34,7 +30,6 @@ class QE_Database
         $charset_collate = $wpdb->get_charset_collate();
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
 
-        // Prefijo de las tablas para el plugin.
         $prefix = $wpdb->prefix . 'qe_';
 
         // 1. Tabla para los intentos de los cuestionarios (wp_qe_quiz_attempts)
@@ -48,14 +43,30 @@ class QE_Database
             end_time DATETIME DEFAULT NULL,
             score DECIMAL(5,2) DEFAULT 0.00,
             score_with_risk DECIMAL(5,2) DEFAULT 0.00,
-            status VARCHAR(20) NOT NULL DEFAULT 'in-progress', -- in-progress, completed
+            status VARCHAR(20) NOT NULL DEFAULT 'in-progress',
             PRIMARY KEY (attempt_id),
             KEY user_id (user_id),
             KEY quiz_id (quiz_id)
         ) $charset_collate;";
         dbDelta($sql_attempts);
 
-        // 2. Tabla para los rankings (wp_qe_rankings)
+        // --- NUEVA TABLA AÑADIDA ---
+        // 2. Tabla para las respuestas de cada intento (wp_qe_attempt_answers)
+        $table_name_answers = $prefix . 'attempt_answers';
+        $sql_answers = "CREATE TABLE $table_name_answers (
+            answer_id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            attempt_id BIGINT(20) UNSIGNED NOT NULL,
+            question_id BIGINT(20) UNSIGNED NOT NULL,
+            answer_given VARCHAR(255) DEFAULT NULL, -- ID de la opción elegida
+            is_correct BOOLEAN DEFAULT NULL,
+            is_risked BOOLEAN NOT NULL DEFAULT FALSE,
+            PRIMARY KEY (answer_id),
+            KEY attempt_id (attempt_id)
+        ) $charset_collate;";
+        dbDelta($sql_answers);
+        // --- FIN DE LA NUEVA TABLA ---
+
+        // 3. Tabla para los rankings (wp_qe_rankings)
         $table_name_rankings = $prefix . 'rankings';
         $sql_rankings = "CREATE TABLE $table_name_rankings (
             ranking_id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -71,22 +82,22 @@ class QE_Database
         ) $charset_collate;";
         dbDelta($sql_rankings);
 
-        // 3. Tabla para el progreso del estudiante (wp_qe_student_progress)
+        // 4. Tabla para el progreso del estudiante (wp_qe_student_progress)
         $table_name_progress = $prefix . 'student_progress';
         $sql_progress = "CREATE TABLE $table_name_progress (
             progress_id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             user_id BIGINT(20) UNSIGNED NOT NULL,
             course_id BIGINT(20) UNSIGNED NOT NULL,
-            content_id BIGINT(20) UNSIGNED NOT NULL, -- ID de la lección, vídeo, etc.
-            content_type VARCHAR(20) NOT NULL, -- 'lesson', 'video', 'resource'
-            status VARCHAR(20) NOT NULL DEFAULT 'not-started', -- not-started, in-progress, completed
+            content_id BIGINT(20) UNSIGNED NOT NULL,
+            content_type VARCHAR(20) NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'not-started',
             last_viewed TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (progress_id),
             UNIQUE KEY user_content (user_id, content_id)
         ) $charset_collate;";
         dbDelta($sql_progress);
 
-        // 4. Tabla para preguntas favoritas (wp_qe_favorite_questions)
+        // 5. Tabla para preguntas favoritas (wp_qe_favorite_questions)
         $table_name_favorites = $prefix . 'favorite_questions';
         $sql_favorites = "CREATE TABLE $table_name_favorites (
             favorite_id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -98,15 +109,15 @@ class QE_Database
         ) $charset_collate;";
         dbDelta($sql_favorites);
 
-        // 5. Tabla para dudas e impugnaciones (wp_qe_question_feedback)
+        // 6. Tabla para dudas e impugnaciones (wp_qe_question_feedback)
         $table_name_feedback = $prefix . 'question_feedback';
         $sql_feedback = "CREATE TABLE $table_name_feedback (
             feedback_id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             question_id BIGINT(20) UNSIGNED NOT NULL,
             user_id BIGINT(20) UNSIGNED NOT NULL,
-            feedback_type VARCHAR(20) NOT NULL, -- 'doubt', 'challenge'
+            feedback_type VARCHAR(20) NOT NULL,
             message TEXT NOT NULL,
-            status VARCHAR(20) NOT NULL DEFAULT 'unresolved', -- unresolved, resolved
+            status VARCHAR(20) NOT NULL DEFAULT 'unresolved',
             date_submitted DATETIME NOT NULL,
             date_resolved DATETIME DEFAULT NULL,
             PRIMARY KEY (feedback_id),

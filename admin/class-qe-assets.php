@@ -3,11 +3,11 @@
  * QE_Assets Class
  *
  * Carga (enqueues) los scripts y estilos necesarios para la aplicación
- * de React en el panel de administración.
+ * de React en el panel de administración, utilizando el método de @wordpress/scripts.
  *
  * @package    QuizExtended
  * @subpackage QuizExtended/admin
- * @author     Tu Nombre <tu@email.com>
+ * @author     Your Name <you@example.com>
  */
 
 // Evitar el acceso directo al archivo.
@@ -18,94 +18,56 @@ if (!defined('ABSPATH')) {
 class QE_Assets
 {
 
-    /**
-     * Constructor.
-     *
-     * Engancha el método de carga de assets a la acción 'admin_enqueue_scripts'.
-     *
-     * @since 1.0.0
-     */
     public function __construct()
     {
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
     }
 
-    /**
-     * Carga los scripts y estilos.
-     *
-     * @param string $hook El sufijo del hook de la página actual.
-     * @since 1.0.0
-     */
     public function enqueue_assets($hook)
     {
-        // El hook de nuestra página principal es 'toplevel_page_quiz-extended-lms'.
-        // Si no estamos en esa página, no cargamos nada.
-        if ('toplevel_page_quiz-extended-lms' !== $hook) {
+        if ('toplevel_page_quiz-extended-lms' !== $hook && strpos($hook, 'quiz-lms_page_') === false) {
             return;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | SECCIÓN DE REACT DESACTIVADA TEMPORALMENTE
-        |--------------------------------------------------------------------------
-        |
-        | El siguiente bloque ha sido comentado para evitar el error de "archivos
-        | no encontrados" mientras se prueba el backend. Para reactivar la carga
-        | de la aplicación de React, simplemente descomenta este bloque.
-        |
-        */
-
-        /*
-        // --- CONFIGURACIÓN ---
+        // --- NUEVA LÓGICA ---
         $build_path = 'admin/react-app/build/';
-        $asset_manifest_path = QUIZ_EXTENDED_PLUGIN_DIR . $build_path . 'asset-manifest.json';
+        $script_asset_path = QUIZ_EXTENDED_PLUGIN_DIR . $build_path . 'index.asset.php';
 
-        if (!file_exists($asset_manifest_path)) {
-            add_action('admin_notices', function() {
-                echo '<div class="notice notice-error"><p><strong>Quiz Extended LMS Error:</strong> No se encontraron los archivos de la aplicación React. Asegúrate de haber compilado el proyecto (ej: npm run build).</p></div>';
+        if (!file_exists($script_asset_path)) {
+            add_action('admin_notices', function () {
+                echo '<div class="notice notice-error"><p><strong>Quiz Extended LMS Error:</strong> No se encontró el archivo <code>index.asset.php</code>. Asegúrate de haber compilado el proyecto ejecutando <code>npm run build</code> en la carpeta <code>admin/react-app</code>.</p></div>';
             });
             return;
         }
 
-        $asset_manifest = json_decode(file_get_contents($asset_manifest_path), true);
-        $main_js = $asset_manifest['files']['main.js'];
-        $main_css = $asset_manifest['files']['main.css'];
+        // 1. Leemos el archivo de assets generado por @wordpress/scripts
+        $script_asset = require($script_asset_path);
 
-        // Cargar el archivo CSS de la aplicación React.
-        wp_enqueue_style(
-            'quiz-extended-react-app',
-            QUIZ_EXTENDED_PLUGIN_URL . $build_path . $main_css,
-            [],
-            QUIZ_EXTENDED_VERSION
-        );
-
-        // Cargar el archivo JavaScript principal de la aplicación React.
+        // 2. Cargamos el archivo JavaScript principal de la aplicación React.
         wp_enqueue_script(
             'quiz-extended-react-app',
-            QUIZ_EXTENDED_PLUGIN_URL . $build_path . $main_js,
-            ['wp-element'],
-            QUIZ_EXTENDED_VERSION,
+            QUIZ_EXTENDED_PLUGIN_URL . $build_path . 'index.js',
+            $script_asset['dependencies'], // Usamos las dependencias que nos da el archivo
+            $script_asset['version'],      // Usamos la versión (hash) que nos da el archivo
             true
         );
 
-        // Pasar datos de PHP a JavaScript.
+        // 3. Cargamos el archivo CSS principal.
+        wp_enqueue_style(
+            'quiz-extended-react-app',
+            QUIZ_EXTENDED_PLUGIN_URL . $build_path . 'index.css',
+            [], // Sin dependencias de CSS
+            $script_asset['version']
+        );
+
+        // 4. Pasamos los datos de PHP a JavaScript.
         wp_localize_script(
             'quiz-extended-react-app',
             'qe_data',
             [
-                'api_url' => esc_url_raw(rest_url($this->get_api_namespace())),
-                'nonce'   => wp_create_nonce('wp_rest'),
+                'api_url' => esc_url_raw(rest_url()),
+                'nonce' => wp_create_nonce('wp_rest'),
             ]
         );
-        */
-    }
-
-    /**
-     * Devuelve el namespace de la API para usarlo en wp_localize_script.
-     * @return string
-     */
-    private function get_api_namespace()
-    {
-        return 'quiz-extended/v1';
     }
 }

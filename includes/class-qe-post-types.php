@@ -2,15 +2,15 @@
 /**
  * QE_Post_Types Class
  *
- * Registra todos los Custom Post Types (CPTs) y taxonomías personalizadas
- * necesarias para el LMS.
+ * Registers all Custom Post Types (CPTs) and custom taxonomies
+ * required for the LMS.
  *
  * @package    QuizExtended
  * @subpackage QuizExtended/includes
- * @author     Tu Nombre <tu@email.com>
+ * @author     Your Name <you@example.com>
  */
 
-// Evitar el acceso directo al archivo.
+// Exit if accessed directly.
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -21,7 +21,7 @@ class QE_Post_Types
     /**
      * Constructor.
      *
-     * Engancha el método de registro de CPTs a la acción 'init' de WordPress.
+     * Hooks the registration methods to the WordPress 'init' action.
      *
      * @since 1.0.0
      */
@@ -32,127 +32,154 @@ class QE_Post_Types
     }
 
     /**
-     * Registra todos los Custom Post Types del plugin.
+     * Registers all Custom Post Types for the plugin.
      *
      * @since 1.0.0
      */
     public function register_post_types()
     {
-        // CPT: Cursos
+        // CPT: Courses
         $this->register_single_post_type(
-            'curso',
-            'Curso',
-            'Cursos',
+            'course',
+            'Course',
+            'Courses',
             [
-                'description' => 'Cursos del LMS.',
+                'description' => 'LMS Courses.',
                 'public' => true,
                 'menu_icon' => 'dashicons-welcome-learn-more',
-                'supports' => ['title', 'editor', 'thumbnail', 'excerpt', 'author', 'custom-fields'],
+                'supports' => ['title', 'editor', 'thumbnail', 'excerpt', 'author', 'custom-fields', 'page-attributes'],
                 'has_archive' => true,
-                'rewrite' => ['slug' => 'cursos'],
+                'rewrite' => ['slug' => 'courses'],
+                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
             ]
         );
 
-        // CPT: Libros
+        // CPT: Books
         $this->register_single_post_type(
-            'libro',
-            'Libro',
-            'Libros',
+            'book',
+            'Book',
+            'Books',
             [
-                'description' => 'Libros disponibles en la plataforma.',
+                'description' => 'Books available on the platform.',
                 'public' => true,
                 'menu_icon' => 'dashicons-book',
                 'supports' => ['title', 'editor', 'thumbnail', 'excerpt', 'author', 'custom-fields'],
                 'has_archive' => true,
-                'rewrite' => ['slug' => 'libros'],
+                'rewrite' => ['slug' => 'books'],
+                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
             ]
         );
 
-        // CPT: Lecciones
+        // CPT: Lessons
         $this->register_single_post_type(
-            'leccion',
-            'Lección',
-            'Lecciones',
+            'lesson',
+            'Lesson',
+            'Lessons',
             [
-                'description' => 'Lecciones que pertenecen a un curso.',
+                'description' => 'Lessons that belong to a course.',
                 'public' => true,
                 'hierarchical' => true,
-                'show_in_menu' => 'edit.php?post_type=curso', // Anida bajo Cursos
-                'supports' => ['title', 'editor', 'page-attributes', 'author'],
-                'rewrite' => ['slug' => 'lecciones'],
+                'show_in_menu' => 'edit.php?post_type=course',
+                'supports' => ['title', 'editor', 'page-attributes', 'author', 'custom-fields'],
+                'rewrite' => ['slug' => 'lessons'],
+                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
             ]
         );
 
-        // CPT: Cuestionarios
+        // CPT: Quizzes
         $this->register_single_post_type(
-            'cuestionario',
-            'Cuestionario',
-            'Cuestionarios',
+            'quiz',
+            'Quiz',
+            'Quizzes',
             [
-                'description' => 'Cuestionarios de evaluación.',
+                'description' => 'Assessment quizzes.',
                 'public' => true,
-                'show_in_menu' => 'edit.php?post_type=curso', // Anida bajo Cursos
-                'supports' => ['title', 'editor', 'author'],
-                'rewrite' => ['slug' => 'cuestionarios'],
+                'show_in_menu' => 'edit.php?post_type=course',
+                'supports' => ['title', 'editor', 'author', 'custom-fields'],
+                'rewrite' => ['slug' => 'quizzes'],
+                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
             ]
         );
 
-        // CPT: Preguntas
+        // CPT: Questions
         $this->register_single_post_type(
-            'pregunta',
-            'Pregunta',
-            'Preguntas',
+            'question',
+            'Question',
+            'Questions',
             [
-                'description' => 'Banco de preguntas para los cuestionarios.',
+                'description' => 'Question bank for quizzes.',
                 'public' => false,
                 'show_ui' => true,
-                'show_in_menu' => 'edit.php?post_type=curso', // Anida bajo Cursos
+                'show_in_menu' => 'edit.php?post_type=course',
                 'supports' => ['title', 'editor', 'custom-fields', 'author'],
                 'rewrite' => false,
+                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
             ]
         );
     }
 
     /**
-     * Registra las taxonomías personalizadas.
+     * Registers the custom taxonomies.
      *
      * @since 1.0.0
      */
     public function register_taxonomies()
     {
-        // Taxonomía: Categoría de Pregunta
+        // Taxonomy: Category (for Questions, Quizzes, and Courses)
         $this->register_single_taxonomy(
-            'categoria_pregunta',
-            'pregunta',
-            'Categoría de Pregunta',
-            'Categorías de Pregunta',
+            'qe_category',
+            ['question', 'quiz', 'course'],
+            'Category',
+            'Categories',
             [
                 'hierarchical' => true,
-                'rewrite' => ['slug' => 'categoria-pregunta'],
+                'rewrite' => ['slug' => 'qe-category'],
+                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
             ]
         );
 
-        // Taxonomía: Tema de Pregunta
+        // Taxonomy: Topic (for Questions and Quizzes)
         $this->register_single_taxonomy(
-            'tema_pregunta',
-            'pregunta',
-            'Tema de Pregunta',
-            'Temas de Pregunta',
+            'qe_topic',
+            ['question', 'quiz'],
+            'Topic',
+            'Topics',
             [
-                'hierarchical' => false, // Como etiquetas (tags)
-                'rewrite' => ['slug' => 'tema-pregunta'],
+                'hierarchical' => false,
+                'rewrite' => ['slug' => 'qe-topic'],
+                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
+            ]
+        );
+
+        // Taxonomy: Difficulty (for Questions and Quizzes)
+        $this->register_single_taxonomy(
+            'qe_difficulty',
+            ['question', 'quiz'],
+            'Difficulty',
+            'Difficulties',
+            [
+                'hierarchical' => false,
+                'rewrite' => ['slug' => 'qe-difficulty'],
+                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
+            ]
+        );
+
+        // Taxonomy: Course Type (for Courses)
+        $this->register_single_taxonomy(
+            'course_type',
+            'course',
+            'Type',
+            'Types',
+            [
+                'hierarchical' => false,
+                'rewrite' => ['slug' => 'course-type'],
+                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
             ]
         );
     }
 
-    /**
-     * Función de ayuda para registrar un CPT.
-     *
-     * @param string $post_type     Slug del CPT.
-     * @param string $singular_name Nombre singular.
-     * @param string $plural_name   Nombre plural.
-     * @param array  $args          Argumentos adicionales para register_post_type.
-     */
+    // ... (El resto de la clase no necesita cambios) ...
+
     private function register_single_post_type($post_type, $singular_name, $plural_name, $args = [])
     {
         $labels = [
@@ -160,18 +187,18 @@ class QE_Post_Types
             'singular_name' => _x($singular_name, 'Post Type Singular Name', 'quiz-extended'),
             'menu_name' => __($plural_name, 'quiz-extended'),
             'name_admin_bar' => __($singular_name, 'quiz-extended'),
-            'archives' => __($plural_name . ' Archivos', 'quiz-extended'),
-            'attributes' => __($singular_name . ' Atributos', 'quiz-extended'),
-            'parent_item_colon' => __('Padre ' . $singular_name . ':', 'quiz-extended'),
-            'all_items' => __('Todos los ' . $plural_name, 'quiz-extended'),
-            'add_new_item' => __('Añadir Nuevo ' . $singular_name, 'quiz-extended'),
-            'add_new' => __('Añadir Nuevo', 'quiz-extended'),
-            'new_item' => __('Nuevo ' . $singular_name, 'quiz-extended'),
-            'edit_item' => __('Editar ' . $singular_name, 'quiz-extended'),
-            'update_item' => __('Actualizar ' . $singular_name, 'quiz-extended'),
-            'view_item' => __('Ver ' . $singular_name, 'quiz-extended'),
-            'view_items' => __('Ver ' . $plural_name, 'quiz-extended'),
-            'search_items' => __('Buscar ' . $plural_name, 'quiz-extended'),
+            'archives' => __($plural_name . ' Archives', 'quiz-extended'),
+            'attributes' => __($singular_name . ' Attributes', 'quiz-extended'),
+            'parent_item_colon' => __('Parent ' . $singular_name . ':', 'quiz-extended'),
+            'all_items' => __('All ' . $plural_name, 'quiz-extended'),
+            'add_new_item' => __('Add New ' . $singular_name, 'quiz-extended'),
+            'add_new' => __('Add New', 'quiz-extended'),
+            'new_item' => __('New ' . $singular_name, 'quiz-extended'),
+            'edit_item' => __('Edit ' . $singular_name, 'quiz-extended'),
+            'update_item' => __('Update ' . $singular_name, 'quiz-extended'),
+            'view_item' => __('View ' . $singular_name, 'quiz-extended'),
+            'view_items' => __('View ' . $plural_name, 'quiz-extended'),
+            'search_items' => __('Search ' . $plural_name, 'quiz-extended'),
         ];
 
         $defaults = [
@@ -192,29 +219,20 @@ class QE_Post_Types
         register_post_type($post_type, $final_args);
     }
 
-    /**
-     * Función de ayuda para registrar una taxonomía.
-     *
-     * @param string $taxonomy      Slug de la taxonomía.
-     * @param string|array $post_type El/los CPTs a los que se asocia.
-     * @param string $singular_name Nombre singular.
-     * @param string $plural_name   Nombre plural.
-     * @param array  $args          Argumentos adicionales.
-     */
     private function register_single_taxonomy($taxonomy, $post_type, $singular_name, $plural_name, $args = [])
     {
         $labels = [
             'name' => _x($plural_name, 'Taxonomy General Name', 'quiz-extended'),
             'singular_name' => _x($singular_name, 'Taxonomy Singular Name', 'quiz-extended'),
             'menu_name' => __($plural_name, 'quiz-extended'),
-            'all_items' => __('Todos los ' . $plural_name, 'quiz-extended'),
-            'parent_item' => __('Padre ' . $singular_name, 'quiz-extended'),
-            'parent_item_colon' => __('Padre ' . $singular_name . ':', 'quiz-extended'),
-            'new_item_name' => __('Nuevo Nombre de ' . $singular_name, 'quiz-extended'),
-            'add_new_item' => __('Añadir Nuevo ' . $singular_name, 'quiz-extended'),
-            'edit_item' => __('Editar ' . $singular_name, 'quiz-extended'),
-            'update_item' => __('Actualizar ' . $singular_name, 'quiz-extended'),
-            'search_items' => __('Buscar ' . $plural_name, 'quiz-extended'),
+            'all_items' => __('All ' . $plural_name, 'quiz-extended'),
+            'parent_item' => __('Parent ' . $singular_name, 'quiz-extended'),
+            'parent_item_colon' => __('Parent ' . $singular_name . ':', 'quiz-extended'),
+            'new_item_name' => __('New ' . $singular_name . ' Name', 'quiz-extended'),
+            'add_new_item' => __('Add New ' . $singular_name, 'quiz-extended'),
+            'edit_item' => __('Edit ' . $singular_name, 'quiz-extended'),
+            'update_item' => __('Update ' . $singular_name, 'quiz-extended'),
+            'search_items' => __('Search ' . $plural_name, 'quiz-extended'),
         ];
 
         $defaults = [
