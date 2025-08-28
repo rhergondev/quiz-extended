@@ -1,23 +1,8 @@
 <?php
-/**
- * QE_Assets Class
- *
- * Carga (enqueues) los scripts y estilos necesarios para la aplicación
- * de React en el panel de administración, utilizando el método de @wordpress/scripts.
- *
- * @package    QuizExtended
- * @subpackage QuizExtended/admin
- * @author     Your Name <you@example.com>
- */
-
-// Evitar el acceso directo al archivo.
-if (!defined('ABSPATH')) {
-    exit;
-}
+// admin/class-qe-assets.php - Updated with better nonce handling
 
 class QE_Assets
 {
-
     public function __construct()
     {
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
@@ -25,6 +10,7 @@ class QE_Assets
 
     public function enqueue_assets($hook)
     {
+        // Only load on our admin pages
         if ('toplevel_page_quiz-extended-lms' !== $hook && strpos($hook, 'quiz-lms_page_') === false) {
             return;
         }
@@ -56,16 +42,27 @@ class QE_Assets
             $script_asset['version']
         );
 
-        // --- LA LÍNEA CRÍTICA CORREGIDA ---
-        // Usamos home_url() y rtrim() para garantizar una URL base limpia sin barra al final.
+        // Enhanced API configuration
         $api_url_base = rtrim(home_url('/wp-json'), '/');
+        $current_user = wp_get_current_user();
 
         wp_localize_script(
             'quiz-extended-react-app',
             'qe_data',
             [
-                'api_url' => $api_url_base, // Pasamos la URL base limpia (ej: http://localhost:8000/wp-json)
+                'api_url' => $api_url_base,
                 'nonce' => wp_create_nonce('wp_rest'),
+                'user' => [
+                    'id' => $current_user->ID,
+                    'login' => $current_user->user_login,
+                    'email' => $current_user->user_email,
+                    'capabilities' => array_keys($current_user->allcaps),
+                ],
+                'endpoints' => [
+                    'courses' => $api_url_base . '/wp/v2/course',
+                    'custom_api' => $api_url_base . '/quiz-extended/v1',
+                ],
+                'debug' => WP_DEBUG,
             ]
         );
     }

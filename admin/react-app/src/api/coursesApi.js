@@ -1,27 +1,49 @@
 /**
- * Este archivo contiene todas las funciones para interactuar con los endpoints
- * de la API REST de WordPress relacionados con los Cursos.
+ * This file contains all functions to interact with WordPress REST API endpoints
+ * related to Courses with pagination support.
  */
 
 const { api_url, nonce } = window.qe_data || {};
 
 const COURSES_ENDPOINT = `${api_url}/wp/v2/course`;
 
-// === LECTURA (READ) ===
+// === READ (READ) with Pagination ===
 
 /**
- * Obtiene una lista de todos los cursos.
- * @returns {Promise<Array>} Una promesa que se resuelve con el array de cursos.
+ * Get a paginated list of all courses.
+ * @param {Object} options - Pagination and filter options
+ * @param {number} options.page - Page number (default: 1)
+ * @param {number} options.perPage - Items per page (default: 20)
+ * @param {string} options.status - Course status filter
+ * @param {string} options.search - Search term
+ * @returns {Promise<Object>} Promise that resolves with courses and pagination info
  */
-export const getCourses = async () => {
+export const getCourses = async (options = {}) => {
   try {
-    // --- CAMBIO CLAVE ---
-    // Añadimos el parámetro 'status=publish,draft' para obtener todos los cursos.
-    const response = await fetch(`${COURSES_ENDPOINT}?_embed&status=publish,draft`, {
+    const { 
+      page = 1, 
+      perPage = 20, 
+      status = 'publish,draft',
+      search = '' 
+    } = options;
+
+    // Build query parameters
+    const params = new URLSearchParams({
+      _embed: 'true',
+      status: status,
+      page: page.toString(),
+      per_page: perPage.toString(),
+    });
+
+    // Add search parameter if provided
+    if (search.trim()) {
+      params.append('search', search.trim());
+    }
+
+    const response = await fetch(`${COURSES_ENDPOINT}?${params}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        // El nonce también es necesario aquí para poder ver los borradores de otros usuarios.
         'X-WP-Nonce': nonce,
       },
     });
@@ -30,14 +52,39 @@ export const getCourses = async () => {
       throw new Error('Network response was not ok');
     }
 
-    return await response.json();
+    const courses = await response.json();
+    
+    // Get pagination info from headers
+    const totalCourses = parseInt(response.headers.get('X-WP-Total') || '0');
+    const totalPages = parseInt(response.headers.get('X-WP-TotalPages') || '1');
+    const currentPage = parseInt(response.headers.get('X-WP-Page') || page.toString());
+
+    return {
+      data: courses,
+      pagination: {
+        total: totalCourses,
+        totalPages: totalPages,
+        currentPage: currentPage,
+        perPage: perPage,
+        hasMore: currentPage < totalPages && courses.length > 0
+      }
+    };
   } catch (error) {
     console.error('Error fetching courses:', error);
-    return [];
+    return {
+      data: [],
+      pagination: {
+        total: 0,
+        totalPages: 0,
+        currentPage: 1,
+        perPage: perPage,
+        hasMore: false
+      }
+    };
   }
 };
 
-// ... (El resto de las funciones createCourse y deleteCourse no necesitan cambios)
+// === CREATE (CREATE) ===
 
 export const createCourse = async (courseData) => {
   try {
@@ -56,6 +103,8 @@ export const createCourse = async (courseData) => {
     throw error;
   }
 };
+
+// === DELETE (DELETE) ===
 
 export const deleteCourse = async (courseId) => {
   try {

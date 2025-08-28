@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -11,14 +11,37 @@ import Table from '../components/common/Table';
 import Button from '../components/common/Button';
 
 const CoursesPage = () => {
-  const { courses, isLoading, addCourse, removeCourse } = useCourses();
-  const [columnFilters, setColumnFilters] = useState([]);
-
-  const [globalFilter, setGlobalFilter] = useState('');
+  const { 
+    courses, 
+    isLoading, 
+    isLoadingMore, 
+    hasMore,
+    pagination,
+    loadMoreCourses,
+    refreshCourses,
+    addCourse, 
+    removeCourse 
+  } = useCourses();
+  
   const [rowSelection, setRowSelection] = useState({});
 
-    const titleFilter = columnFilters.find(f => f.id === 'title.rendered')?.value || '';
+  // Local filter states for the UI
+  const [titleFilter, setTitleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const filters = {
+        search: titleFilter.trim(),
+        status: statusFilter || 'publish,draft'
+      };
+      
+      refreshCourses(filters);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [titleFilter, statusFilter]); // Remove refreshCourses from dependencies
 
   const columns = useMemo(
     () => [
@@ -68,7 +91,6 @@ const CoursesPage = () => {
         accessorKey: 'enrolled_users_count',
         header: 'Enrolled',
       },
-      // --- COLUMNA "PUBLISHED DATE" AÑADIDA DE NUEVO ---
       {
         accessorKey: 'date',
         header: 'Published Date',
@@ -76,7 +98,6 @@ const CoursesPage = () => {
             new Date(row.original.date).toLocaleDateString()
         )
       },
-      // --- FIN DE LA COLUMNA AÑADIDA ---
       {
         accessorKey: 'meta._start_date',
         header: 'Start Date',
@@ -128,59 +149,91 @@ const CoursesPage = () => {
     data: courses,
     columns,
     state: {
-      columnFilters,
       rowSelection,
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
-    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+    // Remove getFilteredRowModel since we're filtering on the server
+    // getFilteredRowModel: getFilteredRowModel(),
   });
 
-  // ... (el resto del componente no cambia)
+  const handleNewCourse = () => {
+    console.log('Create new course');
+    // Implement course creation logic
+  };
+  
+  const handleDeleteCourse = async (id) => {
+    if (window.confirm('Are you sure you want to delete this course?')) {
+      try {
+        await removeCourse(id);
+      } catch (error) {
+        alert('Failed to delete course: ' + error.message);
+      }
+    }
+  };
+  
+  const handleEditCourse = (id) => {
+    console.log('Edit course:', id);
+    // Implement course editing logic
+  };
 
-  const handleNewCourse = () => { /* ... */ };
-  const handleDeleteCourse = (id) => { /* ... */ };
-  const handleEditCourse = (id) => { /* ... */ };
+  const handleTitleFilterChange = (e) => {
+    setTitleFilter(e.target.value);
+  };
 
-   return (
+  const handleStatusFilterChange = (e) => {
+    setStatusFilter(e.target.value);
+  };
+
+  return (
     <div className="wrap">
       <ResourceActionBar
         title="Courses"
         buttonText="New Course"
         onButtonClick={handleNewCourse}
-        // ... (props de acciones en lote)
       >
-        {/* --- NUEVOS COMPONENTES DE FILTRO --- */}
-        {/* Filtro específico para el título */}
+        {/* Title search filter */}
         <input
           type="text"
           value={titleFilter}
-          onChange={(e) =>
-            table.getColumn('title.rendered')?.setFilterValue(e.target.value)
-          }
+          onChange={handleTitleFilterChange}
           placeholder="Search by title..."
-          className="px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm"
+          className="px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm focus:ring-indigo-500 focus:border-indigo-500"
         />
 
-        {/* Filtro específico para el estado (Dropdown) */}
+        {/* Status dropdown filter */}
         <select
-          value={table.getColumn('status')?.getFilterValue() || ''}
-          onChange={e => table.getColumn('status')?.setFilterValue(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm"
+          value={statusFilter}
+          onChange={handleStatusFilterChange}
+          className="px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm focus:ring-indigo-500 focus:border-indigo-500"
         >
-            <option value="">All Statuses</option>
-            <option value="publish">Published</option>
-            <option value="draft">Draft</option>
+          <option value="">All Statuses</option>
+          <option value="publish">Published</option>
+          <option value="draft">Draft</option>
         </select>
-        
-        {/* Aquí podríamos añadir más filtros en el futuro (fechas, on sale, etc.) */}
-
       </ResourceActionBar>
 
       <div className="p-4">
-        <Table table={table} isLoading={isLoading} />
+        {/* Show pagination info */}
+        {pagination.total > 0 && (
+          <div className="mb-4 text-sm text-gray-600">
+            Showing {courses.length} of {pagination.total} courses
+            {hasMore && (
+              <span className="ml-2 text-indigo-600">
+                (scroll down for more)
+              </span>
+            )}
+          </div>
+        )}
+
+        <Table 
+          table={table} 
+          isLoading={isLoading}
+          isLoadingMore={isLoadingMore}
+          hasMore={hasMore}
+          onLoadMore={loadMoreCourses}
+        />
       </div>
     </div>
   );

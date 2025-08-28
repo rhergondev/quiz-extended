@@ -1,46 +1,65 @@
 <?php
-/**
- * QE_Post_Types Class
- *
- * Registers all Custom Post Types (CPTs) and custom taxonomies
- * required for the LMS.
- *
- * @package    QuizExtended
- * @subpackage QuizExtended/includes
- * @author     Your Name <you@example.com>
- */
-
-// Exit if accessed directly.
-if (!defined('ABSPATH')) {
-    exit;
-}
+// includes/class-qe-post-types.php - Updated with proper REST API configuration
 
 class QE_Post_Types
 {
-
-    /**
-     * Constructor.
-     *
-     * Hooks the registration methods to the WordPress 'init' action.
-     *
-     * @since 1.0.0
-     */
     public function __construct()
     {
         add_action('init', [$this, 'register_post_types']);
         add_action('init', [$this, 'register_taxonomies']);
-
         add_action('rest_api_init', [$this, 'register_custom_api_fields']);
+
+        // Add permissions handling for REST API
+        add_filter('rest_pre_dispatch', [$this, 'handle_rest_authentication'], 10, 3);
+        add_filter('rest_course_collection_params', [$this, 'add_course_collection_params'], 10, 1);
+    }
+
+    /**
+     * Handle REST API authentication issues
+     */
+    public function handle_rest_authentication($result, $server, $request)
+    {
+        // Only handle our course endpoints
+        if (strpos($request->get_route(), '/wp/v2/course') === false) {
+            return $result;
+        }
+
+        // Check if user is logged in and has proper capabilities
+        if (!is_user_logged_in()) {
+            return new WP_Error(
+                'rest_not_logged_in',
+                __('You are not currently logged in.'),
+                array('status' => 401)
+            );
+        }
+
+        // For POST requests (creating courses), check if user can create posts
+        if ($request->get_method() === 'POST' && !current_user_can('edit_posts')) {
+            return new WP_Error(
+                'rest_cannot_create',
+                __('Sorry, you are not allowed to create courses.'),
+                array('status' => 403)
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Add collection parameters for course endpoint
+     */
+    public function add_course_collection_params($params)
+    {
+        $params['status']['default'] = 'publish,draft';
+        return $params;
     }
 
     /**
      * Registers all Custom Post Types for the plugin.
-     *
-     * @since 1.0.0
      */
     public function register_post_types()
     {
-        // CPT: Courses
+        // CPT: Courses - Enhanced with better REST API support
         $this->register_single_post_type(
             'course',
             'Course',
@@ -52,11 +71,33 @@ class QE_Post_Types
                 'supports' => ['title', 'editor', 'thumbnail', 'excerpt', 'author', 'custom-fields', 'page-attributes'],
                 'has_archive' => true,
                 'rewrite' => ['slug' => 'courses'],
-                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
+                'show_in_rest' => true,
+                'rest_base' => 'course',
+                'rest_controller_class' => 'WP_REST_Posts_Controller',
+                // Enhanced capabilities
+                'capabilities' => [
+                    'edit_post' => 'edit_course',
+                    'edit_posts' => 'edit_courses',
+                    'edit_others_posts' => 'edit_others_courses',
+                    'publish_posts' => 'publish_courses',
+                    'read_post' => 'read_course',
+                    'read_private_posts' => 'read_private_courses',
+                    'delete_post' => 'delete_course',
+                    'delete_posts' => 'delete_courses',
+                    'delete_others_posts' => 'delete_others_courses',
+                    'delete_published_posts' => 'delete_published_courses',
+                    'delete_private_posts' => 'delete_private_courses',
+                    'edit_private_posts' => 'edit_private_courses',
+                    'edit_published_posts' => 'edit_published_courses',
+                ],
+                'map_meta_cap' => true,
             ]
         );
 
-        // CPT: Books
+        // Add capabilities to administrator role
+        $this->add_course_capabilities();
+
+        // Rest of post types...
         $this->register_single_post_type(
             'book',
             'Book',
@@ -68,11 +109,10 @@ class QE_Post_Types
                 'supports' => ['title', 'editor', 'thumbnail', 'excerpt', 'author', 'custom-fields'],
                 'has_archive' => true,
                 'rewrite' => ['slug' => 'books'],
-                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
+                'show_in_rest' => true,
             ]
         );
 
-        // CPT: Lessons
         $this->register_single_post_type(
             'lesson',
             'Lesson',
@@ -84,11 +124,10 @@ class QE_Post_Types
                 'show_in_menu' => 'edit.php?post_type=course',
                 'supports' => ['title', 'editor', 'page-attributes', 'author', 'custom-fields'],
                 'rewrite' => ['slug' => 'lessons'],
-                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
+                'show_in_rest' => true,
             ]
         );
 
-        // CPT: Quizzes
         $this->register_single_post_type(
             'quiz',
             'Quiz',
@@ -99,11 +138,10 @@ class QE_Post_Types
                 'show_in_menu' => 'edit.php?post_type=course',
                 'supports' => ['title', 'editor', 'author', 'custom-fields'],
                 'rewrite' => ['slug' => 'quizzes'],
-                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
+                'show_in_rest' => true,
             ]
         );
 
-        // CPT: Questions
         $this->register_single_post_type(
             'question',
             'Question',
@@ -115,41 +153,70 @@ class QE_Post_Types
                 'show_in_menu' => 'edit.php?post_type=course',
                 'supports' => ['title', 'editor', 'custom-fields', 'author'],
                 'rewrite' => false,
-                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
+                'show_in_rest' => true,
             ]
         );
     }
 
     /**
+     * Add course capabilities to administrator role
+     */
+    private function add_course_capabilities()
+    {
+        $role = get_role('administrator');
+
+        if ($role) {
+            $capabilities = [
+                'edit_course',
+                'edit_courses',
+                'edit_others_courses',
+                'publish_courses',
+                'read_course',
+                'read_private_courses',
+                'delete_course',
+                'delete_courses',
+                'delete_others_courses',
+                'delete_published_courses',
+                'delete_private_courses',
+                'edit_private_courses',
+                'edit_published_courses',
+            ];
+
+            foreach ($capabilities as $cap) {
+                $role->add_cap($cap);
+            }
+        }
+    }
+
+    /**
      * Registers all Custom API Fields for the plugin.
-     *
-     * @since 1.0.0
      */
     public function register_custom_api_fields()
     {
+        // Register meta fields for REST API
+        $meta_fields = [
+            '_start_date' => 'string',
+            '_end_date' => 'string',
+            '_price' => 'string',
+            '_sale_price' => 'string',
+            '_course_category' => 'string',
+            '_difficulty_level' => 'string',
+            '_duration_weeks' => 'string',
+            '_max_students' => 'string',
+        ];
 
-        register_post_meta('course', '_start_date', [
-            'show_in_rest' => true,
-            'single' => true,
-            'type' => 'string',
-        ]);
-        register_post_meta('course', '_end_date', [
-            'show_in_rest' => true,
-            'single' => true,
-            'type' => 'string',
-        ]);
-        register_post_meta('course', '_price', [
-            'show_in_rest' => true,
-            'single' => true,
-            'type' => 'string',
-        ]);
-        register_post_meta('course', '_sale_price', [
-            'show_in_rest' => true,
-            'single' => true,
-            'type' => 'string',
-        ]);
+        foreach ($meta_fields as $meta_key => $type) {
+            register_post_meta('course', $meta_key, [
+                'show_in_rest' => true,
+                'single' => true,
+                'type' => $type,
+                'auth_callback' => function () {
+                    return current_user_can('edit_posts');
+                }
+            ]);
+        }
 
-        // 2. Registramos un campo calculado para el contador de usuarios.
+        // Register computed field for enrolled users count
         register_rest_field('course', 'enrolled_users_count', [
             'get_callback' => function ($course) {
                 global $wpdb;
@@ -169,12 +236,9 @@ class QE_Post_Types
 
     /**
      * Registers the custom taxonomies.
-     *
-     * @since 1.0.0
      */
     public function register_taxonomies()
     {
-        // Taxonomy: Category (for Questions, Quizzes, and Courses)
         $this->register_single_taxonomy(
             'qe_category',
             ['question', 'quiz', 'course'],
@@ -183,11 +247,10 @@ class QE_Post_Types
             [
                 'hierarchical' => true,
                 'rewrite' => ['slug' => 'qe-category'],
-                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
+                'show_in_rest' => true,
             ]
         );
 
-        // Taxonomy: Topic (for Questions and Quizzes)
         $this->register_single_taxonomy(
             'qe_topic',
             ['question', 'quiz'],
@@ -196,11 +259,10 @@ class QE_Post_Types
             [
                 'hierarchical' => false,
                 'rewrite' => ['slug' => 'qe-topic'],
-                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
+                'show_in_rest' => true,
             ]
         );
 
-        // Taxonomy: Difficulty (for Questions and Quizzes)
         $this->register_single_taxonomy(
             'qe_difficulty',
             ['question', 'quiz'],
@@ -209,11 +271,10 @@ class QE_Post_Types
             [
                 'hierarchical' => false,
                 'rewrite' => ['slug' => 'qe-difficulty'],
-                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
+                'show_in_rest' => true,
             ]
         );
 
-        // Taxonomy: Course Type (for Courses)
         $this->register_single_taxonomy(
             'course_type',
             'course',
@@ -222,13 +283,12 @@ class QE_Post_Types
             [
                 'hierarchical' => false,
                 'rewrite' => ['slug' => 'course-type'],
-                'show_in_rest' => true, // <-- API NATIVA ACTIVADA
+                'show_in_rest' => true,
             ]
         );
     }
 
-    // ... (El resto de la clase no necesita cambios) ...
-
+    // Keep existing helper methods...
     private function register_single_post_type($post_type, $singular_name, $plural_name, $args = [])
     {
         $labels = [
