@@ -29,7 +29,6 @@ class QE_Assets
             return;
         }
 
-        // --- NUEVA LÓGICA ---
         $build_path = 'admin/react-app/build/';
         $script_asset_path = QUIZ_EXTENDED_PLUGIN_DIR . $build_path . 'index.asset.php';
 
@@ -40,32 +39,32 @@ class QE_Assets
             return;
         }
 
-        // 1. Leemos el archivo de assets generado por @wordpress/scripts
         $script_asset = require($script_asset_path);
 
-        // 2. Cargamos el archivo JavaScript principal de la aplicación React.
         wp_enqueue_script(
             'quiz-extended-react-app',
             QUIZ_EXTENDED_PLUGIN_URL . $build_path . 'index.js',
-            $script_asset['dependencies'], // Usamos las dependencias que nos da el archivo
-            $script_asset['version'],      // Usamos la versión (hash) que nos da el archivo
+            $script_asset['dependencies'],
+            $script_asset['version'],
             true
         );
 
-        // 3. Cargamos el archivo CSS principal.
         wp_enqueue_style(
             'quiz-extended-react-app',
             QUIZ_EXTENDED_PLUGIN_URL . $build_path . 'index.css',
-            [], // Sin dependencias de CSS
+            [],
             $script_asset['version']
         );
 
-        // 4. Pasamos los datos de PHP a JavaScript.
+        // --- LA LÍNEA CRÍTICA CORREGIDA ---
+        // Usamos home_url() y rtrim() para garantizar una URL base limpia sin barra al final.
+        $api_url_base = rtrim(home_url('/wp-json'), '/');
+
         wp_localize_script(
             'quiz-extended-react-app',
             'qe_data',
             [
-                'api_url' => esc_url_raw(rest_url()),
+                'api_url' => $api_url_base, // Pasamos la URL base limpia (ej: http://localhost:8000/wp-json)
                 'nonce' => wp_create_nonce('wp_rest'),
             ]
         );

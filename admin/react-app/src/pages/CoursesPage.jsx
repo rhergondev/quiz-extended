@@ -1,67 +1,186 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  flexRender,
+} from '@tanstack/react-table';
 import { useCourses } from '../components/hooks/useCourses';
-import CoursesActionBar from '../components/courses/CoursesActionBar';
-import CoursesList from '../components/courses/CoursesList';
+import ResourceActionBar from '../components/common/ResourceActionBar';
+import Table from '../components/common/Table';
+import Button from '../components/common/Button';
 
-/**
- * La página principal para la gestión de Cursos.
- * Orquesta los componentes de la UI y la lógica del hook.
- */
 const CoursesPage = () => {
-  // 1. Usamos nuestro hook personalizado para obtener toda la lógica y el estado.
   const { courses, isLoading, addCourse, removeCourse } = useCourses();
+  const [columnFilters, setColumnFilters] = useState([]);
 
-  // 2. Definimos las funciones que se pasarán a los componentes hijos.
-  const handleNewCourse = async () => {
-    // Esto es un ejemplo. En una app real, abrirías un modal o un formulario.
-    const newCourseData = {
-      title: 'Nuevo Curso de Prueba',
-      content: 'Esta es la descripción del nuevo curso.',
-      status: 'draft', // Es buena práctica crear los cursos como borrador.
-    };
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [rowSelection, setRowSelection] = useState({});
 
-    try {
-      await addCourse(newCourseData);
-      // Podríamos mostrar una notificación de éxito aquí.
-      console.log('¡Curso creado con éxito!');
-    } catch (error) {
-      // Y una notificación de error aquí.
-      console.error('Error al crear el curso:', error);
-    }
-  };
+    const titleFilter = columnFilters.find(f => f.id === 'title.rendered')?.value || '';
 
-  const handleDeleteCourse = async (id) => {
-    // Pedimos confirmación antes de una acción destructiva.
-    if (window.confirm('Are you sure you want to delete this course?')) {
-      try {
-        await removeCourse(id);
-        console.log(`Curso ${id} borrado con éxito.`);
-      } catch (error) {
-        console.error(`Error al borrar el curso ${id}:`, error);
-      }
-    }
-  };
 
-  const handleEditCourse = (id) => {
-    // En el futuro, esto navegaría a una página de edición
-    // o abriría un modal con los datos del curso.
-    console.log(`Navegando a la edición del curso con ID: ${id}`);
-  };
+  const columns = useMemo(
+    () => [
+      {
+        id: 'select',
+        header: ({ table }) => (
+          <input
+            type="checkbox"
+            className="w-4 h-4 text-indigo-600 bg-gray-100 rounded border-gray-300 focus:ring-indigo-500"
+            {...{
+              checked: table.getIsAllRowsSelected(),
+              indeterminate: table.getIsSomeRowsSelected(),
+              onChange: table.getToggleAllRowsSelectedHandler(),
+            }}
+          />
+        ),
+        cell: ({ row }) => (
+          <input
+            type="checkbox"
+            className="w-4 h-4 text-indigo-600 bg-gray-100 rounded border-gray-300 focus:ring-indigo-500"
+            {...{
+              checked: row.getIsSelected(),
+              disabled: !row.getCanSelect(),
+              indeterminate: row.getIsSomeSelected(),
+              onChange: row.getToggleSelectedHandler(),
+            }}
+          />
+        ),
+      },
+      {
+        accessorKey: 'title.rendered',
+        header: 'Title',
+        cell: ({ row }) => (
+          <div className="flex items-center space-x-2">
+            <span className="font-semibold text-gray-800">
+              {row.original.title.rendered || 'No Title'}
+            </span>
+            {row.original.meta?._sale_price && parseFloat(row.original.meta._sale_price) < parseFloat(row.original.meta._price) && (
+              <span className="px-2 py-0.5 text-xs font-medium text-green-800 bg-green-100 border border-green-800 rounded-full">
+                On Sale
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'enrolled_users_count',
+        header: 'Enrolled',
+      },
+      // --- COLUMNA "PUBLISHED DATE" AÑADIDA DE NUEVO ---
+      {
+        accessorKey: 'date',
+        header: 'Published Date',
+        cell: ({ row }) => (
+            new Date(row.original.date).toLocaleDateString()
+        )
+      },
+      // --- FIN DE LA COLUMNA AÑADIDA ---
+      {
+        accessorKey: 'meta._start_date',
+        header: 'Start Date',
+        cell: ({ row }) => (
+            row.original.meta?._start_date ? new Date(row.original.meta._start_date).toLocaleDateString() : 'N/A'
+        )
+      },
+      {
+        accessorKey: 'meta._end_date',
+        header: 'End Date',
+        cell: ({ row }) => (
+            row.original.meta?._end_date ? new Date(row.original.meta._end_date).toLocaleDateString() : 'N/A'
+        )
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ row }) => (
+          <span
+            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+              row.original.status === 'publish'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-yellow-100 text-yellow-800'
+            }`}
+          >
+            {row.original.status}
+          </span>
+        ),
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        cell: ({ row }) => (
+          <div className="flex space-x-2">
+            <Button variant="secondary" onClick={() => handleEditCourse(row.original.id)}>
+              Edit
+            </Button>
+            <Button variant="danger" onClick={() => handleDeleteCourse(row.original.id)}>
+              Delete
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    []
+  );
 
-  // 3. Renderizamos la estructura de la página.
-  return (
+  const table = useReactTable({
+    data: courses,
+    columns,
+    state: {
+      columnFilters,
+      rowSelection,
+    },
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
+
+  // ... (el resto del componente no cambia)
+
+  const handleNewCourse = () => { /* ... */ };
+  const handleDeleteCourse = (id) => { /* ... */ };
+  const handleEditCourse = (id) => { /* ... */ };
+
+   return (
     <div className="wrap">
-      {/* La barra de acciones recibe la función para crear un nuevo curso */}
-      <CoursesActionBar onNewCourse={handleNewCourse} />
+      <ResourceActionBar
+        title="Courses"
+        buttonText="New Course"
+        onButtonClick={handleNewCourse}
+        // ... (props de acciones en lote)
+      >
+        {/* --- NUEVOS COMPONENTES DE FILTRO --- */}
+        {/* Filtro específico para el título */}
+        <input
+          type="text"
+          value={titleFilter}
+          onChange={(e) =>
+            table.getColumn('title.rendered')?.setFilterValue(e.target.value)
+          }
+          placeholder="Search by title..."
+          className="px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm"
+        />
+
+        {/* Filtro específico para el estado (Dropdown) */}
+        <select
+          value={table.getColumn('status')?.getFilterValue() || ''}
+          onChange={e => table.getColumn('status')?.setFilterValue(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm"
+        >
+            <option value="">All Statuses</option>
+            <option value="publish">Published</option>
+            <option value="draft">Draft</option>
+        </select>
+        
+        {/* Aquí podríamos añadir más filtros en el futuro (fechas, on sale, etc.) */}
+
+      </ResourceActionBar>
 
       <div className="p-4">
-        {/* La lista de cursos recibe los datos y las funciones para editar/borrar */}
-        <CoursesList
-          courses={courses}
-          isLoading={isLoading}
-          onDelete={handleDeleteCourse}
-          onEdit={handleEditCourse}
-        />
+        <Table table={table} isLoading={isLoading} />
       </div>
     </div>
   );

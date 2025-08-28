@@ -29,6 +29,8 @@ class QE_Post_Types
     {
         add_action('init', [$this, 'register_post_types']);
         add_action('init', [$this, 'register_taxonomies']);
+
+        add_action('rest_api_init', [$this, 'register_custom_api_fields']);
     }
 
     /**
@@ -116,6 +118,53 @@ class QE_Post_Types
                 'show_in_rest' => true, // <-- API NATIVA ACTIVADA
             ]
         );
+    }
+
+    /**
+     * Registers all Custom API Fields for the plugin.
+     *
+     * @since 1.0.0
+     */
+    public function register_custom_api_fields()
+    {
+
+        register_post_meta('course', '_start_date', [
+            'show_in_rest' => true,
+            'single' => true,
+            'type' => 'string',
+        ]);
+        register_post_meta('course', '_end_date', [
+            'show_in_rest' => true,
+            'single' => true,
+            'type' => 'string',
+        ]);
+        register_post_meta('course', '_price', [
+            'show_in_rest' => true,
+            'single' => true,
+            'type' => 'string',
+        ]);
+        register_post_meta('course', '_sale_price', [
+            'show_in_rest' => true,
+            'single' => true,
+            'type' => 'string',
+        ]);
+
+        // 2. Registramos un campo calculado para el contador de usuarios.
+        register_rest_field('course', 'enrolled_users_count', [
+            'get_callback' => function ($course) {
+                global $wpdb;
+                $meta_key = '_enrolled_course_' . $course['id'];
+                $count = $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(user_id) FROM $wpdb->usermeta WHERE meta_key = %s",
+                    $meta_key
+                ));
+                return (int) $count;
+            },
+            'schema' => [
+                'description' => 'Number of users enrolled in the course.',
+                'type' => 'integer',
+            ],
+        ]);
     }
 
     /**

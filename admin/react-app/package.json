@@ -27,6 +27,7 @@
   },
   "homepage": "https://github.com/rhergondev/quiz-extended#readme",
   "dependencies": {
+    "@tanstack/react-table": "^8.21.3",
     "@wordpress/element": "^6.8.0",
     "lucide-react": "^0.539.0",
     "react-quill": "^2.0.0",

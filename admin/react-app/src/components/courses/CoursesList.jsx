@@ -19,11 +19,44 @@ const CoursesList = ({ courses, isLoading, onDelete, onEdit }) => {
       header: 'Title',
       // Usamos una función de renderizado para darle un estilo especial al título.
       render: (course) => (
-        <span className="font-semibold text-gray-800">
-          {/* La API de WordPress devuelve el título dentro de un objeto 'rendered' */}
-          {course.title.rendered || 'No Title'}
-        </span>
+        <div className="flex items-center space-x-2">
+          <span className="font-semibold text-gray-800">
+            {course.title.rendered || 'No Title'}
+          </span>
+          {course.meta?._sale_price && parseFloat(course.meta._sale_price) < parseFloat(course.meta._price) && (
+            <span className="px-2 py-0.5 text-xs font-medium text-green-800 bg-green-100 border border-green-800 rounded-full">
+              On Sale
+            </span>
+          )}
+        </div>
       ),
+    },
+        {
+        key: 'enrolled',
+        header: 'Enrolled Users',
+        render: (course) => (
+            <span className="text-gray-600">{course.enrolled_users_count || 0}</span>
+        )
+    },
+    {
+      key: 'published_date',
+      header: 'Published Date',
+      // Formateamos la fecha para que sea más legible.
+      render: (course) => new Date(course.date).toLocaleDateString(),
+    },
+    {
+        key: 'start_date',
+        header: 'Start Date',
+        render: (course) => (
+            course.meta?._start_date ? new Date(course.meta._start_date).toLocaleDateString() : 'N/A'
+        )
+    },
+    {
+        key: 'end_date',
+        header: 'End Date',
+        render: (course) => (
+            course.meta?._end_date ? new Date(course.meta._end_date).toLocaleDateString() : 'N/A'
+        )
     },
     {
       key: 'status',
@@ -40,12 +73,6 @@ const CoursesList = ({ courses, isLoading, onDelete, onEdit }) => {
           {course.status}
         </span>
       ),
-    },
-    {
-      key: 'date',
-      header: 'Published Date',
-      // Formateamos la fecha para que sea más legible.
-      render: (course) => new Date(course.date).toLocaleDateString(),
     },
     {
       key: 'actions',
