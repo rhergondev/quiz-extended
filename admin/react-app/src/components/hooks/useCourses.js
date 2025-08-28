@@ -2,20 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getCourses, createCourse, deleteCourse } from '../../api/coursesApi';
 
 /**
- * Custom hook to manage courses state and logic with infinite scroll support.
- * Encapsulates API calls, loading state and data manipulation.
+ * Enhanced custom hook to manage courses state and logic with infinite scroll support
+ * and improved filter management.
  *
  * @returns {object} Object with courses state and functions to manipulate them.
- * - courses {Array}: The list of courses.
- * - isLoading {boolean}: True if initial data is loading.
- * - isLoadingMore {boolean}: True if loading more data.
- * - error {Error|null}: An error object if any API call fails.
- * - hasMore {boolean}: True if there are more courses to load.
- * - pagination {object}: Pagination information.
- * - loadMoreCourses {function(): Promise<void>}: Function to load more courses.
- * - refreshCourses {function(object): Promise<void>}: Function to refresh courses with new filters.
- * - addCourse {function(object): Promise<void>}: Function to create a new course.
- * - removeCourse {function(number): Promise<void>}: Function to delete a course by ID.
  */
 export const useCourses = () => {
   // --- STATE ---
@@ -78,7 +68,7 @@ export const useCourses = () => {
           });
         }
       } else {
-        // Replace courses with new ones
+        // Replace courses with new ones (fresh load or filter change)
         setCourses(response.data);
         currentFiltersRef.current = filters;
       }
@@ -90,8 +80,20 @@ export const useCourses = () => {
       setHasMore(actuallyHasMore);
       
     } catch (err) {
-      setError(err);
       console.error('Failed to fetch courses:', err);
+      setError(err);
+      
+      // If it's a filter change (not load more), still reset courses to empty
+      if (!isLoadMore) {
+        setCourses([]);
+        setPagination({
+          total: 0,
+          totalPages: 0,
+          currentPage: 0,
+          perPage: 20
+        });
+        setHasMore(false);
+      }
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
@@ -109,7 +111,9 @@ export const useCourses = () => {
   // --- LOAD MORE COURSES ---
   const loadMoreCourses = useCallback(async () => {
     // Multiple safety checks to prevent unnecessary calls
-    if (isLoadingMore || !hasMore || isLoading) return;
+    if (isLoadingMore || !hasMore || isLoading) {
+      return;
+    }
     
     // Check if we're already at the end
     if (pagination.currentPage >= pagination.totalPages) {
@@ -130,6 +134,12 @@ export const useCourses = () => {
       search: newFilters.search || ''
     };
     
+    // Reset pagination state before fetching
+    setPagination(prev => ({
+      ...prev,
+      currentPage: 0
+    }));
+    
     await fetchCourses({ 
       isLoadMore: false,
       filters 
@@ -140,6 +150,7 @@ export const useCourses = () => {
   const addCourse = useCallback(async (courseData) => {
     try {
       const newCourse = await createCourse(courseData);
+      
       // Add new course to the beginning of the list
       setCourses((prevCourses) => [newCourse, ...prevCourses]);
       
@@ -148,9 +159,11 @@ export const useCourses = () => {
         ...prev,
         total: prev.total + 1
       }));
+      
+      return newCourse;
     } catch (err) {
-      setError(err);
       console.error('Failed to create course:', err);
+      setError(err);
       throw err;
     }
   }, []);
@@ -159,6 +172,7 @@ export const useCourses = () => {
   const removeCourse = useCallback(async (courseId) => {
     try {
       await deleteCourse(courseId);
+      
       // Remove course from local state
       setCourses((prevCourses) =>
         prevCourses.filter((course) => course.id !== courseId)
@@ -169,24 +183,68 @@ export const useCourses = () => {
         ...prev,
         total: Math.max(0, prev.total - 1)
       }));
+      
+      return true;
     } catch (err) {
-      setError(err);
       console.error(`Failed to delete course ${courseId}:`, err);
+      setError(err);
       throw err;
     }
   }, []);
 
+  // --- UTILITY FUNCTIONS ---
+  
+  /**
+   * Clear all courses and reset state
+   */
+  const clearCourses = useCallback(() => {
+    setCourses([]);
+    setPagination({
+      total: 0,
+      totalPages: 0,
+      currentPage: 0,
+      perPage: 20
+    });
+    setHasMore(false);
+    setError(null);
+  }, []);
+
+  /**
+   * Get current filter state
+   */
+  const getCurrentFilters = useCallback(() => {
+    return { ...currentFiltersRef.current };
+  }, []);
+
+  /**
+   * Check if we have any active filters
+   */
+  const hasActiveFilters = useCallback(() => {
+    const filters = currentFiltersRef.current;
+    return !!(filters.search || (filters.status && filters.status !== 'publish,draft'));
+  }, []);
+
   // --- RETURN VALUE ---
   return {
+    // Data
     courses,
+    pagination,
+    
+    // Loading states
     isLoading,
     isLoadingMore,
     error,
     hasMore,
-    pagination,
+    
+    // Actions
     loadMoreCourses,
     refreshCourses,
     addCourse,
     removeCourse,
+    
+    // Utilities
+    clearCourses,
+    getCurrentFilters,
+    hasActiveFilters,
   };
 };
