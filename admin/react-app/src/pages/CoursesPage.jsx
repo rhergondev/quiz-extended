@@ -12,6 +12,7 @@ import ResourceActionBar from '../components/common/ResourceActionBar';
 import Table from '../components/common/Table';
 import Button from '../components/common/Button';
 import BatchActions from '../components/common/BatchActions';
+import CourseCreateModal from '../components/courses/CourseCreateModal';
 
 const statuses = ["publish", "draft", "disabled"];
 
@@ -39,6 +40,7 @@ const CoursesPage = () => {
   const [rowSelection, setRowSelection] = useState({});
   const [isCreating, setIsCreating] = useState(false);
   const [batchOperationStatus, setBatchOperationStatus] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Simplified filter states - only search, status, and category
   const [filters, setFilters] = useState({
@@ -273,21 +275,22 @@ const CoursesPage = () => {
   // Get selected rows
   const selectedRows = table.getSelectedRowModel().rows;
 
-  // Simplified handlers
-  const handleNewCourse = async () => {
-    if (isCreating) return;
-    
+  // Course creation handlers
+  const handleNewCourse = () => {
+    setShowCreateModal(true);
+  };
+
+  const handleCourseCreated = async (courseData) => {
     setIsCreating(true);
     try {
-      const randomCourse = {}
-      await addCourse(randomCourse);
-      console.log('✅ Random course created:', randomCourse.title);
+      await addCourse(courseData);
+      console.log('✅ Course created successfully');
       
       // Refresh categories to update counts
       refreshCategories();
     } catch (error) {
       console.error('❌ Failed to create course:', error);
-      alert(`Failed to create course: ${error.message}`);
+      throw error; // Re-throw so the modal can handle it
     } finally {
       setIsCreating(false);
     }
@@ -608,6 +611,15 @@ const CoursesPage = () => {
           )}
         </div>
       </div>
+
+      {/* Course Creation Modal */}
+      <CourseCreateModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCourseCreated={handleCourseCreated}
+        categories={categories}
+        isCreating={isCreating}
+      />
     </div>
   );
 };
