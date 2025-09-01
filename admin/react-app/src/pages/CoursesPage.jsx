@@ -13,11 +13,7 @@ import Table from '../components/common/Table';
 import Button from '../components/common/Button';
 import BatchActions from '../components/common/BatchActions';
 
-const difficulties = ["Beginner", "Intermediate", "Advanced"];
 const statuses = ["publish", "draft", "disabled"];
-
-const getRandomElement = (array) => array[Math.floor(Math.random() * array.length)];
-const getRandomNumber = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 const CoursesPage = () => {
   const { 
