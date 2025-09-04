@@ -10,7 +10,7 @@ import {
 /**
  * Custom hook for lesson management - FIXED VERSION
  * Provides lesson state and operations with filtering and pagination
- * Fixed course filtering issue
+ * Fixed course filtering reactivity issue
  */
 export const useLessons = (options = {}) => {
   const { 
@@ -43,12 +43,16 @@ export const useLessons = (options = {}) => {
 
   // Refs para evitar re-renders innecesarios
   const currentFiltersRef = useRef(filters);
-  const isInitialLoadRef = useRef(true);
+  const courseIdRef = useRef(courseId);
 
-  // Update filters ref when filters change
+  // Update refs when values change
   useEffect(() => {
     currentFiltersRef.current = filters;
   }, [filters]);
+
+  useEffect(() => {
+    courseIdRef.current = courseId;
+  }, [courseId]);
 
   // --- FETCH LESSONS - FIXED VERSION ---
   const fetchLessons = useCallback(async (options = {}) => {
@@ -64,13 +68,14 @@ export const useLessons = (options = {}) => {
         setError(null);
       }
 
-      console.log('Fetching lessons with courseId:', courseId);
+      const currentCourseId = courseIdRef.current;
+      console.log('Fetching lessons with courseId:', currentCourseId);
       console.log('Current filters:', currentFiltersRef.current);
 
-      // FIX: Mejorar la conversión y validación del courseId
+      // FIX: Improve courseId conversion and validation
       let validCourseId = null;
-      if (courseId !== null && courseId !== undefined) {
-        const numericCourseId = parseInt(courseId, 10);
+      if (currentCourseId !== null && currentCourseId !== undefined && currentCourseId !== 'all') {
+        const numericCourseId = parseInt(currentCourseId, 10);
         if (Number.isInteger(numericCourseId) && numericCourseId > 0) {
           validCourseId = numericCourseId;
         }
@@ -127,15 +132,15 @@ export const useLessons = (options = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [courseId]);
+  }, []); // NO dependencies - we use refs instead
 
-  // --- INITIAL LOAD AND FILTER CHANGES ---
+  // --- FIXED: Separate effect for initial load and courseId/filters changes ---
   useEffect(() => {
     if (autoFetch) {
       console.log('Auto-fetching lessons due to courseId or filters change');
       fetchLessons({ reset: true });
     }
-  }, [courseId, filters, autoFetch, fetchLessons]);
+  }, [courseId, filters, autoFetch]); // Remove fetchLessons from dependencies
 
   // --- LESSON OPERATIONS ---
   const createLesson = useCallback(async (lessonData) => {
@@ -148,7 +153,7 @@ export const useLessons = (options = {}) => {
         ...lessonData,
         meta: {
           ...lessonData.meta,
-          _course_id: lessonData.meta?._course_id || courseId?.toString() || ''
+          _course_id: lessonData.meta?._course_id || courseIdRef.current?.toString() || ''
         }
       };
 
@@ -164,7 +169,7 @@ export const useLessons = (options = {}) => {
     } finally {
       setCreating(false);
     }
-  }, [fetchLessons, courseId]);
+  }, [fetchLessons]);
 
   const deleteLesson = useCallback(async (lessonId) => {
     try {

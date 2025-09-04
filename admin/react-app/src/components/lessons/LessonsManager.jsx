@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   BookOpen, 
   Eye, 
@@ -43,7 +43,6 @@ const LessonsManager = () => {
     error, 
     pagination,
     computed,
-    fetchLessons,
     createLesson,
     deleteLesson,
     duplicateLesson,
@@ -59,7 +58,6 @@ const LessonsManager = () => {
   });
 
   // --- COMPUTED VALUES ---
-
   const validCourses = useMemo(() => {
     return courses.filter(course => 
       course.title && (course.title.rendered || course.title)
@@ -69,7 +67,7 @@ const LessonsManager = () => {
     }));
   }, [courses]);
 
-  // FIX: Definir selectedCourseId
+  // FIX: Proper selectedCourseId calculation
   const selectedCourseId = useMemo(() => {
     if (selectedCourse === 'all') return null;
     const numericId = parseInt(selectedCourse, 10);
@@ -89,29 +87,30 @@ const LessonsManager = () => {
   }, [lessons, computed]);
 
   // --- EVENT HANDLERS ---
-  const handleCourseChange = (courseId) => {
+  // FIX: Use useCallback to prevent unnecessary re-renders
+  const handleCourseChange = useCallback((courseId) => {
+    console.log('Course changed to:', courseId);
     setSelectedCourse(courseId);
-    // El hook useLessons se re-ejecutará automáticamente cuando cambie courseId
-  };
+    // The useLessons hook will automatically react to the courseId change
+  }, []);
 
-const handleCreateLesson = async (lessonData) => {
-  try {
-    console.log('Creating lesson with data:', lessonData);
-    await createLesson(lessonData);
-    setShowCreateModal(false);
-  } catch (error) {
-    console.error('Error creating lesson:', error);
-    throw error; 
-  }
-};
+  const handleCreateLesson = useCallback(async (lessonData) => {
+    try {
+      console.log('Creating lesson with data:', lessonData);
+      await createLesson(lessonData);
+      setShowCreateModal(false);
+    } catch (error) {
+      console.error('Error creating lesson:', error);
+      throw error; 
+    }
+  }, [createLesson]);
 
-
-  const handleDeleteClick = (lesson) => {
+  const handleDeleteClick = useCallback((lesson) => {
     setLessonToDelete(lesson);
     setShowDeleteModal(true);
-  };
+  }, []);
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (lessonToDelete) {
       try {
         await deleteLesson(lessonToDelete.id);
@@ -122,16 +121,16 @@ const handleCreateLesson = async (lessonData) => {
         console.error('Error deleting lesson:', error);
       }
     }
-  };
+  }, [lessonToDelete, deleteLesson]);
 
-  const handleDuplicate = async (lesson) => {
+  const handleDuplicate = useCallback(async (lesson) => {
     try {
       await duplicateLesson(lesson.id);
       // Refresh is automatic with the hook
     } catch (error) {
       console.error('Error duplicating lesson:', error);
     }
-  };
+  }, [duplicateLesson]);
 
   // --- RENDER ---
   if (loading && lessons.length === 0) {
@@ -159,7 +158,7 @@ const handleCreateLesson = async (lessonData) => {
         </div>
       </div>
 
-      {/* Course Selector */}
+      {/* Course Selector - FIXED VERSION */}
       <div className="bg-white shadow rounded-lg border border-gray-200 p-4">
         <div className="flex items-center space-x-4">
           <label htmlFor="course-select" className="text-sm font-medium text-gray-700 whitespace-nowrap">
@@ -174,9 +173,9 @@ const handleCreateLesson = async (lessonData) => {
               disabled={coursesLoading}
             >
               <option value="all">All Courses</option>
-              {courses.map((course) => (
+              {validCourses.map((course) => (
                 <option key={course.id} value={course.id}>
-                  {course.title?.rendered || course.title}
+                  {course.title}
                 </option>
               ))}
             </select>
@@ -196,18 +195,18 @@ const handleCreateLesson = async (lessonData) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
         {/* Total Lessons */}
         <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-200">
-          <div className="p-4">
+          <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <BookOpen className="h-6 w-6 text-gray-400" />
+                <BookOpen className="h-8 w-8 text-gray-400" />
               </div>
-              <div className="ml-3 w-0 flex-1">
+              <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Total Lessons
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {computedWithQuizzes.totalLessons}
+                    {computed.totalLessons}
                   </dd>
                 </dl>
               </div>
@@ -215,20 +214,20 @@ const handleCreateLesson = async (lessonData) => {
           </div>
         </div>
 
-        {/* Published */}
+        {/* Published Lessons */}
         <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-200">
-          <div className="p-4">
+          <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Eye className="h-6 w-6 text-green-400" />
+                <Eye className="h-8 w-8 text-green-400" />
               </div>
-              <div className="ml-3 w-0 flex-1">
+              <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Published
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {computedWithQuizzes.publishedLessons}
+                    {computed.publishedLessons}
                   </dd>
                 </dl>
               </div>
@@ -236,20 +235,20 @@ const handleCreateLesson = async (lessonData) => {
           </div>
         </div>
 
-        {/* Drafts */}
+        {/* Draft Lessons */}
         <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-200">
-          <div className="p-4">
+          <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <EyeOff className="h-6 w-6 text-yellow-400" />
+                <EyeOff className="h-8 w-8 text-orange-400" />
               </div>
-              <div className="ml-3 w-0 flex-1">
+              <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Drafts
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {computedWithQuizzes.draftLessons}
+                    {computed.draftLessons}
                   </dd>
                 </dl>
               </div>
@@ -257,41 +256,20 @@ const handleCreateLesson = async (lessonData) => {
           </div>
         </div>
 
-        {/* Free Lessons */}
+        {/* Total Duration */}
         <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-200">
-          <div className="p-4">
+          <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Users className="h-6 w-6 text-blue-400" />
+                <Clock className="h-8 w-8 text-blue-400" />
               </div>
-              <div className="ml-3 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Free Lessons
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {computedWithQuizzes.freeLessons}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Duration */}
-        <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-200">
-          <div className="p-4">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Clock className="h-6 w-6 text-purple-400" />
-              </div>
-              <div className="ml-3 w-0 flex-1">
+              <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
                     Total Duration
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {Math.floor(computedWithQuizzes.totalDuration / 60)}h {computedWithQuizzes.totalDuration % 60}m
+                    {Math.floor(computed.totalDuration / 60)}h {computed.totalDuration % 60}m
                   </dd>
                 </dl>
               </div>
@@ -299,20 +277,20 @@ const handleCreateLesson = async (lessonData) => {
           </div>
         </div>
 
-        {/* Videos Count */}
+        {/* Video Lessons */}
         <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-200">
-          <div className="p-4">
+          <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Video className="h-6 w-6 text-red-400" />
+                <Video className="h-8 w-8 text-red-400" />
               </div>
-              <div className="ml-3 w-0 flex-1">
+              <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    Video Lessons
+                    Videos
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {computedWithQuizzes.lessonsByType?.video || 0}
+                    {computed.lessonsByType.video || 0}
                   </dd>
                 </dl>
               </div>
@@ -320,20 +298,41 @@ const handleCreateLesson = async (lessonData) => {
           </div>
         </div>
 
-        {/* Quizzes Count - NEW */}
+        {/* Quiz Lessons */}
         <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-200">
-          <div className="p-4">
+          <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <HelpCircle className="h-6 w-6 text-orange-400" />
+                <HelpCircle className="h-8 w-8 text-purple-400" />
               </div>
-              <div className="ml-3 w-0 flex-1">
+              <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    With Quizzes
+                    Quizzes
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {computedWithQuizzes.lessonsWithQuizzes}
+                    {computed.lessonsByType.quiz || 0}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Students (placeholder) */}
+        <div className="bg-white overflow-hidden shadow rounded-lg border border-gray-200">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Users className="h-8 w-8 text-indigo-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Students
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    --
                   </dd>
                 </dl>
               </div>
@@ -342,28 +341,16 @@ const handleCreateLesson = async (lessonData) => {
         </div>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="rounded-md bg-red-50 p-4 border border-red-200">
-          <div className="text-sm text-red-700">
-            Error loading lessons: {error.message}
-          </div>
-        </div>
-      )}
-
       {/* View Mode Toggle */}
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <div className="text-sm text-gray-600">
-          {pagination.total > 0 && (
-            <>Showing {lessons.length} of {pagination.total} lessons</>
-          )}
+          {loading ? 'Loading...' : `${lessons.length} lesson${lessons.length !== 1 ? 's' : ''} found`}
         </div>
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600">View:</span>
-          <div className="inline-flex rounded-lg border border-gray-200 p-1">
+          <div className="flex items-center border border-gray-200 rounded-lg p-1">
             <button
               onClick={() => setViewMode('cards')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+              className={`p-2 rounded text-sm ${
                 viewMode === 'cards'
                   ? 'bg-indigo-100 text-indigo-700'
                   : 'text-gray-500 hover:text-gray-700'
@@ -373,7 +360,7 @@ const handleCreateLesson = async (lessonData) => {
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+              className={`p-2 rounded text-sm ${
                 viewMode === 'list'
                   ? 'bg-indigo-100 text-indigo-700'
                   : 'text-gray-500 hover:text-gray-700'
@@ -412,7 +399,7 @@ const handleCreateLesson = async (lessonData) => {
               onEdit={(lesson) => console.log('Edit lesson:', lesson)}
               onDelete={handleDeleteClick}
               onDuplicate={handleDuplicate}
-              courses={courses}
+              courses={validCourses}
             />
           ))}
         </div>
