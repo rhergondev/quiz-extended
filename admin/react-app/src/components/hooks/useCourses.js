@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getCourses, createCourse, deleteCourse } from '../../api/coursesApi';
+import { getCourses, createCourse, deleteCourse } from '../../api/index.js';
 
 /**
  * Enhanced custom hook to manage courses state and logic with infinite scroll support

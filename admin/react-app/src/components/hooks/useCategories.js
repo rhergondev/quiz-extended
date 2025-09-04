@@ -1,7 +1,7 @@
 // admin/react-app/src/components/hooks/useCategories.js
 
 import { useState, useEffect, useCallback } from 'react';
-import { getCourseCategories, createCourseCategory, getCategoryStats } from '../../api/categoriesApi';
+import { getCourseCategories, createCourseCategory, getCategoryStats } from '../../api/index.js';
 
 /**
  * Custom hook to manage course categories

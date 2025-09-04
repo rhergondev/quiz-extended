@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDownIcon, TrashIcon, EditIcon, RefreshCwIcon } from 'lucide-react';
-import { batchDeleteCourses, batchUpdateStatus, batchUpdateCategory } from '../../api/batchActionsApi';
+import { batchDeleteCourses, batchUpdateStatus, batchUpdateCategory } from '../../api/index.js';
 
 const BatchActions = ({ 
   selectedRows, 
