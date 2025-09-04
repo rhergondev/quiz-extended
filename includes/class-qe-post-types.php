@@ -1,5 +1,5 @@
 <?php
-// includes/class-qe-post-types.php - Updated with proper REST API configuration
+// includes/class-qe-post-types.php - FIXED VERSION for meta_query filtering
 
 class QE_Post_Types
 {
@@ -9,9 +9,130 @@ class QE_Post_Types
         add_action('init', [$this, 'register_taxonomies']);
         add_action('rest_api_init', [$this, 'register_custom_api_fields']);
 
-        // Add permissions handling for REST API
+        // 🔧 FIXED: Add proper REST API filters for lessons
+        add_filter('rest_lesson_query', [$this, 'filter_lessons_by_meta'], 10, 2);
+        add_filter('rest_lesson_collection_params', [$this, 'add_lesson_collection_params'], 10, 1);
+
+        // Keep existing course filters
         add_filter('rest_pre_dispatch', [$this, 'handle_rest_authentication'], 10, 3);
         add_filter('rest_course_collection_params', [$this, 'add_course_collection_params'], 10, 1);
+    }
+
+    /**
+     * 🔧 NEW: Filter lessons by meta_query parameters
+     * This is the key function that makes course filtering work!
+     */
+    public function filter_lessons_by_meta($args, $request)
+    {
+        error_log('🔍 Lesson meta filter called with args: ' . print_r($args, true));
+        error_log('🔍 Request params: ' . print_r($request->get_params(), true));
+
+        // Check for meta_query parameters in the request
+        $params = $request->get_params();
+        $meta_query = [];
+
+        // Handle meta_query array format from frontend
+        if (isset($params['meta_query']) && is_array($params['meta_query'])) {
+            foreach ($params['meta_query'] as $meta_condition) {
+                if (isset($meta_condition['key']) && isset($meta_condition['value'])) {
+                    $meta_query[] = [
+                        'key' => sanitize_text_field($meta_condition['key']),
+                        'value' => sanitize_text_field($meta_condition['value']),
+                        'compare' => isset($meta_condition['compare']) ? $meta_condition['compare'] : '=',
+                        'type' => isset($meta_condition['type']) ? $meta_condition['type'] : 'CHAR'
+                    ];
+
+                    error_log('✅ Added meta_query condition: ' . print_r(end($meta_query), true));
+                }
+            }
+        }
+
+        // Handle individual meta parameters (fallback)
+        if (empty($meta_query)) {
+            if (isset($params['meta_key']) && isset($params['meta_value'])) {
+                $meta_query[] = [
+                    'key' => sanitize_text_field($params['meta_key']),
+                    'value' => sanitize_text_field($params['meta_value']),
+                    'compare' => isset($params['meta_compare']) ? $params['meta_compare'] : '=',
+                    'type' => 'CHAR'
+                ];
+
+                error_log('✅ Added fallback meta_query: ' . print_r(end($meta_query), true));
+            }
+        }
+
+        // Apply meta_query if we have conditions
+        if (!empty($meta_query)) {
+            if (count($meta_query) === 1) {
+                $args['meta_query'] = $meta_query;
+            } else {
+                $args['meta_query'] = array_merge(['relation' => 'AND'], $meta_query);
+            }
+
+            error_log('🚀 Final meta_query applied: ' . print_r($args['meta_query'], true));
+        }
+
+        return $args;
+    }
+
+    /**
+     * 🔧 ENHANCED: Add collection parameters for lesson endpoint
+     */
+    public function add_lesson_collection_params($params)
+    {
+        error_log('📋 Setting up lesson collection params');
+
+        $params['status']['default'] = 'publish,draft,private';
+
+        // Add meta_query support
+        $params['meta_query'] = [
+            'description' => 'Meta query conditions for filtering lessons',
+            'type' => 'array',
+            'items' => [
+                'type' => 'object',
+                'properties' => [
+                    'key' => [
+                        'type' => 'string',
+                        'description' => 'Meta key to filter by'
+                    ],
+                    'value' => [
+                        'type' => 'string',
+                        'description' => 'Meta value to filter by'
+                    ],
+                    'compare' => [
+                        'type' => 'string',
+                        'default' => '=',
+                        'enum' => ['=', '!=', '>', '>=', '<', '<=', 'LIKE', 'NOT LIKE', 'IN', 'NOT IN', 'BETWEEN', 'NOT BETWEEN', 'EXISTS', 'NOT EXISTS']
+                    ],
+                    'type' => [
+                        'type' => 'string',
+                        'default' => 'CHAR',
+                        'enum' => ['NUMERIC', 'BINARY', 'CHAR', 'DATE', 'DATETIME', 'DECIMAL', 'SIGNED', 'TIME', 'UNSIGNED']
+                    ]
+                ]
+            ]
+        ];
+
+        // Add individual meta parameter support (fallback)
+        $params['meta_key'] = [
+            'description' => 'Meta key to filter by',
+            'type' => 'string',
+        ];
+
+        $params['meta_value'] = [
+            'description' => 'Meta value to filter by',
+            'type' => 'string',
+        ];
+
+        $params['meta_compare'] = [
+            'description' => 'Meta comparison operator',
+            'type' => 'string',
+            'default' => '=',
+            'enum' => ['=', '!=', '>', '>=', '<', '<=', 'LIKE', 'NOT LIKE', 'IN', 'NOT IN', 'BETWEEN', 'NOT BETWEEN', 'EXISTS', 'NOT EXISTS'],
+        ];
+
+        error_log('✅ Lesson collection params configured');
+        return $params;
     }
 
     /**
@@ -19,8 +140,10 @@ class QE_Post_Types
      */
     public function handle_rest_authentication($result, $server, $request)
     {
-        // Only handle our course endpoints
-        if (strpos($request->get_route(), '/wp/v2/course') === false) {
+        $route = $request->get_route();
+
+        // Handle both course and lesson endpoints
+        if (strpos($route, '/wp/v2/course') === false && strpos($route, '/wp/v2/lesson') === false) {
             return $result;
         }
 
@@ -33,11 +156,11 @@ class QE_Post_Types
             );
         }
 
-        // For POST requests (creating courses), check if user can create posts
+        // For POST requests, check if user can create posts
         if ($request->get_method() === 'POST' && !current_user_can('edit_posts')) {
             return new WP_Error(
                 'rest_cannot_create',
-                __('Sorry, you are not allowed to create courses.'),
+                __('Sorry, you are not allowed to create content.'),
                 array('status' => 403)
             );
         }
@@ -97,7 +220,7 @@ class QE_Post_Types
         // Add capabilities to administrator role
         $this->add_course_capabilities();
 
-        // Rest of post types...
+        // CPT: Books
         $this->register_single_post_type(
             'book',
             'Book',
@@ -113,6 +236,7 @@ class QE_Post_Types
             ]
         );
 
+        // CPT: Lessons - 🔧 ENHANCED with proper REST API support for filtering
         $this->register_single_post_type(
             'lesson',
             'Lesson',
@@ -127,8 +251,28 @@ class QE_Post_Types
                 'show_in_rest' => true,
                 'rest_base' => 'lesson',
                 'rest_controller_class' => 'WP_REST_Posts_Controller',
+                // Add enhanced capabilities for lessons
+                'capabilities' => [
+                    'edit_post' => 'edit_lesson',
+                    'edit_posts' => 'edit_lessons',
+                    'edit_others_posts' => 'edit_others_lessons',
+                    'publish_posts' => 'publish_lessons',
+                    'read_post' => 'read_lesson',
+                    'read_private_posts' => 'read_private_lessons',
+                    'delete_post' => 'delete_lesson',
+                    'delete_posts' => 'delete_lessons',
+                    'delete_others_posts' => 'delete_others_lessons',
+                    'delete_published_posts' => 'delete_published_lessons',
+                    'delete_private_posts' => 'delete_private_lessons',
+                    'edit_private_posts' => 'edit_private_lessons',
+                    'edit_published_posts' => 'edit_published_lessons',
+                ],
+                'map_meta_cap' => true,
             ]
         );
+
+        // Add lesson capabilities
+        $this->add_lesson_capabilities();
 
         $this->register_single_post_type(
             'quiz',
@@ -191,12 +335,44 @@ class QE_Post_Types
     }
 
     /**
-     * Registers all Custom API Fields for the plugin.
+     * Add lesson capabilities to administrator role - NEW
+     */
+    private function add_lesson_capabilities()
+    {
+        $role = get_role('administrator');
+
+        if ($role) {
+            $capabilities = [
+                'edit_lesson',
+                'edit_lessons',
+                'edit_others_lessons',
+                'publish_lessons',
+                'read_lesson',
+                'read_private_lessons',
+                'delete_lesson',
+                'delete_lessons',
+                'delete_others_lessons',
+                'delete_published_lessons',
+                'delete_private_lessons',
+                'edit_private_lessons',
+                'edit_published_lessons',
+            ];
+
+            foreach ($capabilities as $cap) {
+                $role->add_cap($cap);
+            }
+        }
+    }
+
+    /**
+     * 🔧 ENHANCED: Registers all Custom API Fields for the plugin
      */
     public function register_custom_api_fields()
     {
-        // Register meta fields for REST API
-        $meta_fields = [
+        error_log('📋 Registering custom API fields');
+
+        // === COURSE META FIELDS ===
+        $course_meta_fields = [
             '_start_date' => 'string',
             '_end_date' => 'string',
             '_price' => 'string',
@@ -207,7 +383,7 @@ class QE_Post_Types
             '_max_students' => 'string',
         ];
 
-        foreach ($meta_fields as $meta_key => $type) {
+        foreach ($course_meta_fields as $meta_key => $type) {
             register_post_meta('course', $meta_key, [
                 'show_in_rest' => true,
                 'single' => true,
@@ -216,6 +392,36 @@ class QE_Post_Types
                     return current_user_can('edit_posts');
                 }
             ]);
+        }
+
+        // === LESSON META FIELDS - 🔧 CRITICAL: Ensure all lesson meta fields are registered ===
+        $lesson_meta_fields = [
+            '_course_id' => 'string',        // 🚨 CRITICAL for filtering!
+            '_lesson_order' => 'string',
+            '_duration_minutes' => 'string',
+            '_lesson_type' => 'string',
+            '_video_url' => 'string',
+            '_content_type' => 'string',
+            '_prerequisite_lessons' => 'string',
+            '_resources_urls' => 'string',
+            '_completion_criteria' => 'string',
+            '_has_quiz' => 'string',
+        ];
+
+        foreach ($lesson_meta_fields as $meta_key => $type) {
+            register_post_meta('lesson', $meta_key, [
+                'show_in_rest' => true,
+                'single' => true,
+                'type' => $type,
+                'auth_callback' => function () {
+                    return current_user_can('edit_posts');
+                },
+                'sanitize_callback' => function ($value) {
+                    return sanitize_text_field($value);
+                }
+            ]);
+
+            error_log("✅ Registered lesson meta field: {$meta_key}");
         }
 
         // Register computed field for enrolled users count
@@ -234,6 +440,32 @@ class QE_Post_Types
                 'type' => 'integer',
             ],
         ]);
+
+        // 🔧 NEW: Register computed field for lesson count per course
+        register_rest_field('course', 'lessons_count', [
+            'get_callback' => function ($course) {
+                $lessons_query = new WP_Query([
+                    'post_type' => 'lesson',
+                    'post_status' => ['publish', 'draft', 'private'],
+                    'meta_query' => [
+                        [
+                            'key' => '_course_id',
+                            'value' => $course['id'],
+                            'compare' => '='
+                        ]
+                    ],
+                    'fields' => 'ids',
+                    'posts_per_page' => -1
+                ]);
+                return $lessons_query->found_posts;
+            },
+            'schema' => [
+                'description' => 'Number of lessons in the course.',
+                'type' => 'integer',
+            ],
+        ]);
+
+        error_log('✅ All custom API fields registered successfully');
     }
 
     /**
@@ -241,122 +473,68 @@ class QE_Post_Types
      */
     public function register_taxonomies()
     {
-        $this->register_single_taxonomy(
-            'qe_category',
-            ['question', 'quiz', 'course'],
-            'Category',
-            'Categories',
-            [
-                'hierarchical' => true,
-                'rewrite' => ['slug' => 'qe-category'],
-                'show_in_rest' => true,
-            ]
-        );
-
-        $this->register_single_taxonomy(
-            'qe_topic',
-            ['question', 'quiz'],
-            'Topic',
-            'Topics',
-            [
-                'hierarchical' => false,
-                'rewrite' => ['slug' => 'qe-topic'],
-                'show_in_rest' => true,
-            ]
-        );
-
-        $this->register_single_taxonomy(
-            'qe_difficulty',
-            ['question', 'quiz'],
-            'Difficulty',
-            'Difficulties',
-            [
-                'hierarchical' => false,
-                'rewrite' => ['slug' => 'qe-difficulty'],
-                'show_in_rest' => true,
-            ]
-        );
-
-        $this->register_single_taxonomy(
-            'course_type',
-            'course',
-            'Type',
-            'Types',
-            [
-                'hierarchical' => false,
-                'rewrite' => ['slug' => 'course-type'],
-                'show_in_rest' => true,
-            ]
-        );
-    }
-
-    // Keep existing helper methods...
-    private function register_single_post_type($post_type, $singular_name, $plural_name, $args = [])
-    {
-        $labels = [
-            'name' => _x($plural_name, 'Post Type General Name', 'quiz-extended'),
-            'singular_name' => _x($singular_name, 'Post Type Singular Name', 'quiz-extended'),
-            'menu_name' => __($plural_name, 'quiz-extended'),
-            'name_admin_bar' => __($singular_name, 'quiz-extended'),
-            'archives' => __($plural_name . ' Archives', 'quiz-extended'),
-            'attributes' => __($singular_name . ' Attributes', 'quiz-extended'),
-            'parent_item_colon' => __('Parent ' . $singular_name . ':', 'quiz-extended'),
-            'all_items' => __('All ' . $plural_name, 'quiz-extended'),
-            'add_new_item' => __('Add New ' . $singular_name, 'quiz-extended'),
-            'add_new' => __('Add New', 'quiz-extended'),
-            'new_item' => __('New ' . $singular_name, 'quiz-extended'),
-            'edit_item' => __('Edit ' . $singular_name, 'quiz-extended'),
-            'update_item' => __('Update ' . $singular_name, 'quiz-extended'),
-            'view_item' => __('View ' . $singular_name, 'quiz-extended'),
-            'view_items' => __('View ' . $plural_name, 'quiz-extended'),
-            'search_items' => __('Search ' . $plural_name, 'quiz-extended'),
-        ];
-
-        $defaults = [
-            'labels' => $labels,
-            'public' => true,
-            'show_ui' => true,
-            'show_in_menu' => true,
-            'query_var' => true,
-            'capability_type' => 'post',
-            'has_archive' => true,
-            'hierarchical' => false,
-            'menu_position' => 20,
-            'supports' => ['title', 'editor', 'thumbnail'],
-            'rewrite' => ['slug' => $post_type],
-        ];
-
-        $final_args = wp_parse_args($args, $defaults);
-        register_post_type($post_type, $final_args);
-    }
-
-    private function register_single_taxonomy($taxonomy, $post_type, $singular_name, $plural_name, $args = [])
-    {
-        $labels = [
-            'name' => _x($plural_name, 'Taxonomy General Name', 'quiz-extended'),
-            'singular_name' => _x($singular_name, 'Taxonomy Singular Name', 'quiz-extended'),
-            'menu_name' => __($plural_name, 'quiz-extended'),
-            'all_items' => __('All ' . $plural_name, 'quiz-extended'),
-            'parent_item' => __('Parent ' . $singular_name, 'quiz-extended'),
-            'parent_item_colon' => __('Parent ' . $singular_name . ':', 'quiz-extended'),
-            'new_item_name' => __('New ' . $singular_name . ' Name', 'quiz-extended'),
-            'add_new_item' => __('Add New ' . $singular_name, 'quiz-extended'),
-            'edit_item' => __('Edit ' . $singular_name, 'quiz-extended'),
-            'update_item' => __('Update ' . $singular_name, 'quiz-extended'),
-            'search_items' => __('Search ' . $plural_name, 'quiz-extended'),
-        ];
-
-        $defaults = [
-            'labels' => $labels,
+        // Course Categories
+        register_taxonomy('course_category', ['course'], [
             'hierarchical' => true,
-            'public' => true,
+            'labels' => [
+                'name' => 'Course Categories',
+                'singular_name' => 'Course Category',
+            ],
             'show_ui' => true,
             'show_admin_column' => true,
-            'show_in_nav_menus' => true,
-            'show_tagcloud' => true,
+            'query_var' => true,
+            'rewrite' => ['slug' => 'course-category'],
+            'show_in_rest' => true,
+        ]);
+
+        // Course Tags
+        register_taxonomy('course_tag', ['course'], [
+            'hierarchical' => false,
+            'labels' => [
+                'name' => 'Course Tags',
+                'singular_name' => 'Course Tag',
+            ],
+            'show_ui' => true,
+            'show_admin_column' => true,
+            'query_var' => true,
+            'rewrite' => ['slug' => 'course-tag'],
+            'show_in_rest' => true,
+        ]);
+    }
+
+    /**
+     * Helper method to register a single post type.
+     */
+    private function register_single_post_type($slug, $singular_name, $plural_name, $args = [])
+    {
+        $labels = [
+            'name' => $plural_name,
+            'singular_name' => $singular_name,
+            'menu_name' => $plural_name,
+            'add_new_item' => "Add New {$singular_name}",
+            'edit_item' => "Edit {$singular_name}",
+            'new_item' => "New {$singular_name}",
+            'view_item' => "View {$singular_name}",
+            'search_items' => "Search {$plural_name}",
+            'not_found' => "No {$plural_name} found",
+            'not_found_in_trash' => "No {$plural_name} found in Trash",
         ];
 
-        $final_args = wp_parse_args($args, $defaults);
-        register_taxonomy($taxonomy, $post_type, $final_args);
+        $defaults = [
+            'labels' => $labels,
+            'public' => false,
+            'show_ui' => true,
+            'capability_type' => 'post',
+            'hierarchical' => false,
+            'supports' => ['title', 'editor'],
+            'has_archive' => false,
+            'rewrite' => false,
+        ];
+
+        $args = wp_parse_args($args, $defaults);
+
+        register_post_type($slug, $args);
+
+        error_log("✅ Registered post type: {$slug}");
     }
 }

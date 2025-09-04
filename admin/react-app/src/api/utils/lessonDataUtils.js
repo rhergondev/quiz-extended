@@ -1,6 +1,7 @@
 /**
  * Lesson data validation and transformation utilities
  * Handles data formatting for WordPress REST API
+ * FIXED VERSION - Removed duplicate functions and improved validation
  */
 
 /**
@@ -153,90 +154,6 @@ export const validateLessonData = (lessonData) => {
 };
 
 /**
- * Build query parameters for lesson requests - FIXED VERSION
- * @param {Object} options - Query options
- * @returns {URLSearchParams} Formatted query parameters
- */
-export const buildLessonQueryParams = (options = {}) => {
-  const {
-    page = 1,
-    perPage = 20,
-    status = 'publish,draft',
-    search = '',
-    courseId = null,
-    orderBy = 'menu_order',
-    order = 'asc',
-    embed = true
-  } = options;
-
-  const params = new URLSearchParams({
-    status: status,
-    page: page.toString(),
-    per_page: perPage.toString(),
-    orderby: orderBy,
-    order: order
-  });
-
-  if (embed) {
-    params.append('_embed', 'true');
-  }
-
-  if (search && search.trim()) {
-    params.append('search', search.trim());
-  }
-
-  // FIX: Mejorar el filtrado por curso
-  if (courseId) {
-    const numericCourseId = parseInt(courseId, 10);
-    if (Number.isInteger(numericCourseId) && numericCourseId > 0) {
-      // Usar meta_query para filtrar por curso
-      params.append('meta_key', '_course_id');
-      params.append('meta_value', numericCourseId.toString());
-      params.append('meta_compare', '=');
-    }
-  }
-
-  console.log('Built query params:', params.toString());
-  return params;
-};
-
-/**
- * Build query parameters for course-specific lesson requests
- * @param {number} courseId - Course ID
- * @param {Object} options - Additional query options
- * @returns {URLSearchParams} Formatted query parameters
- */
-export const buildCourseLessonsQueryParams = (courseId, options = {}) => {
-  const { 
-    page = 1, 
-    perPage = 20, 
-    orderBy = 'menu_order', 
-    order = 'asc',
-    status = 'publish,draft,private',
-    search = ''
-  } = options;
-
-  const params = new URLSearchParams({
-    _embed: 'true',
-    page: page.toString(),
-    per_page: perPage.toString(),
-    orderby: orderBy,
-    order: order,
-    status: status,
-    meta_key: '_course_id',
-    meta_value: courseId.toString(),
-    meta_compare: '='
-  });
-
-  if (search && search.trim()) {
-    params.append('search', search.trim());
-  }
-
-  console.log('Built course lessons query params:', params.toString());
-  return params;
-};
-
-/**
  * Format lesson data for display in lists
  * @param {Object} lesson - Lesson data
  * @returns {Object} Formatted lesson for display
@@ -254,40 +171,105 @@ export const formatLessonForDisplay = (lesson) => {
     formattedDuration: sanitized.meta._duration_minutes 
       ? `${sanitized.meta._duration_minutes} min`
       : 'No duration set',
-    // Format lesson type with proper capitalization
+    // Format lesson type for display
     formattedType: sanitized.meta._lesson_type 
       ? sanitized.meta._lesson_type.charAt(0).toUpperCase() + sanitized.meta._lesson_type.slice(1)
       : 'Text',
-    // Format content type
+    // Format content type for display
     formattedContentType: sanitized.meta._content_type === 'premium' ? 'Premium' : 'Free',
-    // Format completion criteria
-    formattedCompletionCriteria: sanitized.meta._completion_criteria 
-      ? sanitized.meta._completion_criteria.charAt(0).toUpperCase() + sanitized.meta._completion_criteria.slice(1)
-      : 'View'
+    // Create a short excerpt if needed
+    shortExcerpt: sanitized.excerpt 
+      ? sanitized.excerpt.length > 100 
+        ? sanitized.excerpt.substring(0, 100) + '...'
+        : sanitized.excerpt
+      : 'No description available',
+    // Format date for display
+    formattedDate: sanitized.date 
+      ? new Date(sanitized.date).toLocaleDateString()
+      : 'No date',
+    // Check if lesson is complete (based on some criteria)
+    isComplete: false, // This would be determined by user progress data
+    // Calculate estimated reading time for text lessons
+    estimatedReadingTime: sanitized.meta._lesson_type === 'text' && sanitized.content
+      ? Math.ceil(sanitized.content.split(' ').length / 200) // Assuming 200 words per minute
+      : null
   };
 };
 
 /**
- * Extract lesson summary for quick views
- * @param {Object} lesson - Lesson data
- * @returns {Object} Lesson summary
+ * Sort lessons by menu_order and then by date
+ * @param {Array} lessons - Array of lesson objects
+ * @returns {Array} Sorted lessons
  */
-export const extractLessonSummary = (lesson) => {
-  const sanitized = sanitizeLessonData(lesson);
-  
-  if (!sanitized) {
-    return null;
-  }
+export const sortLessonsByOrder = (lessons) => {
+  return [...lessons].sort((a, b) => {
+    const orderA = parseInt(a.menu_order) || 0;
+    const orderB = parseInt(b.menu_order) || 0;
+    
+    if (orderA === orderB) {
+      // If menu_order is the same, sort by date
+      return new Date(a.date) - new Date(b.date);
+    }
+    
+    return orderA - orderB;
+  });
+};
 
-  return {
-    id: sanitized.id,
-    title: sanitized.title,
-    status: sanitized.status,
-    courseId: sanitized.meta._course_id,
-    lessonType: sanitized.meta._lesson_type || 'text',
-    contentType: sanitized.meta._content_type || 'free',
-    duration: sanitized.meta._duration_minutes || '0',
-    order: sanitized.meta._lesson_order || '1',
-    completionCriteria: sanitized.meta._completion_criteria || 'view'
-  };
+/**
+ * Group lessons by their type
+ * @param {Array} lessons - Array of lesson objects
+ * @returns {Object} Lessons grouped by type
+ */
+export const groupLessonsByType = (lessons) => {
+  return lessons.reduce((groups, lesson) => {
+    const type = lesson.meta?._lesson_type || 'text';
+    if (!groups[type]) {
+      groups[type] = [];
+    }
+    groups[type].push(lesson);
+    return groups;
+  }, {});
+};
+
+/**
+ * Filter lessons by course ID
+ * @param {Array} lessons - Array of lesson objects
+ * @param {number} courseId - Course ID to filter by
+ * @returns {Array} Filtered lessons
+ */
+export const filterLessonsByCourse = (lessons, courseId) => {
+  if (!courseId) return lessons;
+  
+  return lessons.filter(lesson => {
+    const lessonCourseId = parseInt(lesson.meta?._course_id);
+    return lessonCourseId === parseInt(courseId);
+  });
+};
+
+/**
+ * Calculate total duration of lessons
+ * @param {Array} lessons - Array of lesson objects
+ * @returns {number} Total duration in minutes
+ */
+export const calculateTotalDuration = (lessons) => {
+  return lessons.reduce((total, lesson) => {
+    const duration = parseInt(lesson.meta?._duration_minutes) || 0;
+    return total + duration;
+  }, 0);
+};
+
+/**
+ * Get lesson completion percentage (mock implementation)
+ * @param {Array} lessons - Array of lesson objects
+ * @param {Array} completedLessons - Array of completed lesson IDs
+ * @returns {number} Completion percentage (0-100)
+ */
+export const calculateCompletionPercentage = (lessons, completedLessons = []) => {
+  if (lessons.length === 0) return 0;
+  
+  const completedCount = lessons.filter(lesson => 
+    completedLessons.includes(lesson.id)
+  ).length;
+  
+  return Math.round((completedCount / lessons.length) * 100);
 };
