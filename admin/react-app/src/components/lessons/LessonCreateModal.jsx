@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Video, FileText, HelpCircle, PenTool, Radio } from 'lucide-react';
 
-const LessonsCreateModal = ({ 
+const LessonCreateModal = ({ 
   isOpen, 
   onClose, 
   onLessonCreated, 
@@ -86,9 +86,20 @@ const LessonsCreateModal = ({
       return;
     }
 
+    // Log para debugging
+    console.log('Form data being submitted:', formData);
+    console.log('onLessonCreated function:', onLessonCreated);
+    console.log('Type of onLessonCreated:', typeof onLessonCreated);
+
     try {
+      // Validar que onLessonCreated es una función
+      if (typeof onLessonCreated !== 'function') {
+        throw new Error('onLessonCreated is not a function');
+      }
+
       await onLessonCreated(formData);
-      // Reset form
+      
+      // Reset form only after successful creation
       setFormData({
         title: '',
         content: '',
@@ -108,10 +119,10 @@ const LessonsCreateModal = ({
         }
       });
       setErrors({});
-      onClose();
+      
     } catch (error) {
       console.error('Error creating lesson:', error);
-      setErrors({ submit: error.message });
+      setErrors({ submit: error.message || 'Failed to create lesson' });
     }
   };
 
@@ -226,7 +237,7 @@ const LessonsCreateModal = ({
                     <option value="">Select a course...</option>
                     {courses.map(course => (
                       <option key={course.id} value={course.id}>
-                        {course.title}
+                        {course.title?.rendered || course.title || 'Untitled Course'}
                       </option>
                     ))}
                   </select>
@@ -282,7 +293,7 @@ const LessonsCreateModal = ({
                 </div>
               </div>
 
-              {/* Lesson Configuration */}
+              {/* Lesson Configuration - Resto igual ... */}
               <div className="space-y-4">
                 <h4 className="text-md font-medium text-gray-900">Lesson Configuration</h4>
                 
@@ -486,4 +497,4 @@ const LessonsCreateModal = ({
   );
 };
 
-export default LessonsCreateModal;
+export default LessonCreateModal;

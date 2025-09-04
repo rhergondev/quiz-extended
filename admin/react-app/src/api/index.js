@@ -17,9 +17,8 @@ export {
 
 // Core Lesson Operations
 export {
-  getLessons,
-  getLessonsByCourse,
   getLesson,
+  getLessonsByCourse,
   createLesson,
   updateLesson,
   deleteLesson,

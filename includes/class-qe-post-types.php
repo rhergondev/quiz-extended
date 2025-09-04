@@ -125,6 +125,8 @@ class QE_Post_Types
                 'supports' => ['title', 'editor', 'page-attributes', 'author', 'custom-fields'],
                 'rewrite' => ['slug' => 'lessons'],
                 'show_in_rest' => true,
+                'rest_base' => 'lesson',
+                'rest_controller_class' => 'WP_REST_Posts_Controller',
             ]
         );
 

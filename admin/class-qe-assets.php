@@ -60,6 +60,7 @@ class QE_Assets
                 ],
                 'endpoints' => [
                     'courses' => $api_url_base . '/wp/v2/course',
+                    'lessons' => $api_url_base . '/wp/v2/lesson',
                     'custom_api' => $api_url_base . '/quiz-extended/v1',
                 ],
                 'debug' => WP_DEBUG,

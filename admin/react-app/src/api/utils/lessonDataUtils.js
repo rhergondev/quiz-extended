@@ -153,7 +153,7 @@ export const validateLessonData = (lessonData) => {
 };
 
 /**
- * Build query parameters for lesson requests
+ * Build query parameters for lesson requests - FIXED VERSION
  * @param {Object} options - Query options
  * @returns {URLSearchParams} Formatted query parameters
  */
@@ -181,16 +181,22 @@ export const buildLessonQueryParams = (options = {}) => {
     params.append('_embed', 'true');
   }
 
-  if (search.trim()) {
+  if (search && search.trim()) {
     params.append('search', search.trim());
   }
 
+  // FIX: Mejorar el filtrado por curso
   if (courseId) {
-    params.append('meta_key', '_course_id');
-    params.append('meta_value', courseId.toString());
-    params.append('meta_compare', '=');
+    const numericCourseId = parseInt(courseId, 10);
+    if (Number.isInteger(numericCourseId) && numericCourseId > 0) {
+      // Usar meta_query para filtrar por curso
+      params.append('meta_key', '_course_id');
+      params.append('meta_value', numericCourseId.toString());
+      params.append('meta_compare', '=');
+    }
   }
 
+  console.log('Built query params:', params.toString());
   return params;
 };
 
@@ -201,18 +207,33 @@ export const buildLessonQueryParams = (options = {}) => {
  * @returns {URLSearchParams} Formatted query parameters
  */
 export const buildCourseLessonsQueryParams = (courseId, options = {}) => {
-  const { page = 1, perPage = 20, orderBy = 'menu_order', order = 'asc' } = options;
+  const { 
+    page = 1, 
+    perPage = 20, 
+    orderBy = 'menu_order', 
+    order = 'asc',
+    status = 'publish,draft,private',
+    search = ''
+  } = options;
 
-  return new URLSearchParams({
+  const params = new URLSearchParams({
     _embed: 'true',
     page: page.toString(),
     per_page: perPage.toString(),
     orderby: orderBy,
     order: order,
+    status: status,
     meta_key: '_course_id',
     meta_value: courseId.toString(),
     meta_compare: '='
   });
+
+  if (search && search.trim()) {
+    params.append('search', search.trim());
+  }
+
+  console.log('Built course lessons query params:', params.toString());
+  return params;
 };
 
 /**
