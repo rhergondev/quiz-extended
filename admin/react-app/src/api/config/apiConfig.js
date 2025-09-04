@@ -18,7 +18,17 @@ export const getApiConfig = () => {
     apiUrl: api_url,
     nonce: nonce,
     endpoints: {
-      courses: `${api_url}/wp/v2/course`
+      courses: `${api_url}/wp/v2/course`,
+      lessons: `${api_url}/wp/v2/lesson`,
+      quizzes: `${api_url}/wp/v2/quiz`,
+      questions: `${api_url}/wp/v2/question`,
+      books: `${api_url}/wp/v2/book`,
+      categories: `${api_url}/wp/v2/qe_category`,
+      topics: `${api_url}/wp/v2/qe_topic`,
+      difficulties: `${api_url}/wp/v2/qe_difficulty`,
+      courseTypes: `${api_url}/wp/v2/course_type`,
+      media: `${api_url}/wp/v2/media`,
+      users: `${api_url}/wp/v2/users`
     }
   };
 };

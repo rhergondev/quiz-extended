@@ -1,6 +1,7 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import CoursesPage from './pages/CoursesPage';
+import LessonsPage from './pages/LessonsPage';
 
 /**
  * El componente raíz de la aplicación.
@@ -15,7 +16,7 @@ function App() {
 
           {/* Ruta para la página de Cursos */}
           <Route path="/courses" element={<CoursesPage />} />
-
+         <Route path="/lessons" element={<LessonsPage />} />
           {/* Rutas de marcador de posición para futuras páginas */}
           <Route path="/quizzes" element={<h1>Página de Quizzes (Próximamente)</h1>} />
           <Route path="/questions" element={<h1>Página de Preguntas (Próximamente)</h1>} />

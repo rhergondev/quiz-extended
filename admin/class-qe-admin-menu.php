@@ -57,6 +57,7 @@ class QE_Admin_Menu
         // React Router se encargará de mostrar la vista correcta basado en la URL.
         add_submenu_page('quiz-extended-lms', 'Dashboard', 'Dashboard', 'manage_options', 'quiz-extended-lms'); // El primer submenú duplica el principal
         add_submenu_page('quiz-extended-lms', 'Courses', 'Courses', 'manage_options', 'admin.php?page=quiz-extended-lms#/courses');
+        add_submenu_page('quiz-extended-lms', 'Lessons', 'Lessons', 'manage_options', 'admin.php?page=quiz-extended-lms#/lessons');
         add_submenu_page('quiz-extended-lms', 'Quizzes', 'Quizzes', 'manage_options', 'admin.php?page=quiz-extended-lms#/quizzes');
         add_submenu_page('quiz-extended-lms', 'Questions', 'Questions', 'manage_options', 'admin.php?page=quiz-extended-lms#/questions');
         add_submenu_page('quiz-extended-lms', 'Students', 'Students', 'manage_options', 'admin.php?page=quiz-extended-lms#/students');
@@ -83,6 +84,8 @@ class QE_Admin_Menu
     {
         // Oculta el menú principal de "Courses" y todos sus submenús.
         remove_menu_page('edit.php?post_type=course');
+
+        remove_menu_page('edit.php?post_type=lesson');
 
         // Oculta el menú principal de "Books".
         remove_menu_page('edit.php?post_type=book');

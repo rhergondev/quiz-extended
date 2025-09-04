@@ -15,6 +15,18 @@ export {
   courseExists
 } from './services/courseService.js';
 
+// Core Lesson Operations
+export {
+  getLessons,
+  getLessonsByCourse,
+  getLesson,
+  createLesson,
+  updateLesson,
+  deleteLesson,
+  duplicateLesson,
+  getLessonsCount
+} from './services/lessonService.js';
+
 // Batch Actions
 export {
   batchDeleteCourses,
@@ -22,6 +34,17 @@ export {
   batchUpdateCategory,
   executeBatchOperations
 } from './services/batchActionsService.js';
+
+// Lesson Batch Actions
+export {
+  batchDeleteLessons,
+  batchUpdateLessonStatus,
+  batchMoveLessonsToCourse,
+  batchUpdateLessonType,
+  batchDuplicateLessons,
+  batchUpdateLessonContentType,
+  executeBatchLessonOperations
+} from './services/lessonBatchActionsService.js';
 
 // Category Operations
 export {
@@ -59,8 +82,19 @@ export {
   VALID_COURSE_STATUSES, 
   VALID_DIFFICULTY_LEVELS,
   validateCourseData,
-  transformCourseDataForApi
+  transformCourseDataForApi,
+  sanitizeCourseData
 } from './utils/courseDataUtils.js';
+
+export {
+  VALID_LESSON_STATUSES,
+  VALID_LESSON_TYPES,
+  VALID_CONTENT_TYPES,
+  VALID_COMPLETION_CRITERIA,
+  validateLessonData,
+  transformLessonDataForApi,
+  sanitizeLessonData
+} from './utils/lessonDataUtils.js';
 
 // HTTP utilities (for advanced users who need direct HTTP access)
 export {
