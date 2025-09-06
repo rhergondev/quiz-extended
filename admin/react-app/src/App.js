@@ -4,6 +4,7 @@ import CoursesPage from './pages/CoursesPage';
 import LessonsPage from './pages/LessonsPage';
 import QuestionsPage from './pages/QuestionsPage';
 import QuizzesPage from './pages/QuizzesPage';
+import UsersPage from './pages/UsersPage';
 
 /**
  * El componente raíz de la aplicación.
@@ -30,7 +31,7 @@ function App() {
           <Route path="/questions" element={<QuestionsPage />} />
 
           {/* Rutas de marcador de posición para futuras páginas */}
-          <Route path="/students" element={<h1>Página de Estudiantes (Próximamente)</h1>} />
+          <Route path="/students" element={<UsersPage />} />
           <Route path="/settings" element={<h1>Página de Ajustes (Próximamente)</h1>} />
 
           {/* --- RUTA POR DEFECTO --- */}

@@ -20,8 +20,8 @@ import {
 // FIXED: Import the updated hooks with debouncing
 import { useCourses } from '../hooks/useCourses.js';
 
-// Import debounce utilities
-import { useSearchInput, useFilterDebounce } from '../utils/debounceUtils.js';
+// Import debounce utilities - FIXED PATH
+import { useSearchInput, useFilterDebounce } from '../../utils/debounceUtils.js';
 
 // Component imports
 import ContentManager from '../common/ContentManager.jsx';

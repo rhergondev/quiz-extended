@@ -1,625 +1,423 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import {
-  useReactTable,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  flexRender,
-} from '@tanstack/react-table';
-import { useCourses } from '../components/hooks/useCourses';
-import { useCategories } from '../components/hooks/useCategories';
-import ResourceActionBar from '../components/common/ResourceActionBar';
-import Table from '../components/common/Table';
-import Button from '../components/common/Button';
-import BatchActions from '../components/common/BatchActions';
-import CourseCreateModal from '../components/courses/CourseCreateModal';
+import React, { useState, useMemo, useCallback } from 'react';
+import { 
+  BookOpen, 
+  Eye, 
+  EyeOff, 
+  Clock, 
+  Users,
+  Trophy,
+  Target,
+  BarChart3,
+  TrendingUp,
+  DollarSign,
+  Star,
+  ChevronDown,
+  Search,
+  Plus
+} from 'lucide-react';
 
-const statuses = ["publish", "draft", "disabled"];
+// Hook imports
+import { useCourses } from '../components/hooks/useCourses.js';
+
+// Component imports
+import CourseCard from '../components/courses/CourseCard.jsx';
+import ContentManager from '../components/common/ContentManager.jsx';
+import DeleteConfirmModal from '../components/common/DeleteConfirmModal.jsx';
 
 const CoursesPage = () => {
+  // --- STATE ---
+  const [selectedType, setSelectedType] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedDifficulty, setSelectedDifficulty] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState(null);
+  const [viewMode, setViewMode] = useState('cards');
+
+  // --- HOOKS ---
   const { 
     courses, 
-    isLoading, 
-    isLoadingMore, 
-    hasMore,
+    loading, 
+    error, 
     pagination,
-    loadMoreCourses,
-    refreshCourses,
-    addCourse, 
-    removeCourse 
-  } = useCourses();
-
-  // Load dynamic categories
-  const { 
-    categories, 
-    isLoading: categoriesLoading, 
-    error: categoriesError,
-    refreshCategories 
-  } = useCategories();
-  
-  const [rowSelection, setRowSelection] = useState({});
-  const [isCreating, setIsCreating] = useState(false);
-  const [batchOperationStatus, setBatchOperationStatus] = useState(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-
-  // Simplified filter states - only search, status, and category
-  const [filters, setFilters] = useState({
-    search: '',
-    status: '',
-    category: ''
+    computed,
+    createCourse,
+    deleteCourse,
+    duplicateCourse,
+    creating 
+  } = useCourses({
+    search: searchTerm,
+    type: selectedType !== 'all' ? selectedType : null,
+    category: selectedCategory !== 'all' ? selectedCategory : null,
+    status: selectedStatus !== 'all' ? selectedStatus : null,
+    autoFetch: true
   });
 
-  // Local filter states for UI (these update immediately)
-  const [localFilters, setLocalFilters] = useState(filters);
+  // --- COMPUTED VALUES ---
+  const difficulties = useMemo(() => [
+    'all',
+    'beginner',
+    'intermediate', 
+    'advanced',
+    'expert'
+  ], []);
 
-  // Table filters for client-side filtering (only category since it's not server-side)
-  const [columnFilters, setColumnFilters] = useState([]);
-  const [globalFilter, setGlobalFilter] = useState('');
-  const [sorting, setSorting] = useState([]);
+  const types = useMemo(() => [
+    'all',
+    'online',
+    'hybrid',
+    'workshop',
+    'masterclass'
+  ], []);
 
-  // Debounced search effect - applies server filters after delay
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const serverFilters = {
-        search: localFilters.search.trim(),
-        status: localFilters.status || 'publish,draft'
-      };
-      
-      // Only refresh if server filters actually changed
-      const hasChanged = JSON.stringify(serverFilters) !== JSON.stringify({
-        search: filters.search,
-        status: filters.status
-      });
-      
-      if (hasChanged) {
-        setFilters(prev => ({ ...prev, ...serverFilters }));
-        refreshCourses(serverFilters);
+  const categories = useMemo(() => [
+    'all',
+    'programming',
+    'design',
+    'business',
+    'marketing',
+    'data-science'
+  ], []);
+
+  const statuses = useMemo(() => [
+    'all',
+    'publish',
+    'draft',
+    'private',
+    'pending'
+  ], []);
+
+  // --- STATISTICS ---
+  const statistics = useMemo(() => {
+    const totalCourses = computed.totalCourses || 0;
+    const averagePrice = computed.averagePrice || 0;
+    const totalRevenue = computed.totalRevenue || 0;
+    const freeCourses = computed.freeCourses || 0;
+    const paidCourses = computed.paidCourses || 0;
+    const featuredCourses = computed.featuredCourses || 0;
+
+    return [
+      {
+        label: 'Total Courses',
+        value: totalCourses,
+        icon: BookOpen,
+        iconColor: 'text-blue-500'
+      },
+      {
+        label: 'Average Price',
+        value: averagePrice > 0 ? `$${averagePrice}` : 'Free',
+        icon: DollarSign,
+        iconColor: 'text-green-500'
+      },
+      {
+        label: 'Total Revenue',
+        value: `$${totalRevenue.toLocaleString()}`,
+        icon: TrendingUp,
+        iconColor: 'text-purple-500'
+      },
+      {
+        label: 'Free Courses',
+        value: freeCourses,
+        icon: Target,
+        iconColor: 'text-blue-400'
+      },
+      {
+        label: 'Paid Courses',
+        value: paidCourses,
+        icon: Trophy,
+        iconColor: 'text-yellow-500'
+      },
+      {
+        label: 'Featured',
+        value: featuredCourses,
+        icon: Star,
+        iconColor: 'text-orange-500'
       }
-    }, 500);
+    ];
+  }, [computed]);
 
-    return () => clearTimeout(timer);
-  }, [localFilters.search, localFilters.status, refreshCourses]);
+  // --- EVENT HANDLERS ---
+  const handleTypeChange = useCallback((type) => {
+    setSelectedType(type);
+  }, []);
 
-  const columns = useMemo(
-    () => [
-      {
-        id: 'select',
-        header: ({ table }) => (
-          <input
-            type="checkbox"
-            className="w-4 h-4 text-indigo-600 bg-gray-100 rounded border-gray-300 focus:ring-indigo-500"
-            {...{
-              checked: table.getIsAllRowsSelected(),
-              indeterminate: table.getIsSomeRowsSelected(),
-              onChange: table.getToggleAllRowsSelectedHandler(),
-            }}
-          />
-        ),
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            className="w-4 h-4 text-indigo-600 bg-gray-100 rounded border-gray-300 focus:ring-indigo-500"
-            {...{
-              checked: row.getIsSelected(),
-              disabled: !row.getCanSelect(),
-              indeterminate: row.getIsSomeSelected(),
-              onChange: row.getToggleSelectedHandler(),
-            }}
-          />
-        ),
-        enableSorting: false,
-        enableColumnFilter: false,
-      },
-      {
-        accessorKey: 'title.rendered',
-        id: 'title',
-        header: 'Title',
-        cell: ({ row }) => (
-          <div className="flex items-center space-x-2">
-            <span className="font-semibold text-gray-800">
-              {row.original.title?.rendered || row.original.title || 'No Title'}
-            </span>
-            {row.original.meta?._sale_price && 
-             parseFloat(row.original.meta._sale_price) < parseFloat(row.original.meta._price) && (
-              <span className="px-2 py-0.5 text-xs font-medium text-green-800 bg-green-100 border border-green-800 rounded-full">
-                On Sale
-              </span>
-            )}
-            {row.original.meta?._difficulty_level && (
-              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                row.original.meta._difficulty_level === 'Beginner' 
-                  ? 'bg-blue-100 text-blue-800'
-                  : row.original.meta._difficulty_level === 'Intermediate'
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : 'bg-red-100 text-red-800'
-              }`}>
-                {row.original.meta._difficulty_level}
-              </span>
-            )}
-          </div>
-        ),
-        filterFn: 'includesString',
-      },
-      {
-        accessorKey: 'enrolled_users_count',
-        header: 'Enrolled',
-        cell: ({ getValue }) => (
-          <span className="text-gray-600">{getValue() || 0}</span>
-        ),
-      },
-      {
-        accessorKey: 'date',
-        header: 'Published Date',
-        cell: ({ row }) => (
-          new Date(row.original.date || Date.now()).toLocaleDateString()
-        ),
-      },
-      {
-        accessorKey: 'meta._start_date',
-        header: 'Start Date',
-        cell: ({ row }) => (
-            row.original.meta?._start_date 
-              ? new Date(row.original.meta._start_date).toLocaleDateString() 
-              : 'N/A'
-        ),
-      },
-      {
-        accessorKey: 'meta._end_date',
-        header: 'End Date',
-        cell: ({ row }) => (
-            row.original.meta?._end_date 
-              ? new Date(row.original.meta._end_date).toLocaleDateString() 
-              : 'N/A'
-        ),
-      },
-      {
-        accessorKey: 'meta._price',
-        header: 'Price',
-        cell: ({ row }) => {
-          const price = row.original.meta?._price;
-          const salePrice = row.original.meta?._sale_price;
-          
-          if (!price) return 'Free';
-          
-          return (
-            <div className="flex items-center space-x-2">
-              {salePrice && parseFloat(salePrice) < parseFloat(price) ? (
-                <>
-                  <span className="line-through text-gray-500">${price}</span>
-                  <span className="font-bold text-green-600">${salePrice}</span>
-                </>
-              ) : (
-                <span className="font-semibold">${price}</span>
-              )}
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: 'meta._course_category',
-        header: 'Category',
-        cell: ({ getValue }) => {
-          const categoryName = getValue();
-          const category = categories.find(cat => cat.name === categoryName);
-          
-          return (
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">
-                {categoryName || 'Uncategorized'}
-              </span>
-              {category && category.count > 0 && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                  {category.count}
-                </span>
-              )}
-            </div>
-          );
-        },
-        filterFn: 'equalsString',
-      },
-      {
-        accessorKey: 'status',
-        header: 'Status',
-        cell: ({ row }) => (
-          <span
-            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-              row.original.status === 'publish'
-                ? 'bg-green-100 text-green-800'
-                : 'bg-yellow-100 text-yellow-800'
-            }`}
-          >
-            {row.original.status}
-          </span>
-        ),
-        filterFn: 'equalsString',
-      },
-      {
-        id: 'actions',
-        header: 'Actions',
-        cell: ({ row }) => (
-          <div className="flex space-x-2">
-            <Button variant="secondary" onClick={() => handleEditCourse(row.original.id)}>
-              Edit
-            </Button>
-            <Button variant="danger" onClick={() => handleDeleteCourse(row.original.id)}>
-              Delete
-            </Button>
-          </div>
-        ),
-        enableSorting: false,
-        enableColumnFilter: false,
-      },
-    ],
-    [categories]
-  );
+  const handleCategoryChange = useCallback((category) => {
+    setSelectedCategory(category);
+  }, []);
 
-  const table = useReactTable({
-    data: courses,
-    columns,
-    state: {
-      columnFilters,
-      globalFilter,
-      sorting,
-      rowSelection,
-    },
-    enableRowSelection: true,
-    onRowSelectionChange: setRowSelection,
-    onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  });
+  const handleDifficultyChange = useCallback((difficulty) => {
+    setSelectedDifficulty(difficulty);
+  }, []);
 
-  // Get selected rows
-  const selectedRows = table.getSelectedRowModel().rows;
+  const handleStatusChange = useCallback((status) => {
+    setSelectedStatus(status);
+  }, []);
 
-  // Course creation handlers
-  const handleNewCourse = () => {
-    setShowCreateModal(true);
-  };
+  const handleSearchChange = useCallback((event) => {
+    setSearchTerm(event.target.value);
+  }, []);
 
-  const handleCourseCreated = async (courseData) => {
-    setIsCreating(true);
+  const handleCreateCourse = useCallback(async (courseData) => {
     try {
-      await addCourse(courseData);
-      console.log('✅ Course created successfully');
-      
-      // Refresh categories to update counts
-      refreshCategories();
+      const newCourse = await createCourse(courseData);
+      setShowCreateModal(false);
+      return newCourse;
     } catch (error) {
-      console.error('❌ Failed to create course:', error);
-      throw error; // Re-throw so the modal can handle it
-    } finally {
-      setIsCreating(false);
+      console.error('Error creating course:', error);
+      throw error;
     }
-  };
+  }, [createCourse]);
 
-  const handleDeleteCourse = async (id) => {
-    if (!confirm('Are you sure you want to delete this course?')) return;
+  const handleDeleteClick = useCallback((course) => {
+    setCourseToDelete(course);
+    setShowDeleteModal(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!courseToDelete) return;
     
     try {
-      await removeCourse(id);
-      console.log('✅ Course deleted successfully');
-      
-      // Refresh categories to update counts
-      refreshCategories();
+      await deleteCourse(courseToDelete.id);
+      setShowDeleteModal(false);
+      setCourseToDelete(null);
     } catch (error) {
-      console.error('❌ Failed to delete course:', error);
-      alert(`Failed to delete course: ${error.message}`);
+      console.error('Error deleting course:', error);
     }
-  };
+  }, [courseToDelete, deleteCourse]);
 
-  const handleEditCourse = (id) => {
-    console.log('Edit course:', id);
-    // TODO: Implement edit functionality
-  };
-
-  // Batch action handlers
-  const handleBatchActionStart = (actionType, count) => {
-    setBatchOperationStatus({
-      type: actionType,
-      status: 'processing',
-      count,
-      message: `Processing ${actionType} for ${count} courses...`
-    });
-  };
-
-  const handleBatchActionComplete = (actionType, results) => {
-    const { successful = [], failed = [], error } = results;
-    
-    if (error) {
-      setBatchOperationStatus({
-        type: actionType,
-        status: 'error',
-        message: `Batch ${actionType} failed: ${error}`,
-        count: failed.length
-      });
-    } else {
-      setBatchOperationStatus({
-        type: actionType,
-        status: 'success',
-        successful: successful.length,
-        failed: failed.length,
-        message: `Batch ${actionType} completed: ${successful.length} successful${failed.length > 0 ? `, ${failed.length} failed` : ''}`
-      });
-
-      // Refresh data after successful operations
-      if (successful.length > 0) {
-        if (actionType === 'delete') {
-          // Remove deleted courses from local state
-          refreshCourses({ search: filters.search, status: filters.status });
-        } else {
-          // For status/category updates, refresh to get updated data
-          refreshCourses({ search: filters.search, status: filters.status });
-        }
-        
-        // Clear row selection
-        setRowSelection({});
-        
-        // Refresh categories to update counts
-        refreshCategories();
-      }
+  const handleDuplicate = useCallback(async (course) => {
+    try {
+      await duplicateCourse(course.id);
+    } catch (error) {
+      console.error('Error duplicating course:', error);
     }
+  }, [duplicateCourse]);
 
-    // Auto-clear status after 5 seconds
-    setTimeout(() => {
-      setBatchOperationStatus(null);
-    }, 5000);
-  };
+  const handleCourseClick = useCallback((course) => {
+    console.log('Navigate to course details:', course.id);
+  }, []);
 
-  // Simplified filter handlers
-  const handleSearchChange = (e) => {
-    const value = e.target.value;
-    setLocalFilters(prev => ({ ...prev, search: value }));
-  };
+  const clearSearch = useCallback(() => {
+    setSearchTerm('');
+  }, []);
 
-  const handleStatusChange = (e) => {
-    const value = e.target.value;
-    setLocalFilters(prev => ({ ...prev, status: value }));
-  };
+  const resetFilters = useCallback(() => {
+    setSelectedType('all');
+    setSelectedCategory('all');
+    setSelectedDifficulty('all');
+    setSelectedStatus('all');
+    setSearchTerm('');
+  }, []);
 
-  const handleCategoryChange = (e) => {
-    const value = e.target.value;
-    setLocalFilters(prev => ({ ...prev, category: value }));
-    
-    // Apply category filter to table (client-side)
-    setColumnFilters(prev => [
-      ...prev.filter(filter => filter.id !== 'meta._course_category'),
-      ...(value ? [{ id: 'meta._course_category', value }] : [])
-    ]);
-  };
-
-  const clearAllFilters = () => {
-    setLocalFilters({
-      search: '',
-      status: '',
-      category: ''
-    });
-    setColumnFilters([]);
-    setGlobalFilter('');
-    
-    // Refresh with empty server filters
-    refreshCourses({ search: '', status: 'publish,draft' });
-  };
-
-  // Check if any filters are active
-  const hasActiveFilters = localFilters.search || 
-                          (localFilters.status && localFilters.status !== 'publish,draft') || 
-                          localFilters.category;
-
+  // --- RENDER ---
   return (
-    <div className="wrap">
-      {/* Categories Error Display */}
-      {categoriesError && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-          <p className="text-sm text-yellow-800">
-            ⚠️ Could not load categories from database. Using fallback categories.
-          </p>
-        </div>
-      )}
-
-      {/* Batch Operation Status */}
-      {batchOperationStatus && (
-        <div className={`mb-4 p-4 border rounded-md ${
-          batchOperationStatus.status === 'success' 
-            ? 'bg-green-50 border-green-200 text-green-800'
-            : batchOperationStatus.status === 'error'
-            ? 'bg-red-50 border-red-200 text-red-800'
-            : 'bg-blue-50 border-blue-200 text-blue-800'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              {batchOperationStatus.status === 'processing' && (
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
-              )}
-              <span className="text-sm font-medium">{batchOperationStatus.message}</span>
-            </div>
+    <div className="space-y-6">
+      {/* Header with Stats */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Course Management</h1>
+            <p className="text-gray-600 mt-1">Create and manage your courses</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            {loading && (
+              <div className="flex items-center text-sm text-gray-500">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                Loading...
+              </div>
+            )}
             <button
-              onClick={() => setBatchOperationStatus(null)}
-              className="text-xs underline hover:no-underline"
+              onClick={() => setShowCreateModal(true)}
+              disabled={creating}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              Dismiss
+              <Plus className="h-4 w-4 mr-2" />
+              {creating ? 'Creating...' : 'Create Course'}
             </button>
           </div>
         </div>
-      )}
 
-      <ResourceActionBar
-        title="Courses"
-        buttonText={isCreating ? "Creating..." : "New Course"}
-        onButtonClick={handleNewCourse}
-      >
-        {/* Filter Controls and Batch Actions */}
-        <div className="space-y-4">
-          {/* Main Filter Row */}
-          <div className="flex flex-wrap items-center gap-4">
-            {/* Search Input */}
-            <div className="flex-1 min-w-80">
-              <input
-                type="text"
-                value={localFilters.search}
-                onChange={handleSearchChange}
-                placeholder="Search courses by title or content..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm placeholder-gray-400"
-              />
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {statistics.map((stat, index) => {
+            const IconComponent = stat.icon;
+            return (
+              <div key={index} className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center">
+                  <div className={`flex-shrink-0 ${stat.iconColor}`}>
+                    <IconComponent className="h-6 w-6" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+                    <p className="text-lg font-semibold text-gray-900">{stat.value}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Filters and Search */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {/* Search Input */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
             </div>
-
-            {/* Status Filter */}
-            <select
-              value={localFilters.status}
-              onChange={handleStatusChange}
-              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            >
-              <option value="">All Statuses</option>
-              <option value="publish">Published</option>
-              <option value="draft">Draft</option>
-            </select>
-
-            {/* Dynamic Category Filter */}
-            <select
-              value={localFilters.category}
-              onChange={handleCategoryChange}
-              disabled={categoriesLoading}
-              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:opacity-50"
-            >
-              <option value="">
-                {categoriesLoading ? 'Loading categories...' : 'All Categories'}
-              </option>
-              {categories.map(category => (
-                <option key={category.id} value={category.name}>
-                  {category.name} {category.count > 0 && `(${category.count})`}
-                </option>
-              ))}
-            </select>
-
-            {/* Clear Filters Button */}
-            {hasActiveFilters && (
+            <input
+              type="text"
+              placeholder="Search courses..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+            {searchTerm && (
               <button
-                onClick={clearAllFilters}
-                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 underline focus:outline-none"
+                onClick={clearSearch}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
               >
-                Clear all filters
+                <span className="sr-only">Clear search</span>
+                ×
               </button>
             )}
           </div>
 
-          {/* Batch Actions Row */}
-          <div className="flex justify-between items-center">
-            <div>
-              <BatchActions
-                selectedRows={selectedRows}
-                categories={categories}
-                onActionStart={handleBatchActionStart}
-                onActionComplete={handleBatchActionComplete}
-              />
-            </div>
-          </div>
+          {/* Type Filter */}
+          <select
+            value={selectedType}
+            onChange={(e) => handleTypeChange(e.target.value)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {types.map(type => (
+              <option key={type} value={type}>
+                {type === 'all' ? 'All Types' : type.charAt(0).toUpperCase() + type.slice(1)}
+              </option>
+            ))}
+          </select>
 
-          {/* Active Filters Display */}
-          {hasActiveFilters && (
-            <div className="flex flex-wrap gap-2">
-              {localFilters.search && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  Search: "{localFilters.search}"
-                  <button
-                    onClick={() => setLocalFilters(prev => ({ ...prev, search: '' }))}
-                    className="ml-1.5 text-blue-600 hover:text-blue-800 font-bold"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {localFilters.status && localFilters.status !== 'publish,draft' && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Status: {localFilters.status}
-                  <button
-                    onClick={() => setLocalFilters(prev => ({ ...prev, status: '' }))}
-                    className="ml-1.5 text-green-600 hover:text-green-800 font-bold"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {localFilters.category && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                  Category: {localFilters.category}
-                  <button
-                    onClick={() => {
-                      setLocalFilters(prev => ({ ...prev, category: '' }));
-                      setColumnFilters(prev => prev.filter(filter => filter.id !== 'meta._course_category'));
-                    }}
-                    className="ml-1.5 text-purple-600 hover:text-purple-800 font-bold"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-            </div>
-          )}
+          {/* Category Filter */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => handleCategoryChange(e.target.value)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {categories.map(category => (
+              <option key={category} value={category}>
+                {category === 'all' ? 'All Categories' : category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
+              </option>
+            ))}
+          </select>
+
+          {/* Difficulty Filter */}
+          <select
+            value={selectedDifficulty}
+            onChange={(e) => handleDifficultyChange(e.target.value)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {difficulties.map(difficulty => (
+              <option key={difficulty} value={difficulty}>
+                {difficulty === 'all' ? 'All Difficulties' : difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+              </option>
+            ))}
+          </select>
+
+          {/* Status Filter */}
+          <select
+            value={selectedStatus}
+            onChange={(e) => handleStatusChange(e.target.value)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {statuses.map(status => (
+              <option key={status} value={status}>
+                {status === 'all' ? 'All Statuses' : status.charAt(0).toUpperCase() + status.slice(1)}
+              </option>
+            ))}
+          </select>
         </div>
-      </ResourceActionBar>
 
-      <div className="p-4">
-        {/* Pagination Info */}
-        {pagination.total > 0 && (
-          <div className="mb-4 text-sm text-gray-600 flex justify-between items-center">
-            <div>
-              Showing {table.getRowModel().rows.length} of {courses.length} courses 
-              (Total: {pagination.total})
-              {hasMore && (
-                <span className="ml-2 text-indigo-600">
-                  • Scroll down to load more
-                </span>
-              )}
-            </div>
-            <div className="text-xs text-gray-500 flex items-center space-x-4">
-              <span>Page {pagination.currentPage} of {pagination.totalPages}</span>
-              {!categoriesLoading && categories.length > 0 && (
-                <span>• {categories.length} categories available</span>
-              )}
-            </div>
-          </div>
-        )}
-
-        <Table 
-          table={table} 
-          isLoading={isLoading}
-          isLoadingMore={isLoadingMore}
-          hasMore={hasMore}
-          onLoadMore={loadMoreCourses}
-        />
-        
-        {/* Results Summary */}
-        <div className="mt-4 text-sm text-gray-700 flex justify-between items-center">
-          <div>
-            {hasActiveFilters ? (
-              <>
-                Filtered: {table.getRowModel().rows.length} results
-                <span className="ml-2 text-blue-600">(from {courses.length} loaded courses)</span>
-              </>
-            ) : (
-              `Showing ${table.getRowModel().rows.length} courses`
-            )}
-          </div>
-          
-          {Object.keys(rowSelection).length > 0 && (
-            <div className="text-indigo-600 font-medium">
-              {Object.keys(rowSelection).length} selected
-            </div>
-          )}
+        {/* Clear Filters Button */}
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={resetFilters}
+            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
+          >
+            Clear All Filters
+          </button>
         </div>
       </div>
 
-      {/* Course Creation Modal */}
-      <CourseCreateModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onCourseCreated={handleCourseCreated}
-        categories={categories}
-        isCreating={isCreating}
+      {/* Content Manager */}
+      <ContentManager
+        items={courses}
+        loading={loading}
+        error={error}
+        pagination={pagination}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        renderCard={(course) => (
+          <CourseCard
+            key={course.id}
+            course={course}
+            onEdit={handleCourseClick}
+            onDelete={handleDeleteClick}
+            onDuplicate={handleDuplicate}
+            onClick={handleCourseClick}
+          />
+        )}
+        emptyState={{
+          icon: BookOpen,
+          title: 'No courses found',
+          description: 'Get started by creating your first course.',
+          actionLabel: 'Create Course',
+          onAction: () => setShowCreateModal(true)
+        }}
       />
+
+      {/* Create Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">
+                  Create New Course
+                </h3>
+                <p className="mt-2 text-sm text-gray-500">
+                  Course creation form would go here...
+                </p>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && courseToDelete && (
+        <DeleteConfirmModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleDeleteConfirm}
+          title="Delete Course"
+          message={`Are you sure you want to delete "${courseToDelete.title?.rendered || courseToDelete.title}"? This action cannot be undone.`}
+          confirmLabel="Delete Course"
+          isLoading={false}
+        />
+      )}
     </div>
   );
 };
