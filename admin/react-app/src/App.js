@@ -2,10 +2,13 @@ import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import CoursesPage from './pages/CoursesPage';
 import LessonsPage from './pages/LessonsPage';
+import QuestionsPage from './pages/QuestionsPage';
+import QuizzesPage from './pages/QuizzesPage';
 
 /**
  * El componente raíz de la aplicación.
  * Configura el enrutador y define las rutas principales.
+ * ACTUALIZADO: Ahora incluye las páginas de Questions y Quizzes
  */
 function App() {
   return (
@@ -16,10 +19,17 @@ function App() {
 
           {/* Ruta para la página de Cursos */}
           <Route path="/courses" element={<CoursesPage />} />
-         <Route path="/lessons" element={<LessonsPage />} />
+          
+          {/* Ruta para la página de Lecciones */}
+          <Route path="/lessons" element={<LessonsPage />} />
+          
+          {/* Ruta para la página de Quizzes */}
+          <Route path="/quizzes" element={<QuizzesPage />} />
+          
+          {/* Ruta para la página de Preguntas */}
+          <Route path="/questions" element={<QuestionsPage />} />
+
           {/* Rutas de marcador de posición para futuras páginas */}
-          <Route path="/quizzes" element={<h1>Página de Quizzes (Próximamente)</h1>} />
-          <Route path="/questions" element={<h1>Página de Preguntas (Próximamente)</h1>} />
           <Route path="/students" element={<h1>Página de Estudiantes (Próximamente)</h1>} />
           <Route path="/settings" element={<h1>Página de Ajustes (Próximamente)</h1>} />
 

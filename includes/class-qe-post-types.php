@@ -9,13 +9,20 @@ class QE_Post_Types
         add_action('init', [$this, 'register_taxonomies']);
         add_action('rest_api_init', [$this, 'register_custom_api_fields']);
 
-        // 🔧 FIXED: Add proper REST API filters for lessons
+        // Existing filters
         add_filter('rest_lesson_query', [$this, 'filter_lessons_by_meta'], 10, 2);
         add_filter('rest_lesson_collection_params', [$this, 'add_lesson_collection_params'], 10, 1);
-
-        // Keep existing course filters
         add_filter('rest_pre_dispatch', [$this, 'handle_rest_authentication'], 10, 3);
         add_filter('rest_course_collection_params', [$this, 'add_course_collection_params'], 10, 1);
+
+        // Quiz and Question filters
+        add_filter('rest_quiz_query', [$this, 'filter_quizzes_by_meta'], 10, 2);
+        add_filter('rest_quiz_collection_params', [$this, 'add_quiz_collection_params'], 10, 1);
+        add_filter('rest_question_query', [$this, 'filter_questions_by_meta'], 10, 2);
+        add_filter('rest_question_collection_params', [$this, 'add_question_collection_params'], 10, 1);
+
+        // Add capabilities
+        $this->add_quiz_question_capabilities();
     }
 
     /**
@@ -133,6 +140,44 @@ class QE_Post_Types
 
         error_log('✅ Lesson collection params configured');
         return $params;
+    }
+
+    /**
+     * Add quiz and question capabilities to administrator role
+     */
+    private function add_quiz_question_capabilities()
+    {
+        $role = get_role('administrator');
+
+        if ($role) {
+            $capabilities = [
+                // Quiz capabilities
+                'edit_quiz',
+                'edit_quizzes',
+                'edit_others_quizzes',
+                'publish_quizzes',
+                'read_quiz',
+                'read_private_quizzes',
+                'delete_quiz',
+                'delete_quizzes',
+                'delete_others_quizzes',
+
+                // Question capabilities  
+                'edit_question',
+                'edit_questions',
+                'edit_others_questions',
+                'publish_questions',
+                'read_question',
+                'read_private_questions',
+                'delete_question',
+                'delete_questions',
+                'delete_others_questions',
+            ];
+
+            foreach ($capabilities as $cap) {
+                $role->add_cap($cap);
+            }
+        }
     }
 
     /**
@@ -285,6 +330,19 @@ class QE_Post_Types
                 'supports' => ['title', 'editor', 'author', 'custom-fields'],
                 'rewrite' => ['slug' => 'quizzes'],
                 'show_in_rest' => true,
+                'rest_base' => 'quiz', // ✅ IMPORTANTE
+                'rest_controller_class' => 'WP_REST_Posts_Controller',
+                // Agregar capabilities específicas
+                'capabilities' => [
+                    'edit_post' => 'edit_quiz',
+                    'edit_posts' => 'edit_quizzes',
+                    'edit_others_posts' => 'edit_others_quizzes',
+                    'publish_posts' => 'publish_quizzes',
+                    'read_post' => 'read_quiz',
+                    'read_private_posts' => 'read_private_quizzes',
+                    'delete_post' => 'delete_quiz',
+                ],
+                'map_meta_cap' => true,
             ]
         );
 
@@ -300,6 +358,18 @@ class QE_Post_Types
                 'supports' => ['title', 'editor', 'custom-fields', 'author'],
                 'rewrite' => false,
                 'show_in_rest' => true,
+                'rest_base' => 'question', // ✅ IMPORTANTE
+                'rest_controller_class' => 'WP_REST_Posts_Controller',
+                'capabilities' => [
+                    'edit_post' => 'edit_question',
+                    'edit_posts' => 'edit_questions',
+                    'edit_others_posts' => 'edit_others_questions',
+                    'publish_posts' => 'publish_questions',
+                    'read_post' => 'read_question',
+                    'read_private_posts' => 'read_private_questions',
+                    'delete_post' => 'delete_question',
+                ],
+                'map_meta_cap' => true,
             ]
         );
     }
@@ -424,6 +494,69 @@ class QE_Post_Types
             error_log("✅ Registered lesson meta field: {$meta_key}");
         }
 
+        $quiz_meta_fields = [
+            '_course_id' => 'string',           // Para filtrar por curso
+            '_difficulty_level' => 'string',    // Para filtrar por dificultad  
+            '_quiz_category' => 'string',       // Para filtrar por categoría
+            '_time_limit' => 'string',          // Tiempo límite en minutos
+            '_max_attempts' => 'string',        // Máximo número de intentos
+            '_passing_score' => 'string',       // Puntaje mínimo para aprobar
+            '_randomize_questions' => 'string', // Si randomizar preguntas (yes/no)
+            '_show_results' => 'string',        // Si mostrar resultados (yes/no)
+            '_quiz_question_ids' => 'array',    // IDs de preguntas del quiz
+            '_quiz_instructions' => 'string',   // Instrucciones del quiz
+            '_quiz_type' => 'string',           // Tipo de quiz (assessment, practice, etc.)
+        ];
+
+        foreach ($quiz_meta_fields as $meta_key => $type) {
+            register_post_meta('quiz', $meta_key, [
+                'show_in_rest' => true,
+                'single' => true,
+                'type' => $type,
+                'auth_callback' => function () {
+                    return current_user_can('edit_posts');
+                },
+                'sanitize_callback' => function ($value) {
+                    return $meta_key === '_quiz_question_ids' ? $value : sanitize_text_field($value);
+                }
+            ]);
+
+            error_log("✅ Registered quiz meta field: {$meta_key}");
+        }
+
+        // 🚀 NEW: QUESTION META FIELDS
+        $question_meta_fields = [
+            '_quiz_id' => 'string',             // Para filtrar por quiz
+            '_question_type' => 'string',       // Tipo de pregunta (multiple_choice, true_false, etc.)
+            '_difficulty_level' => 'string',    // Para filtrar por dificultad
+            '_question_category' => 'string',   // Para filtrar por categoría
+            '_points' => 'string',              // Puntos que vale la pregunta
+            '_time_limit' => 'string',          // Tiempo límite para esta pregunta
+            '_explanation' => 'string',         // Explicación de la respuesta
+            '_question_options' => 'object',    // Opciones de respuesta
+            '_correct_answer' => 'string',      // Respuesta correcta
+            '_question_order' => 'string',      // Orden de la pregunta
+            '_is_required' => 'string',         // Si la pregunta es obligatoria
+            '_feedback_correct' => 'string',    // Feedback para respuesta correcta
+            '_feedback_incorrect' => 'string',  // Feedback para respuesta incorrecta
+        ];
+
+        foreach ($question_meta_fields as $meta_key => $type) {
+            register_post_meta('question', $meta_key, [
+                'show_in_rest' => true,
+                'single' => true,
+                'type' => $type,
+                'auth_callback' => function () {
+                    return current_user_can('edit_posts');
+                },
+                'sanitize_callback' => function ($value) {
+                    return $meta_key === '_question_options' ? $value : sanitize_text_field($value);
+                }
+            ]);
+
+            error_log("✅ Registered question meta field: {$meta_key}");
+        }
+
         // Register computed field for enrolled users count
         register_rest_field('course', 'enrolled_users_count', [
             'get_callback' => function ($course) {
@@ -461,6 +594,33 @@ class QE_Post_Types
             },
             'schema' => [
                 'description' => 'Number of lessons in the course.',
+                'type' => 'integer',
+            ],
+        ]);
+
+        register_rest_field('quiz', 'questions_count', [
+            'get_callback' => function ($quiz) {
+                $question_ids = get_post_meta($quiz['id'], '_quiz_question_ids', true);
+                return is_array($question_ids) ? count($question_ids) : 0;
+            },
+            'schema' => [
+                'description' => 'Number of questions in the quiz.',
+                'type' => 'integer',
+            ],
+        ]);
+
+        register_rest_field('quiz', 'total_attempts', [
+            'get_callback' => function ($quiz) {
+                global $wpdb;
+                $table_name = $wpdb->prefix . 'qe_quiz_attempts';
+                $count = $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$table_name} WHERE quiz_id = %d",
+                    $quiz['id']
+                ));
+                return (int) $count;
+            },
+            'schema' => [
+                'description' => 'Total number of attempts for this quiz.',
                 'type' => 'integer',
             ],
         ]);
@@ -536,5 +696,201 @@ class QE_Post_Types
         register_post_type($slug, $args);
 
         error_log("✅ Registered post type: {$slug}");
+    }
+
+    /**
+     * Filter quizzes by meta_query parameters
+     */
+    public function filter_quizzes_by_meta($args, $request)
+    {
+        error_log('🔍 Quiz meta filter called with args: ' . print_r($args, true));
+        error_log('🔍 Request params: ' . print_r($request->get_params(), true));
+
+        $params = $request->get_params();
+        $meta_query = [];
+
+        // Handle meta_query array format from frontend
+        if (isset($params['meta_query']) && is_array($params['meta_query'])) {
+            foreach ($params['meta_query'] as $meta_condition) {
+                if (isset($meta_condition['key']) && isset($meta_condition['value'])) {
+                    $meta_query[] = [
+                        'key' => sanitize_text_field($meta_condition['key']),
+                        'value' => sanitize_text_field($meta_condition['value']),
+                        'compare' => isset($meta_condition['compare']) ? $meta_condition['compare'] : '=',
+                        'type' => isset($meta_condition['type']) ? $meta_condition['type'] : 'CHAR'
+                    ];
+                    error_log('✅ Added quiz meta_query condition: ' . print_r(end($meta_query), true));
+                }
+            }
+        }
+
+        // Handle individual meta parameters (fallback)
+        if (empty($meta_query)) {
+            if (isset($params['meta_key']) && isset($params['meta_value'])) {
+                $meta_query[] = [
+                    'key' => sanitize_text_field($params['meta_key']),
+                    'value' => sanitize_text_field($params['meta_value']),
+                    'compare' => isset($params['meta_compare']) ? $params['meta_compare'] : '=',
+                    'type' => 'CHAR'
+                ];
+                error_log('✅ Added fallback quiz meta_query: ' . print_r(end($meta_query), true));
+            }
+        }
+
+        // Apply meta_query if we have conditions
+        if (!empty($meta_query)) {
+            if (count($meta_query) === 1) {
+                $args['meta_query'] = $meta_query;
+            } else {
+                $args['meta_query'] = array_merge(['relation' => 'AND'], $meta_query);
+            }
+            error_log('🚀 Final quiz meta_query applied: ' . print_r($args['meta_query'], true));
+        }
+
+        return $args;
+    }
+
+    /**
+     * Filter questions by meta_query parameters
+     */
+    public function filter_questions_by_meta($args, $request)
+    {
+        error_log('🔍 Question meta filter called with args: ' . print_r($args, true));
+        error_log('🔍 Request params: ' . print_r($request->get_params(), true));
+
+        $params = $request->get_params();
+        $meta_query = [];
+
+        // Handle meta_query array format from frontend
+        if (isset($params['meta_query']) && is_array($params['meta_query'])) {
+            foreach ($params['meta_query'] as $meta_condition) {
+                if (isset($meta_condition['key']) && isset($meta_condition['value'])) {
+                    $meta_query[] = [
+                        'key' => sanitize_text_field($meta_condition['key']),
+                        'value' => sanitize_text_field($meta_condition['value']),
+                        'compare' => isset($meta_condition['compare']) ? $meta_condition['compare'] : '=',
+                        'type' => isset($meta_condition['type']) ? $meta_condition['type'] : 'CHAR'
+                    ];
+                    error_log('✅ Added question meta_query condition: ' . print_r(end($meta_query), true));
+                }
+            }
+        }
+
+        // Handle individual meta parameters (fallback)
+        if (empty($meta_query)) {
+            if (isset($params['meta_key']) && isset($params['meta_value'])) {
+                $meta_query[] = [
+                    'key' => sanitize_text_field($params['meta_key']),
+                    'value' => sanitize_text_field($params['meta_value']),
+                    'compare' => isset($params['meta_compare']) ? $params['meta_compare'] : '=',
+                    'type' => 'CHAR'
+                ];
+                error_log('✅ Added fallback question meta_query: ' . print_r(end($meta_query), true));
+            }
+        }
+
+        // Apply meta_query if we have conditions
+        if (!empty($meta_query)) {
+            if (count($meta_query) === 1) {
+                $args['meta_query'] = $meta_query;
+            } else {
+                $args['meta_query'] = array_merge(['relation' => 'AND'], $meta_query);
+            }
+            error_log('🚀 Final question meta_query applied: ' . print_r($args['meta_query'], true));
+        }
+
+        return $args;
+    }
+
+    /**
+     * Add collection parameters for quiz endpoint
+     */
+    public function add_quiz_collection_params($params)
+    {
+        error_log('📋 Setting up quiz collection params');
+
+        $params['status']['default'] = 'publish,draft,private';
+
+        // Add meta_query support
+        $params['meta_query'] = [
+            'description' => 'Meta query conditions for filtering quizzes',
+            'type' => 'array',
+            'items' => [
+                'type' => 'object',
+                'properties' => [
+                    'key' => ['type' => 'string', 'description' => 'Meta key to filter by'],
+                    'value' => ['type' => 'string', 'description' => 'Meta value to filter by'],
+                    'compare' => [
+                        'type' => 'string',
+                        'default' => '=',
+                        'enum' => ['=', '!=', '>', '>=', '<', '<=', 'LIKE', 'NOT LIKE', 'IN', 'NOT IN', 'BETWEEN', 'NOT BETWEEN', 'EXISTS', 'NOT EXISTS']
+                    ],
+                    'type' => [
+                        'type' => 'string',
+                        'default' => 'CHAR',
+                        'enum' => ['NUMERIC', 'BINARY', 'CHAR', 'DATE', 'DATETIME', 'DECIMAL', 'SIGNED', 'TIME', 'UNSIGNED']
+                    ]
+                ]
+            ]
+        ];
+
+        // Add individual meta parameter support
+        $params['meta_key'] = ['description' => 'Meta key to filter by', 'type' => 'string'];
+        $params['meta_value'] = ['description' => 'Meta value to filter by', 'type' => 'string'];
+        $params['meta_compare'] = [
+            'description' => 'Meta comparison operator',
+            'type' => 'string',
+            'default' => '=',
+            'enum' => ['=', '!=', '>', '>=', '<', '<=', 'LIKE', 'NOT LIKE']
+        ];
+
+        error_log('✅ Quiz collection params configured');
+        return $params;
+    }
+
+    /**
+     * Add collection parameters for question endpoint
+     */
+    public function add_question_collection_params($params)
+    {
+        error_log('📋 Setting up question collection params');
+
+        $params['status']['default'] = 'publish,draft,private';
+
+        // Add meta_query support
+        $params['meta_query'] = [
+            'description' => 'Meta query conditions for filtering questions',
+            'type' => 'array',
+            'items' => [
+                'type' => 'object',
+                'properties' => [
+                    'key' => ['type' => 'string', 'description' => 'Meta key to filter by'],
+                    'value' => ['type' => 'string', 'description' => 'Meta value to filter by'],
+                    'compare' => [
+                        'type' => 'string',
+                        'default' => '=',
+                        'enum' => ['=', '!=', '>', '>=', '<', '<=', 'LIKE', 'NOT LIKE', 'IN', 'NOT IN', 'BETWEEN', 'NOT BETWEEN', 'EXISTS', 'NOT EXISTS']
+                    ],
+                    'type' => [
+                        'type' => 'string',
+                        'default' => 'CHAR',
+                        'enum' => ['NUMERIC', 'BINARY', 'CHAR', 'DATE', 'DATETIME', 'DECIMAL', 'SIGNED', 'TIME', 'UNSIGNED']
+                    ]
+                ]
+            ]
+        ];
+
+        // Add individual meta parameter support
+        $params['meta_key'] = ['description' => 'Meta key to filter by', 'type' => 'string'];
+        $params['meta_value'] = ['description' => 'Meta value to filter by', 'type' => 'string'];
+        $params['meta_compare'] = [
+            'description' => 'Meta comparison operator',
+            'type' => 'string',
+            'default' => '=',
+            'enum' => ['=', '!=', '>', '>=', '<', '<=', 'LIKE', 'NOT LIKE']
+        ];
+
+        error_log('✅ Question collection params configured');
+        return $params;
     }
 }
