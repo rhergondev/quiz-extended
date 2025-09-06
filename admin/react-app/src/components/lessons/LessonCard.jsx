@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   Eye,
   EyeOff,
@@ -12,16 +12,16 @@ import {
   Users,
   Lock,
   Unlock,
-  MoreHorizontal,
   Play,
   BookOpen,
   Calendar,
   User
 } from 'lucide-react';
+import Card from '../common/Card.jsx';
 
 /**
  * Componente de tarjeta para mostrar información de una lección
- * Soporta vista de tarjeta y vista de lista
+ * Ahora usa el componente Card genérico
  * 
  * @param {Object} props
  * @param {Object} props.lesson - Datos de la lección
@@ -43,9 +43,6 @@ const LessonCard = ({
   showCourse = true,
   className = ''
 }) => {
-  // --- STATE ---
-  const [showDropdown, setShowDropdown] = useState(false);
-
   // --- COMPUTED VALUES ---
   const lessonType = lesson.meta?._lesson_type || 'text';
   const contentType = lesson.meta?._content_type || 'free';
@@ -54,11 +51,10 @@ const LessonCard = ({
   const hasQuiz = lesson.meta?._has_quiz === 'yes' || lesson.meta?._lesson_type === 'quiz';
   const videoUrl = lesson.meta?._video_url;
   
-  // FIX: Mejorar la búsqueda del curso asociado
+  // Buscar el curso asociado
   const associatedCourse = useMemo(() => {
     if (!courseId || !courses.length) return null;
     
-    // Intentar buscar por ID como string y como número
     return courses.find(course => 
       course.id.toString() === courseId.toString() ||
       course.id === parseInt(courseId, 10)
@@ -79,347 +75,201 @@ const LessonCard = ({
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'publish':
-        return <Eye className="h-4 w-4" />;
-      case 'draft':
-        return <EyeOff className="h-4 w-4" />;
-      case 'private':
-        return <Lock className="h-4 w-4" />;
-      default:
-        return <EyeOff className="h-4 w-4" />;
-    }
-  };
-
   const getTypeIcon = (type) => {
     switch (type) {
       case 'video':
-        return <Video className="h-4 w-4 text-red-500" />;
+        return Video;
       case 'quiz':
-        return <HelpCircle className="h-4 w-4 text-orange-500" />;
+        return HelpCircle;
       case 'text':
-        return <FileText className="h-4 w-4 text-blue-500" />;
-      case 'assignment':
-        return <BookOpen className="h-4 w-4 text-purple-500" />;
       default:
-        return <FileText className="h-4 w-4 text-blue-500" />;
+        return FileText;
     }
   };
 
-  const formatDuration = (minutes) => {
-    if (!minutes || minutes === 0) return '';
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  // --- EVENT HANDLERS ---
-  const handleDropdownToggle = (event) => {
-    event.stopPropagation();
-    setShowDropdown(!showDropdown);
-  };
-
-  const handleAction = (action, event) => {
-    event.stopPropagation();
-    setShowDropdown(false);
-    
-    switch (action) {
-      case 'edit':
-        onEdit?.(lesson);
-        break;
-      case 'delete':
-        onDelete?.(lesson);
-        break;
-      case 'duplicate':
-        onDuplicate?.(lesson);
-        break;
+  const getContentTypeIcon = (type) => {
+    switch (type) {
+      case 'premium':
+        return Lock;
+      case 'free':
       default:
-        break;
+        return Unlock;
     }
   };
 
-  // Cerrar dropdown cuando se hace click fuera
-  React.useEffect(() => {
-    const handleClickOutside = () => {
-      if (showDropdown) {
-        setShowDropdown(false);
-      }
-    };
-
-    if (showDropdown) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
+  // --- ACTIONS ---
+  const actions = [
+    {
+      label: 'Edit',
+      icon: Edit,
+      onClick: onEdit,
+      color: 'text-blue-600'
+    },
+    {
+      label: 'Duplicate',
+      icon: Copy,
+      onClick: onDuplicate,
+      color: 'text-green-600'
+    },
+    {
+      label: 'Delete',
+      icon: Trash2,
+      onClick: onDelete,
+      color: 'text-red-600',
+      divider: true
     }
-  }, [showDropdown]);
+  ].filter(action => action.onClick); // Solo mostrar acciones que tienen callback
 
-  // --- RENDER LIST VIEW ---
-  if (viewMode === 'list') {
-    return (
-      <div className={`bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow ${className}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4 flex-1 min-w-0">
-            {/* Tipo de lección */}
-            <div className="flex-shrink-0">
-              {getTypeIcon(lessonType)}
-            </div>
+  // --- RENDER HELPERS ---
+  const TypeIcon = getTypeIcon(lessonType);
+  const ContentIcon = getContentTypeIcon(contentType);
 
-            {/* Información principal */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2">
-                <h3 className="text-sm font-medium text-gray-900 truncate">
-                  {lesson.title?.rendered || lesson.title}
-                </h3>
-                
-                {/* Estado */}
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lesson.status)}`}>
-                  {getStatusIcon(lesson.status)}
-                  <span className="ml-1 capitalize">{lesson.status}</span>
-                </span>
-
-                {/* Tipo de contenido */}
-                {contentType === 'premium' ? (
-                  <Lock className="h-4 w-4 text-purple-500" />
-                ) : (
-                  <Unlock className="h-4 w-4 text-green-500" />
-                )}
-              </div>
-
-              <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
-                {/* Curso */}
-                {showCourse && associatedCourse && (
-                  <span className="flex items-center">
-                    <BookOpen className="h-3 w-3 mr-1" />
-                    {associatedCourse.title?.rendered || associatedCourse.title}
-                  </span>
-                )}
-
-                {/* Duración */}
-                {duration > 0 && (
-                  <span className="flex items-center">
-                    <Clock className="h-3 w-3 mr-1" />
-                    {formatDuration(duration)}
-                  </span>
-                )}
-
-                {/* Quiz indicator */}
-                {hasQuiz && (
-                  <span className="flex items-center text-orange-600">
-                    <HelpCircle className="h-3 w-3 mr-1" />
-                    Has Quiz
-                  </span>
-                )}
-
-                {/* Fecha de modificación */}
-                <span className="flex items-center">
-                  <Calendar className="h-3 w-3 mr-1" />
-                  {formatDate(lesson.modified)}
-                </span>
-              </div>
-            </div>
+  const renderCardContent = () => (
+    <>
+      {/* Header con tipo y estado */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1 text-sm text-gray-500">
+            <TypeIcon className="h-4 w-4" />
+            <span className="capitalize">{lessonType}</span>
           </div>
-
-          {/* Acciones */}
-          <div className="flex-shrink-0 relative">
-            <button
-              onClick={handleDropdownToggle}
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
-
-            {showDropdown && (
-              <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg z-20 border border-gray-200">
-                <div className="py-1">
-                  {onEdit && (
-                    <button
-                      onClick={(e) => handleAction('edit', e)}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Lesson
-                    </button>
-                  )}
-                  {onDuplicate && (
-                    <button
-                      onClick={(e) => handleAction('duplicate', e)}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Duplicate
-                    </button>
-                  )}
-                  {onDelete && (
-                    <button
-                      onClick={(e) => handleAction('delete', e)}
-                      className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          {hasQuiz && (
+            <div className="flex items-center space-x-1 text-sm text-purple-600">
+              <HelpCircle className="h-3 w-3" />
+              <span>Quiz</span>
+            </div>
+          )}
         </div>
-      </div>
-    );
-  }
-
-  // --- RENDER CARD VIEW ---
-  return (
-    <div className={`bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow ${className}`}>
-      {/* Header con tipo de lección y acciones */}
-      <div className="p-4 pb-2">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-2">
-            {getTypeIcon(lessonType)}
-            <span className="text-sm font-medium text-gray-600 capitalize">
-              {lessonType}
-            </span>
-            {contentType === 'premium' && (
-              <Lock className="h-4 w-4 text-purple-500" />
-            )}
-          </div>
-
-          {/* Dropdown de acciones */}
-          <div className="relative">
-            <button
-              onClick={handleDropdownToggle}
-              className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
-
-            {showDropdown && (
-              <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg z-20 border border-gray-200">
-                <div className="py-1">
-                  {onEdit && (
-                    <button
-                      onClick={(e) => handleAction('edit', e)}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Lesson
-                    </button>
-                  )}
-                  {onDuplicate && (
-                    <button
-                      onClick={(e) => handleAction('duplicate', e)}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Duplicate
-                    </button>
-                  )}
-                  {onDelete && (
-                    <button
-                      onClick={(e) => handleAction('delete', e)}
-                      className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Thumbnail o placeholder */}
-      <div className="aspect-video bg-gray-100 flex items-center justify-center border-t border-b border-gray-200">
-        {lessonType === 'video' && videoUrl ? (
-          <div className="relative w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
-            <Play className="h-12 w-12 text-white opacity-80" />
-            <div className="absolute bottom-2 right-2">
-              <Video className="h-4 w-4 text-white" />
-            </div>
-          </div>
-        ) : (
-          <div className="text-gray-400">
-            {getTypeIcon(lessonType)}
-          </div>
-        )}
-      </div>
-
-      {/* Contenido principal */}
-      <div className="p-4">
-        {/* Título */}
-        <h3 className="font-semibold text-gray-900 text-sm mb-2 line-clamp-2">
-          {lesson.title?.rendered || lesson.title}
-        </h3>
-
-        {/* Curso asociado */}
-        {showCourse && associatedCourse && (
-          <div className="flex items-center text-xs text-gray-600 mb-2">
-            <BookOpen className="h-3 w-3 mr-1" />
-            <span className="truncate">
-              {associatedCourse.title?.rendered || associatedCourse.title}
-            </span>
-          </div>
-        )}
-
-        {/* Excerpt o contenido */}
-        {lesson.excerpt?.rendered && (
-          <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-            {lesson.excerpt.rendered.replace(/<[^>]*>/g, '')}
-          </p>
-        )}
-
-        {/* Metadata */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            {/* Duración y quiz */}
-            <div className="flex items-center space-x-3">
-              {duration > 0 && (
-                <div className="flex items-center">
-                  <Clock className="h-3 w-3 mr-1" />
-                  {formatDuration(duration)}
-                </div>
-              )}
-              {hasQuiz && (
-                <div className="flex items-center text-orange-600">
-                  <HelpCircle className="h-3 w-3 mr-1" />
-                  Quiz
-                </div>
-              )}
-            </div>
-
-            {/* Estado */}
-            <div className={`flex items-center px-2 py-1 rounded-full ${getStatusColor(lesson.status)}`}>
-              {getStatusIcon(lesson.status)}
-              <span className="ml-1 text-xs font-medium capitalize">
+        
+        <div className="flex items-center space-x-2">
+          <ContentIcon className="h-4 w-4 text-gray-400" />
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lesson.status)}`}>
+            {lesson.status === 'publish' ? (
+              <>
+                <Eye className="h-3 w-3 mr-1" />
+                Published
+              </>
+            ) : (
+              <>
+                <EyeOff className="h-3 w-3 mr-1" />
                 {lesson.status}
-              </span>
-            </div>
-          </div>
-
-          {/* Fecha de modificación */}
-          <div className="flex items-center justify-between text-xs text-gray-400">
-            <span>Modified {formatDate(lesson.modified)}</span>
-            {lesson.author && (
-              <div className="flex items-center">
-                <User className="h-3 w-3 mr-1" />
-                Author
-              </div>
+              </>
             )}
+          </span>
+        </div>
+      </div>
+
+      {/* Título */}
+      <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+        {lesson.title?.rendered || lesson.title || 'Untitled Lesson'}
+      </h3>
+
+      {/* Descripción */}
+      {lesson.excerpt?.rendered && (
+        <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+          {lesson.excerpt.rendered.replace(/<[^>]*>/g, '')}
+        </p>
+      )}
+
+      {/* Metadatos */}
+      <div className="space-y-2">
+        {/* Duración y URL de video */}
+        <div className="flex items-center justify-between text-sm text-gray-500">
+          {duration > 0 && (
+            <div className="flex items-center space-x-1">
+              <Clock className="h-4 w-4" />
+              <span>{duration} min</span>
+            </div>
+          )}
+          {videoUrl && (
+            <div className="flex items-center space-x-1 text-blue-600">
+              <Play className="h-4 w-4" />
+              <span>Video</span>
+            </div>
+          )}
+        </div>
+
+        {/* Información del curso */}
+        {showCourse && associatedCourse && (
+          <div className="flex items-center space-x-1 text-sm text-gray-500">
+            <BookOpen className="h-4 w-4" />
+            <span className="truncate">{associatedCourse.title}</span>
           </div>
+        )}
+
+        {/* Fecha de modificación */}
+        <div className="flex items-center justify-between text-xs text-gray-400">
+          <div className="flex items-center space-x-1">
+            <Calendar className="h-3 w-3" />
+            <span>
+              {new Date(lesson.modified).toLocaleDateString()}
+            </span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <User className="h-3 w-3" />
+            <span>ID: {lesson.id}</span>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  const renderListContent = () => (
+    <div className="flex items-center w-full">
+      {/* Icono de tipo */}
+      <div className="flex-shrink-0 mr-4">
+        <div className="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center">
+          <TypeIcon className="h-5 w-5 text-gray-600" />
+        </div>
+      </div>
+
+      {/* Información principal */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-gray-900 truncate">
+            {lesson.title?.rendered || lesson.title || 'Untitled Lesson'}
+          </h3>
+          <div className="flex items-center space-x-2 ml-4">
+            {hasQuiz && (
+              <HelpCircle className="h-4 w-4 text-purple-500" />
+            )}
+            <ContentIcon className="h-4 w-4 text-gray-400" />
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lesson.status)}`}>
+              {lesson.status}
+            </span>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
+          {showCourse && associatedCourse && (
+            <span className="truncate">
+              {associatedCourse.title}
+            </span>
+          )}
+          {duration > 0 && (
+            <div className="flex items-center space-x-1">
+              <Clock className="h-3 w-3" />
+              <span>{duration}m</span>
+            </div>
+          )}
+          <span>
+            {new Date(lesson.modified).toLocaleDateString()}
+          </span>
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <Card
+      item={lesson}
+      viewMode={viewMode}
+      actions={actions}
+      className={className}
+      clickable={false}
+    >
+      {viewMode === 'cards' ? renderCardContent() : renderListContent()}
+    </Card>
   );
 };
 
