@@ -1,22 +1,19 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { 
-  getLessons, 
-  getLessonsByCourse, 
-  createLesson as createLessonAPI, 
-  deleteLesson as deleteLessonAPI,
-  duplicateLesson as duplicateLessonAPI 
-} from '../../api/services/lessonService.js';
+import { getApiConfig } from '../../api/config/apiConfig.js';
 
 /**
- * Custom hook for lesson management - FIXED VERSION
- * Provides lesson state and operations with filtering and pagination
- * Fixed course filtering reactivity issue
+ * Custom hook for lesson management
+ * FIXED VERSION - Added proper debouncing to prevent unlimited API calls
  */
 export const useLessons = (options = {}) => {
   const { 
-    courseId = null, 
+    courseId = null,
+    type = null,
+    contentType = null,
+    search = '',
     autoFetch = true,
-    initialFilters = {}
+    initialFilters = {},
+    debounceMs = 500 // Debounce delay for search and filters
   } = options;
 
   // --- STATE ---
@@ -34,16 +31,20 @@ export const useLessons = (options = {}) => {
 
   // Filters state
   const [filters, setFilters] = useState({
-    search: '',
+    search: search || '',
+    courseId: courseId,
+    type: type,
+    contentType: contentType,
     status: 'publish,draft,private',
-    lessonType: '',
-    contentType: '',
     ...initialFilters
   });
 
-  // Refs para evitar re-renders innecesarios
+  // Refs para evitar re-renders innecesarios y duplicados
   const currentFiltersRef = useRef(filters);
-  const courseIdRef = useRef(courseId);
+  const optionsRef = useRef(options);
+  const debounceTimeoutRef = useRef(null);
+  const mountedRef = useRef(true);
+  const lastFetchParamsRef = useRef('');
 
   // Update refs when values change
   useEffect(() => {
@@ -51,16 +52,54 @@ export const useLessons = (options = {}) => {
   }, [filters]);
 
   useEffect(() => {
-    courseIdRef.current = courseId;
-  }, [courseId]);
+    optionsRef.current = options;
+  }, [options]);
 
-  // --- FETCH LESSONS - FIXED VERSION ---
-  const fetchLessons = useCallback(async (options = {}) => {
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // --- API FUNCTIONS ---
+  const makeApiRequest = async (url, requestOptions = {}) => {
+    try {
+      const config = getApiConfig();
+      
+      const defaultOptions = {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': config.nonce,
+        },
+        credentials: 'same-origin',
+        ...requestOptions
+      };
+
+      const response = await fetch(url, defaultOptions);
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`API Error ${response.status}: ${response.statusText} - ${errorData}`);
+      }
+
+      return response;
+    } catch (error) {
+      console.error('API Request Error:', error);
+      throw error;
+    }
+  };
+
+  // --- FETCH LESSONS WITH DUPLICATE PREVENTION ---
+  const fetchLessons = useCallback(async (fetchOptions = {}) => {
     const { 
       reset = false,
       page = 1,
       additionalFilters = {}
-    } = options;
+    } = fetchOptions;
 
     try {
       if (reset) {
@@ -68,158 +107,301 @@ export const useLessons = (options = {}) => {
         setError(null);
       }
 
-      const currentCourseId = courseIdRef.current;
-      console.log('Fetching lessons with courseId:', currentCourseId);
-      console.log('Current filters:', currentFiltersRef.current);
+      const config = getApiConfig();
+      const currentFilters = currentFiltersRef.current;
+      
+      // Build query params
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        per_page: '20',
+        status: currentFilters.status || 'publish,draft',
+        orderby: 'menu_order',
+        order: 'asc',
+        _embed: 'true'
+      });
 
-      // FIX: Improve courseId conversion and validation
-      let validCourseId = null;
-      if (currentCourseId !== null && currentCourseId !== undefined && currentCourseId !== 'all') {
-        const numericCourseId = parseInt(currentCourseId, 10);
-        if (Number.isInteger(numericCourseId) && numericCourseId > 0) {
-          validCourseId = numericCourseId;
-        }
+      // Add search
+      if (currentFilters.search) {
+        queryParams.append('search', currentFilters.search);
       }
 
-      // Combine current filters with additional filters
-      const requestFilters = {
-        ...currentFiltersRef.current,
-        ...additionalFilters,
-        page,
-        courseId: validCourseId // This will be null if no valid course ID
+      // Add course filter - CRITICAL FIX for meta_query
+      if (currentFilters.courseId) {
+        queryParams.append('meta_query[0][key]', '_course_id');
+        queryParams.append('meta_query[0][value]', currentFilters.courseId.toString());
+        queryParams.append('meta_query[0][compare]', '=');
+        queryParams.append('meta_query[0][type]', 'NUMERIC');
+      }
+
+      // Add lesson type filter
+      if (currentFilters.type) {
+        const typeIndex = currentFilters.courseId ? 1 : 0;
+        queryParams.append(`meta_query[${typeIndex}][key]`, '_lesson_type');
+        queryParams.append(`meta_query[${typeIndex}][value]`, currentFilters.type);
+        queryParams.append(`meta_query[${typeIndex}][compare]`, '=');
+      }
+
+      // Add content type filter
+      if (currentFilters.contentType) {
+        const contentIndex = (currentFilters.courseId ? 1 : 0) + (currentFilters.type ? 1 : 0);
+        queryParams.append(`meta_query[${contentIndex}][key]`, '_content_type');
+        queryParams.append(`meta_query[${contentIndex}][value]`, currentFilters.contentType);
+        queryParams.append(`meta_query[${contentIndex}][compare]`, '=');
+      }
+
+      // Set meta query relation if multiple filters
+      const filterCount = [currentFilters.courseId, currentFilters.type, currentFilters.contentType].filter(Boolean).length;
+      if (filterCount > 1) {
+        queryParams.append('meta_query[relation]', 'AND');
+      }
+
+      // Add additional filters
+      Object.entries(additionalFilters).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          queryParams.append(key, value);
+        }
+      });
+
+      const url = `${config.endpoints.lessons}?${queryParams}`;
+      
+      // 🔥 PREVENT DUPLICATE REQUESTS
+      const currentRequestParams = `${url}-${page}-${reset}`;
+      if (currentRequestParams === lastFetchParamsRef.current) {
+        console.log('🚫 Duplicate lesson request prevented:', url);
+        return;
+      }
+      lastFetchParamsRef.current = currentRequestParams;
+
+      console.log('🚀 Fetching lessons:', url);
+
+      const response = await makeApiRequest(url);
+      const data = await response.json();
+
+      // Check if component is still mounted
+      if (!mountedRef.current) return;
+
+      // Extract pagination from headers
+      const totalHeader = response.headers.get('X-WP-Total');
+      const totalPagesHeader = response.headers.get('X-WP-TotalPages');
+      
+      const newPagination = {
+        currentPage: page,
+        totalPages: totalPagesHeader ? parseInt(totalPagesHeader, 10) : 1,
+        total: totalHeader ? parseInt(totalHeader, 10) : data.length,
+        perPage: 20
       };
 
-      console.log('Final request filters:', requestFilters);
+      setPagination(newPagination);
+      setHasMore(page < newPagination.totalPages);
 
-      let result;
-      
-      // FIX: Use the appropriate service method based on courseId
-      if (validCourseId) {
-        // Use the dedicated course-specific method
-        console.log('Using getLessonsByCourse with courseId:', validCourseId);
-        result = await getLessonsByCourse(validCourseId, {
-          page: requestFilters.page,
-          perPage: requestFilters.perPage || 20,
-          status: requestFilters.status,
-          search: requestFilters.search,
-          orderBy: 'menu_order',
-          order: 'asc'
+      if (reset || page === 1) {
+        setLessons(data);
+      } else {
+        setLessons(prevLessons => {
+          const existingIds = new Set(prevLessons.map(l => l.id));
+          const newLessons = data.filter(l => !existingIds.has(l.id));
+          return [...prevLessons, ...newLessons];
         });
-      } else {
-        // Use general lessons method
-        console.log('Using getLessons (all lessons)');
-        result = await getLessons(requestFilters);
       }
 
-      console.log('Fetched lessons result:', result);
-
-      if (reset) {
-        setLessons(result.data);
-      } else {
-        setLessons(prevLessons => [...prevLessons, ...result.data]);
-      }
-
-      setPagination(result.pagination);
-      setHasMore(result.pagination.currentPage < result.pagination.totalPages);
-
-    } catch (err) {
-      console.error('Error fetching lessons:', err);
-      setError(err.message || 'Failed to fetch lessons');
+      console.log('✅ Lessons loaded:', data.length);
       
-      if (reset) {
-        setLessons([]);
+    } catch (err) {
+      console.error('❌ Error fetching lessons:', err);
+      if (mountedRef.current) {
+        setError(err.message || 'Failed to fetch lessons');
+        
+        if (reset || page === 1) {
+          setLessons([]);
+          setPagination({ currentPage: 1, totalPages: 1, total: 0, perPage: 20 });
+          setHasMore(false);
+        }
       }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
-  }, []); // NO dependencies - we use refs instead
+  }, []);
 
-  // --- FIXED: Separate effect for initial load and courseId/filters changes ---
+  // --- DEBOUNCED FETCH FUNCTION ---
+  const debouncedFetch = useCallback((fetchOptions = {}) => {
+    // Clear existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set new timeout
+    debounceTimeoutRef.current = setTimeout(() => {
+      if (mountedRef.current) {
+        fetchLessons({ reset: true, ...fetchOptions });
+      }
+    }, debounceMs);
+  }, [fetchLessons, debounceMs]);
+
+  // --- INITIAL LOAD (NO DEBOUNCE) ---
   useEffect(() => {
     if (autoFetch) {
-      console.log('Auto-fetching lessons due to courseId or filters change');
+      console.log('🎯 Initial lesson load');
       fetchLessons({ reset: true });
     }
-  }, [courseId, filters, autoFetch]); // Remove fetchLessons from dependencies
+  }, []); // Only run on mount
 
-  // --- LESSON OPERATIONS ---
-  const createLesson = useCallback(async (lessonData) => {
-    setCreating(true);
-    try {
-      console.log('Creating lesson:', lessonData);
+  // --- UPDATE FILTERS (NO FETCH YET) ---
+  useEffect(() => {
+    setFilters(prev => {
+      const newFilters = {
+        ...prev,
+        search: search || '',
+        courseId: courseId,
+        type: type,
+        contentType: contentType
+      };
       
-      // FIX: Ensure course ID is properly set if we're in a course context
-      const lessonDataWithCourse = {
-        ...lessonData,
+      // Only update if something actually changed
+      if (JSON.stringify(newFilters) !== JSON.stringify(prev)) {
+        return newFilters;
+      }
+      return prev;
+    });
+  }, [search, courseId, type, contentType]);
+
+  // --- DEBOUNCED REFETCH WHEN FILTERS CHANGE ---
+  useEffect(() => {
+    if (autoFetch) {
+      console.log('🔄 Lesson filters changed, debouncing fetch...');
+      debouncedFetch();
+    }
+  }, [filters, debouncedFetch, autoFetch]);
+
+  // --- CREATE LESSON ---
+  const createLesson = useCallback(async (lessonData) => {
+    try {
+      setCreating(true);
+      setError(null);
+      
+      const config = getApiConfig();
+      
+      // Transform data for API
+      const apiData = {
+        title: lessonData.title || '',
+        content: lessonData.content || '',
+        excerpt: lessonData.excerpt || '',
+        status: lessonData.status || 'draft',
+        menu_order: lessonData.menuOrder || 1,
         meta: {
-          ...lessonData.meta,
-          _course_id: lessonData.meta?._course_id || courseIdRef.current?.toString() || ''
+          _course_id: lessonData.courseId || '',
+          _lesson_order: lessonData.lessonOrder || '1',
+          _duration_minutes: lessonData.durationMinutes || '',
+          _lesson_type: lessonData.type || 'video',
+          _video_url: lessonData.videoUrl || '',
+          _content_type: lessonData.contentType || 'free',
+          _prerequisite_lessons: lessonData.prerequisiteLessons || '',
+          _resources_urls: lessonData.resourcesUrls || '',
+          _completion_criteria: lessonData.completionCriteria || 'view',
+          ...lessonData.meta
         }
       };
 
-      const result = await createLessonAPI(lessonDataWithCourse);
-      console.log('Lesson created:', result);
+      console.log('🚀 Creating lesson:', apiData);
+
+      const response = await makeApiRequest(config.endpoints.lessons, {
+        method: 'POST',
+        body: JSON.stringify(apiData)
+      });
+
+      const newLesson = await response.json();
       
-      // Refresh lessons after creation
-      await fetchLessons({ reset: true });
-      return result;
-    } catch (error) {
-      console.error('Error creating lesson:', error);
-      throw error;
+      // Add to lessons list
+      setLessons(prev => [newLesson, ...prev]);
+      
+      // Update pagination
+      setPagination(prev => ({
+        ...prev,
+        total: prev.total + 1
+      }));
+
+      console.log('✅ Lesson created:', newLesson);
+      return newLesson;
+      
+    } catch (err) {
+      console.error('❌ Error creating lesson:', err);
+      setError(err.message || 'Failed to create lesson');
+      throw err;
     } finally {
       setCreating(false);
     }
-  }, [fetchLessons]);
+  }, []);
 
+  // --- DELETE LESSON ---
   const deleteLesson = useCallback(async (lessonId) => {
     try {
-      await deleteLessonAPI(lessonId);
-      // Refresh lessons after deletion
-      await fetchLessons({ reset: true });
-    } catch (error) {
-      console.error('Error deleting lesson:', error);
-      throw error;
-    }
-  }, [fetchLessons]);
+      setError(null);
+      
+      const config = getApiConfig();
+      
+      console.log('🗑️ Deleting lesson:', lessonId);
 
+      await makeApiRequest(`${config.endpoints.lessons}/${lessonId}`, {
+        method: 'DELETE'
+      });
+
+      // Remove from lessons list
+      setLessons(prev => prev.filter(l => l.id !== lessonId));
+      
+      // Update pagination
+      setPagination(prev => ({
+        ...prev,
+        total: Math.max(0, prev.total - 1)
+      }));
+
+      console.log('✅ Lesson deleted');
+      
+    } catch (err) {
+      console.error('❌ Error deleting lesson:', err);
+      setError(err.message || 'Failed to delete lesson');
+      throw err;
+    }
+  }, []);
+
+  // --- DUPLICATE LESSON ---
   const duplicateLesson = useCallback(async (lessonId) => {
     try {
-      const result = await duplicateLessonAPI(lessonId);
-      // Refresh lessons after duplication
-      await fetchLessons({ reset: true });
-      return result;
-    } catch (error) {
-      console.error('Error duplicating lesson:', error);
-      throw error;
+      setError(null);
+      
+      // Find the original lesson
+      const originalLesson = lessons.find(l => l.id === lessonId);
+      if (!originalLesson) {
+        throw new Error('Lesson not found');
+      }
+
+      // Create duplicate data
+      const duplicateData = {
+        title: `${originalLesson.title?.rendered || originalLesson.title} (Copy)`,
+        content: originalLesson.content?.rendered || originalLesson.content || '',
+        excerpt: originalLesson.excerpt?.rendered || originalLesson.excerpt || '',
+        status: 'draft',
+        courseId: originalLesson.meta?._course_id,
+        type: originalLesson.meta?._lesson_type,
+        contentType: originalLesson.meta?._content_type,
+        durationMinutes: originalLesson.meta?._duration_minutes,
+        videoUrl: originalLesson.meta?._video_url,
+        prerequisiteLessons: originalLesson.meta?._prerequisite_lessons,
+        resourcesUrls: originalLesson.meta?._resources_urls,
+        completionCriteria: originalLesson.meta?._completion_criteria,
+        meta: originalLesson.meta
+      };
+
+      console.log('📋 Duplicating lesson:', lessonId);
+      
+      return await createLesson(duplicateData);
+      
+    } catch (err) {
+      console.error('❌ Error duplicating lesson:', err);
+      setError(err.message || 'Failed to duplicate lesson');
+      throw err;
     }
-  }, [fetchLessons]);
-
-  // --- FILTER METHODS ---
-  const setSearch = useCallback((search) => {
-    setFilters(prev => ({ ...prev, search }));
-  }, []);
-
-  const setStatusFilter = useCallback((status) => {
-    setFilters(prev => ({ ...prev, status }));
-  }, []);
-
-  const setLessonTypeFilter = useCallback((lessonType) => {
-    setFilters(prev => ({ ...prev, lessonType }));
-  }, []);
-
-  const setContentTypeFilter = useCallback((contentType) => {
-    setFilters(prev => ({ ...prev, contentType }));
-  }, []);
-
-  const resetFilters = useCallback(() => {
-    setFilters({
-      search: '',
-      status: 'publish,draft,private',
-      lessonType: '',
-      contentType: '',
-      ...initialFilters
-    });
-  }, [initialFilters]);
+  }, [lessons, createLesson]);
 
   // --- PAGINATION ---
   const loadMoreLessons = useCallback(() => {
@@ -232,6 +414,7 @@ export const useLessons = (options = {}) => {
   }, [hasMore, loading, pagination.currentPage, fetchLessons]);
 
   const refreshLessons = useCallback(() => {
+    lastFetchParamsRef.current = ''; // Reset duplicate prevention
     fetchLessons({ reset: true });
   }, [fetchLessons]);
 
@@ -242,26 +425,35 @@ export const useLessons = (options = {}) => {
       publishedLessons: lessons.filter(l => l.status === 'publish').length,
       draftLessons: lessons.filter(l => l.status === 'draft').length,
       privateLessons: lessons.filter(l => l.status === 'private').length,
-      freeLessons: lessons.filter(l => l.meta?._content_type !== 'premium').length,
-      premiumLessons: lessons.filter(l => l.meta?._content_type === 'premium').length,
-      totalDuration: lessons.reduce((total, lesson) => {
-        const duration = parseInt(lesson.meta?._duration_minutes || '0');
-        return total + duration;
-      }, 0),
       lessonsByType: lessons.reduce((acc, lesson) => {
-        const type = lesson.meta?._lesson_type || 'text';
+        const type = lesson.meta?._lesson_type || 'video';
         acc[type] = (acc[type] || 0) + 1;
         return acc;
       }, {}),
-      // NEW: Add course-specific computations
-      lessonsWithQuizzes: lessons.filter(lesson => 
-        lesson.meta?._has_quiz === 'yes' || lesson.meta?._lesson_type === 'quiz'
-      ).length,
+      lessonsByContentType: lessons.reduce((acc, lesson) => {
+        const contentType = lesson.meta?._content_type || 'free';
+        acc[contentType] = (acc[contentType] || 0) + 1;
+        return acc;
+      }, {}),
       averageDuration: lessons.length > 0 ? 
-        Math.round(lessons.reduce((total, lesson) => {
-          const duration = parseInt(lesson.meta?._duration_minutes || '0');
-          return total + duration;
-        }, 0) / lessons.length) : 0
+        Math.round(lessons.reduce((sum, lesson) => {
+          return sum + parseInt(lesson.meta?._duration_minutes || '0');
+        }, 0) / lessons.length) : 0,
+      totalDuration: lessons.reduce((sum, lesson) => {
+        return sum + parseInt(lesson.meta?._duration_minutes || '0');
+      }, 0),
+      lessonsWithVideo: lessons.filter(lesson => 
+        lesson.meta?._video_url && lesson.meta._video_url.trim() !== ''
+      ).length,
+      lessonsWithPrerequisites: lessons.filter(lesson => 
+        lesson.meta?._prerequisite_lessons && lesson.meta._prerequisite_lessons.trim() !== ''
+      ).length,
+      freeLessons: lessons.filter(lesson => 
+        lesson.meta?._content_type === 'free'
+      ).length,
+      premiumLessons: lessons.filter(lesson => 
+        lesson.meta?._content_type === 'premium'
+      ).length
     };
   }, [lessons]);
 
@@ -282,13 +474,7 @@ export const useLessons = (options = {}) => {
     duplicateLesson,
     refreshLessons,
     loadMoreLessons,
-
-    // Filter methods
-    setSearch,
-    setStatusFilter,
-    setLessonTypeFilter,
-    setContentTypeFilter,
-    resetFilters
+    fetchLessons: debouncedFetch // Export debounced version
   };
 };
 

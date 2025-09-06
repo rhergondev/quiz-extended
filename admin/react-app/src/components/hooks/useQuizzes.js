@@ -3,8 +3,7 @@ import { getApiConfig } from '../../api/config/apiConfig.js';
 
 /**
  * Custom hook for quiz management
- * Provides quiz state and operations with filtering and pagination
- * Following the same pattern as useLessons and useCourses
+ * FIXED VERSION - Added proper debouncing to prevent unlimited API calls
  */
 export const useQuizzes = (options = {}) => {
   const { 
@@ -13,7 +12,8 @@ export const useQuizzes = (options = {}) => {
     category = null,
     search = '',
     autoFetch = true,
-    initialFilters = {}
+    initialFilters = {},
+    debounceMs = 500 // Debounce delay for search and filters
   } = options;
 
   // --- STATE ---
@@ -42,6 +42,9 @@ export const useQuizzes = (options = {}) => {
   // Refs para evitar re-renders innecesarios
   const currentFiltersRef = useRef(filters);
   const optionsRef = useRef(options);
+  const debounceTimeoutRef = useRef(null);
+  const mountedRef = useRef(true);
+  const lastFetchParamsRef = useRef('');
 
   // Update refs when values change
   useEffect(() => {
@@ -51,6 +54,16 @@ export const useQuizzes = (options = {}) => {
   useEffect(() => {
     optionsRef.current = options;
   }, [options]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // --- API FUNCTIONS ---
   const makeApiRequest = async (url, requestOptions = {}) => {
@@ -80,7 +93,7 @@ export const useQuizzes = (options = {}) => {
     }
   };
 
-  // --- FETCH QUIZZES ---
+  // --- FETCH QUIZZES WITH DUPLICATE PREVENTION ---
   const fetchQuizzes = useCallback(async (fetchOptions = {}) => {
     const { 
       reset = false,
@@ -147,10 +160,22 @@ export const useQuizzes = (options = {}) => {
       });
 
       const url = `${config.endpoints.quizzes}?${queryParams}`;
+      
+      // 🔥 PREVENT DUPLICATE REQUESTS
+      const currentRequestParams = `${url}-${page}-${reset}`;
+      if (currentRequestParams === lastFetchParamsRef.current) {
+        console.log('🚫 Duplicate request prevented:', url);
+        return;
+      }
+      lastFetchParamsRef.current = currentRequestParams;
+
       console.log('🚀 Fetching quizzes:', url);
 
       const response = await makeApiRequest(url);
       const data = await response.json();
+
+      // Check if component is still mounted
+      if (!mountedRef.current) return;
 
       // Extract pagination from headers
       const totalHeader = response.headers.get('X-WP-Total');
@@ -180,42 +205,71 @@ export const useQuizzes = (options = {}) => {
       
     } catch (err) {
       console.error('❌ Error fetching quizzes:', err);
-      setError(err.message || 'Failed to fetch quizzes');
-      
-      if (reset || page === 1) {
-        setQuizzes([]);
-        setPagination({ currentPage: 1, totalPages: 1, total: 0, perPage: 20 });
-        setHasMore(false);
+      if (mountedRef.current) {
+        setError(err.message || 'Failed to fetch quizzes');
+        
+        if (reset || page === 1) {
+          setQuizzes([]);
+          setPagination({ currentPage: 1, totalPages: 1, total: 0, perPage: 20 });
+          setHasMore(false);
+        }
       }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
-  // --- INITIAL LOAD ---
+  // --- DEBOUNCED FETCH FUNCTION ---
+  const debouncedFetch = useCallback((fetchOptions = {}) => {
+    // Clear existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set new timeout
+    debounceTimeoutRef.current = setTimeout(() => {
+      if (mountedRef.current) {
+        fetchQuizzes({ reset: true, ...fetchOptions });
+      }
+    }, debounceMs);
+  }, [fetchQuizzes, debounceMs]);
+
+  // --- INITIAL LOAD (NO DEBOUNCE) ---
   useEffect(() => {
     if (autoFetch) {
+      console.log('🎯 Initial quiz load');
       fetchQuizzes({ reset: true });
     }
-  }, [fetchQuizzes, autoFetch]);
+  }, []); // Only run on mount
 
-  // --- WATCH FOR FILTER CHANGES ---
+  // --- UPDATE FILTERS (NO FETCH YET) ---
   useEffect(() => {
-    setFilters(prev => ({
-      ...prev,
-      search: search || '',
-      courseId: courseId,
-      difficulty: difficulty,
-      category: category
-    }));
+    setFilters(prev => {
+      const newFilters = {
+        ...prev,
+        search: search || '',
+        courseId: courseId,
+        difficulty: difficulty,
+        category: category
+      };
+      
+      // Only update if something actually changed
+      if (JSON.stringify(newFilters) !== JSON.stringify(prev)) {
+        return newFilters;
+      }
+      return prev;
+    });
   }, [search, courseId, difficulty, category]);
 
-  // --- REFETCH WHEN FILTERS CHANGE ---
+  // --- DEBOUNCED REFETCH WHEN FILTERS CHANGE ---
   useEffect(() => {
     if (autoFetch) {
-      fetchQuizzes({ reset: true });
+      console.log('🔄 Filters changed, debouncing fetch...');
+      debouncedFetch();
     }
-  }, [filters, fetchQuizzes, autoFetch]);
+  }, [filters, debouncedFetch, autoFetch]);
 
   // --- CREATE QUIZ ---
   const createQuiz = useCallback(async (quizData) => {
@@ -357,6 +411,7 @@ export const useQuizzes = (options = {}) => {
   }, [hasMore, loading, pagination.currentPage, fetchQuizzes]);
 
   const refreshQuizzes = useCallback(() => {
+    lastFetchParamsRef.current = ''; // Reset duplicate prevention
     fetchQuizzes({ reset: true });
   }, [fetchQuizzes]);
 
@@ -413,7 +468,7 @@ export const useQuizzes = (options = {}) => {
     duplicateQuiz,
     refreshQuizzes,
     loadMoreQuizzes,
-    fetchQuizzes
+    fetchQuizzes: debouncedFetch // Export debounced version
   };
 };
 

@@ -3,8 +3,7 @@ import { getApiConfig } from '../../api/config/apiConfig.js';
 
 /**
  * Custom hook for question management
- * Provides question state and operations with filtering and pagination
- * Following the same pattern as useLessons and useCourses
+ * FIXED VERSION - Added proper debouncing to prevent unlimited API calls
  */
 export const useQuestions = (options = {}) => {
   const { 
@@ -14,7 +13,8 @@ export const useQuestions = (options = {}) => {
     category = null,
     search = '',
     autoFetch = true,
-    initialFilters = {}
+    initialFilters = {},
+    debounceMs = 500 // Debounce delay for search and filters
   } = options;
 
   // --- STATE ---
@@ -41,9 +41,12 @@ export const useQuestions = (options = {}) => {
     ...initialFilters
   });
 
-  // Refs para evitar re-renders innecesarios
+  // Refs para evitar re-renders innecesarios y duplicados
   const currentFiltersRef = useRef(filters);
   const optionsRef = useRef(options);
+  const debounceTimeoutRef = useRef(null);
+  const mountedRef = useRef(true);
+  const lastFetchParamsRef = useRef('');
 
   // Update refs when values change
   useEffect(() => {
@@ -53,6 +56,16 @@ export const useQuestions = (options = {}) => {
   useEffect(() => {
     optionsRef.current = options;
   }, [options]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // --- API FUNCTIONS ---
   const makeApiRequest = async (url, requestOptions = {}) => {
@@ -82,7 +95,7 @@ export const useQuestions = (options = {}) => {
     }
   };
 
-  // --- FETCH QUESTIONS ---
+  // --- FETCH QUESTIONS WITH DUPLICATE PREVENTION ---
   const fetchQuestions = useCallback(async (fetchOptions = {}) => {
     const { 
       reset = false,
@@ -104,6 +117,8 @@ export const useQuestions = (options = {}) => {
         page: page.toString(),
         per_page: '20',
         status: currentFilters.status || 'publish,draft',
+        orderby: 'date',
+        order: 'desc',
         _embed: 'true'
       });
 
@@ -117,9 +132,10 @@ export const useQuestions = (options = {}) => {
         queryParams.append('meta_query[0][key]', '_quiz_id');
         queryParams.append('meta_query[0][value]', currentFilters.quizId.toString());
         queryParams.append('meta_query[0][compare]', '=');
+        queryParams.append('meta_query[0][type]', 'NUMERIC');
       }
 
-      // Add type filter
+      // Add question type filter
       if (currentFilters.type) {
         const typeIndex = currentFilters.quizId ? 1 : 0;
         queryParams.append(`meta_query[${typeIndex}][key]`, '_question_type');
@@ -157,10 +173,22 @@ export const useQuestions = (options = {}) => {
       });
 
       const url = `${config.endpoints.questions}?${queryParams}`;
+      
+      // 🔥 PREVENT DUPLICATE REQUESTS
+      const currentRequestParams = `${url}-${page}-${reset}`;
+      if (currentRequestParams === lastFetchParamsRef.current) {
+        console.log('🚫 Duplicate question request prevented:', url);
+        return;
+      }
+      lastFetchParamsRef.current = currentRequestParams;
+
       console.log('🚀 Fetching questions:', url);
 
       const response = await makeApiRequest(url);
       const data = await response.json();
+
+      // Check if component is still mounted
+      if (!mountedRef.current) return;
 
       // Extract pagination from headers
       const totalHeader = response.headers.get('X-WP-Total');
@@ -190,43 +218,72 @@ export const useQuestions = (options = {}) => {
       
     } catch (err) {
       console.error('❌ Error fetching questions:', err);
-      setError(err.message || 'Failed to fetch questions');
-      
-      if (reset || page === 1) {
-        setQuestions([]);
-        setPagination({ currentPage: 1, totalPages: 1, total: 0, perPage: 20 });
-        setHasMore(false);
+      if (mountedRef.current) {
+        setError(err.message || 'Failed to fetch questions');
+        
+        if (reset || page === 1) {
+          setQuestions([]);
+          setPagination({ currentPage: 1, totalPages: 1, total: 0, perPage: 20 });
+          setHasMore(false);
+        }
       }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
-  // --- INITIAL LOAD ---
+  // --- DEBOUNCED FETCH FUNCTION ---
+  const debouncedFetch = useCallback((fetchOptions = {}) => {
+    // Clear existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set new timeout
+    debounceTimeoutRef.current = setTimeout(() => {
+      if (mountedRef.current) {
+        fetchQuestions({ reset: true, ...fetchOptions });
+      }
+    }, debounceMs);
+  }, [fetchQuestions, debounceMs]);
+
+  // --- INITIAL LOAD (NO DEBOUNCE) ---
   useEffect(() => {
     if (autoFetch) {
+      console.log('🎯 Initial question load');
       fetchQuestions({ reset: true });
     }
-  }, [fetchQuestions, autoFetch]);
+  }, []); // Only run on mount
 
-  // --- WATCH FOR FILTER CHANGES ---
+  // --- UPDATE FILTERS (NO FETCH YET) ---
   useEffect(() => {
-    setFilters(prev => ({
-      ...prev,
-      search: search || '',
-      quizId: quizId,
-      type: type,
-      difficulty: difficulty,
-      category: category
-    }));
+    setFilters(prev => {
+      const newFilters = {
+        ...prev,
+        search: search || '',
+        quizId: quizId,
+        type: type,
+        difficulty: difficulty,
+        category: category
+      };
+      
+      // Only update if something actually changed
+      if (JSON.stringify(newFilters) !== JSON.stringify(prev)) {
+        return newFilters;
+      }
+      return prev;
+    });
   }, [search, quizId, type, difficulty, category]);
 
-  // --- REFETCH WHEN FILTERS CHANGE ---
+  // --- DEBOUNCED REFETCH WHEN FILTERS CHANGE ---
   useEffect(() => {
     if (autoFetch) {
-      fetchQuestions({ reset: true });
+      console.log('🔄 Question filters changed, debouncing fetch...');
+      debouncedFetch();
     }
-  }, [filters, fetchQuestions, autoFetch]);
+  }, [filters, debouncedFetch, autoFetch]);
 
   // --- CREATE QUESTION ---
   const createQuestion = useCallback(async (questionData) => {
@@ -240,16 +297,19 @@ export const useQuestions = (options = {}) => {
       const apiData = {
         title: questionData.title || '',
         content: questionData.content || '',
+        excerpt: questionData.excerpt || '',
         status: questionData.status || 'draft',
         meta: {
+          _quiz_id: questionData.quizId || '',
           _question_type: questionData.type || 'multiple_choice',
           _difficulty_level: questionData.difficulty || 'medium',
           _question_category: questionData.category || '',
-          _quiz_id: questionData.quizId || '',
           _points: questionData.points || '1',
           _time_limit: questionData.timeLimit || '0',
+          _question_options: questionData.options || [],
+          _correct_answer: questionData.correctAnswer || '',
           _explanation: questionData.explanation || '',
-          _question_options: questionData.options || {},
+          _question_order: questionData.questionOrder || '1',
           ...questionData.meta
         }
       };
@@ -330,15 +390,18 @@ export const useQuestions = (options = {}) => {
       const duplicateData = {
         title: `${originalQuestion.title?.rendered || originalQuestion.title} (Copy)`,
         content: originalQuestion.content?.rendered || originalQuestion.content || '',
+        excerpt: originalQuestion.excerpt?.rendered || originalQuestion.excerpt || '',
         status: 'draft',
+        quizId: originalQuestion.meta?._quiz_id,
         type: originalQuestion.meta?._question_type,
         difficulty: originalQuestion.meta?._difficulty_level,
         category: originalQuestion.meta?._question_category,
-        quizId: originalQuestion.meta?._quiz_id,
         points: originalQuestion.meta?._points,
         timeLimit: originalQuestion.meta?._time_limit,
-        explanation: originalQuestion.meta?._explanation,
         options: originalQuestion.meta?._question_options,
+        correctAnswer: originalQuestion.meta?._correct_answer,
+        explanation: originalQuestion.meta?._explanation,
+        questionOrder: originalQuestion.meta?._question_order,
         meta: originalQuestion.meta
       };
 
@@ -364,6 +427,7 @@ export const useQuestions = (options = {}) => {
   }, [hasMore, loading, pagination.currentPage, fetchQuestions]);
 
   const refreshQuestions = useCallback(() => {
+    lastFetchParamsRef.current = ''; // Reset duplicate prevention
     fetchQuestions({ reset: true });
   }, [fetchQuestions]);
 
@@ -384,15 +448,32 @@ export const useQuestions = (options = {}) => {
         acc[difficulty] = (acc[difficulty] || 0) + 1;
         return acc;
       }, {}),
+      questionsByCategory: questions.reduce((acc, question) => {
+        const category = question.meta?._question_category || 'general';
+        acc[category] = (acc[category] || 0) + 1;
+        return acc;
+      }, {}),
+      averagePoints: questions.length > 0 ? 
+        Math.round(questions.reduce((sum, question) => {
+          return sum + parseInt(question.meta?._points || '1');
+        }, 0) / questions.length) : 1,
       totalPoints: questions.reduce((sum, question) => {
         return sum + parseInt(question.meta?._points || '1');
       }, 0),
-      averagePoints: questions.length > 0 ? 
-        Math.round((questions.reduce((sum, question) => {
-          return sum + parseInt(question.meta?._points || '1');
-        }, 0) / questions.length) * 10) / 10 : 0,
       questionsWithTimeLimit: questions.filter(question => 
         parseInt(question.meta?._time_limit || '0') > 0
+      ).length,
+      questionsWithExplanation: questions.filter(question => 
+        question.meta?._explanation && question.meta._explanation.trim() !== ''
+      ).length,
+      multipleChoiceQuestions: questions.filter(question => 
+        question.meta?._question_type === 'multiple_choice'
+      ).length,
+      trueFalseQuestions: questions.filter(question => 
+        question.meta?._question_type === 'true_false'
+      ).length,
+      essayQuestions: questions.filter(question => 
+        question.meta?._question_type === 'essay'
       ).length
     };
   }, [questions]);
@@ -414,7 +495,7 @@ export const useQuestions = (options = {}) => {
     duplicateQuestion,
     refreshQuestions,
     loadMoreQuestions,
-    fetchQuestions
+    fetchQuestions: debouncedFetch // Export debounced version
   };
 };
 

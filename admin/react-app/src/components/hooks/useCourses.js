@@ -1,271 +1,313 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { getCourses, createCourse, deleteCourse } from '../../api/index.js';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { getApiConfig } from '../../api/config/apiConfig.js';
 
 /**
- * Enhanced custom hook to manage courses state and logic with infinite scroll support
- * and improved filter management - UPDATED VERSION with filter support
- *
- * @param {Object} options - Configuration options
- * @param {string} options.search - Search term filter
- * @param {string} options.category - Category filter
- * @param {string} options.difficulty - Difficulty filter
- * @param {string} options.status - Status filter
- * @param {boolean} options.autoFetch - Auto fetch on mount
- * @returns {object} Object with courses state and functions to manipulate them.
+ * Custom hook for course management
+ * FIXED VERSION - Added proper debouncing to prevent unlimited API calls
  */
 export const useCourses = (options = {}) => {
-  const {
-    search = '',
+  const { 
+    type = null,
     category = null,
-    difficulty = null,
-    status = 'publish,draft',
+    status = null,
+    search = '',
     autoFetch = true,
-    perPage = 20
+    initialFilters = {},
+    debounceMs = 500 // Debounce delay for search and filters
   } = options;
 
   // --- STATE ---
   const [courses, setCourses] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState(null);
-  const [hasMore, setHasMore] = useState(true);
   const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
     total: 0,
-    totalPages: 0,
-    currentPage: 0,
-    perPage: perPage
+    perPage: 20
   });
-  
+  const [hasMore, setHasMore] = useState(false);
+
   // Filters state
   const [filters, setFilters] = useState({
     search: search || '',
+    type: type,
     category: category,
-    difficulty: difficulty,
-    status: status
+    status: status || 'publish,draft,private',
+    ...initialFilters
   });
-  
-  // Use refs to store current filters to avoid dependency issues
-  const currentFiltersRef = useRef(filters);
-  const isInitialLoadRef = useRef(true);
 
-  // Update refs when filters change
+  // Refs para evitar re-renders innecesarios y duplicados
+  const currentFiltersRef = useRef(filters);
+  const optionsRef = useRef(options);
+  const debounceTimeoutRef = useRef(null);
+  const mountedRef = useRef(true);
+  const lastFetchParamsRef = useRef('');
+
+  // Update refs when values change
   useEffect(() => {
     currentFiltersRef.current = filters;
   }, [filters]);
 
-  // Update filters when options change
   useEffect(() => {
-    setFilters(prev => ({
-      ...prev,
-      search: search || '',
-      category: category,
-      difficulty: difficulty,
-      status: status
-    }));
-  }, [search, category, difficulty, status]);
+    optionsRef.current = options;
+  }, [options]);
 
-  // --- FETCH COURSES FUNCTION ---
-  const fetchCourses = useCallback(async (options = {}) => {
-    const { 
-      isLoadMore = false, 
-      customFilters = currentFiltersRef.current 
-    } = options;
-    
-    try {
-      if (isLoadMore) {
-        setIsLoadingMore(true);
-      } else {
-        setIsLoading(true);
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
       }
-      setError(null);
+    };
+  }, []);
+
+  // --- API FUNCTIONS ---
+  const makeApiRequest = async (url, requestOptions = {}) => {
+    try {
+      const config = getApiConfig();
       
-      const page = isLoadMore ? pagination.currentPage + 1 : 1;
-      
-      // Build API parameters
-      const apiParams = {
-        page,
-        perPage: perPage,
-        status: customFilters.status || 'publish,draft'
+      const defaultOptions = {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': config.nonce,
+        },
+        credentials: 'same-origin',
+        ...requestOptions
       };
 
-      // Add search if provided
-      if (customFilters.search) {
-        apiParams.search = customFilters.search;
-      }
-
-      // Add meta query filters for category and difficulty
-      const metaQueries = [];
+      const response = await fetch(url, defaultOptions);
       
-      if (customFilters.category) {
-        metaQueries.push({
-          key: '_course_category',
-          value: customFilters.category,
-          compare: '='
-        });
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`API Error ${response.status}: ${response.statusText} - ${errorData}`);
       }
 
-      if (customFilters.difficulty) {
-        metaQueries.push({
-          key: '_difficulty_level',
-          value: customFilters.difficulty,
-          compare: '='
-        });
+      return response;
+    } catch (error) {
+      console.error('API Request Error:', error);
+      throw error;
+    }
+  };
+
+  // --- FETCH COURSES WITH DUPLICATE PREVENTION ---
+  const fetchCourses = useCallback(async (fetchOptions = {}) => {
+    const { 
+      reset = false,
+      page = 1,
+      additionalFilters = {}
+    } = fetchOptions;
+
+    try {
+      if (reset) {
+        setLoading(true);
+        setError(null);
       }
 
-      // Add meta queries to API params if we have any
-      if (metaQueries.length > 0) {
-        metaQueries.forEach((metaQuery, index) => {
-          apiParams[`meta_query[${index}][key]`] = metaQuery.key;
-          apiParams[`meta_query[${index}][value]`] = metaQuery.value;
-          apiParams[`meta_query[${index}][compare]`] = metaQuery.compare;
-        });
+      const config = getApiConfig();
+      const currentFilters = currentFiltersRef.current;
+      
+      // Build query params
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        per_page: '20',
+        status: currentFilters.status || 'publish,draft',
+        orderby: 'date',
+        order: 'desc',
+        _embed: 'true'
+      });
 
-        if (metaQueries.length > 1) {
-          apiParams['meta_query[relation]'] = 'AND';
+      // Add search
+      if (currentFilters.search) {
+        queryParams.append('search', currentFilters.search);
+      }
+
+      // Add course type filter via taxonomy
+      if (currentFilters.type) {
+        queryParams.append('course_type', currentFilters.type);
+      }
+
+      // Add category filter via taxonomy
+      if (currentFilters.category) {
+        queryParams.append('categories', currentFilters.category);
+      }
+
+      // Add additional filters
+      Object.entries(additionalFilters).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          queryParams.append(key, value);
         }
-      }
+      });
 
-      console.log('🚀 Fetching courses with params:', apiParams);
+      const url = `${config.endpoints.courses}?${queryParams}`;
       
-      const response = await getCourses(apiParams);
+      // 🔥 PREVENT DUPLICATE REQUESTS
+      const currentRequestParams = `${url}-${page}-${reset}`;
+      if (currentRequestParams === lastFetchParamsRef.current) {
+        console.log('🚫 Duplicate course request prevented:', url);
+        return;
+      }
+      lastFetchParamsRef.current = currentRequestParams;
+
+      console.log('🚀 Fetching courses:', url);
+
+      const response = await makeApiRequest(url);
+      const data = await response.json();
+
+      // Check if component is still mounted
+      if (!mountedRef.current) return;
+
+      // Extract pagination from headers
+      const totalHeader = response.headers.get('X-WP-Total');
+      const totalPagesHeader = response.headers.get('X-WP-TotalPages');
       
-      if (isLoadMore) {
-        // Only append if we actually got new data and haven't reached the end
-        if (response.data.length > 0) {
-          setCourses(prevCourses => {
-            // Create a Set of existing course IDs to avoid duplicates
-            const existingIds = new Set(prevCourses.map(course => course.id));
-            const newCourses = response.data.filter(course => !existingIds.has(course.id));
-            
-            // Only add if there are actually new courses
-            if (newCourses.length > 0) {
-              return [...prevCourses, ...newCourses];
-            }
-            return prevCourses;
-          });
-        }
+      const newPagination = {
+        currentPage: page,
+        totalPages: totalPagesHeader ? parseInt(totalPagesHeader, 10) : 1,
+        total: totalHeader ? parseInt(totalHeader, 10) : data.length,
+        perPage: 20
+      };
+
+      setPagination(newPagination);
+      setHasMore(page < newPagination.totalPages);
+
+      if (reset || page === 1) {
+        setCourses(data);
       } else {
-        // Replace courses with new ones (fresh load or filter change)
-        setCourses(response.data);
-        currentFiltersRef.current = customFilters;
+        setCourses(prevCourses => {
+          const existingIds = new Set(prevCourses.map(c => c.id));
+          const newCourses = data.filter(c => !existingIds.has(c.id));
+          return [...prevCourses, ...newCourses];
+        });
       }
-      
-      setPagination(response.pagination);
-      
-      // Set hasMore based on whether we actually have more pages AND got data
-      const actuallyHasMore = response.pagination.hasMore && response.data.length > 0;
-      setHasMore(actuallyHasMore);
+
+      console.log('✅ Courses loaded:', data.length);
       
     } catch (err) {
-      console.error('Failed to fetch courses:', err);
-      setError(err);
-      
-      // If it's a filter change (not load more), still reset courses to empty
-      if (!isLoadMore) {
-        setCourses([]);
-        setPagination({
-          total: 0,
-          totalPages: 0,
-          currentPage: 0,
-          perPage: perPage
-        });
-        setHasMore(false);
+      console.error('❌ Error fetching courses:', err);
+      if (mountedRef.current) {
+        setError(err.message || 'Failed to fetch courses');
+        
+        if (reset || page === 1) {
+          setCourses([]);
+          setPagination({ currentPage: 1, totalPages: 1, total: 0, perPage: 20 });
+          setHasMore(false);
+        }
       }
     } finally {
-      setIsLoading(false);
-      setIsLoadingMore(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
-  }, [pagination.currentPage, perPage]);
+  }, []);
 
-  // --- INITIAL LOAD ---
-  useEffect(() => {
-    if (autoFetch && isInitialLoadRef.current) {
-      fetchCourses();
-      isInitialLoadRef.current = false;
+  // --- DEBOUNCED FETCH FUNCTION ---
+  const debouncedFetch = useCallback((fetchOptions = {}) => {
+    // Clear existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
     }
-  }, [fetchCourses, autoFetch]);
 
-  // --- REFETCH WHEN FILTERS CHANGE ---
+    // Set new timeout
+    debounceTimeoutRef.current = setTimeout(() => {
+      if (mountedRef.current) {
+        fetchCourses({ reset: true, ...fetchOptions });
+      }
+    }, debounceMs);
+  }, [fetchCourses, debounceMs]);
+
+  // --- INITIAL LOAD (NO DEBOUNCE) ---
   useEffect(() => {
-    if (autoFetch && !isInitialLoadRef.current) {
-      // Reset pagination state before fetching
-      setPagination(prev => ({
+    if (autoFetch) {
+      console.log('🎯 Initial course load');
+      fetchCourses({ reset: true });
+    }
+  }, []); // Only run on mount
+
+  // --- UPDATE FILTERS (NO FETCH YET) ---
+  useEffect(() => {
+    setFilters(prev => {
+      const newFilters = {
         ...prev,
-        currentPage: 0
-      }));
+        search: search || '',
+        type: type,
+        category: category,
+        status: status || prev.status
+      };
       
-      fetchCourses({ 
-        isLoadMore: false,
-        customFilters: filters 
-      });
-    }
-  }, [filters, fetchCourses, autoFetch]);
-
-  // --- LOAD MORE COURSES ---
-  const loadMoreCourses = useCallback(async () => {
-    // Multiple safety checks to prevent unnecessary calls
-    if (isLoadingMore || !hasMore || isLoading) {
-      return;
-    }
-    
-    // Check if we're already at the end
-    if (pagination.currentPage >= pagination.totalPages) {
-      setHasMore(false);
-      return;
-    }
-    
-    await fetchCourses({ 
-      isLoadMore: true,
-      customFilters: currentFiltersRef.current 
+      // Only update if something actually changed
+      if (JSON.stringify(newFilters) !== JSON.stringify(prev)) {
+        return newFilters;
+      }
+      return prev;
     });
-  }, [fetchCourses, isLoadingMore, hasMore, isLoading, pagination.currentPage, pagination.totalPages]);
+  }, [search, type, category, status]);
 
-  // --- REFRESH WITH NEW FILTERS ---
-  const refreshCourses = useCallback(async (newFilters = {}) => {
-    const finalFilters = {
-      ...currentFiltersRef.current,
-      ...newFilters
-    };
-    
-    // Update filters state
-    setFilters(finalFilters);
-    
-    // Reset pagination state before fetching
-    setPagination(prev => ({
-      ...prev,
-      currentPage: 0
-    }));
-    
-    await fetchCourses({ 
-      isLoadMore: false,
-      customFilters: finalFilters 
-    });
-  }, [fetchCourses]);
+  // --- DEBOUNCED REFETCH WHEN FILTERS CHANGE ---
+  useEffect(() => {
+    if (autoFetch) {
+      console.log('🔄 Course filters changed, debouncing fetch...');
+      debouncedFetch();
+    }
+  }, [filters, debouncedFetch, autoFetch]);
 
   // --- CREATE COURSE ---
-  const addCourse = useCallback(async (courseData) => {
+  const createCourse = useCallback(async (courseData) => {
     try {
       setCreating(true);
       setError(null);
       
-      const newCourse = await createCourse(courseData);
+      const config = getApiConfig();
       
-      // Add new course to the beginning of the list
-      setCourses(prevCourses => [newCourse, ...prevCourses]);
+      // Transform data for API
+      const apiData = {
+        title: courseData.title || '',
+        content: courseData.content || '',
+        excerpt: courseData.excerpt || '',
+        status: courseData.status || 'draft',
+        meta: {
+          _course_price: courseData.price || '0',
+          _course_duration: courseData.duration || '',
+          _course_difficulty: courseData.difficulty || 'beginner',
+          _course_instructor: courseData.instructor || '',
+          _course_max_students: courseData.maxStudents || '0',
+          _course_requirements: courseData.requirements || '',
+          _course_outcomes: courseData.outcomes || '',
+          _course_featured: courseData.featured ? 'yes' : 'no',
+          ...courseData.meta
+        },
+        // Handle taxonomies
+        course_type: courseData.typeId ? [courseData.typeId] : [],
+        categories: courseData.categoryIds || [],
+        featured_media: courseData.featuredImageId || 0
+      };
+
+      console.log('🚀 Creating course:', apiData);
+
+      const response = await makeApiRequest(config.endpoints.courses, {
+        method: 'POST',
+        body: JSON.stringify(apiData)
+      });
+
+      const newCourse = await response.json();
+      
+      // Add to courses list
+      setCourses(prev => [newCourse, ...prev]);
       
       // Update pagination
       setPagination(prev => ({
         ...prev,
         total: prev.total + 1
       }));
-      
+
       console.log('✅ Course created:', newCourse);
       return newCourse;
       
     } catch (err) {
       console.error('❌ Error creating course:', err);
-      setError(err);
+      setError(err.message || 'Failed to create course');
       throw err;
     } finally {
       setCreating(false);
@@ -273,26 +315,32 @@ export const useCourses = (options = {}) => {
   }, []);
 
   // --- DELETE COURSE ---
-  const removeCourse = useCallback(async (courseId) => {
+  const deleteCourse = useCallback(async (courseId) => {
     try {
       setError(null);
       
-      await deleteCourse(courseId);
+      const config = getApiConfig();
       
-      // Remove course from list
-      setCourses(prevCourses => prevCourses.filter(course => course.id !== courseId));
+      console.log('🗑️ Deleting course:', courseId);
+
+      await makeApiRequest(`${config.endpoints.courses}/${courseId}`, {
+        method: 'DELETE'
+      });
+
+      // Remove from courses list
+      setCourses(prev => prev.filter(c => c.id !== courseId));
       
       // Update pagination
       setPagination(prev => ({
         ...prev,
         total: Math.max(0, prev.total - 1)
       }));
-      
-      console.log('✅ Course deleted:', courseId);
+
+      console.log('✅ Course deleted');
       
     } catch (err) {
       console.error('❌ Error deleting course:', err);
-      setError(err);
+      setError(err.message || 'Failed to delete course');
       throw err;
     }
   }, []);
@@ -314,19 +362,44 @@ export const useCourses = (options = {}) => {
         content: originalCourse.content?.rendered || originalCourse.content || '',
         excerpt: originalCourse.excerpt?.rendered || originalCourse.excerpt || '',
         status: 'draft',
+        price: originalCourse.meta?._course_price,
+        duration: originalCourse.meta?._course_duration,
+        difficulty: originalCourse.meta?._course_difficulty,
+        instructor: originalCourse.meta?._course_instructor,
+        maxStudents: originalCourse.meta?._course_max_students,
+        requirements: originalCourse.meta?._course_requirements,
+        outcomes: originalCourse.meta?._course_outcomes,
+        featured: originalCourse.meta?._course_featured === 'yes',
+        typeId: originalCourse.course_type?.[0],
+        categoryIds: originalCourse.categories || [],
         meta: originalCourse.meta
       };
 
       console.log('📋 Duplicating course:', courseId);
       
-      return await addCourse(duplicateData);
+      return await createCourse(duplicateData);
       
     } catch (err) {
       console.error('❌ Error duplicating course:', err);
-      setError(err);
+      setError(err.message || 'Failed to duplicate course');
       throw err;
     }
-  }, [courses, addCourse]);
+  }, [courses, createCourse]);
+
+  // --- PAGINATION ---
+  const loadMoreCourses = useCallback(() => {
+    if (hasMore && !loading) {
+      fetchCourses({ 
+        page: pagination.currentPage + 1,
+        reset: false 
+      });
+    }
+  }, [hasMore, loading, pagination.currentPage, fetchCourses]);
+
+  const refreshCourses = useCallback(() => {
+    lastFetchParamsRef.current = ''; // Reset duplicate prevention
+    fetchCourses({ reset: true });
+  }, [fetchCourses]);
 
   // --- COMPUTED VALUES ---
   const computed = useMemo(() => {
@@ -335,54 +408,67 @@ export const useCourses = (options = {}) => {
       publishedCourses: courses.filter(c => c.status === 'publish').length,
       draftCourses: courses.filter(c => c.status === 'draft').length,
       privateCourses: courses.filter(c => c.status === 'private').length,
-      coursesByCategory: courses.reduce((acc, course) => {
-        const category = course.meta?._course_category || 'general';
-        acc[category] = (acc[category] || 0) + 1;
+      coursesByType: courses.reduce((acc, course) => {
+        const types = course.course_type || [];
+        types.forEach(typeId => {
+          acc[typeId] = (acc[typeId] || 0) + 1;
+        });
         return acc;
       }, {}),
       coursesByDifficulty: courses.reduce((acc, course) => {
-        const difficulty = course.meta?._difficulty_level || 'beginner';
+        const difficulty = course.meta?._course_difficulty || 'beginner';
         acc[difficulty] = (acc[difficulty] || 0) + 1;
         return acc;
       }, {}),
-      averageDuration: courses.length > 0 ? 
-        Math.round(courses.reduce((sum, course) => {
-          return sum + parseInt(course.meta?._duration_weeks || '0');
-        }, 0) / courses.length) : 0,
-      totalRevenue: courses.reduce((sum, course) => {
-        const price = parseFloat(course.meta?._price || '0');
-        const salePrice = parseFloat(course.meta?._sale_price || '0');
-        return sum + (salePrice > 0 && salePrice < price ? salePrice : price);
-      }, 0),
       averagePrice: courses.length > 0 ? 
         Math.round(courses.reduce((sum, course) => {
-          const price = parseFloat(course.meta?._price || '0');
-          const salePrice = parseFloat(course.meta?._sale_price || '0');
-          return sum + (salePrice > 0 && salePrice < price ? salePrice : price);
+          return sum + parseFloat(course.meta?._course_price || '0');
         }, 0) / courses.length) : 0,
-      totalStudents: 0 // Este valor vendría de la API en una implementación real
+      totalRevenue: courses.reduce((sum, course) => {
+        return sum + parseFloat(course.meta?._course_price || '0');
+      }, 0),
+      freeCourses: courses.filter(course => 
+        parseFloat(course.meta?._course_price || '0') === 0
+      ).length,
+      paidCourses: courses.filter(course => 
+        parseFloat(course.meta?._course_price || '0') > 0
+      ).length,
+      featuredCourses: courses.filter(course => 
+        course.meta?._course_featured === 'yes'
+      ).length,
+      coursesWithInstructor: courses.filter(course => 
+        course.meta?._course_instructor && course.meta._course_instructor.trim() !== ''
+      ).length,
+      averageDuration: courses.length > 0 ? 
+        Math.round(courses.reduce((sum, course) => {
+          const duration = course.meta?._course_duration || '';
+          const hours = parseFloat(duration) || 0;
+          return sum + hours;
+        }, 0) / courses.length) : 0,
+      totalStudents: courses.reduce((sum, course) => {
+        return sum + parseInt(course.meta?._course_max_students || '0');
+      }, 0)
     };
   }, [courses]);
 
   return {
     // Data
     courses,
-    loading: isLoading,
-    loadingMore: isLoadingMore,
+    loading,
     creating,
     error,
-    hasMore,
     pagination,
+    hasMore,
     filters,
     computed,
 
     // Methods
-    createCourse: addCourse,
-    deleteCourse: removeCourse,
+    createCourse,
+    deleteCourse,
     duplicateCourse,
-    loadMoreCourses,
     refreshCourses,
-    fetchCourses
+    loadMoreCourses,
+    fetchCourses: debouncedFetch // Export debounced version
   };
 };
 

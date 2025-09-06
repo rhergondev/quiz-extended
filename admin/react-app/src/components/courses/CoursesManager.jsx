@@ -1,38 +1,76 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { 
   BookOpen, 
   Eye, 
   EyeOff, 
   Clock, 
   Users,
-  DollarSign,
-  TrendingUp,
+  Trophy,
+  Target,
   BarChart3,
+  TrendingUp,
+  Zap,
+  DollarSign,
+  Star,
   ChevronDown,
   Search,
   Filter
 } from 'lucide-react';
 
-// Hook imports
+// FIXED: Import the updated hooks with debouncing
 import { useCourses } from '../hooks/useCourses.js';
+
+// Import debounce utilities
+import { useSearchInput, useFilterDebounce } from '../utils/debounceUtils.js';
 
 // Component imports
 import ContentManager from '../common/ContentManager.jsx';
 import CourseCard from './CourseCard.jsx';
 import DeleteConfirmModal from '../common/DeleteConfirmModal.jsx';
-// import CourseCreateModal from './CourseCreateModal.jsx'; // TODO: Crear este componente
 
 const CoursesManager = () => {
-  // --- STATE ---
+  // --- LOCAL STATE ---
+  const [selectedType, setSelectedType] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState(null);
   const [viewMode, setViewMode] = useState('cards');
 
-  // --- HOOKS ---
+  // --- DEBOUNCED SEARCH INPUT ---
+  const {
+    searchValue,
+    isSearching,
+    handleSearchChange,
+    clearSearch
+  } = useSearchInput('', async (searchTerm) => {
+    // This will automatically trigger the debounced fetch in useCourses
+    console.log('🔍 Course search triggered:', searchTerm);
+  }, 500);
+
+  // --- DEBOUNCED FILTERS ---
+  const {
+    filters,
+    isFiltering,
+    updateFilter,
+    resetFilters
+  } = useFilterDebounce(
+    {
+      type: 'all',
+      category: 'all',
+      difficulty: 'all',
+      status: 'all'
+    },
+    async (newFilters) => {
+      // This will automatically trigger the debounced fetch in useCourses
+      console.log('🔧 Course filters changed:', newFilters);
+    },
+    300
+  );
+
+  // --- HOOKS WITH PROPER DEBOUNCING ---
   const { 
     courses, 
     loading, 
@@ -42,109 +80,44 @@ const CoursesManager = () => {
     createCourse,
     deleteCourse,
     duplicateCourse,
-    creating 
+    creating,
+    refreshCourses
   } = useCourses({
-    search: searchTerm,
-    category: selectedCategory !== 'all' ? selectedCategory : null,
-    difficulty: selectedDifficulty !== 'all' ? selectedDifficulty : null,
-    autoFetch: true
+    // Pass current filter values
+    search: searchValue,
+    type: filters.type !== 'all' ? filters.type : null,
+    category: filters.category !== 'all' ? filters.category : null,
+    status: filters.status !== 'all' ? filters.status : null,
+    autoFetch: true,
+    debounceMs: 500 // Configure debounce delay
   });
 
-  // --- COMPUTED VALUES ---
-  const categories = useMemo(() => [
-    'all',
-    'policial',
-    'ingles',
-    'enp',
-    'psicotecnicos',
-    'guardia-civil'
-  ], []);
+  // --- EVENT HANDLERS (NO MORE DIRECT API CALLS) ---
+  const handleTypeChange = useCallback((type) => {
+    setSelectedType(type);
+    updateFilter('type', type);
+  }, [updateFilter]);
 
-  const difficulties = useMemo(() => [
-    'all',
-    'beginner',
-    'intermediate', 
-    'advanced',
-    'expert'
-  ], []);
-
-  // --- STATISTICS ---
-  const statistics = useMemo(() => {
-    // Calcular estadísticas basadas en los cursos actuales
-    const totalRevenue = courses.reduce((sum, course) => {
-      const price = parseFloat(course.meta?._price || '0');
-      const salePrice = parseFloat(course.meta?._sale_price || '0');
-      return sum + (salePrice > 0 && salePrice < price ? salePrice : price);
-    }, 0);
-
-    const averagePrice = courses.length > 0 
-      ? Math.round(totalRevenue / courses.length)
-      : 0;
-
-    const coursesByDifficulty = courses.reduce((acc, course) => {
-      const difficulty = course.meta?._difficulty_level || 'beginner';
-      acc[difficulty] = (acc[difficulty] || 0) + 1;
-      return acc;
-    }, {});
-
-    return [
-      {
-        label: 'Total Courses',
-        value: computed.totalCourses || courses.length,
-        icon: BookOpen,
-        iconColor: 'text-gray-400'
-      },
-      {
-        label: 'Published',
-        value: computed.publishedCourses || courses.filter(c => c.status === 'publish').length,
-        icon: Eye,
-        iconColor: 'text-green-400'
-      },
-      {
-        label: 'Draft',
-        value: computed.draftCourses || courses.filter(c => c.status === 'draft').length,
-        icon: EyeOff,
-        iconColor: 'text-yellow-400'
-      },
-      {
-        label: 'Avg. Duration',
-        value: computed.averageDuration ? `${computed.averageDuration}w` : '--',
-        icon: Clock,
-        iconColor: 'text-blue-400'
-      },
-      {
-        label: 'Total Revenue',
-        value: totalRevenue > 0 ? `${Math.round(totalRevenue)}` : '$0',
-        icon: DollarSign,
-        iconColor: 'text-green-500'
-      },
-      {
-        label: 'Avg. Price',
-        value: averagePrice > 0 ? `${averagePrice}` : 'Free',
-        icon: BarChart3,
-        iconColor: 'text-purple-400'
-      },
-      {
-        label: 'Total Students',
-        value: computed.totalStudents || '--',
-        icon: Users,
-        iconColor: 'text-indigo-400'
-      }
-    ];
-  }, [courses, computed]);
-
-  // --- EVENT HANDLERS ---
   const handleCategoryChange = useCallback((category) => {
     setSelectedCategory(category);
-  }, []);
+    updateFilter('category', category);
+  }, [updateFilter]);
 
   const handleDifficultyChange = useCallback((difficulty) => {
     setSelectedDifficulty(difficulty);
-  }, []);
+    updateFilter('difficulty', difficulty);
+  }, [updateFilter]);
 
-  const handleSearchChange = useCallback((term) => {
-    setSearchTerm(term);
-  }, []);
+  const handleStatusChange = useCallback((status) => {
+    setSelectedStatus(status);
+    updateFilter('status', status);
+  }, [updateFilter]);
+
+  // No more direct search handling - use the debounced version
+  const handleSearchChangeWrapper = useCallback((event) => {
+    const value = event.target.value;
+    handleSearchChange(value);
+  }, [handleSearchChange]);
 
   const handleCreateCourse = useCallback(async (courseData) => {
     try {
@@ -183,201 +156,311 @@ const CoursesManager = () => {
   }, [duplicateCourse]);
 
   const handleCourseClick = useCallback((course) => {
-    // Navegar a la vista de detalle del curso o abrir modal de edición
     console.log('Navigate to course details:', course.id);
   }, []);
 
-  // --- FILTER COMPONENT ---
-  const renderFilters = () => (
-    <div className="p-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Search */}
-        <div className="relative">
-          <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-            Search Courses
-          </label>
+  const handleRefresh = useCallback(() => {
+    refreshCourses();
+  }, [refreshCourses]);
+
+  // --- COMPUTED VALUES ---
+  const statsCards = useMemo(() => {
+    const totalCourses = computed.totalCourses || 0;
+    const averagePrice = computed.averagePrice || 0;
+    const totalRevenue = computed.totalRevenue || 0;
+    const freeCourses = computed.freeCourses || 0;
+    const paidCourses = computed.paidCourses || 0;
+    const featuredCourses = computed.featuredCourses || 0;
+
+    return [
+      {
+        label: 'Total Courses',
+        value: totalCourses,
+        icon: BookOpen,
+        iconColor: 'text-blue-500'
+      },
+      {
+        label: 'Average Price',
+        value: averagePrice > 0 ? `$${averagePrice}` : 'Free',
+        icon: DollarSign,
+        iconColor: 'text-green-500'
+      },
+      {
+        label: 'Total Revenue',
+        value: `$${totalRevenue.toLocaleString()}`,
+        icon: TrendingUp,
+        iconColor: 'text-purple-500'
+      },
+      {
+        label: 'Free Courses',
+        value: freeCourses,
+        icon: Target,
+        iconColor: 'text-blue-400'
+      },
+      {
+        label: 'Paid Courses',
+        value: paidCourses,
+        icon: Trophy,
+        iconColor: 'text-yellow-500'
+      },
+      {
+        label: 'Featured',
+        value: featuredCourses,
+        icon: Star,
+        iconColor: 'text-orange-500'
+      }
+    ];
+  }, [computed]);
+
+  // --- FILTER OPTIONS ---
+  const typeOptions = [
+    { value: 'all', label: 'All Types' },
+    { value: 'online', label: 'Online' },
+    { value: 'hybrid', label: 'Hybrid' },
+    { value: 'workshop', label: 'Workshop' },
+    { value: 'masterclass', label: 'Masterclass' }
+  ];
+
+  const categoryOptions = [
+    { value: 'all', label: 'All Categories' },
+    { value: 'programming', label: 'Programming' },
+    { value: 'design', label: 'Design' },
+    { value: 'business', label: 'Business' },
+    { value: 'marketing', label: 'Marketing' },
+    { value: 'data-science', label: 'Data Science' }
+  ];
+
+  const difficultyOptions = [
+    { value: 'all', label: 'All Difficulties' },
+    { value: 'beginner', label: 'Beginner' },
+    { value: 'intermediate', label: 'Intermediate' },
+    { value: 'advanced', label: 'Advanced' },
+    { value: 'expert', label: 'Expert' }
+  ];
+
+  const statusOptions = [
+    { value: 'all', label: 'All Statuses' },
+    { value: 'publish', label: 'Published' },
+    { value: 'draft', label: 'Draft' },
+    { value: 'private', label: 'Private' },
+    { value: 'pending', label: 'Pending Review' }
+  ];
+
+  // --- RENDER ---
+  return (
+    <div className="space-y-6">
+      {/* Header with Stats */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Course Management</h1>
+            <p className="text-gray-600 mt-1">Create and manage your courses</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            {/* Loading indicator */}
+            {(loading || isSearching || isFiltering) && (
+              <div className="flex items-center text-sm text-gray-500">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                {isSearching ? 'Searching...' : isFiltering ? 'Filtering...' : 'Loading...'}
+              </div>
+            )}
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              Refresh
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              disabled={creating}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {creating ? 'Creating...' : 'Create Course'}
+            </button>
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {statsCards.map((stat, index) => {
+            const IconComponent = stat.icon;
+            return (
+              <div key={index} className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center">
+                  <div className={`flex-shrink-0 ${stat.iconColor}`}>
+                    <IconComponent className="h-6 w-6" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+                    <p className="text-lg font-semibold text-gray-900">{stat.value}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Filters and Search */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {/* Search Input with Debouncing */}
           <div className="relative">
-            <input
-              id="search"
-              type="text"
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search by title, description..."
-              className="block w-full pl-10 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-5 w-5 text-gray-400" />
             </div>
+            <input
+              type="text"
+              placeholder="Search courses..."
+              value={searchValue}
+              onChange={handleSearchChangeWrapper}
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+            {searchValue && (
+              <button
+                onClick={clearSearch}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                <span className="sr-only">Clear search</span>
+                ×
+              </button>
+            )}
           </div>
+
+          {/* Type Filter */}
+          <select
+            value={selectedType}
+            onChange={(e) => handleTypeChange(e.target.value)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {typeOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Category Filter */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => handleCategoryChange(e.target.value)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {categoryOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Difficulty Filter */}
+          <select
+            value={selectedDifficulty}
+            onChange={(e) => handleDifficultyChange(e.target.value)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {difficultyOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Status Filter */}
+          <select
+            value={selectedStatus}
+            onChange={(e) => handleStatusChange(e.target.value)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {statusOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* Category Filter */}
-        <div className="relative">
-          <label htmlFor="category-select" className="block text-sm font-medium text-gray-700 mb-1">
-            Category
-          </label>
-          <div className="relative">
-            <select
-              id="category-select"
-              value={selectedCategory}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md appearance-none"
-            >
-              <option value="all">All Categories</option>
-              {categories.slice(1).map((category) => (
-                <option key={category} value={category}>
-                  {category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
-                </option>
-              ))}
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-              <ChevronDown className="h-5 w-5 text-gray-400" />
-            </div>
-          </div>
-        </div>
-
-        {/* Difficulty Filter */}
-        <div className="relative">
-          <label htmlFor="difficulty-select" className="block text-sm font-medium text-gray-700 mb-1">
-            Difficulty
-          </label>
-          <div className="relative">
-            <select
-              id="difficulty-select"
-              value={selectedDifficulty}
-              onChange={(e) => handleDifficultyChange(e.target.value)}
-              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md appearance-none"
-            >
-              <option value="all">All Levels</option>
-              {difficulties.slice(1).map((difficulty) => (
-                <option key={difficulty} value={difficulty}>
-                  {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
-                </option>
-              ))}
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-              <ChevronDown className="h-5 w-5 text-gray-400" />
-            </div>
-          </div>
+        {/* Clear Filters Button */}
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={resetFilters}
+            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
+          >
+            Clear All Filters
+          </button>
         </div>
       </div>
 
-      {/* Active Filters Display */}
-      {(selectedCategory !== 'all' || selectedDifficulty !== 'all' || searchTerm) && (
-        <div className="mt-4 flex items-center space-x-2">
-          <span className="text-sm text-gray-500">Active filters:</span>
-          {searchTerm && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              Search: "{searchTerm}"
-              <button
-                onClick={() => setSearchTerm('')}
-                className="ml-1 text-blue-600 hover:text-blue-800"
-              >
-                ×
-              </button>
-            </span>
-          )}
-          {selectedCategory !== 'all' && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-              {selectedCategory}
-              <button
-                onClick={() => setSelectedCategory('all')}
-                className="ml-1 text-green-600 hover:text-green-800"
-              >
-                ×
-              </button>
-            </span>
-          )}
-          {selectedDifficulty !== 'all' && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-              {selectedDifficulty}
-              <button
-                onClick={() => setSelectedDifficulty('all')}
-                className="ml-1 text-purple-600 hover:text-purple-800"
-              >
-                ×
-              </button>
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
-  // --- EMPTY STATE CONFIG ---
-  const emptyStateConfig = {
-    icon: BookOpen,
-    title: "No courses found",
-    description: (selectedCategory !== 'all' || selectedDifficulty !== 'all' || searchTerm)
-      ? "No courses match your current filters."
-      : "You haven't created any courses yet.",
-    actionText: "Create First Course"
-  };
-
-  // --- RENDER ---
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-red-600 mb-4">Error loading courses</div>
-        <p className="text-gray-600">{error}</p>
-      </div>
-    );
-  }
-
-  return (
-    <>
+      {/* Content Manager */}
       <ContentManager
-        title="Courses Manager"
-        description="Manage and organize your learning courses"
-        createButtonText="Create Course"
-        onCreateClick={() => setShowCreateModal(true)}
-        statistics={statistics}
         items={courses}
         loading={loading}
+        error={error}
+        pagination={pagination}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        filtersComponent={renderFilters()}
-        emptyState={emptyStateConfig}
-        showStatistics={true}
-        showViewToggle={true}
-        showCreateButton={true}
-        showItemCount={true}
-      >
-        {courses.map((course) => (
+        renderCard={(course) => (
           <CourseCard
             key={course.id}
             course={course}
-            viewMode={viewMode}
-            onEdit={(course) => console.log('Edit course:', course)}
+            onEdit={handleCourseClick}
             onDelete={handleDeleteClick}
             onDuplicate={handleDuplicate}
             onClick={handleCourseClick}
-            showLessons={true}
-            showPrice={true}
           />
-        ))}
-      </ContentManager>
-
-      {/* Modals */}
-      {/* TODO: Crear CourseCreateModal */}
-      {/* <CourseCreateModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onCourseCreated={handleCreateCourse}
-        isCreating={creating}
-      /> */}
-
-      <DeleteConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setCourseToDelete(null);
+        )}
+        emptyState={{
+          icon: BookOpen,
+          title: 'No courses found',
+          description: 'Get started by creating your first course.',
+          actionLabel: 'Create Course',
+          onAction: () => setShowCreateModal(true)
         }}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Course"
-        message={`Are you sure you want to delete the course "${courseToDelete?.title?.rendered || courseToDelete?.title || 'this course'}"? This action cannot be undone and will also delete all associated lessons.`}
       />
-    </>
+
+      {/* Create Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">
+                  Create New Course
+                </h3>
+                <p className="mt-2 text-sm text-gray-500">
+                  Course creation form would go here...
+                </p>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && courseToDelete && (
+        <DeleteConfirmModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleDeleteConfirm}
+          title="Delete Course"
+          message={`Are you sure you want to delete "${courseToDelete.title?.rendered || courseToDelete.title}"? This action cannot be undone.`}
+          confirmLabel="Delete Course"
+          isLoading={false}
+        />
+      )}
+    </div>
   );
 };
 

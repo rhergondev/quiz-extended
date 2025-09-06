@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { 
   HelpCircle, 
   Eye, 
@@ -15,28 +15,59 @@ import {
   Filter
 } from 'lucide-react';
 
-// Hook imports
+// FIXED: Import the updated hook with debouncing
 import { useQuizzes } from '../hooks/useQuizzes.js';
 import { useCourses } from '../hooks/useCourses.js';
+
+// Import debounce utilities
+import { useSearchInput, useFilterDebounce } from '../../api/utils/debounceUtils.js';
 
 // Component imports
 import ContentManager from '../common/ContentManager.jsx';
 import QuizCard from './QuizCard.jsx';
 import DeleteConfirmModal from '../common/DeleteConfirmModal.jsx';
-// import QuizCreateModal from './QuizCreateModal.jsx'; // TODO: Crear este componente
 
 const QuizzesManager = () => {
-  // --- STATE ---
+  // --- LOCAL STATE ---
   const [selectedCourse, setSelectedCourse] = useState('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [quizToDelete, setQuizToDelete] = useState(null);
   const [viewMode, setViewMode] = useState('cards');
 
-  // --- HOOKS ---
+  // --- DEBOUNCED SEARCH INPUT ---
+  const {
+    searchValue,
+    isSearching,
+    handleSearchChange,
+    clearSearch
+  } = useSearchInput('', async (searchTerm) => {
+    // This will automatically trigger the debounced fetch in useQuizzes
+    console.log('🔍 Search triggered:', searchTerm);
+  }, 500);
+
+  // --- DEBOUNCED FILTERS ---
+  const {
+    filters,
+    isFiltering,
+    updateFilter,
+    resetFilters
+  } = useFilterDebounce(
+    {
+      courseId: 'all',
+      difficulty: 'all',
+      category: 'all'
+    },
+    async (newFilters) => {
+      // This will automatically trigger the debounced fetch in useQuizzes
+      console.log('🔧 Filters changed:', newFilters);
+    },
+    300
+  );
+
+  // --- HOOKS WITH PROPER DEBOUNCING ---
   const { 
     quizzes, 
     loading, 
@@ -46,136 +77,44 @@ const QuizzesManager = () => {
     createQuiz,
     deleteQuiz,
     duplicateQuiz,
-    creating 
+    creating,
+    refreshQuizzes
   } = useQuizzes({
-    search: searchTerm,
-    courseId: selectedCourse !== 'all' ? selectedCourse : null,
-    difficulty: selectedDifficulty !== 'all' ? selectedDifficulty : null,
-    category: selectedCategory !== 'all' ? selectedCategory : null,
-    autoFetch: true
+    // Pass current filter values
+    search: searchValue,
+    courseId: filters.courseId !== 'all' ? filters.courseId : null,
+    difficulty: filters.difficulty !== 'all' ? filters.difficulty : null,
+    category: filters.category !== 'all' ? filters.category : null,
+    autoFetch: true,
+    debounceMs: 500 // Configure debounce delay
   });
 
-  const { courses, loading: coursesLoading } = useCourses({
-    status: 'publish,draft',
-    perPage: 100
+  const { courses } = useCourses({
+    autoFetch: true,
+    debounceMs: 300
   });
 
-  // --- COMPUTED VALUES ---
-  const validCourses = useMemo(() => {
-    return courses.filter(course => 
-      course.title && (course.title.rendered || course.title)
-    ).map(course => ({
-      ...course,
-      title: course.title.rendered || course.title
-    }));
-  }, [courses]);
-
-  const difficulties = useMemo(() => [
-    'all',
-    'easy',
-    'medium', 
-    'hard'
-  ], []);
-
-  const categories = useMemo(() => [
-    'all',
-    'assessment',
-    'practice',
-    'final_exam',
-    'checkpoint',
-    'review'
-  ], []);
-
-  // --- STATISTICS ---
-  const statistics = useMemo(() => {
-    // Calcular estadísticas basadas en los quizzes actuales
-    const difficultyDistribution = quizzes.reduce((acc, quiz) => {
-      const difficulty = quiz.meta?._difficulty_level || 'medium';
-      acc[difficulty] = (acc[difficulty] || 0) + 1;
-      return acc;
-    }, {});
-
-    const categoryDistribution = quizzes.reduce((acc, quiz) => {
-      const category = quiz.meta?._quiz_category || 'assessment';
-      acc[category] = (acc[category] || 0) + 1;
-      return acc;
-    }, {});
-
-    // Simular estadísticas de rendimiento
-    const totalQuestions = quizzes.reduce((sum) => {
-      return sum + (Math.floor(Math.random() * 20) + 5); // 5-25 questions per quiz
-    }, 0);
-
-    const averageQuestions = quizzes.length > 0 
-      ? Math.round(totalQuestions / quizzes.length)
-      : 0;
-
-    const totalAttempts = quizzes.reduce((sum) => sum + Math.floor(Math.random() * 100) + 10, 0);
-    const averageScore = Math.floor(Math.random() * 30) + 70; // 70-100%
-    const averagePassRate = Math.floor(Math.random() * 40) + 60; // 60-100%
-
-    return [
-      {
-        label: 'Total Quizzes',
-        value: computed.totalQuizzes || quizzes.length,
-        icon: HelpCircle,
-        iconColor: 'text-gray-400'
-      },
-      {
-        label: 'Published',
-        value: computed.publishedQuizzes || quizzes.filter(q => q.status === 'publish').length,
-        icon: Eye,
-        iconColor: 'text-green-400'
-      },
-      {
-        label: 'Draft',
-        value: computed.draftQuizzes || quizzes.filter(q => q.status === 'draft').length,
-        icon: EyeOff,
-        iconColor: 'text-yellow-400'
-      },
-      {
-        label: 'Avg. Questions',
-        value: averageQuestions > 0 ? averageQuestions : '--',
-        icon: BarChart3,
-        iconColor: 'text-blue-400'
-      },
-      {
-        label: 'Total Attempts',
-        value: computed.totalAttempts || totalAttempts,
-        icon: Users,
-        iconColor: 'text-purple-400'
-      },
-      {
-        label: 'Avg. Score',
-        value: `${averageScore}%`,
-        icon: Trophy,
-        iconColor: 'text-yellow-500'
-      },
-      {
-        label: 'Pass Rate',
-        value: `${averagePassRate}%`,
-        icon: TrendingUp,
-        iconColor: 'text-green-500'
-      }
-    ];
-  }, [quizzes, computed]);
-
-  // --- EVENT HANDLERS ---
+  // --- EVENT HANDLERS (NO MORE DIRECT API CALLS) ---
   const handleCourseChange = useCallback((courseId) => {
     setSelectedCourse(courseId);
-  }, []);
+    updateFilter('courseId', courseId);
+  }, [updateFilter]);
 
   const handleDifficultyChange = useCallback((difficulty) => {
     setSelectedDifficulty(difficulty);
-  }, []);
+    updateFilter('difficulty', difficulty);
+  }, [updateFilter]);
 
   const handleCategoryChange = useCallback((category) => {
     setSelectedCategory(category);
-  }, []);
+    updateFilter('category', category);
+  }, [updateFilter]);
 
-  const handleSearchChange = useCallback((term) => {
-    setSearchTerm(term);
-  }, []);
+  // No more direct search handling - use the debounced version
+  const handleSearchChangeWrapper = useCallback((event) => {
+    const value = event.target.value;
+    handleSearchChange(value);
+  }, [handleSearchChange]);
 
   const handleCreateQuiz = useCallback(async (quizData) => {
     try {
@@ -214,258 +153,293 @@ const QuizzesManager = () => {
   }, [duplicateQuiz]);
 
   const handleQuizClick = useCallback((quiz) => {
-    // Navegar a la vista de detalle del quiz o abrir modal de edición
     console.log('Navigate to quiz details:', quiz.id);
   }, []);
 
-  // --- HELPER FUNCTIONS ---
-  const getCategoryLabel = (category) => {
-    switch (category) {
-      case 'assessment':
-        return 'Assessment';
-      case 'practice':
-        return 'Practice';
-      case 'final_exam':
-        return 'Final Exam';
-      case 'checkpoint':
-        return 'Checkpoint';
-      case 'review':
-        return 'Review';
-      default:
-        return category.charAt(0).toUpperCase() + category.slice(1).replace('_', ' ');
-    }
-  };
+  const handleRefresh = useCallback(() => {
+    refreshQuizzes();
+  }, [refreshQuizzes]);
 
-  // --- FILTER COMPONENT ---
-  const renderFilters = () => (
-    <div className="p-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Search */}
-        <div className="relative">
-          <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-            Search Quizzes
-          </label>
+  // --- COMPUTED VALUES ---
+  const statsCards = useMemo(() => {
+    const totalQuizzes = computed.totalQuizzes || 0;
+    const averageTimeLimit = computed.averageTimeLimit || 0;
+    const averageQuestions = quizzes.length > 0 ? 
+      Math.round(quizzes.reduce((sum, quiz) => {
+        const questionIds = quiz.meta?._quiz_question_ids || [];
+        return sum + (Array.isArray(questionIds) ? questionIds.length : 0);
+      }, 0) / quizzes.length) : 0;
+
+    const totalAttempts = computed.totalAttempts || 0;
+    const averageScore = 75; // This would come from API
+    const averagePassRate = 80; // This would come from API
+
+    return [
+      {
+        label: 'Total Quizzes',
+        value: totalQuizzes,
+        icon: HelpCircle,
+        iconColor: 'text-blue-500'
+      },
+      {
+        label: 'Avg. Time Limit',
+        value: averageTimeLimit > 0 ? `${averageTimeLimit}min` : 'No limit',
+        icon: Clock,
+        iconColor: 'text-green-500'
+      },
+      {
+        label: 'Avg. Questions',
+        value: averageQuestions > 0 ? averageQuestions : '--',
+        icon: BarChart3,
+        iconColor: 'text-blue-400'
+      },
+      {
+        label: 'Total Attempts',
+        value: computed.totalAttempts || totalAttempts,
+        icon: Users,
+        iconColor: 'text-purple-400'
+      },
+      {
+        label: 'Avg. Score',
+        value: `${averageScore}%`,
+        icon: Trophy,
+        iconColor: 'text-yellow-500'
+      },
+      {
+        label: 'Pass Rate',
+        value: `${averagePassRate}%`,
+        icon: TrendingUp,
+        iconColor: 'text-green-500'
+      }
+    ];
+  }, [quizzes, computed]);
+
+  // --- FILTER OPTIONS ---
+  const courseOptions = useMemo(() => [
+    { value: 'all', label: 'All Courses' },
+    ...courses.map(course => ({
+      value: course.id.toString(),
+      label: course.title?.rendered || course.title || `Course ${course.id}`
+    }))
+  ], [courses]);
+
+  const difficultyOptions = [
+    { value: 'all', label: 'All Difficulties' },
+    { value: 'easy', label: 'Easy' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'hard', label: 'Hard' }
+  ];
+
+  const categoryOptions = [
+    { value: 'all', label: 'All Categories' },
+    { value: 'assessment', label: 'Assessment' },
+    { value: 'practice', label: 'Practice' },
+    { value: 'exam', label: 'Exam' },
+    { value: 'homework', label: 'Homework' }
+  ];
+
+  // --- RENDER ---
+  return (
+    <div className="space-y-6">
+      {/* Header with Stats */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Quiz Management</h1>
+            <p className="text-gray-600 mt-1">Create and manage your quizzes</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            {/* Loading indicator */}
+            {(loading || isSearching || isFiltering) && (
+              <div className="flex items-center text-sm text-gray-500">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                {isSearching ? 'Searching...' : isFiltering ? 'Filtering...' : 'Loading...'}
+              </div>
+            )}
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              Refresh
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              disabled={creating}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {creating ? 'Creating...' : 'Create Quiz'}
+            </button>
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {statsCards.map((stat, index) => {
+            const IconComponent = stat.icon;
+            return (
+              <div key={index} className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center">
+                  <div className={`flex-shrink-0 ${stat.iconColor}`}>
+                    <IconComponent className="h-6 w-6" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+                    <p className="text-lg font-semibold text-gray-900">{stat.value}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Filters and Search */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Search Input with Debouncing */}
           <div className="relative">
-            <input
-              id="search"
-              type="text"
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search by title, description..."
-              className="block w-full pl-10 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-5 w-5 text-gray-400" />
             </div>
+            <input
+              type="text"
+              placeholder="Search quizzes..."
+              value={searchValue}
+              onChange={handleSearchChangeWrapper}
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+            {searchValue && (
+              <button
+                onClick={clearSearch}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                <span className="sr-only">Clear search</span>
+                ×
+              </button>
+            )}
           </div>
+
+          {/* Course Filter */}
+          <select
+            value={selectedCourse}
+            onChange={(e) => handleCourseChange(e.target.value)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {courseOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Difficulty Filter */}
+          <select
+            value={selectedDifficulty}
+            onChange={(e) => handleDifficultyChange(e.target.value)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {difficultyOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Category Filter */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => handleCategoryChange(e.target.value)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {categoryOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* Course Filter */}
-        <div className="relative">
-          <label htmlFor="course-select" className="block text-sm font-medium text-gray-700 mb-1">
-            Course
-          </label>
-          <div className="relative">
-            <select
-              id="course-select"
-              value={selectedCourse}
-              onChange={(e) => handleCourseChange(e.target.value)}
-              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md appearance-none"
-              disabled={coursesLoading}
-            >
-              <option value="all">All Courses</option>
-              {validCourses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.title}
-                </option>
-              ))}
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-              <ChevronDown className="h-5 w-5 text-gray-400" />
-            </div>
-          </div>
-        </div>
-
-        {/* Difficulty Filter */}
-        <div className="relative">
-          <label htmlFor="difficulty-select" className="block text-sm font-medium text-gray-700 mb-1">
-            Difficulty
-          </label>
-          <div className="relative">
-            <select
-              id="difficulty-select"
-              value={selectedDifficulty}
-              onChange={(e) => handleDifficultyChange(e.target.value)}
-              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md appearance-none"
-            >
-              <option value="all">All Levels</option>
-              {difficulties.slice(1).map((difficulty) => (
-                <option key={difficulty} value={difficulty}>
-                  {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
-                </option>
-              ))}
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-              <ChevronDown className="h-5 w-5 text-gray-400" />
-            </div>
-          </div>
-        </div>
-
-        {/* Category Filter */}
-        <div className="relative">
-          <label htmlFor="category-select" className="block text-sm font-medium text-gray-700 mb-1">
-            Category
-          </label>
-          <div className="relative">
-            <select
-              id="category-select"
-              value={selectedCategory}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md appearance-none"
-            >
-              <option value="all">All Categories</option>
-              {categories.slice(1).map((category) => (
-                <option key={category} value={category}>
-                  {getCategoryLabel(category)}
-                </option>
-              ))}
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-              <ChevronDown className="h-5 w-5 text-gray-400" />
-            </div>
-          </div>
+        {/* Clear Filters Button */}
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={resetFilters}
+            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
+          >
+            Clear All Filters
+          </button>
         </div>
       </div>
 
-      {/* Active Filters Display */}
-      {(selectedCourse !== 'all' || selectedDifficulty !== 'all' || selectedCategory !== 'all' || searchTerm) && (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="text-sm text-gray-500">Active filters:</span>
-          {searchTerm && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              Search: "{searchTerm}"
-              <button
-                onClick={() => setSearchTerm('')}
-                className="ml-1 text-blue-600 hover:text-blue-800"
-              >
-                ×
-              </button>
-            </span>
-          )}
-          {selectedCourse !== 'all' && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-              {validCourses.find(c => c.id.toString() === selectedCourse)?.title || 'Course'}
-              <button
-                onClick={() => setSelectedCourse('all')}
-                className="ml-1 text-green-600 hover:text-green-800"
-              >
-                ×
-              </button>
-            </span>
-          )}
-          {selectedDifficulty !== 'all' && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-              {selectedDifficulty}
-              <button
-                onClick={() => setSelectedDifficulty('all')}
-                className="ml-1 text-yellow-600 hover:text-yellow-800"
-              >
-                ×
-              </button>
-            </span>
-          )}
-          {selectedCategory !== 'all' && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-              {getCategoryLabel(selectedCategory)}
-              <button
-                onClick={() => setSelectedCategory('all')}
-                className="ml-1 text-purple-600 hover:text-purple-800"
-              >
-                ×
-              </button>
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
-  // --- EMPTY STATE CONFIG ---
-  const emptyStateConfig = {
-    icon: HelpCircle,
-    title: "No quizzes found",
-    description: (selectedCourse !== 'all' || selectedDifficulty !== 'all' || selectedCategory !== 'all' || searchTerm)
-      ? "No quizzes match your current filters."
-      : "You haven't created any quizzes yet.",
-    actionText: "Create First Quiz"
-  };
-
-  // --- RENDER ---
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-red-600 mb-4">Error loading quizzes</div>
-        <p className="text-gray-600">{error}</p>
-      </div>
-    );
-  }
-
-  return (
-    <>
+      {/* Content Manager */}
       <ContentManager
-        title="Quizzes Manager"
-        description="Manage and organize your assessments and quizzes"
-        createButtonText="Create Quiz"
-        onCreateClick={() => setShowCreateModal(true)}
-        statistics={statistics}
         items={quizzes}
         loading={loading}
+        error={error}
+        pagination={pagination}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        filtersComponent={renderFilters()}
-        emptyState={emptyStateConfig}
-        showStatistics={true}
-        showViewToggle={true}
-        showCreateButton={true}
-        showItemCount={true}
-      >
-        {quizzes.map((quiz) => (
+        renderCard={(quiz) => (
           <QuizCard
             key={quiz.id}
             quiz={quiz}
-            viewMode={viewMode}
-            onEdit={(quiz) => console.log('Edit quiz:', quiz)}
+            onEdit={handleQuizClick}
             onDelete={handleDeleteClick}
             onDuplicate={handleDuplicate}
             onClick={handleQuizClick}
-            courses={validCourses}
-            showCourse={true}
-            showStats={true}
           />
-        ))}
-      </ContentManager>
-
-      {/* Modals */}
-      {/* TODO: Crear QuizCreateModal */}
-      {/* <QuizCreateModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onQuizCreated={handleCreateQuiz}
-        courses={validCourses}
-        isCreating={creating}
-      /> */}
-
-      <DeleteConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setQuizToDelete(null);
+        )}
+        emptyState={{
+          icon: HelpCircle,
+          title: 'No quizzes found',
+          description: 'Get started by creating your first quiz.',
+          actionLabel: 'Create Quiz',
+          onAction: () => setShowCreateModal(true)
         }}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Quiz"
-        message={`Are you sure you want to delete the quiz "${quizToDelete?.title?.rendered || quizToDelete?.title || 'this quiz'}"? This action cannot be undone and will also delete all associated questions and results.`}
       />
-    </>
+
+      {/* Create Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">
+                  Create New Quiz
+                </h3>
+                <p className="mt-2 text-sm text-gray-500">
+                  Quiz creation form would go here...
+                </p>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && quizToDelete && (
+        <DeleteConfirmModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleDeleteConfirm}
+          title="Delete Quiz"
+          message={`Are you sure you want to delete "${quizToDelete.title?.rendered || quizToDelete.title}"? This action cannot be undone.`}
+          confirmLabel="Delete Quiz"
+          isLoading={false}
+        />
+      )}
+    </div>
   );
 };
 
