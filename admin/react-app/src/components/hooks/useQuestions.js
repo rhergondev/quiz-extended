@@ -342,7 +342,7 @@ export const useQuestions = (options = {}) => {
     } finally {
       setCreating(false);
     }
-  }, []);
+  }, [makeApiRequest]);
 
   // --- DELETE QUESTION ---
   const deleteQuestion = useCallback(async (questionId) => {

@@ -20,6 +20,7 @@ import { useQuizzes } from '../components/hooks/useQuizzes.js';
 
 // Component imports
 import QuestionCard from '../components/questions/QuestionCard.jsx';
+import QuestionModal from '../components/questions/QuestionModal.jsx';
 import ContentManager from '../components/common/ContentManager.jsx';
 import DeleteConfirmModal from '../components/common/DeleteConfirmModal.jsx';
 
@@ -30,7 +31,13 @@ const QuestionsPage = () => {
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // 🆕 Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState(null);
+  
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [questionToDelete, setQuestionToDelete] = useState(null);
   const [viewMode, setViewMode] = useState('cards');
@@ -182,16 +189,45 @@ const QuestionsPage = () => {
     setSearchTerm(term);
   }, []);
 
-  const handleCreateQuestion = useCallback(async (questionData) => {
+  // 🆕 Modal handlers
+  const handleCreateQuestion = useCallback(() => {
+    setSelectedQuestion(null);
+    setShowCreateModal(true);
+  }, []);
+
+  const handleEditQuestion = useCallback((question) => {
+    setSelectedQuestion(question);
+    setShowEditModal(true);
+  }, []);
+
+  const handleViewQuestion = useCallback((question) => {
+    setSelectedQuestion(question);
+    setShowViewModal(true);
+  }, []);
+
+  const handleSaveQuestion = useCallback(async (questionData) => {
     try {
-      const newQuestion = await createQuestion(questionData);
+      if (selectedQuestion) {
+        // Edit mode - you'll need to implement updateQuestion in your hook
+        console.log('Edit question:', selectedQuestion.id, questionData);
+        // await updateQuestion(selectedQuestion.id, questionData);
+      } else {
+        // Create mode
+        const newQuestion = await createQuestion(questionData);
+        console.log('Question created:', newQuestion);
+      }
+      
+      // Close all modals
       setShowCreateModal(false);
-      return newQuestion;
+      setShowEditModal(false);
+      setSelectedQuestion(null);
+      
+      return true;
     } catch (error) {
-      console.error('Error creating question:', error);
+      console.error('Error saving question:', error);
       throw error;
     }
-  }, [createQuestion]);
+  }, [selectedQuestion, createQuestion]);
 
   const handleDeleteClick = useCallback((question) => {
     setQuestionToDelete(question);
@@ -218,8 +254,20 @@ const QuestionsPage = () => {
     }
   }, [duplicateQuestion]);
 
-  const handleQuestionClick = useCallback((question) => {
-    console.log('Navigate to question details:', question.id);
+  // 🆕 Close modal handlers
+  const handleCloseCreateModal = useCallback(() => {
+    setShowCreateModal(false);
+    setSelectedQuestion(null);
+  }, []);
+
+  const handleCloseEditModal = useCallback(() => {
+    setShowEditModal(false);
+    setSelectedQuestion(null);
+  }, []);
+
+  const handleCloseViewModal = useCallback(() => {
+    setShowViewModal(false);
+    setSelectedQuestion(null);
   }, []);
 
   // --- HELPER FUNCTIONS ---
@@ -456,7 +504,7 @@ const QuestionsPage = () => {
         title="Questions Manager"
         description="Manage and organize your quiz questions"
         createButtonText="Create Question"
-        onCreateClick={() => setShowCreateModal(true)}
+        onCreateClick={handleCreateQuestion}
         statistics={statistics}
         items={questions}
         loading={loading}
@@ -474,16 +522,46 @@ const QuestionsPage = () => {
             key={question.id}
             question={question}
             viewMode={viewMode}
-            onEdit={(question) => console.log('Edit question:', question)}
+            onEdit={handleEditQuestion}
             onDelete={handleDeleteClick}
             onDuplicate={handleDuplicate}
-            onClick={handleQuestionClick}
+            onClick={handleViewQuestion}
             quizzes={validQuizzes}
             showQuiz={true}
             showStats={true}
           />
         ))}
       </ContentManager>
+
+      {/* 🆕 Create Question Modal */}
+      <QuestionModal
+        isOpen={showCreateModal}
+        onClose={handleCloseCreateModal}
+        onSave={handleSaveQuestion}
+        mode="create"
+        availableQuizzes={validQuizzes}
+        isLoading={creating}
+      />
+
+      {/* 🆕 Edit Question Modal */}
+      <QuestionModal
+        isOpen={showEditModal}
+        onClose={handleCloseEditModal}
+        onSave={handleSaveQuestion}
+        question={selectedQuestion}
+        mode="edit"
+        availableQuizzes={validQuizzes}
+        isLoading={creating}
+      />
+
+      {/* 🆕 View Question Modal */}
+      <QuestionModal
+        isOpen={showViewModal}
+        onClose={handleCloseViewModal}
+        question={selectedQuestion}
+        mode="view"
+        availableQuizzes={validQuizzes}
+      />
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal
