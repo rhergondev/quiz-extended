@@ -521,24 +521,32 @@ class QE_Post_Types
                 }
             ]);
 
+            register_post_meta('quiz', '_enable_negative_scoring', [
+                'show_in_rest' => true,
+                'single' => true,
+                'type' => 'boolean', // Lo guardaremos como true/false
+            ]);
+
             error_log("✅ Registered quiz meta field: {$meta_key}");
         }
 
         // 🚀 NEW: QUESTION META FIELDS
         $question_meta_fields = [
+            // --- Campos de Filtro y Asignación ---
             '_quiz_id' => 'string',             // Para filtrar por quiz
+            '_question_lesson' => 'string',     // ❇️ AÑADIDO: Para asignar a una lección
+            '_question_provider' => 'string',   // ❇️ AÑADIDO: Para asignar a un proveedor (IA, Humano, etc.)
+
+            // --- Campos de Configuración de Pregunta ---
             '_question_type' => 'string',       // Tipo de pregunta (multiple_choice, true_false, etc.)
             '_difficulty_level' => 'string',    // Para filtrar por dificultad
-            '_question_category' => 'string',   // Para filtrar por categoría
+            '_question_category' => 'string',
+            '_explanation' => 'string',     // Para filtrar por categoría
             '_points' => 'string',              // Puntos que vale la pregunta
-            '_time_limit' => 'string',          // Tiempo límite para esta pregunta
-            '_explanation' => 'string',         // Explicación de la respuesta
-            '_question_options' => 'object',    // Opciones de respuesta
-            '_correct_answer' => 'string',      // Respuesta correcta
-            '_question_order' => 'string',      // Orden de la pregunta
+            '_points_incorrect' => 'string',    // Puntos por respuesta incorrecta
+            '_question_options' => 'array',     // Opciones de respuesta (array de objetos)
+            '_question_order' => 'string',      // Orden de la pregunta DENTRO de un quiz
             '_is_required' => 'string',         // Si la pregunta es obligatoria
-            '_feedback_correct' => 'string',    // Feedback para respuesta correcta
-            '_feedback_incorrect' => 'string',  // Feedback para respuesta incorrecta
         ];
 
         foreach ($question_meta_fields as $meta_key => $type) {
@@ -552,6 +560,13 @@ class QE_Post_Types
                 'sanitize_callback' => function ($value) {
                     return $meta_key === '_question_options' ? $value : sanitize_text_field($value);
                 }
+
+
+            ]);
+            register_post_meta('question', '_points_incorrect', [
+                'show_in_rest' => true,
+                'single' => true,
+                'type' => 'string',
             ]);
 
             error_log("✅ Registered question meta field: {$meta_key}");

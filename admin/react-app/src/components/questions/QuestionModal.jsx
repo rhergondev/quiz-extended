@@ -1,36 +1,50 @@
 // admin/react-app/src/components/modals/QuestionModal.jsx
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Check, AlertCircle, Save, Eye } from 'lucide-react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { SortableOption } from './SortableOption'
 
 const QuestionModal = ({ 
   isOpen, 
   onClose, 
   question = null, 
   onSave, 
-  mode = 'create', // 'create', 'edit', 'view'
+  mode = 'create',
   availableQuizzes = [],
+  availableLessons = [], // ❇️ AÑADIDO: Prop para el nuevo dropdown
   isLoading = false 
 }) => {
   // Form state
   const [formData, setFormData] = useState({
     title: '',
-    content: '',
     type: 'multiple_choice',
     difficulty: 'medium',
     category: '',
-    points: '1',
-    timeLimit: '0',
-    explanation: '',
     quizId: '',
+    explanation: '',
+    lessonId: '',     // ❇️ AÑADIDO
+    provider: 'human', // ❇️ AÑADIDO (default 'human')
     options: [
       { text: '', isCorrect: false },
       { text: '', isCorrect: false }
     ],
-    feedbackCorrect: '',
-    feedbackIncorrect: ''
   });
 
   const [errors, setErrors] = useState({});
+
+  const providerOptions = [
+  { value: 'human', label: 'Human (Manual Entry)' },
+  { value: 'ai_gpt4', label: 'AI (GPT-4)' },
+  { value: 'ai_gemini', label: 'AI (Gemini)' },
+  { value: 'imported', label: 'Imported' },
+];
 
   // Question types available
   const questionTypes = [
@@ -47,9 +61,18 @@ const QuestionModal = ({
     { value: 'hard', label: 'Hard' }
   ];
 
+    const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
   // Initialize form data when question changes
   useEffect(() => {
     if (question && mode !== 'create') {
+      // ... (lógica de formattedOptions se mantiene) ...
       const questionOptions = question.meta?._question_options || [];
       const formattedOptions = Array.isArray(questionOptions) && questionOptions.length > 0 
         ? questionOptions.map(opt => ({
@@ -58,38 +81,35 @@ const QuestionModal = ({
           }))
         : [{ text: '', isCorrect: false }, { text: '', isCorrect: false }];
 
+
       setFormData({
         title: question.title?.rendered || question.title || '',
-        content: question.content?.rendered || question.content || '',
         type: question.meta?._question_type || 'multiple_choice',
         difficulty: question.meta?._difficulty_level || 'medium',
         category: question.meta?._question_category || '',
         points: question.meta?._points || '1',
-        timeLimit: question.meta?._time_limit || '0',
         explanation: question.meta?._explanation || '',
         quizId: question.meta?._quiz_id || '',
+        lessonId: question.meta?._question_lesson || '',     // ❇️ AÑADIDO
+        provider: question.meta?._question_provider || 'human', // ❇️ AÑADIDO
         options: formattedOptions,
-        feedbackCorrect: question.meta?._feedback_correct || '',
-        feedbackIncorrect: question.meta?._feedback_incorrect || ''
       });
     } else if (mode === 'create') {
-      // Reset form for new question
+      // Reset form
       setFormData({
         title: '',
-        content: '',
         type: 'multiple_choice',
         difficulty: 'medium',
         category: '',
         points: '1',
-        timeLimit: '0',
-        explanation: '',
+        explanation: '', // 🛑 ELIMINADO
         quizId: '',
+        lessonId: '',     // ❇️ AÑADIDO
+        provider: 'human', // ❇️ AÑADIDO
         options: [
           { text: '', isCorrect: false },
           { text: '', isCorrect: false }
         ],
-        feedbackCorrect: '',
-        feedbackIncorrect: ''
       });
     }
     setErrors({});
@@ -104,6 +124,10 @@ const QuestionModal = ({
     }
   };
 
+  const handleExplanationChange = (content) => {
+    handleFieldChange('explanation', content);
+  };
+
   // Handle option changes
   const handleOptionChange = (index, field, value) => {
     setFormData(prev => ({
@@ -113,6 +137,22 @@ const QuestionModal = ({
       )
     }));
   };
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+
+    if (active.id !== over.id) {
+      setFormData((prev) => {
+        const oldIndex = prev.options.findIndex((_option, i) => i === active.id);
+        const newIndex = prev.options.findIndex((_option, i) => i === over.id);
+        return {
+          ...prev,
+          options: arrayMove(prev.options, oldIndex, newIndex),
+        };
+      });
+    }
+  };
+
 
   // Add new option
   const addOption = () => {
@@ -145,16 +185,79 @@ const QuestionModal = ({
     }
   };
 
+  
+  /**
+ * ✅ NUEVA FUNCIÓN CENTRALIZADA
+ * Valida, construye el objeto de datos, lo guarda y luego ejecuta la siguiente acción.
+ * @param {'close' | 'reset'} nextAction - La acción a realizar después de guardar.
+ */
+const handleSave = async (nextAction) => {
+  if (!validateForm()) return;
+
+  // Objeto de datos ÚNICO y actualizado para enviar al hook
+  const questionDataForHook = {
+    title: formData.title,
+    status: 'publish',
+    quizId: formData.quizId,
+    lessonId: formData.lessonId,
+    provider: formData.provider,
+    explanation: formData.explanation,
+    type: formData.type,
+    difficulty: formData.difficulty,
+    category: formData.category,
+    options: formData.options,
+    points: '1',
+    pointsIncorrect: '0',
+  };
+
+  try {
+    // onSave (que es createQuestion del hook) recibe el objeto
+    await onSave(questionDataForHook);
+
+    // Ejecutamos la acción post-guardado
+    if (nextAction === 'close') {
+      onClose();
+    } else if (nextAction === 'reset') {
+      setFormData(prev => ({
+        ...prev, // Mantiene type, difficulty, provider, quizId, lessonId
+        title: '',
+        explanation: '',
+        options: [
+          { text: '', isCorrect: false },
+          { text: '', isCorrect: false }
+        ],
+      }));
+      setErrors({});
+      document.querySelector('input[type="text"]').focus();
+    }
+  } catch (error) {
+    console.error('Error saving question:', error);
+    setErrors({ submit: error.message || 'Failed to save the question.' });
+  }
+};
+
+  /**
+   * Manejador para el botón principal de guardado. Llama a handleSave y luego cierra el modal.
+   */
+const handleSubmit = (e) => {
+  e.preventDefault();
+  handleSave('close'); // Después de guardar, cierra el modal.
+};
+
+/**
+ * ✅ Manejador simplificado para el botón "Save & Add New".
+ */
+const handleSaveAndNew = (e) => {
+  e.preventDefault();
+  handleSave('reset'); // Después de guardar, resetea el formulario.
+};
+
   // Validate form
   const validateForm = () => {
     const newErrors = {};
 
     if (!formData.title.trim()) {
       newErrors.title = 'Question title is required';
-    }
-
-    if (!formData.content.trim()) {
-      newErrors.content = 'Question content is required';
     }
 
     if (formData.type === 'multiple_choice') {
@@ -178,41 +281,6 @@ const QuestionModal = ({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-
-  const questionData = {
-    title: formData.title,
-    content: formData.content,
-    status: 'publish',
-    
-    meta: {
-      _question_type: formData.type,
-      _difficulty_level: formData.difficulty,
-      _question_category: formData.category || '',
-      _points: formData.points.toString(),
-      _time_limit: formData.timeLimit.toString(),
-      _explanation: formData.explanation || '',
-      _quiz_id: formData.quizId || '',
-      _question_options: formData.options,
-      _feedback_correct: formData.feedbackCorrect || '',
-      _feedback_incorrect: formData.feedbackIncorrect || ''
-    }
-  };
-
-    try {
-      await onSave(questionData);
-      onClose();
-    } catch (error) {
-      console.error('Error saving question:', error);
-    }
   };
 
   // Handle question type change
@@ -269,9 +337,9 @@ const QuestionModal = ({
         <form onSubmit={handleSubmit} className="flex flex-col h-full">
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Question Title */}
-              <div className="md:col-span-2">
+              <div className="md:col-span-3">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Question Title *
                 </label>
@@ -328,25 +396,65 @@ const QuestionModal = ({
                 </select>
               </div>
 
-              {/* Quiz Assignment */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Assign to Quiz
-                </label>
-                <select
-                  value={formData.quizId}
-                  onChange={(e) => handleFieldChange('quizId', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  disabled={isReadOnly}
-                >
-                  <option value="">No Quiz (Question Bank)</option>
-                  {availableQuizzes.map(quiz => (
-                    <option key={quiz.id} value={quiz.id}>
-                      {quiz.title?.rendered || quiz.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
+               {/* --- ❇️ BLOQUE DE ASIGNACIÓN ACTUALIZADO ❇️ --- */}
+          {/* Quiz Assignment */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Assign to Quiz
+            </label>
+            <select
+              value={formData.quizId}
+              onChange={(e) => handleFieldChange('quizId', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              disabled={isReadOnly}
+            >
+              <option value="">No Quiz (Question Bank)</option>
+              {availableQuizzes.map(quiz => (
+                <option key={quiz.id} value={quiz.id}>
+                  {quiz.title?.rendered || quiz.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* ❇️ AÑADIDO: Lesson Assignment */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Assign to Lesson
+            </label>
+            <select
+              value={formData.lessonId}
+              onChange={(e) => handleFieldChange('lessonId', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              disabled={isReadOnly}
+            >
+              <option value="">No Lesson (General Question)</option>
+              {availableLessons.map(lesson => (
+                <option key={lesson.id} value={lesson.id}>
+                  {lesson.title?.rendered || lesson.title}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {/* ❇️ AÑADIDO: Provider */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Question Provider
+            </label>
+            <select
+              value={formData.provider}
+              onChange={(e) => handleFieldChange('provider', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              disabled={isReadOnly}
+            >
+              {providerOptions.map(provider => (
+                <option key={provider.value} value={provider.value}>
+                  {provider.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
               {/* Category */}
               <div>
@@ -362,56 +470,6 @@ const QuestionModal = ({
                   disabled={isReadOnly}
                 />
               </div>
-
-              {/* Points */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Points
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formData.points}
-                  onChange={(e) => handleFieldChange('points', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  disabled={isReadOnly}
-                />
-              </div>
-
-              {/* Time Limit */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Time Limit (seconds, 0 = no limit)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.timeLimit}
-                  onChange={(e) => handleFieldChange('timeLimit', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  disabled={isReadOnly}
-                />
-              </div>
-            </div>
-
-            {/* Question Content */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Question Content *
-              </label>
-              <textarea
-                value={formData.content}
-                onChange={(e) => handleFieldChange('content', e.target.value)}
-                rows={4}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  errors.content ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="Enter the question content"
-                disabled={isReadOnly}
-              />
-              {errors.content && (
-                <p className="mt-1 text-sm text-red-600">{errors.content}</p>
-              )}
             </div>
 
             {/* Answer Options - Multiple Choice & True/False */}
@@ -433,45 +491,33 @@ const QuestionModal = ({
                   )}
                 </div>
 
-                <div className="space-y-3">
-                  {formData.options.map((option, index) => (
-                    <div key={index} className="flex items-center space-x-3">
-                      <button
-                        type="button"
-                        onClick={() => setCorrectAnswer(index)}
-                        className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          option.isCorrect
-                            ? 'bg-green-100 border-green-500'
-                            : 'border-gray-300 hover:border-gray-400'
-                        }`}
-                        disabled={isReadOnly}
-                      >
-                        {option.isCorrect && (
-                          <Check className="h-3 w-3 text-green-600" />
-                        )}
-                      </button>
-                      
-                      <input
-                        type="text"
-                        value={option.text}
-                        onChange={(e) => handleOptionChange(index, 'text', e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder={`Option ${index + 1}`}
-                        disabled={isReadOnly || (formData.type === 'true_false')}
-                      />
-                      
-                      {formData.type === 'multiple_choice' && formData.options.length > 2 && !isReadOnly && (
-                        <button
-                          type="button"
-                          onClick={() => removeOption(index)}
-                          className="flex-shrink-0 text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    // Le pasamos un array de IDs únicos (en este caso, los índices)
+                    items={formData.options.map((_, i) => i)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-3">
+                      {formData.options.map((option, index) => (
+                        <SortableOption
+                          key={index}
+                          id={index}
+                          option={option}
+                          index={index}
+                          isReadOnly={isReadOnly}
+                          isMultipleChoice={formData.type === 'multiple_choice'}
+                          handleOptionChange={handleOptionChange}
+                          setCorrectAnswer={setCorrectAnswer}
+                          removeOption={removeOption}
+                        />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </SortableContext>
+                </DndContext>
 
                 {errors.options && (
                   <p className="mt-1 text-sm text-red-600">{errors.options}</p>
@@ -484,45 +530,13 @@ const QuestionModal = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Explanation (Optional)
               </label>
-              <textarea
+              <ReactQuill
+                theme="snow"
                 value={formData.explanation}
-                onChange={(e) => handleFieldChange('explanation', e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Provide an explanation for the correct answer"
-                disabled={isReadOnly}
+                onChange={handleExplanationChange}
+                readOnly={isReadOnly}
+                className={isReadOnly ? 'bg-gray-50' : ''}
               />
-            </div>
-
-            {/* Feedback */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Correct Answer Feedback
-                </label>
-                <textarea
-                  value={formData.feedbackCorrect}
-                  onChange={(e) => handleFieldChange('feedbackCorrect', e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Feedback when answer is correct"
-                  disabled={isReadOnly}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Incorrect Answer Feedback
-                </label>
-                <textarea
-                  value={formData.feedbackIncorrect}
-                  onChange={(e) => handleFieldChange('feedbackIncorrect', e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Feedback when answer is incorrect"
-                  disabled={isReadOnly}
-                />
-              </div>
             </div>
           </div>
 
@@ -536,6 +550,15 @@ const QuestionModal = ({
                 disabled={isLoading}
               >
                 Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveAndNew}
+                disabled={isLoading}
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700"
+              >
+                {isLoading ? 'Saving...' : 'Save & Add New'}
               </button>
               <button
                 type="submit"

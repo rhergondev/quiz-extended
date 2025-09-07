@@ -293,40 +293,45 @@ export const useQuestions = (options = {}) => {
       
       const config = getApiConfig();
       
-      // Transform data for API
+      // --- LÓGICA DE PUNTUACIÓN AUTOMÁTICA (se mantiene) ---
+      const points_for_correct = 1;
+      let points_for_incorrect = 0;
+      if (questionData.type === 'multiple_choice' && questionData.options.length > 1) {
+        points_for_incorrect = 1 / (questionData.options.length - 1);
+      }
+      
+      // Transformamos los datos del modal al formato que la API necesita
       const apiData = {
         title: questionData.title || '',
-        content: questionData.content || '',
-        excerpt: questionData.excerpt || '',
+        content: questionData.explanation || '', // 🛑 CAMBIADO: 'content' ahora va vacío. Ya no usamos explanation.
         status: questionData.status || 'draft',
         meta: {
           _quiz_id: questionData.quizId || '',
+          _question_lesson: questionData.lessonId || '',     // ❇️ AÑADIDO
+          _question_provider: questionData.provider || '',   // ❇️ AÑADIDO
           _question_type: questionData.type || 'multiple_choice',
           _difficulty_level: questionData.difficulty || 'medium',
           _question_category: questionData.category || '',
-          _points: questionData.points || '1',
-          _time_limit: questionData.timeLimit || '0',
-          _question_options: questionData.options || [],
-          _correct_answer: questionData.correctAnswer || '',
           _explanation: questionData.explanation || '',
-          _question_order: questionData.questionOrder || '1',
-          ...questionData.meta
+          _question_options: questionData.options || [],
+          _points_correct: points_for_correct.toString(),
+          _points_incorrect: points_for_incorrect.toFixed(4).toString(),
+          // _time_limit, _feedback, etc., ya no existen.
         }
       };
 
-      console.log('🚀 Creating question:', apiData);
+      console.log('🚀 Creating question with NEW payload:', apiData);
 
       const response = await makeApiRequest(config.endpoints.questions, {
         method: 'POST',
         body: JSON.stringify(apiData)
       });
 
+      // ... el resto de la función sigue igual ...
       const newQuestion = await response.json();
       
-      // Add to questions list
       setQuestions(prev => [newQuestion, ...prev]);
       
-      // Update pagination
       setPagination(prev => ({
         ...prev,
         total: prev.total + 1
@@ -342,7 +347,7 @@ export const useQuestions = (options = {}) => {
     } finally {
       setCreating(false);
     }
-  }, [makeApiRequest]);
+  }, []);
 
   // --- DELETE QUESTION ---
   const deleteQuestion = useCallback(async (questionId) => {

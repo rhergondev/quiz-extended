@@ -27,6 +27,9 @@
   },
   "homepage": "https://github.com/rhergondev/quiz-extended#readme",
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@tanstack/react-table": "^8.21.3",
     "@wordpress/element": "^6.8.0",
     "lucide-react": "^0.539.0",
