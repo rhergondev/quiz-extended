@@ -33,7 +33,7 @@ const ContentManager = ({
   showItemCount = true
 }) => {
   // 🔧 FIX: Asegurar que title sea una string válida
-  const safeTitle = title || 'Items';
+  const safeTitle = title || 'Item';
   const safeTitleLower = safeTitle.toLowerCase();
 
   // Configuración por defecto del estado vacío

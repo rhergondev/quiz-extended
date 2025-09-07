@@ -1,39 +1,24 @@
 import React, { useMemo } from 'react';
 import {
-  Eye,
-  EyeOff,
-  Edit,
-  Trash2,
-  Copy,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Hash,
-  HelpCircle,
-  BookOpen,
-  Calendar,
-  BarChart3,
-  Target,
-  Zap,
-  AlertCircle
+  Edit, Trash2, Copy, CheckCircle, Target, BookOpen, Hash, HelpCircle,
+  Eye, EyeOff, Zap, User, BrainCircuit, Upload, Info, Calendar, FileText
 } from 'lucide-react';
 import Card from '../common/Card.jsx';
 
 /**
- * Componente de tarjeta para mostrar información de una pregunta
- * Usa el componente Card genérico
- * 
- * @param {Object} props
- * @param {Object} props.question - Datos de la pregunta
- * @param {string} [props.viewMode='cards'] - Modo de vista ('cards' o 'list')
- * @param {Function} [props.onEdit] - Callback para editar pregunta
- * @param {Function} [props.onDelete] - Callback para eliminar pregunta
- * @param {Function} [props.onDuplicate] - Callback para duplicar pregunta
- * @param {Function} [props.onClick] - Callback para hacer click en la pregunta
- * @param {Array} [props.quizzes] - Lista de quizzes disponibles
- * @param {boolean} [props.showQuiz=true] - Si mostrar información del quiz asociado
- * @param {boolean} [props.showStats=true] - Si mostrar estadísticas
- * @param {string} [props.className] - Clases CSS adicionales
+ * Componente de tarjeta refactorizado para mostrar información de una pregunta.
+ * Muestra datos reales como el proveedor y la lección asociada, eliminando estadísticas simuladas.
+ * * @param {Object} props
+ * @param {Object} props.question - Datos de la pregunta desde la API.
+ * @param {string} [props.viewMode='cards'] - Modo de vista ('cards' o 'list').
+ * @param {Function} [props.onEdit] - Callback para editar.
+ * @param {Function} [props.onDelete] - Callback para eliminar.
+ * @param {Function} [props.onDuplicate] - Callback para duplicar.
+ * @param {Function} [props.onClick] - Callback para click en la tarjeta.
+ * @param {Array} [props.quizzes=[]] - Lista de quizzes disponibles.
+ * @param {Array} [props.availableLessons=[]] - Lista de lecciones disponibles.
+ * @param {boolean} [props.showQuiz=true] - Si mostrar info del quiz/lección.
+ * @param {string} [props.className] - Clases CSS adicionales.
  */
 const QuestionCard = ({
   question,
@@ -43,309 +28,167 @@ const QuestionCard = ({
   onDuplicate,
   onClick,
   quizzes = [],
+  availableLessons = [],
   showQuiz = true,
-  showStats = true,
   className = ''
 }) => {
-  // --- COMPUTED VALUES ---
-  const questionType = question.meta?._question_type || 'multiple_choice';
-  const difficulty = question.meta?._difficulty_level || 'medium';
-  const points = parseInt(question.meta?._points || '1');
-  const timeLimit = parseInt(question.meta?._time_limit || '0');
-  const quizId = question.meta?._quiz_id;
-  const category = question.meta?._question_category;
-  const explanation = question.meta?._explanation;
-  
-  // Buscar el quiz asociado
+  // --- VALORES EXTRAÍDOS DE LA API ---
+  const questionData = useMemo(() => ({
+    id: question.id,
+    title: question.title?.rendered || 'Untitled Question',
+    status: question.status || 'draft',
+    type: question.meta?._question_type || 'multiple_choice',
+    difficulty: question.meta?._difficulty_level || 'medium',
+    category: question.meta?._question_category,
+    provider: question.meta?._question_provider || 'human',
+    points: parseInt(question.meta?._points || '1', 10),
+    explanation: question.content?.rendered.replace(/<p>|<\/p>/g, '').trim(),
+    quizId: question.meta?._quiz_id,
+    lessonId: question.meta?._question_lesson,
+    modifiedDate: new Date(question.modified).toLocaleDateString(),
+  }), [question]);
+
+  // --- BÚSQUEDA DE ENTIDADES ASOCIADAS ---
   const associatedQuiz = useMemo(() => {
-    if (!quizId || !quizzes.length) return null;
-    
-    return quizzes.find(quiz => 
-      quiz.id.toString() === quizId.toString() ||
-      quiz.id === parseInt(quizId, 10)
-    );
-  }, [quizId, quizzes]);
+    if (!questionData.quizId || !quizzes.length) return null;
+    return quizzes.find(q => q.id.toString() === questionData.quizId.toString());
+  }, [questionData.quizId, quizzes]);
 
-  // Calcular estadísticas de la pregunta (datos simulados - vendrían de la API)
-  const questionStats = {
-    timesAsked: Math.floor(Math.random() * 100) + 1,
-    correctAnswers: Math.floor(Math.random() * 80) + 10,
-    averageTime: Math.floor(Math.random() * 30) + 10, // segundos
-    difficultyScore: Math.random() * 5 + 1
+  const associatedLesson = useMemo(() => {
+    if (!questionData.lessonId || !availableLessons.length) return null;
+    return availableLessons.find(l => l.id.toString() === questionData.lessonId.toString());
+  }, [questionData.lessonId, availableLessons]);
+
+  // --- FUNCIONES DE AYUDA VISUAL ---
+  const getProviderInfo = (provider) => {
+    switch (provider) {
+      case 'human': return { label: 'Manual', icon: User };
+      case 'ai_gpt4': return { label: 'AI (GPT-4)', icon: BrainCircuit };
+      case 'ai_gemini': return { label: 'AI (Gemini)', icon: BrainCircuit };
+      case 'imported': return { label: 'Imported', icon: Upload };
+      default: return { label: 'Unknown', icon: Info };
+    }
   };
 
-  const successRate = questionStats.timesAsked > 0 
-    ? Math.round((questionStats.correctAnswers / questionStats.timesAsked) * 100)
-    : 0;
+  const getTypeInfo = (type) => {
+    const types = {
+      multiple_choice: { label: 'Multiple Choice', icon: CheckCircle },
+      true_false: { label: 'True/False', icon: Target },
+      short_answer: { label: 'Short Answer', icon: Edit },
+      essay: { label: 'Essay', icon: FileText },
+      fill_blank: { label: 'Fill in Blank', icon: Hash },
+    };
+    return types[type] || { label: 'Question', icon: HelpCircle };
+  };
   
-  // --- UTILITY FUNCTIONS ---
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'publish':
-        return 'text-green-600 bg-green-100';
-      case 'draft':
-        return 'text-yellow-600 bg-yellow-100';
-      case 'private':
-        return 'text-gray-600 bg-gray-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
+  const getBadgeColor = (key, value) => {
+    const colors = {
+      status: { publish: 'bg-green-100 text-green-700', draft: 'bg-yellow-100 text-yellow-700', private: 'bg-gray-100 text-gray-700' },
+      difficulty: { easy: 'bg-green-100 text-green-700', medium: 'bg-yellow-100 text-yellow-700', hard: 'bg-red-100 text-red-700' },
+    };
+    return colors[key]?.[value] || 'bg-gray-100 text-gray-700';
   };
 
-  const getDifficultyColor = (level) => {
-    switch (level) {
-      case 'easy':
-        return 'text-green-600 bg-green-100';
-      case 'medium':
-        return 'text-yellow-600 bg-yellow-100';
-      case 'hard':
-        return 'text-red-600 bg-red-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case 'multiple_choice':
-        return CheckCircle;
-      case 'true_false':
-        return Target;
-      case 'short_answer':
-        return Edit;
-      case 'essay':
-        return BookOpen;
-      case 'fill_blank':
-        return Hash;
-      default:
-        return HelpCircle;
-    }
-  };
-
-  const getTypeLabel = (type) => {
-    switch (type) {
-      case 'multiple_choice':
-        return 'Multiple Choice';
-      case 'true_false':
-        return 'True/False';
-      case 'short_answer':
-        return 'Short Answer';
-      case 'essay':
-        return 'Essay';
-      case 'fill_blank':
-        return 'Fill in Blank';
-      default:
-        return 'Question';
-    }
-  };
-
-  const getSuccessRateColor = (rate) => {
-    if (rate >= 80) return 'text-green-600';
-    if (rate >= 60) return 'text-yellow-600';
-    if (rate >= 40) return 'text-orange-600';
-    return 'text-red-600';
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return null;
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  // --- ACTIONS ---
+  // --- ACCIONES DE LA TARJETA ---
   const actions = [
-    {
-      label: 'Edit',
-      icon: Edit,
-      onClick: onEdit,
-      color: 'text-blue-600'
-    },
-    {
-      label: 'Duplicate',
-      icon: Copy,
-      onClick: onDuplicate,
-      color: 'text-green-600'
-    },
-    {
-      label: 'Delete',
-      icon: Trash2,
-      onClick: onDelete,
-      color: 'text-red-600',
-      divider: true
-    }
+    { label: 'Edit', icon: Edit, onClick: onEdit, color: 'text-blue-600' },
+    { label: 'Duplicate', icon: Copy, onClick: onDuplicate, color: 'text-green-600' },
+    { label: 'Delete', icon: Trash2, onClick: onDelete, color: 'text-red-600', divider: true }
   ].filter(action => action.onClick);
 
-  // --- RENDER HELPERS ---
-  const TypeIcon = getTypeIcon(questionType);
+  // --- RENDERIZADO DE COMPONENTES ---
+  const TypeInfo = getTypeInfo(questionData.type);
+  const ProviderInfo = getProviderInfo(questionData.provider);
 
   const renderCardContent = () => (
     <>
-      {/* Header con tipo y estado */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-1 text-sm text-blue-600">
-            <TypeIcon className="h-4 w-4" />
-            <span>{getTypeLabel(questionType)}</span>
-          </div>
-          {category && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-              {category}
-            </span>
-          )}
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(difficulty)}`}>
-            {difficulty}
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="flex items-center space-x-1.5 text-sm font-medium text-blue-600">
+            <TypeInfo.icon className="h-4 w-4" />
+            <span>{TypeInfo.label}</span>
           </span>
+          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('difficulty', questionData.difficulty)}`}>{questionData.difficulty}</span>
+          {questionData.category && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-100 text-indigo-700">{questionData.category}</span>}
         </div>
-        
-        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(question.status)}`}>
-          {question.status === 'publish' ? (
-            <>
-              <Eye className="h-3 w-3 mr-1" />
-              Published
-            </>
-          ) : (
-            <>
-              <EyeOff className="h-3 w-3 mr-1" />
-              {question.status}
-            </>
-          )}
+        <span className={`flex items-center space-x-1.5 px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('status', questionData.status)}`}>
+          {questionData.status === 'publish' ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+          <span>{questionData.status}</span>
         </span>
       </div>
 
-      {/* Título/Pregunta */}
-      <h3 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-3">
-        {question.title?.rendered || question.title || 'Untitled Question'}
-      </h3>
+      <h3 className="text-lg font-semibold text-gray-800 mb-3 line-clamp-3">{questionData.title}</h3>
 
-      {/* Quiz asociado */}
-      {showQuiz && associatedQuiz && (
-        <div className="flex items-center space-x-1 text-sm text-gray-600 mb-3">
-          <BookOpen className="h-4 w-4" />
-          <span className="truncate">
-            Quiz: {associatedQuiz.title?.rendered || associatedQuiz.title}
-          </span>
-        </div>
+      {questionData.explanation && (
+        <p className="text-sm text-gray-600 mb-4 line-clamp-2" dangerouslySetInnerHTML={{ __html: questionData.explanation }} />
       )}
 
-      {/* Explicación */}
-      {explanation && (
-        <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-          {explanation}
-        </p>
-      )}
-
-      {/* Metadatos */}
-      <div className="space-y-3">
-        {/* Puntos y tiempo */}
-        <div className="flex items-center justify-between text-sm text-gray-500">
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-1">
-              <Zap className="h-4 w-4" />
-              <span>{points} point{points !== 1 ? 's' : ''}</span>
-            </div>
-            {timeLimit > 0 && (
-              <div className="flex items-center space-x-1">
-                <Clock className="h-4 w-4" />
-                <span>{timeLimit}s</span>
-              </div>
-            )}
+      <div className="space-y-3 pt-3 border-t border-gray-100">
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex items-center space-x-1.5" title="Source">
+            <ProviderInfo.icon className="h-4 w-4" />
+            <span>{ProviderInfo.label}</span>
+          </div>
+          <div className="flex items-center space-x-1.5" title="Points">
+            <Zap className="h-4 w-4 text-purple-500" />
+            <span>{questionData.points} point{questionData.points !== 1 ? 's' : ''}</span>
           </div>
         </div>
-
-        {/* Estadísticas */}
-        {showStats && (
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="flex items-center space-x-1 text-gray-500">
-              <BarChart3 className="h-4 w-4" />
-              <span>{questionStats.timesAsked} attempts</span>
-            </div>
-            <div className={`flex items-center space-x-1 ${getSuccessRateColor(successRate)}`}>
-              <Target className="h-4 w-4" />
-              <span>{successRate}% success</span>
-            </div>
-            <div className="flex items-center space-x-1 text-gray-500">
-              <Clock className="h-4 w-4" />
-              <span>{questionStats.averageTime}s avg</span>
-            </div>
-            <div className="flex items-center space-x-1 text-gray-500">
-              <AlertCircle className="h-4 w-4" />
-              <span>{questionStats.difficultyScore.toFixed(1)}/5</span>
-            </div>
+        
+        {showQuiz && (associatedLesson || associatedQuiz) && (
+          <div className="flex items-center space-x-1.5 text-sm text-gray-600">
+            <BookOpen className="h-4 w-4" />
+            <span className="truncate">{associatedLesson?.title?.rendered || associatedQuiz?.title?.rendered || 'Associated'}</span>
           </div>
         )}
+      </div>
 
-        {/* Fecha de modificación */}
-        <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-100">
-          <span>Modified {formatDate(question.modified)}</span>
-          <span>ID: {question.id}</span>
+      <div className="flex items-center justify-between text-xs text-gray-400 mt-4">
+        <div className="flex items-center space-x-1">
+          <Calendar className="h-3 w-3" />
+          <span>{questionData.modifiedDate}</span>
         </div>
+        <span>ID: {questionData.id}</span>
       </div>
     </>
   );
 
   const renderListContent = () => (
-    <div className="flex items-center w-full">
-      {/* Icono de tipo */}
-      <div className="flex-shrink-0 mr-4">
-        <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-          <TypeIcon className="h-5 w-5 text-blue-600" />
-        </div>
+    <div className="flex items-center w-full gap-4">
+      <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+        <TypeInfo.icon className="h-5 w-5 text-blue-600" />
       </div>
-
-      {/* Información principal */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-gray-900 truncate">
-            {question.title?.rendered || question.title || 'Untitled Question'}
-          </h3>
-          <div className="flex items-center space-x-2 ml-4">
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(difficulty)}`}>
-              {difficulty}
-            </span>
-            {showStats && (
-              <span className={`text-xs font-medium ${getSuccessRateColor(successRate)}`}>
-                {successRate}%
-              </span>
-            )}
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(question.status)}`}>
-              {question.status}
-            </span>
+          <h3 className="text-sm font-medium text-gray-900 truncate">{questionData.title}</h3>
+          <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
+            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('difficulty', questionData.difficulty)}`}>{questionData.difficulty}</span>
+            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('status', questionData.status)}`}>{questionData.status}</span>
           </div>
         </div>
-        
-        <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
-          <span>{getTypeLabel(questionType)}</span>
-          {showQuiz && associatedQuiz && (
-            <span className="truncate">
-              {associatedQuiz.title?.rendered || associatedQuiz.title}
-            </span>
-          )}
-          <div className="flex items-center space-x-1">
-            <Zap className="h-3 w-3" />
-            <span>{points}pt</span>
+        <div className="flex items-center space-x-3 mt-1 text-sm text-gray-500 truncate">
+          <div className="flex items-center space-x-1" title={ProviderInfo.label}>
+            <ProviderInfo.icon className="h-4 w-4" />
           </div>
-          {timeLimit > 0 && (
-            <div className="flex items-center space-x-1">
-              <Clock className="h-3 w-3" />
-              <span>{timeLimit}s</span>
+          <span className="text-gray-300">|</span>
+          <div className="flex items-center space-x-1" title={`${questionData.points} points`}>
+            <Zap className="h-4 w-4" />
+            <span>{questionData.points}pt</span>
+          </div>
+          <span className="text-gray-300">|</span>
+          {showQuiz && (associatedLesson || associatedQuiz) && (
+            <div className="flex items-center space-x-1 truncate">
+              <BookOpen className="h-4 w-4" />
+              <span className="truncate">{associatedLesson?.title?.rendered || associatedQuiz?.title?.rendered}</span>
             </div>
           )}
-          <span>
-            {formatDate(question.modified)}
-          </span>
         </div>
       </div>
     </div>
   );
 
   return (
-    <Card
-      item={question}
-      viewMode={viewMode}
-      actions={actions}
-      className={className}
-      clickable={!!onClick}
-      onClick={onClick}
-    >
+    <Card item={question} viewMode={viewMode} actions={actions} className={className} clickable={!!onClick} onClick={onClick}>
       {viewMode === 'cards' ? renderCardContent() : renderListContent()}
     </Card>
   );

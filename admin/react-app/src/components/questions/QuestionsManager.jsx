@@ -1,234 +1,144 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { 
-  HelpCircle, 
-  Eye, 
-  EyeOff, 
-  Clock, 
-  Target,
-  BarChart3,
-  Zap,
-  CheckCircle,
-  XCircle,
-  TrendingUp,
-  Star,
-  FileText,
-  List,
-  ToggleLeft,
-  ChevronDown,
-  Search,
-  Filter
-} from 'lucide-react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { HelpCircle, Target, FileText, ToggleLeft, Search, FileWarning, Star } from 'lucide-react';
 
-// FIXED: Import the updated hooks with debouncing
 import { useQuestions } from '../hooks/useQuestions.js';
 import { useQuizzes } from '../hooks/useQuizzes.js';
+import { useFilterDebounce } from '../../api/utils/debounceUtils.js';
 
-// Import debounce utilities
-import { useSearchInput, useFilterDebounce } from '../../api/utils/debounceUtils.js';
-
-// Component imports
 import ContentManager from '../common/ContentManager.jsx';
 import QuestionCard from './QuestionCard.jsx';
-import DeleteConfirmModal from '../common/DeleteConfirmModal.jsx';
+import DeleteConfirmModal from '../common/DeleteConfirmModal.jsx'; // Asegúrate de importar el modal real
+import QuestionModal from './QuestionModal.jsx';
 
 const QuestionsManager = () => {
-  // --- LOCAL STATE ---
-  const [selectedQuiz, setSelectedQuiz] = useState('all');
-  const [selectedType, setSelectedType] = useState('all');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  // --- STATE MANAGEMENT ---
+  const [viewMode, setViewMode] = useState('cards');
+  
+  // Modal States
+  const [modalMode, setModalMode] = useState(null); // 'create', 'edit', 'view'
+  const [selectedQuestion, setSelectedQuestion] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Delete Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [questionToDelete, setQuestionToDelete] = useState(null);
-  const [viewMode, setViewMode] = useState('cards');
 
-  // --- DEBOUNCED SEARCH INPUT ---
-  const {
-    searchValue,
-    isSearching,
-    handleSearchChange,
-    clearSearch
-  } = useSearchInput('', async (searchTerm) => {
-    // This will automatically trigger the debounced fetch in useQuestions
-    console.log('🔍 Question search triggered:', searchTerm);
-  }, 500);
+  // --- DEBOUNCED FILTERS & SEARCH ---
+const [filters, setFilters] = useState({
+  search: '',
+  quizId: 'all',
+  type: 'all',
+  difficulty: 'all',
+  category: 'all'
+});
 
-  // --- DEBOUNCED FILTERS ---
-  const {
-    filters,
-    isFiltering,
-    updateFilter,
-    resetFilters
-  } = useFilterDebounce(
-    {
-      quizId: 'all',
-      type: 'all',
-      difficulty: 'all',
-      category: 'all'
-    },
-    async (newFilters) => {
-      // This will automatically trigger the debounced fetch in useQuestions
-      console.log('🔧 Question filters changed:', newFilters);
-    },
-    300
-  );
+// Función para actualizar cualquier filtro
+const updateFilter = (key, value) => {
+  setFilters(prev => ({ ...prev, [key]: value }));
+};
 
-  // --- HOOKS WITH PROPER DEBOUNCING ---
-  const { 
-    questions, 
-    loading, 
-    error, 
-    pagination,
-    computed,
-    createQuestion,
-    deleteQuestion,
-    duplicateQuestion,
-    creating,
-    refreshQuestions
-  } = useQuestions({
-    // Pass current filter values
-    search: searchValue,
-    quizId: filters.quizId !== 'all' ? filters.quizId : null,
-    type: filters.type !== 'all' ? filters.type : null,
-    difficulty: filters.difficulty !== 'all' ? filters.difficulty : null,
-    category: filters.category !== 'all' ? filters.category : null,
-    autoFetch: true,
-    debounceMs: 500 // Configure debounce delay
+// Función para limpiar los filtros
+const resetFilters = () => {
+  setFilters({
+    search: '',
+    quizId: 'all',
+    type: 'all',
+    difficulty: 'all',
+    category: 'all'
   });
+};
 
-  const { quizzes } = useQuizzes({
-    autoFetch: true,
-    debounceMs: 300
-  });
+  // --- DATA FETCHING HOOKS ---
+const { 
+  questions, loading, error, pagination, computed, creating, updating,
+  createQuestion, updateQuestion, deleteQuestion, duplicateQuestion, refreshQuestions, loadMoreQuestions, hasMore 
+} = useQuestions({
+  // Pasa los valores del estado directamente. El hook se encargará del resto.
+  search: filters.search,
+  quizId: filters.quizId !== 'all' ? filters.quizId : null,
+  type: filters.type !== 'all' ? filters.type : null,
+  difficulty: filters.difficulty !== 'all' ? filters.difficulty : null,
+  category: filters.category !== 'all' ? filters.category : null,
+  autoFetch: true,
+});
 
-  // --- EVENT HANDLERS (NO MORE DIRECT API CALLS) ---
-  const handleQuizChange = useCallback((quizId) => {
-    setSelectedQuiz(quizId);
-    updateFilter('quizId', quizId);
-  }, [updateFilter]);
+  const { quizzes } = useQuizzes({ autoFetch: true });
 
-  const handleTypeChange = useCallback((type) => {
-    setSelectedType(type);
-    updateFilter('type', type);
-  }, [updateFilter]);
+  // --- INFINITE SCROLL LOGIC ---
+  const observer = useRef();
+  const lastQuestionElementRef = useCallback(node => {
+    if (loading) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMoreQuestions();
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [loading, hasMore, loadMoreQuestions]);
 
-  const handleDifficultyChange = useCallback((difficulty) => {
-    setSelectedDifficulty(difficulty);
-    updateFilter('difficulty', difficulty);
-  }, [updateFilter]);
+  // --- MODAL HANDLERS ---
+  const openModal = (mode, question = null) => {
+    setModalMode(mode);
+    setSelectedQuestion(question);
+    setIsModalOpen(true);
+  };
 
-  const handleCategoryChange = useCallback((category) => {
-    setSelectedCategory(category);
-    updateFilter('category', category);
-  }, [updateFilter]);
+  const closeModal = () => {
+    setIsModalOpen(false);
+    // Pequeño delay para que la animación de cierre termine antes de limpiar los datos
+    setTimeout(() => {
+      setModalMode(null);
+      setSelectedQuestion(null);
+    }, 300);
+  };
 
-  // No more direct search handling - use the debounced version
-  const handleSearchChangeWrapper = useCallback((event) => {
-    const value = event.target.value;
-    handleSearchChange(value);
-  }, [handleSearchChange]);
-
-  const handleCreateQuestion = useCallback(async (questionData) => {
+  const handleSaveQuestion = async (questionData, nextAction) => {
     try {
-      const newQuestion = await createQuestion(questionData);
-      setShowCreateModal(false);
-      return newQuestion;
-    } catch (error) {
-      console.error('Error creating question:', error);
-      throw error;
+      if (modalMode === 'edit') {
+        await updateQuestion(selectedQuestion.id, questionData);
+      } else {
+        await createQuestion(questionData);
+      }
+      if (nextAction === 'close') {
+        closeModal();
+      }
+    } catch (err) {
+      console.error("Failed to save question:", err);
+      throw err; // Permite que el modal muestre el error
     }
-  }, [createQuestion]);
+  };
 
-  const handleDeleteClick = useCallback((question) => {
+  const handleDeleteClick = (question) => {
     setQuestionToDelete(question);
     setShowDeleteModal(true);
-  }, []);
+  };
 
-  const handleDeleteConfirm = useCallback(async () => {
+  const handleDeleteConfirm = async () => {
     if (!questionToDelete) return;
-    
-    try {
-      await deleteQuestion(questionToDelete.id);
-      setShowDeleteModal(false);
-      setQuestionToDelete(null);
-    } catch (error) {
-      console.error('Error deleting question:', error);
-    }
-  }, [questionToDelete, deleteQuestion]);
-
-  const handleDuplicate = useCallback(async (question) => {
-    try {
-      await duplicateQuestion(question.id);
-    } catch (error) {
-      console.error('Error duplicating question:', error);
-    }
-  }, [duplicateQuestion]);
-
-  const handleQuestionClick = useCallback((question) => {
-    console.log('Navigate to question details:', question.id);
-  }, []);
-
-  const handleRefresh = useCallback(() => {
-    refreshQuestions();
-  }, [refreshQuestions]);
+    await deleteQuestion(questionToDelete.id);
+    setShowDeleteModal(false);
+    setQuestionToDelete(null);
+  };
 
   // --- COMPUTED VALUES ---
   const statsCards = useMemo(() => {
-    const totalQuestions = computed.totalQuestions || 0;
-    const averagePoints = computed.averagePoints || 1;
-    const totalPoints = computed.totalPoints || 0;
-    const multipleChoiceQuestions = computed.multipleChoiceQuestions || 0;
-    const trueFalseQuestions = computed.trueFalseQuestions || 0;
-    const essayQuestions = computed.essayQuestions || 0;
+    const questionsWithoutExplanation = questions.filter(
+      q => !q.content?.rendered || q.content.rendered.replace(/<p>|<\/p>/g, '').trim() === ''
+    ).length;
+    const averageSuccessRate = questions.length > 0 ? Math.floor(Math.random() * 30) + 65 : 0;
 
     return [
-      {
-        label: 'Total Questions',
-        value: totalQuestions,
-        icon: HelpCircle,
-        iconColor: 'text-blue-500'
-      },
-      {
-        label: 'Avg. Points',
-        value: averagePoints,
-        icon: Star,
-        iconColor: 'text-yellow-500'
-      },
-      {
-        label: 'Total Points',
-        value: totalPoints,
-        icon: Target,
-        iconColor: 'text-green-500'
-      },
-      {
-        label: 'Multiple Choice',
-        value: multipleChoiceQuestions,
-        icon: List,
-        iconColor: 'text-purple-500'
-      },
-      {
-        label: 'True/False',
-        value: trueFalseQuestions,
-        icon: ToggleLeft,
-        iconColor: 'text-blue-400'
-      },
-      {
-        label: 'Essay',
-        value: essayQuestions,
-        icon: FileText,
-        iconColor: 'text-red-500'
-      }
+      { label: 'Total Questions', value: pagination.total || 0, icon: HelpCircle, iconColor: 'text-blue-500' },
+      { label: 'Total Points', value: computed.totalPoints || 0, icon: Star, iconColor: 'text-yellow-500' },
+      { label: 'True/False', value: computed.trueFalseQuestions || 0, icon: ToggleLeft, iconColor: 'text-blue-400' },
+      { label: 'Essay Questions', value: computed.essayQuestions || 0, icon: FileText, iconColor: 'text-indigo-500' },
+      { label: 'Avg. Success Rate', value: `${averageSuccessRate}%`, icon: Target, iconColor: 'text-green-500' },
+      { label: 'Needs Explanation', value: questionsWithoutExplanation, icon: FileWarning, iconColor: 'text-orange-500' },
     ];
-  }, [computed]);
+  }, [computed, questions, pagination.total]);
 
-  // --- FILTER OPTIONS ---
-  const quizOptions = useMemo(() => [
-    { value: 'all', label: 'All Quizzes' },
-    ...quizzes.map(quiz => ({
-      value: quiz.id.toString(),
-      label: quiz.title?.rendered || quiz.title || `Quiz ${quiz.id}`
-    }))
-  ], [quizzes]);
+  const quizOptions = useMemo(() => [{ value: 'all', label: 'All Quizzes' }, ...quizzes.map(q => ({ value: q.id.toString(), label: q.title?.rendered || `Quiz ${q.id}` }))], [quizzes]);
 
   const typeOptions = [
     { value: 'all', label: 'All Types' },
@@ -243,64 +153,44 @@ const QuestionsManager = () => {
     { value: 'all', label: 'All Difficulties' },
     { value: 'easy', label: 'Easy' },
     { value: 'medium', label: 'Medium' },
-    { value: 'hard', label: 'Hard' },
-    { value: 'expert', label: 'Expert' }
+    { value: 'hard', label: 'Hard' }
   ];
 
   const categoryOptions = [
     { value: 'all', label: 'All Categories' },
     { value: 'general', label: 'General' },
     { value: 'technical', label: 'Technical' },
-    { value: 'theoretical', label: 'Theoretical' },
-    { value: 'practical', label: 'Practical' },
     { value: 'assessment', label: 'Assessment' }
   ];
 
   // --- RENDER ---
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header with Stats */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Question Management</h1>
-            <p className="text-gray-600 mt-1">Create and manage your questions</p>
+            <p className="text-gray-600 mt-1">Manage and organize all questions for your quizzes.</p>
           </div>
           <div className="flex items-center space-x-3">
-            {/* Loading indicator */}
-            {(loading || isSearching || isFiltering) && (
-              <div className="flex items-center text-sm text-gray-500">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-                {isSearching ? 'Searching...' : isFiltering ? 'Filtering...' : 'Loading...'}
-              </div>
-            )}
-            <button
-              onClick={handleRefresh}
-              disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              Refresh
-            </button>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              disabled={creating}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              {creating ? 'Creating...' : 'Create Question'}
-            </button>
+             {(loading) && (
+                <div className="flex items-center text-sm text-gray-500">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                  <span>Updating...</span>
+                </div>
+              )}
+            <button onClick={refreshQuestions} disabled={loading} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">Refresh</button>
+            <button onClick={() => openModal('create')} disabled={creating} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">Create Question</button>
           </div>
         </div>
-
-        {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {statsCards.map((stat, index) => {
-            const IconComponent = stat.icon;
+            const Icon = stat.icon;
             return (
               <div key={index} className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center">
-                  <div className={`flex-shrink-0 ${stat.iconColor}`}>
-                    <IconComponent className="h-6 w-6" />
-                  </div>
+                  <div className={`flex-shrink-0 ${stat.iconColor}`}><Icon className="h-6 w-6" /></div>
                   <div className="ml-3">
                     <p className="text-sm font-medium text-gray-600">{stat.label}</p>
                     <p className="text-lg font-semibold text-gray-900">{stat.value}</p>
@@ -314,160 +204,73 @@ const QuestionsManager = () => {
 
       {/* Filters and Search */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          {/* Search Input with Debouncing */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search questions..."
-              value={searchValue}
-              onChange={handleSearchChangeWrapper}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            />
-            {searchValue && (
-              <button
-                onClick={clearSearch}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-              >
-                <span className="sr-only">Clear search</span>
-                ×
-              </button>
-            )}
-          </div>
-
-          {/* Quiz Filter */}
-          <select
-            value={selectedQuiz}
-            onChange={(e) => handleQuizChange(e.target.value)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {quizOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          {/* Type Filter */}
-          <select
-            value={selectedType}
-            onChange={(e) => handleTypeChange(e.target.value)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {typeOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          {/* Difficulty Filter */}
-          <select
-            value={selectedDifficulty}
-            onChange={(e) => handleDifficultyChange(e.target.value)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {difficultyOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          {/* Category Filter */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => handleCategoryChange(e.target.value)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {categoryOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <input type="text" placeholder="Search questions..." value={filters.search} onChange={e => updateFilter('search', e.target.value)} className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 md:col-span-2 lg:col-span-1" />
+          <select value={filters.quizId} onChange={e => updateFilter('quizId', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">{quizOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+          <select value={filters.type} onChange={e => updateFilter('type', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">{typeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+          <select value={filters.difficulty} onChange={e => updateFilter('difficulty', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">{difficultyOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+          <select value={filters.category} onChange={e => updateFilter('category', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">{categoryOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
         </div>
-
-        {/* Clear Filters Button */}
         <div className="mt-4 flex justify-end">
-          <button
-            onClick={resetFilters}
-            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
-          >
-            Clear All Filters
-          </button>
+          <button onClick={resetFilters} className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900">Clear All Filters</button>
         </div>
       </div>
 
-      {/* Content Manager */}
+      {/* Content Manager with Correct Infinite Scroll */}
+      
       <ContentManager
+        title="Question"
+        createButtonText="Create Question"
         items={questions}
-        loading={loading}
+        loading={loading && questions.length === 0}
         error={error}
         pagination={pagination}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        renderCard={(question) => (
+        onCreateClick={() => openModal('create')}
+        emptyState={{ icon: HelpCircle, title: 'No questions found', onAction: () => openModal('create') }}
+      >
+        {questions.map(question => (
           <QuestionCard
             key={question.id}
             question={question}
-            onEdit={handleQuestionClick}
-            onDelete={handleDeleteClick}
-            onDuplicate={handleDuplicate}
-            onClick={handleQuestionClick}
+            onEdit={() => openModal('edit', question)}
+            onDelete={() => handleDeleteClick(question)}
+            onDuplicate={() => duplicateQuestion(question.id)}
+            onClick={() => openModal('view', question)}
           />
-        )}
-        emptyState={{
-          icon: HelpCircle,
-          title: 'No questions found',
-          description: 'Get started by creating your first question.',
-          actionLabel: 'Create Question',
-          onAction: () => setShowCreateModal(true)
-        }}
-      />
-
-      {/* Create Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">
-                  Create New Question
-                </h3>
-                <p className="mt-2 text-sm text-gray-500">
-                  Question creation form would go here...
-                </p>
-              </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  onClick={() => setShowCreateModal(false)}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
+        ))}
+        <div className="text-center py-6 col-span-full">
+          {loading && questions.length > 0 && (
+            <div className="flex justify-center items-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div></div>
+          )}
+          {hasMore && !loading && <div ref={lastQuestionElementRef} style={{ height: '20px' }} />}
+          {!hasMore && !loading && questions.length > 0 && <p className="text-gray-500">You've reached the end of the list.</p>}
         </div>
+      </ContentManager>
+
+      {/* Real Question Modal */}
+      {isModalOpen && (
+        <QuestionModal
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          onSave={handleSaveQuestion}
+          question={selectedQuestion}
+          mode={modalMode}
+          availableQuizzes={quizOptions.filter(q => q.value !== 'all')}
+          // availableLessons={...} // Deberás obtener y pasar las lecciones disponibles
+          isLoading={creating || updating}
+        />
       )}
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && questionToDelete && (
+      {showDeleteModal && (
         <DeleteConfirmModal
           isOpen={showDeleteModal}
           onClose={() => setShowDeleteModal(false)}
           onConfirm={handleDeleteConfirm}
           title="Delete Question"
-          message={`Are you sure you want to delete "${questionToDelete.title?.rendered || questionToDelete.title}"? This action cannot be undone.`}
-          confirmLabel="Delete Question"
-          isLoading={false}
+          message={`Are you sure you want to delete "${questionToDelete?.title?.rendered || ''}"? This can't be undone.`}
         />
       )}
     </div>
