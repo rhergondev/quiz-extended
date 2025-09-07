@@ -186,15 +186,14 @@ const QuestionModal = ({
   };
 
   
-  /**
- * ✅ NUEVA FUNCIÓN CENTRALIZADA
- * Valida, construye el objeto de datos, lo guarda y luego ejecuta la siguiente acción.
+ /**
+ * ✅ FUNCIÓN SIMPLIFICADA
+ * Valida y pasa los datos y la acción deseada al componente padre a través de onSave.
  * @param {'close' | 'reset'} nextAction - La acción a realizar después de guardar.
  */
 const handleSave = async (nextAction) => {
   if (!validateForm()) return;
 
-  // Objeto de datos ÚNICO y actualizado para enviar al hook
   const questionDataForHook = {
     title: formData.title,
     status: 'publish',
@@ -211,15 +210,13 @@ const handleSave = async (nextAction) => {
   };
 
   try {
-    // onSave (que es createQuestion del hook) recibe el objeto
-    await onSave(questionDataForHook);
+    // AHORA PASAMOS LA ACCIÓN AL PADRE
+    await onSave(questionDataForHook, nextAction);
 
-    // Ejecutamos la acción post-guardado
-    if (nextAction === 'close') {
-      onClose();
-    } else if (nextAction === 'reset') {
+    // Si la acción es 'reset', el modal se encarga de limpiar su propio estado
+    if (nextAction === 'reset') {
       setFormData(prev => ({
-        ...prev, // Mantiene type, difficulty, provider, quizId, lessonId
+        ...prev,
         title: '',
         explanation: '',
         options: [
@@ -228,8 +225,8 @@ const handleSave = async (nextAction) => {
         ],
       }));
       setErrors({});
-      document.querySelector('input[type="text"]').focus();
     }
+
   } catch (error) {
     console.error('Error saving question:', error);
     setErrors({ submit: error.message || 'Failed to save the question.' });

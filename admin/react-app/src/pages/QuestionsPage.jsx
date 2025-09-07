@@ -205,27 +205,34 @@ const QuestionsPage = () => {
     setShowViewModal(true);
   }, []);
 
-  const handleSaveQuestion = useCallback(async (questionData) => {
+  const handleSaveQuestion = useCallback(async (questionData, nextAction) => {
     try {
       if (selectedQuestion) {
-        // Edit mode - you'll need to implement updateQuestion in your hook
+        // --- MODO EDICIÓN ---
+        // Aquí irá tu lógica para actualizar una pregunta.
+        // Por ahora, cerramos el modal de edición al guardar.
         console.log('Edit question:', selectedQuestion.id, questionData);
         // await updateQuestion(selectedQuestion.id, questionData);
+        setShowEditModal(false);
       } else {
-        // Create mode
-        const newQuestion = await createQuestion(questionData);
-        console.log('Question created:', newQuestion);
+        // --- MODO CREACIÓN ---
+        await createQuestion(questionData);
+        
+        // 2. Ahora sí manejamos la 'nextAction' correctamente
+        if (nextAction === 'close') {
+          // 3. Cierra el modal de CREACIÓN si la acción es 'close'
+          setShowCreateModal(false);
+        }
+        // Si nextAction es 'reset', no hacemos nada aquí.
+        // El modal se queda abierto y maneja su propio reseteo.
       }
       
-      // Close all modals
-      setShowCreateModal(false);
-      setShowEditModal(false);
+      // Limpia la pregunta seleccionada en cualquier caso
       setSelectedQuestion(null);
       
-      return true;
     } catch (error) {
       console.error('Error saving question:', error);
-      throw error;
+      throw error; // Es bueno relanzar el error para que el modal lo pueda manejar
     }
   }, [selectedQuestion, createQuestion]);
 
@@ -546,7 +553,7 @@ const QuestionsPage = () => {
       {/* 🆕 Edit Question Modal */}
       <QuestionModal
         isOpen={showEditModal}
-        onClose={handleCloseEditModal}
+        onClose={() => handleCloseEditModal}
         onSave={handleSaveQuestion}
         question={selectedQuestion}
         mode="edit"
@@ -557,7 +564,7 @@ const QuestionsPage = () => {
       {/* 🆕 View Question Modal */}
       <QuestionModal
         isOpen={showViewModal}
-        onClose={handleCloseViewModal}
+        onClose={() => setIsModalOpen(false)}
         question={selectedQuestion}
         mode="view"
         availableQuizzes={validQuizzes}
