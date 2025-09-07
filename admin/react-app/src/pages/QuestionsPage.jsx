@@ -47,10 +47,12 @@ const QuestionsPage = () => {
     questions, 
     loading, 
     error, 
+    updating,
     pagination,
     computed,
     createQuestion,
     deleteQuestion,
+    updateQuestion,
     duplicateQuestion,
     creating 
   } = useQuestions({
@@ -206,35 +208,27 @@ const QuestionsPage = () => {
   }, []);
 
   const handleSaveQuestion = useCallback(async (questionData, nextAction) => {
-    try {
-      if (selectedQuestion) {
-        // --- MODO EDICIÓN ---
-        // Aquí irá tu lógica para actualizar una pregunta.
-        // Por ahora, cerramos el modal de edición al guardar.
-        console.log('Edit question:', selectedQuestion.id, questionData);
-        // await updateQuestion(selectedQuestion.id, questionData);
-        setShowEditModal(false);
-      } else {
-        // --- MODO CREACIÓN ---
-        await createQuestion(questionData);
-        
-        // 2. Ahora sí manejamos la 'nextAction' correctamente
-        if (nextAction === 'close') {
-          // 3. Cierra el modal de CREACIÓN si la acción es 'close'
-          setShowCreateModal(false);
-        }
-        // Si nextAction es 'reset', no hacemos nada aquí.
-        // El modal se queda abierto y maneja su propio reseteo.
+  try {
+    if (selectedQuestion) {
+      // --- MODO EDICIÓN ---
+      await updateQuestion(selectedQuestion.id, questionData); // ✅ LÓGICA AÑADIDA
+      setShowEditModal(false); // Cierra el modal de edición
+    } else {
+      // --- MODO CREACIÓN ---
+      await createQuestion(questionData);
+      if (nextAction === 'close') {
+        setShowCreateModal(false);
       }
-      
-      // Limpia la pregunta seleccionada en cualquier caso
-      setSelectedQuestion(null);
-      
-    } catch (error) {
-      console.error('Error saving question:', error);
-      throw error; // Es bueno relanzar el error para que el modal lo pueda manejar
     }
-  }, [selectedQuestion, createQuestion]);
+
+    setSelectedQuestion(null);
+
+  } catch (error) {
+    console.error('Error saving question:', error);
+    // El modal ya maneja la visualización de errores si se relanza
+    throw error;
+  }
+}, [selectedQuestion, createQuestion, updateQuestion])
 
   const handleDeleteClick = useCallback((question) => {
     setQuestionToDelete(question);
@@ -553,18 +547,18 @@ const QuestionsPage = () => {
       {/* 🆕 Edit Question Modal */}
       <QuestionModal
         isOpen={showEditModal}
-        onClose={() => handleCloseEditModal}
+        onClose={handleCloseEditModal}
         onSave={handleSaveQuestion}
         question={selectedQuestion}
         mode="edit"
         availableQuizzes={validQuizzes}
-        isLoading={creating}
+        isLoading={updating}
       />
 
       {/* 🆕 View Question Modal */}
       <QuestionModal
         isOpen={showViewModal}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseViewModal}
         question={selectedQuestion}
         mode="view"
         availableQuizzes={validQuizzes}

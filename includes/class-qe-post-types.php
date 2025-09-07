@@ -550,26 +550,46 @@ class QE_Post_Types
         ];
 
         foreach ($question_meta_fields as $meta_key => $type) {
-            register_post_meta('question', $meta_key, [
-                'show_in_rest' => true,
+            $args = [
                 'single' => true,
                 'type' => $type,
                 'auth_callback' => function () {
                     return current_user_can('edit_posts');
                 },
-                'sanitize_callback' => function ($value) {
-                    return $meta_key === '_question_options' ? $value : sanitize_text_field($value);
-                }
+            ];
 
+            if ($meta_key === '_question_options') {
+                // 1. Para mostrar los datos en la API (GET requests)
+                $args['show_in_rest'] = [
+                    'schema' => [
+                        'description' => 'Answer options for the question.',
+                        'type' => 'array',
+                        'items' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'text' => ['type' => 'string'],
+                                'isCorrect' => ['type' => 'boolean'],
+                            ],
+                        ],
+                    ],
+                ];
 
-            ]);
-            register_post_meta('question', '_points_incorrect', [
-                'show_in_rest' => true,
-                'single' => true,
-                'type' => 'string',
-            ]);
+                // 2. Para guardar los datos que vienen de la API (POST/PUT requests)
+                $args['sanitize_callback'] = function ($value) {
+                    // Esta función se asegura de que solo se guarde un array.
+                    // No modifica el contenido, solo lo deja pasar si es un array.
+                    return is_array($value) ? $value : [];
+                };
 
-            error_log("✅ Registered question meta field: {$meta_key}");
+            } else {
+                // Para todos los demás campos simples, usamos la configuración estándar
+                $args['show_in_rest'] = true;
+                // Usamos la función de sanitización por defecto para texto
+                $args['sanitize_callback'] = 'sanitize_text_field';
+            }
+
+            register_post_meta('question', $meta_key, $args);
+            error_log("✅ Registered question meta field with proper sanitization: {$meta_key}");
         }
 
         // Register computed field for enrolled users count

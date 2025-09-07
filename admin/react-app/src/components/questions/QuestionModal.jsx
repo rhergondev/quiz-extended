@@ -72,15 +72,31 @@ const QuestionModal = ({
   // Initialize form data when question changes
   useEffect(() => {
     if (question && mode !== 'create') {
-      // ... (lógica de formattedOptions se mantiene) ...
-      const questionOptions = question.meta?._question_options || [];
-      const formattedOptions = Array.isArray(questionOptions) && questionOptions.length > 0 
-        ? questionOptions.map(opt => ({
+      // --- INICIO DE LA CORRECCIÓN ---
+      const rawOptions = question.meta?._question_options || [];
+      let parsedOptions = []; // Usaremos esta variable para el array final
+
+      try {
+        // 1. Verificamos si los datos recibidos son un string que parece un array JSON
+        if (typeof rawOptions === 'string' && rawOptions.trim().startsWith('[')) {
+          // 2. Si es un string, lo "leemos" (parseamos) para convertirlo en un array real
+          parsedOptions = JSON.parse(rawOptions);
+        } else if (Array.isArray(rawOptions)) {
+          // 3. Si ya es un array, lo usamos directamente
+          parsedOptions = rawOptions;
+        }
+      } catch (e) {
+        console.error("Error al parsear las opciones de la pregunta:", e);
+        // Si hay un error, dejamos las opciones vacías para evitar que la app se rompa.
+      }
+      
+      const formattedOptions = Array.isArray(parsedOptions) && parsedOptions.length > 0 
+        ? parsedOptions.map(opt => ({
             text: opt.text || '',
-            isCorrect: opt.is_correct || false
+            isCorrect: opt.isCorrect || false 
           }))
         : [{ text: '', isCorrect: false }, { text: '', isCorrect: false }];
-
+      // --- FIN DE LA CORRECCIÓN ---
 
       setFormData({
         title: question.title?.rendered || question.title || '',
@@ -90,22 +106,22 @@ const QuestionModal = ({
         points: question.meta?._points || '1',
         explanation: question.meta?._explanation || '',
         quizId: question.meta?._quiz_id || '',
-        lessonId: question.meta?._question_lesson || '',     // ❇️ AÑADIDO
-        provider: question.meta?._question_provider || 'human', // ❇️ AÑADIDO
-        options: formattedOptions,
+        lessonId: question.meta?._question_lesson || '',
+        provider: question.meta?._question_provider || 'human',
+        options: formattedOptions, // Usamos las opciones ya formateadas y parseadas
       });
     } else if (mode === 'create') {
-      // Reset form
+      // La lógica para resetear el formulario en modo 'create' se mantiene igual
       setFormData({
         title: '',
         type: 'multiple_choice',
         difficulty: 'medium',
         category: '',
         points: '1',
-        explanation: '', // 🛑 ELIMINADO
+        explanation: '',
         quizId: '',
-        lessonId: '',     // ❇️ AÑADIDO
-        provider: 'human', // ❇️ AÑADIDO
+        lessonId: '',
+        provider: 'human',
         options: [
           { text: '', isCorrect: false },
           { text: '', isCorrect: false }
@@ -549,14 +565,16 @@ const handleSaveAndNew = (e) => {
                 Cancel
               </button>
 
-              <button
-                type="button"
-                onClick={handleSaveAndNew}
-                disabled={isLoading}
-                className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700"
-              >
-                {isLoading ? 'Saving...' : 'Save & Add New'}
-              </button>
+              {mode === 'create' && (
+      <button
+        type="button"
+        onClick={handleSaveAndNew}
+        disabled={isLoading}
+        className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700"
+      >
+        {isLoading ? 'Saving...' : 'Save & Add New'}
+      </button>
+    )}
               <button
                 type="submit"
                 disabled={isLoading}

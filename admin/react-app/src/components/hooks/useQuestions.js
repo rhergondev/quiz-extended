@@ -21,6 +21,7 @@ export const useQuestions = (options = {}) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -349,6 +350,57 @@ export const useQuestions = (options = {}) => {
     }
   }, []);
 
+  const updateQuestion = useCallback(async (questionId, questionData) => {
+  try {
+    setUpdating(true);
+    setError(null);
+
+    const config = getApiConfig();
+
+    // La estructura de datos es idéntica a la de creación
+    const apiData = {
+      title: questionData.title || '',
+      content: questionData.explanation || '',
+      status: questionData.status || 'publish',
+      meta: {
+        _quiz_id: questionData.quizId || '',
+        _question_lesson: questionData.lessonId || '',
+        _question_provider: questionData.provider || '',
+        _question_type: questionData.type || 'multiple_choice',
+        _difficulty_level: questionData.difficulty || 'medium',
+        _question_category: questionData.category || '',
+        _explanation: questionData.explanation || '',
+        _question_options: questionData.options || [],
+      }
+    };
+
+    console.log(`🚀 Updating question ${questionId} with payload:`, apiData);
+
+    // La URL ahora incluye el ID de la pregunta y el método es POST (WP lo usa para actualizar)
+    const response = await makeApiRequest(`${config.endpoints.questions}/${questionId}`, {
+      method: 'POST',
+      body: JSON.stringify(apiData)
+    });
+
+    const updatedQuestion = await response.json();
+
+    // Actualizamos el estado local para que la UI reaccione sin recargar
+    setQuestions(prev => 
+      prev.map(q => (q.id === questionId ? updatedQuestion : q))
+    );
+
+    console.log('✅ Question updated:', updatedQuestion);
+    return updatedQuestion;
+
+  } catch (err) {
+    console.error('❌ Error updating question:', err);
+    setError(err.message || 'Failed to update question');
+    throw err;
+  } finally {
+    setUpdating(false);
+  }
+}, []);
+
   // --- DELETE QUESTION ---
   const deleteQuestion = useCallback(async (questionId) => {
     try {
@@ -488,6 +540,7 @@ export const useQuestions = (options = {}) => {
     questions,
     loading,
     creating,
+    updating,
     error,
     pagination,
     hasMore,
@@ -496,6 +549,7 @@ export const useQuestions = (options = {}) => {
 
     // Methods
     createQuestion,
+    updateQuestion,
     deleteQuestion,
     duplicateQuestion,
     refreshQuestions,
