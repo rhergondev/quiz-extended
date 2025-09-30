@@ -1,6 +1,6 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import CoursesPage from './pages/CoursesPage';
+import CoursesManager from './components/courses/CoursesManager';
 import LessonsManager from './components/lessons/LessonsManager';
 import QuizzesManager from './components/quizzes/QuizzesManager';
 import UsersPage from './pages/UsersPage';
@@ -19,7 +19,7 @@ function App() {
           {/* --- RUTAS PRINCIPALES --- */}
 
           {/* Ruta para la página de Cursos */}
-          <Route path="/courses" element={<CoursesPage />} />
+          <Route path="/courses" element={<CoursesManager />} />
           
           {/* Ruta para la página de Lecciones */}
           <Route path="/lessons" element={<LessonsManager  />} />

@@ -1,43 +1,36 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { 
   BookOpen, 
-  Eye, 
-  EyeOff, 
+  Users, 
+  DollarSign, 
   Clock, 
-  Users,
-  Trophy,
-  Target,
-  BarChart3,
+  BarChart3, 
   TrendingUp,
-  Zap,
-  DollarSign,
-  Star,
-  ChevronDown,
+  GraduationCap,
+  Target,
   Search,
-  Filter
+  RefreshCw
 } from 'lucide-react';
 
-// FIXED: Import the updated hooks with debouncing
-import { useCourses } from '../hooks/useCourses.js';
+import useCourses from '../hooks/useCourses.js';
+import { useSearchInput, useFilterDebounce } from '../../api/utils/debounceUtils.js';
 
-// Import debounce utilities - FIXED PATH
-import { useSearchInput, useFilterDebounce } from '../../utils/debounceUtils.js';
-
-// Component imports
-import ContentManager from '../common/ContentManager.jsx';
-import CourseCard from './CourseCard.jsx';
-import DeleteConfirmModal from '../common/DeleteConfirmModal.jsx';
+import ContentManager from '../common/ContentManager';
+import CourseCard from './CourseCard';
+import CourseModal from './CourseModal';
+import DeleteModal from '../common/DeleteModal';
 
 const CoursesManager = () => {
   // --- LOCAL STATE ---
-  const [selectedType, setSelectedType] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [viewMode, setViewMode] = useState('cards');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState(null);
-  const [viewMode, setViewMode] = useState('cards');
+  
+  // Modal States
+  const [modalMode, setModalMode] = useState(null); // 'create', 'edit', 'view'
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // --- DEBOUNCED SEARCH INPUT ---
   const {
@@ -46,7 +39,6 @@ const CoursesManager = () => {
     handleSearchChange,
     clearSearch
   } = useSearchInput('', async (searchTerm) => {
-    // This will automatically trigger the debounced fetch in useCourses
     console.log('🔍 Course search triggered:', searchTerm);
   }, 500);
 
@@ -58,13 +50,12 @@ const CoursesManager = () => {
     resetFilters
   } = useFilterDebounce(
     {
-      type: 'all',
       category: 'all',
       difficulty: 'all',
-      status: 'all'
+      status: 'all',
+      price: 'all'
     },
     async (newFilters) => {
-      // This will automatically trigger the debounced fetch in useCourses
       console.log('🔧 Course filters changed:', newFilters);
     },
     300
@@ -77,75 +68,135 @@ const CoursesManager = () => {
     error, 
     pagination,
     computed,
-    createCourse,
-    deleteCourse,
-    duplicateCourse,
-    creating,
-    refreshCourses
+    creating, 
+    updating,
+    deleting,
+    createCourse, 
+    updateCourse, 
+    deleteCourse, 
+    duplicateCourse, 
+    fetchCourses
   } = useCourses({
-    // Pass current filter values
     search: searchValue,
-    type: filters.type !== 'all' ? filters.type : null,
     category: filters.category !== 'all' ? filters.category : null,
+    difficulty: filters.difficulty !== 'all' ? filters.difficulty : null,
     status: filters.status !== 'all' ? filters.status : null,
     autoFetch: true,
-    debounceMs: 500 // Configure debounce delay
+    debounceMs: 500
   });
 
-  // --- EVENT HANDLERS (NO MORE DIRECT API CALLS) ---
-  const handleTypeChange = useCallback((type) => {
-    setSelectedType(type);
-    updateFilter('type', type);
-  }, [updateFilter]);
+  // --- INFINITE SCROLL LOGIC ---
+  const observer = useRef();
+  const hasMore = pagination.hasMore;
+  
+  const lastCourseElementRef = useCallback(node => {
+    if (loading) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        console.log('📄 Loading more courses...');
+        fetchCourses(false);
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [loading, hasMore, fetchCourses]);
 
-  const handleCategoryChange = useCallback((category) => {
-    setSelectedCategory(category);
-    updateFilter('category', category);
-  }, [updateFilter]);
-
-  const handleDifficultyChange = useCallback((difficulty) => {
-    setSelectedDifficulty(difficulty);
-    updateFilter('difficulty', difficulty);
-  }, [updateFilter]);
-
-  const handleStatusChange = useCallback((status) => {
-    setSelectedStatus(status);
-    updateFilter('status', status);
-  }, [updateFilter]);
-
-  // No more direct search handling - use the debounced version
+  // --- EVENT HANDLERS ---
   const handleSearchChangeWrapper = useCallback((event) => {
     const value = event.target.value;
     handleSearchChange(value);
   }, [handleSearchChange]);
 
-  const handleCreateCourse = useCallback(async (courseData) => {
+  const handleCategoryChange = useCallback((category) => {
+    updateFilter('category', category);
+  }, [updateFilter]);
+
+  const handleDifficultyChange = useCallback((difficulty) => {
+    updateFilter('difficulty', difficulty);
+  }, [updateFilter]);
+
+  const handleStatusChange = useCallback((status) => {
+    updateFilter('status', status);
+  }, [updateFilter]);
+
+  const handlePriceChange = useCallback((price) => {
+    updateFilter('price', price);
+  }, [updateFilter]);
+
+  const handleRefresh = useCallback(() => {
+    fetchCourses(true);
+  }, [fetchCourses]);
+
+  // --- MODAL HANDLERS ---
+  const openModal = (mode, course = null) => {
+    console.log('🔵 Opening modal:', mode, course);
+    setModalMode(mode);
+    setSelectedCourse(course);
+    setIsModalOpen(true);
+    setShowCreateModal(mode === 'create');
+  };
+
+  const closeModal = () => {
+    console.log('🔴 Closing modal');
+    setIsModalOpen(false);
+    setShowCreateModal(false);
+    setTimeout(() => {
+      setModalMode(null);
+      setSelectedCourse(null);
+    }, 300);
+  };
+
+  const handleSaveCourse = async (courseData, nextAction) => {
     try {
-      const newCourse = await createCourse(courseData);
-      setShowCreateModal(false);
-      return newCourse;
+      console.log('💾 Saving course:', courseData, 'Next action:', nextAction);
+      
+      let result;
+      if (modalMode === 'create') {
+        result = await createCourse(courseData);
+      } else if (modalMode === 'edit') {
+        result = await updateCourse(selectedCourse.id, courseData);
+      }
+
+      console.log('✅ Course saved successfully:', result);
+
+      // Handle next action
+      if (nextAction === 'close') {
+        closeModal();
+      } else if (nextAction === 'create') {
+        setSelectedCourse(null);
+        setModalMode('create');
+      } else if (nextAction === 'edit' && result?.id) {
+        setSelectedCourse(result);
+        setModalMode('edit');
+      }
+
+      return result;
+
     } catch (error) {
-      console.error('Error creating course:', error);
+      console.error('❌ Error saving course:', error);
       throw error;
     }
-  }, [createCourse]);
+  };
 
   const handleDeleteClick = useCallback((course) => {
+    console.log('🗑️ Delete clicked for course:', course);
     setCourseToDelete(course);
     setShowDeleteModal(true);
   }, []);
 
-  const handleDeleteConfirm = useCallback(async () => {
+  const handleDeleteConfirm = async () => {
     if (!courseToDelete) return;
-    
+
     try {
+      console.log('🗑️ Confirming delete for course:', courseToDelete.id);
       await deleteCourse(courseToDelete.id);
       setShowDeleteModal(false);
       setCourseToDelete(null);
+      console.log('✅ Course deleted successfully');
     } catch (error) {
-      console.error('Error deleting course:', error);
+      console.error('❌ Error deleting course:', error);
     }
-  }, [courseToDelete, deleteCourse]);
+  };
 
   const handleDuplicate = useCallback(async (course) => {
     try {
@@ -156,82 +207,63 @@ const CoursesManager = () => {
   }, [duplicateCourse]);
 
   const handleCourseClick = useCallback((course) => {
-    console.log('Navigate to course details:', course.id);
+    openModal('view', course);
   }, []);
-
-  const handleRefresh = useCallback(() => {
-    refreshCourses();
-  }, [refreshCourses]);
 
   // --- COMPUTED VALUES ---
   const statsCards = useMemo(() => {
-    const totalCourses = computed.totalCourses || 0;
-    const averagePrice = computed.averagePrice || 0;
-    const totalRevenue = computed.totalRevenue || 0;
-    const freeCourses = computed.freeCourses || 0;
-    const paidCourses = computed.paidCourses || 0;
-    const featuredCourses = computed.featuredCourses || 0;
-
     return [
       {
         label: 'Total Courses',
-        value: totalCourses,
+        value: computed.totalCourses || 0,
         icon: BookOpen,
         iconColor: 'text-blue-500'
       },
       {
-        label: 'Average Price',
-        value: averagePrice > 0 ? `$${averagePrice}` : 'Free',
-        icon: DollarSign,
+        label: 'Published',
+        value: computed.publishedCourses || 0,
+        icon: BarChart3,
         iconColor: 'text-green-500'
       },
       {
-        label: 'Total Revenue',
-        value: `$${totalRevenue.toLocaleString()}`,
-        icon: TrendingUp,
+        label: 'Students',
+        value: computed.totalStudents || 0,
+        icon: Users,
         iconColor: 'text-purple-500'
       },
       {
-        label: 'Free Courses',
-        value: freeCourses,
-        icon: Target,
-        iconColor: 'text-blue-400'
-      },
-      {
-        label: 'Paid Courses',
-        value: paidCourses,
-        icon: Trophy,
+        label: 'Avg. Price',
+        value: `$${computed.averagePrice || 0}`,
+        icon: DollarSign,
         iconColor: 'text-yellow-500'
       },
       {
-        label: 'Featured',
-        value: featuredCourses,
-        icon: Star,
-        iconColor: 'text-orange-500'
+        label: 'Revenue',
+        value: `$${computed.totalRevenue || 0}`,
+        icon: TrendingUp,
+        iconColor: 'text-indigo-500'
+      },
+      {
+        label: 'Completion Rate',
+        value: `${computed.averageCompletionRate || 0}%`,
+        icon: Target,
+        iconColor: 'text-red-500'
       }
     ];
   }, [computed]);
 
   // --- FILTER OPTIONS ---
-  const typeOptions = [
-    { value: 'all', label: 'All Types' },
-    { value: 'online', label: 'Online' },
-    { value: 'hybrid', label: 'Hybrid' },
-    { value: 'workshop', label: 'Workshop' },
-    { value: 'masterclass', label: 'Masterclass' }
-  ];
-
-  const categoryOptions = [
+  const categoryOptions = useMemo(() => [
     { value: 'all', label: 'All Categories' },
     { value: 'programming', label: 'Programming' },
     { value: 'design', label: 'Design' },
     { value: 'business', label: 'Business' },
     { value: 'marketing', label: 'Marketing' },
-    { value: 'data-science', label: 'Data Science' }
-  ];
+    { value: 'photography', label: 'Photography' },
+  ], []);
 
   const difficultyOptions = [
-    { value: 'all', label: 'All Difficulties' },
+    { value: 'all', label: 'All Levels' },
     { value: 'beginner', label: 'Beginner' },
     { value: 'intermediate', label: 'Intermediate' },
     { value: 'advanced', label: 'Advanced' },
@@ -239,22 +271,28 @@ const CoursesManager = () => {
   ];
 
   const statusOptions = [
-    { value: 'all', label: 'All Statuses' },
+    { value: 'all', label: 'All Status' },
     { value: 'publish', label: 'Published' },
     { value: 'draft', label: 'Draft' },
-    { value: 'private', label: 'Private' },
-    { value: 'pending', label: 'Pending Review' }
+    { value: 'private', label: 'Private' }
+  ];
+
+  const priceOptions = [
+    { value: 'all', label: 'All Prices' },
+    { value: 'free', label: 'Free' },
+    { value: 'paid', label: 'Paid' },
+    { value: 'premium', label: 'Premium ($100+)' }
   ];
 
   // --- RENDER ---
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header with Stats */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Course Management</h1>
-            <p className="text-gray-600 mt-1">Create and manage your courses</p>
+            <p className="text-gray-600 mt-1">Create and manage courses with lessons, pricing and enrollment.</p>
           </div>
           <div className="flex items-center space-x-3">
             {/* Loading indicator */}
@@ -264,16 +302,20 @@ const CoursesManager = () => {
                 {isSearching ? 'Searching...' : isFiltering ? 'Filtering...' : 'Loading...'}
               </div>
             )}
-            <button
-              onClick={handleRefresh}
-              disabled={loading}
+            <button 
+              onClick={handleRefresh} 
+              disabled={loading} 
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
+              <RefreshCw className="h-4 w-4 mr-2 inline" />
               Refresh
             </button>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              disabled={creating}
+            <button 
+              onClick={() => {
+                console.log('🟢 Create button clicked');
+                openModal('create');
+              }}
+              disabled={creating} 
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
               {creating ? 'Creating...' : 'Create Course'}
@@ -284,12 +326,12 @@ const CoursesManager = () => {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {statsCards.map((stat, index) => {
-            const IconComponent = stat.icon;
+            const Icon = stat.icon;
             return (
               <div key={index} className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center">
                   <div className={`flex-shrink-0 ${stat.iconColor}`}>
-                    <IconComponent className="h-6 w-6" />
+                    <Icon className="h-6 w-6" />
                   </div>
                   <div className="ml-3">
                     <p className="text-sm font-medium text-gray-600">{stat.label}</p>
@@ -304,7 +346,7 @@ const CoursesManager = () => {
 
       {/* Filters and Search */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Search Input with Debouncing */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -328,22 +370,9 @@ const CoursesManager = () => {
             )}
           </div>
 
-          {/* Type Filter */}
-          <select
-            value={selectedType}
-            onChange={(e) => handleTypeChange(e.target.value)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {typeOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
           {/* Category Filter */}
           <select
-            value={selectedCategory}
+            value={filters.category}
             onChange={(e) => handleCategoryChange(e.target.value)}
             className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
@@ -356,7 +385,7 @@ const CoursesManager = () => {
 
           {/* Difficulty Filter */}
           <select
-            value={selectedDifficulty}
+            value={filters.difficulty}
             onChange={(e) => handleDifficultyChange(e.target.value)}
             className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
@@ -369,11 +398,24 @@ const CoursesManager = () => {
 
           {/* Status Filter */}
           <select
-            value={selectedStatus}
+            value={filters.status}
             onChange={(e) => handleStatusChange(e.target.value)}
             className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
             {statusOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Price Filter */}
+          <select
+            value={filters.price}
+            onChange={(e) => handlePriceChange(e.target.value)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {priceOptions.map(option => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -392,72 +434,102 @@ const CoursesManager = () => {
         </div>
       </div>
 
-      {/* Content Manager */}
+      {/* Content Manager with Infinite Scroll */}
       <ContentManager
+        title="Courses"
+        description="Manage and organize all your courses"
+        createButtonText="Create Course"
+        onCreateClick={() => {
+          console.log('🟡 ContentManager Create button clicked');
+          openModal('create');
+        }}
         items={courses}
-        loading={loading}
-        error={error}
-        pagination={pagination}
+        loading={loading && courses.length === 0}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        renderCard={(course) => (
-          <CourseCard
-            key={course.id}
-            course={course}
-            onEdit={handleCourseClick}
-            onDelete={handleDeleteClick}
-            onDuplicate={handleDuplicate}
-            onClick={handleCourseClick}
-          />
-        )}
-        emptyState={{
-          icon: BookOpen,
+        showCreateButton={true}
+        showItemCount={true}
+        showViewToggle={true}
+        emptyState={{ 
+          icon: BookOpen, 
           title: 'No courses found',
-          description: 'Get started by creating your first course.',
-          actionLabel: 'Create Course',
-          onAction: () => setShowCreateModal(true)
+          description: 'Create your first course to get started',
+          actionText: 'Create Course',
+          onAction: () => {
+            console.log('🟡 EmptyState Create button clicked');
+            openModal('create');
+          }
         }}
-      />
+      >
+        {/* Courses Grid/List */}
+          {courses.map((course, index) => {
+            // Ref para el último elemento (infinite scroll)
+            if (index === courses.length - 1) {
+              return (
+                <div key={course.id} ref={lastCourseElementRef}>
+                  <CourseCard
+                    course={course}
+                    onEdit={() => openModal('edit', course)}
+                    onDelete={() => handleDeleteClick(course)}
+                    onDuplicate={() => handleDuplicate(course)}
+                    onClick={() => handleCourseClick(course)}
+                  />
+                </div>
+              );
+            }
+            
+            return (
+              <div key={course.id}>
+                <CourseCard
+                  course={course}
+                  onEdit={() => openModal('edit', course)}
+                  onDelete={() => handleDeleteClick(course)}
+                  onDuplicate={() => handleDuplicate(course)}
+                  onClick={() => handleCourseClick(course)}
+                />
+              </div>
+            );
+          })}
 
-      {/* Create Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">
-                  Create New Course
-                </h3>
-                <p className="mt-2 text-sm text-gray-500">
-                  Course creation form would go here...
-                </p>
-              </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  onClick={() => setShowCreateModal(false)}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                >
-                  Close
-                </button>
+          {/* Loading state DENTRO del grid con col-span-full */}
+          {loading && courses.length > 0 && (
+            <div className="flex justify-center py-8 col-span-full">
+              <div className="flex items-center text-sm text-gray-500">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-2"></div>
+                <span>Loading more courses...</span>
               </div>
             </div>
-          </div>
-        </div>
+          )}
+
+          {/* End state DENTRO del grid con col-span-full */}
+          {!loading && !hasMore && courses.length > 0 && (
+            <div className="text-center py-6 col-span-full">
+              <p className="text-gray-500">You've reached the end of the list.</p>
+            </div>
+          )}
+      </ContentManager>
+
+      {/* Course Modal */}
+      {isModalOpen && (
+        <CourseModal
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          onSave={handleSaveCourse}
+          course={selectedCourse}
+          mode={modalMode}
+          isLoading={creating || updating}
+        />
       )}
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && courseToDelete && (
-        <DeleteConfirmModal
+      {showDeleteModal && (
+        <DeleteModal
           isOpen={showDeleteModal}
           onClose={() => setShowDeleteModal(false)}
           onConfirm={handleDeleteConfirm}
           title="Delete Course"
-          message={`Are you sure you want to delete "${courseToDelete.title?.rendered || courseToDelete.title}"? This action cannot be undone.`}
-          confirmLabel="Delete Course"
-          isLoading={false}
+          message={`Are you sure you want to delete "${courseToDelete?.title?.rendered || courseToDelete?.title}"? This action cannot be undone and will also remove all associated lessons.`}
+          isLoading={deleting}
         />
       )}
     </div>
