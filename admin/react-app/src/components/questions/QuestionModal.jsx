@@ -327,9 +327,9 @@ const handleSaveAndNew = (e) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center space-x-3">
             {mode === 'view' ? (
               <Eye className="h-6 w-6 text-blue-600" />
@@ -346,8 +346,8 @@ const handleSaveAndNew = (e) => {
           </button>
         </div>
 
-        {/* Content */}
-        <form onSubmit={handleSubmit} className="flex flex-col h-full">
+        {/* Content - Scrollable area */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -485,7 +485,7 @@ const handleSaveAndNew = (e) => {
               </div>
             </div>
 
-            {/* Answer Options - Multiple Choice & True/False */}
+            {/* Answer Options - Multiple Choice & True/False - Scrollable area */}
             {(formData.type === 'multiple_choice' || formData.type === 'true_false') && (
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -504,33 +504,35 @@ const handleSaveAndNew = (e) => {
                   )}
                 </div>
 
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    // Le pasamos un array de IDs únicos (en este caso, los índices)
-                    items={formData.options.map((_, i) => i)}
-                    strategy={verticalListSortingStrategy}
+                {/* Contenedor con scroll para las opciones */}
+                <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
                   >
-                    <div className="space-y-3">
-                      {formData.options.map((option, index) => (
-                        <SortableOption
-                          key={index}
-                          id={index}
-                          option={option}
-                          index={index}
-                          isReadOnly={isReadOnly}
-                          isMultipleChoice={formData.type === 'multiple_choice'}
-                          handleOptionChange={handleOptionChange}
-                          setCorrectAnswer={setCorrectAnswer}
-                          removeOption={removeOption}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                    <SortableContext
+                      items={formData.options.map((_, i) => i)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-3">
+                        {formData.options.map((option, index) => (
+                          <SortableOption
+                            key={index}
+                            id={index}
+                            option={option}
+                            index={index}
+                            isReadOnly={isReadOnly}
+                            isMultipleChoice={formData.type === 'multiple_choice'}
+                            handleOptionChange={handleOptionChange}
+                            setCorrectAnswer={setCorrectAnswer}
+                            removeOption={removeOption}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                </div>
 
                 {errors.options && (
                   <p className="mt-1 text-sm text-red-600">{errors.options}</p>
@@ -549,13 +551,14 @@ const handleSaveAndNew = (e) => {
                 onChange={handleExplanationChange}
                 readOnly={isReadOnly}
                 className={isReadOnly ? 'bg-gray-50' : ''}
+                style={{ maxHeight: '200px' }}
               />
             </div>
           </div>
 
-          {/* Footer */}
+          {/* Footer - Always visible */}
           {!isReadOnly && (
-            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
               <button
                 type="button"
                 onClick={onClose}
@@ -566,15 +569,15 @@ const handleSaveAndNew = (e) => {
               </button>
 
               {mode === 'create' && (
-      <button
-        type="button"
-        onClick={handleSaveAndNew}
-        disabled={isLoading}
-        className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700"
-      >
-        {isLoading ? 'Saving...' : 'Save & Add New'}
-      </button>
-    )}
+                <button
+                  type="button"
+                  onClick={handleSaveAndNew}
+                  disabled={isLoading}
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700"
+                >
+                  {isLoading ? 'Saving...' : 'Save & Add New'}
+                </button>
+              )}
               <button
                 type="submit"
                 disabled={isLoading}

@@ -45,7 +45,11 @@ const QuestionCard = ({
     explanation: question.content?.rendered.replace(/<p>|<\/p>/g, '').trim(),
     quizId: question.meta?._quiz_id,
     lessonId: question.meta?._question_lesson,
-    modifiedDate: new Date(question.modified).toLocaleDateString(),
+    modifiedDate: new Date(question.modified).toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }),
   }), [question]);
 
   // --- BÚSQUEDA DE ENTIDADES ASOCIADAS ---
@@ -89,20 +93,14 @@ const QuestionCard = ({
     return colors[key]?.[value] || 'bg-gray-100 text-gray-700';
   };
 
-  // --- ACCIONES DE LA TARJETA ---
-  const actions = [
-    { label: 'Edit', icon: Edit, onClick: onEdit, color: 'text-blue-600' },
-    { label: 'Duplicate', icon: Copy, onClick: onDuplicate, color: 'text-green-600' },
-    { label: 'Delete', icon: Trash2, onClick: onDelete, color: 'text-red-600', divider: true }
-  ].filter(action => action.onClick);
-
   // --- RENDERIZADO DE COMPONENTES ---
   const TypeInfo = getTypeInfo(questionData.type);
   const ProviderInfo = getProviderInfo(questionData.provider);
 
   const renderCardContent = () => (
     <>
-      <div className="flex items-start justify-between mb-3">
+      {/* Header with actions - altura fija */}
+      <div className="flex items-start justify-between mb-3 min-h-[32px]">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="flex items-center space-x-1.5 text-sm font-medium text-blue-600">
             <TypeInfo.icon className="h-4 w-4" />
@@ -111,19 +109,64 @@ const QuestionCard = ({
           <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('difficulty', questionData.difficulty)}`}>{questionData.difficulty}</span>
           {questionData.category && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-100 text-indigo-700">{questionData.category}</span>}
         </div>
-        <span className={`flex items-center space-x-1.5 px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('status', questionData.status)}`}>
-          {questionData.status === 'publish' ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-          <span>{questionData.status}</span>
-        </span>
+        <div className="flex items-center gap-2 ml-2">
+          <span className={`flex items-center space-x-1.5 px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('status', questionData.status)}`}>
+            {questionData.status === 'publish' ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+            <span>{questionData.status}</span>
+          </span>
+          {/* Botones de acción directos */}
+          <div className="flex items-center gap-1">
+            {onEdit && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(question); }}
+                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                title="Edit"
+              >
+                <Edit className="h-4 w-4" />
+              </button>
+            )}
+            {onDuplicate && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDuplicate(question); }}
+                className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                title="Duplicate"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(question); }}
+                className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                title="Delete"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      <h3 className="text-lg font-semibold text-gray-800 mb-3 line-clamp-3">{questionData.title}</h3>
+      {/* Título - altura fija con truncate */}
+      <h3 className="text-lg font-semibold text-gray-800 mb-3 h-[28px] line-clamp-1 truncate" title={questionData.title}>
+        {questionData.title}
+      </h3>
 
-      {questionData.explanation && (
-        <p className="text-sm text-gray-600 mb-4 line-clamp-2" dangerouslySetInnerHTML={{ __html: questionData.explanation }} />
-      )}
+      {/* Explicación - altura fija independientemente de si hay contenido */}
+      <div className="mb-4 h-[40px]">
+        {questionData.explanation ? (
+          <p 
+            className="text-sm text-gray-600 line-clamp-2 truncate" 
+            dangerouslySetInnerHTML={{ __html: questionData.explanation }}
+            title={questionData.explanation}
+          />
+        ) : (
+          <div className="h-full" />
+        )}
+      </div>
 
-      <div className="space-y-3 pt-3 border-t border-gray-100">
+      {/* Información adicional - altura fija */}
+      <div className="space-y-3 pt-3 border-t border-gray-100 min-h-[80px]">
         <div className="flex items-center justify-between text-sm text-gray-600">
           <div className="flex items-center space-x-1.5" title="Source">
             <ProviderInfo.icon className="h-4 w-4" />
@@ -135,15 +178,20 @@ const QuestionCard = ({
           </div>
         </div>
         
-        {showQuiz && (associatedLesson || associatedQuiz) && (
-          <div className="flex items-center space-x-1.5 text-sm text-gray-600">
-            <BookOpen className="h-4 w-4" />
-            <span className="truncate">{associatedLesson?.title?.rendered || associatedQuiz?.title?.rendered || 'Associated'}</span>
-          </div>
-        )}
+        <div className="h-[20px]">
+          {showQuiz && (associatedLesson || associatedQuiz) && (
+            <div className="flex items-center space-x-1.5 text-sm text-gray-600">
+              <BookOpen className="h-4 w-4" />
+              <span className="truncate" title={associatedLesson?.title?.rendered || associatedQuiz?.title?.rendered}>
+                {associatedLesson?.title?.rendered || associatedQuiz?.title?.rendered || 'Associated'}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-gray-400 mt-4">
+      {/* Footer - altura fija */}
+      <div className="flex items-center justify-between text-xs text-gray-400 mt-4 h-[16px]">
         <div className="flex items-center space-x-1">
           <Calendar className="h-3 w-3" />
           <span>{questionData.modifiedDate}</span>
@@ -160,10 +208,46 @@ const QuestionCard = ({
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-gray-900 truncate">{questionData.title}</h3>
+          <h3 className="text-sm font-medium text-gray-900 truncate" title={questionData.title}>
+            {questionData.title}
+          </h3>
           <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
-            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('difficulty', questionData.difficulty)}`}>{questionData.difficulty}</span>
-            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('status', questionData.status)}`}>{questionData.status}</span>
+            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('difficulty', questionData.difficulty)}`}>
+              {questionData.difficulty}
+            </span>
+            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('status', questionData.status)}`}>
+              {questionData.status}
+            </span>
+            {/* Botones de acción en lista */}
+            <div className="flex items-center gap-1">
+              {onEdit && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onEdit(question); }}
+                  className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                  title="Edit"
+                >
+                  <Edit className="h-3 w-3" />
+                </button>
+              )}
+              {onDuplicate && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDuplicate(question); }}
+                  className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                  title="Duplicate"
+                >
+                  <Copy className="h-3 w-3" />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(question); }}
+                  className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center space-x-3 mt-1 text-sm text-gray-500 truncate">
@@ -179,7 +263,9 @@ const QuestionCard = ({
           {showQuiz && (associatedLesson || associatedQuiz) && (
             <div className="flex items-center space-x-1 truncate">
               <BookOpen className="h-4 w-4" />
-              <span className="truncate">{associatedLesson?.title?.rendered || associatedQuiz?.title?.rendered}</span>
+              <span className="truncate" title={associatedLesson?.title?.rendered || associatedQuiz?.title?.rendered}>
+                {associatedLesson?.title?.rendered || associatedQuiz?.title?.rendered}
+              </span>
             </div>
           )}
         </div>
@@ -188,7 +274,14 @@ const QuestionCard = ({
   );
 
   return (
-    <Card item={question} viewMode={viewMode} actions={actions} className={className} clickable={!!onClick} onClick={onClick}>
+    <Card 
+      item={question} 
+      viewMode={viewMode} 
+      actions={[]} 
+      className={className} 
+      clickable={!!onClick} 
+      onClick={onClick}
+    >
       {viewMode === 'cards' ? renderCardContent() : renderListContent()}
     </Card>
   );
