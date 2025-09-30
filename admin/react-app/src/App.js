@@ -1,8 +1,8 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import CoursesPage from './pages/CoursesPage';
-import LessonsPage from './pages/LessonsPage';
-import QuizzesPage from './pages/QuizzesPage';
+import LessonsManager from './components/lessons/LessonsManager';
+import QuizzesManager from './components/quizzes/QuizzesManager';
 import UsersPage from './pages/UsersPage';
 import QuestionsManager from './components/questions/QuestionsManager';
 
@@ -22,10 +22,10 @@ function App() {
           <Route path="/courses" element={<CoursesPage />} />
           
           {/* Ruta para la página de Lecciones */}
-          <Route path="/lessons" element={<LessonsPage />} />
+          <Route path="/lessons" element={<LessonsManager  />} />
           
           {/* Ruta para la página de Quizzes */}
-          <Route path="/quizzes" element={<QuizzesPage />} />
+          <Route path="/quizzes" element={<QuizzesManager />} />
           
           {/* Ruta para la página de Preguntas */}
           <Route path="/questions" element={<QuestionsManager />} />

@@ -10,6 +10,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { SortableOption } from './SortableOption'
+import QuizSelector from '../questions/QuizSelector';
 
 const QuestionModal = ({ 
   isOpen, 
@@ -23,19 +24,21 @@ const QuestionModal = ({
 }) => {
   // Form state
   const [formData, setFormData] = useState({
-    title: '',
-    type: 'multiple_choice',
-    difficulty: 'medium',
-    category: '',
-    quizId: '',
-    explanation: '',
-    lessonId: '',     // ❇️ AÑADIDO
-    provider: 'human', // ❇️ AÑADIDO (default 'human')
-    options: [
-      { text: '', isCorrect: false },
-      { text: '', isCorrect: false }
-    ],
-  });
+  title: '',
+  type: 'multiple_choice',
+  difficulty: 'medium',
+  category: '',
+  points: '1',
+  explanation: '',
+  quizIds: [], // ❇️ CAMBIADO: Ahora es array
+  lessonId: '',
+  courseId: '', // ❇️ AÑADIDO para compatibilidad
+  provider: 'human',
+  options: [
+    { text: '', isCorrect: false },
+    { text: '', isCorrect: false }
+  ],
+});
 
   const [errors, setErrors] = useState({});
 
@@ -71,65 +74,63 @@ const QuestionModal = ({
 
   // Initialize form data when question changes
   useEffect(() => {
-    if (question && mode !== 'create') {
-      // --- INICIO DE LA CORRECCIÓN ---
-      const rawOptions = question.meta?._question_options || [];
-      let parsedOptions = []; // Usaremos esta variable para el array final
+  if (question && mode !== 'create') {
+    const rawOptions = question.meta?._question_options || [];
+    let parsedOptions = [];
 
-      try {
-        // 1. Verificamos si los datos recibidos son un string que parece un array JSON
-        if (typeof rawOptions === 'string' && rawOptions.trim().startsWith('[')) {
-          // 2. Si es un string, lo "leemos" (parseamos) para convertirlo en un array real
-          parsedOptions = JSON.parse(rawOptions);
-        } else if (Array.isArray(rawOptions)) {
-          // 3. Si ya es un array, lo usamos directamente
-          parsedOptions = rawOptions;
-        }
-      } catch (e) {
-        console.error("Error al parsear las opciones de la pregunta:", e);
-        // Si hay un error, dejamos las opciones vacías para evitar que la app se rompa.
+    try {
+      if (typeof rawOptions === 'string' && rawOptions.trim().startsWith('[')) {
+        parsedOptions = JSON.parse(rawOptions);
+      } else if (Array.isArray(rawOptions)) {
+        parsedOptions = rawOptions;
       }
-      
-      const formattedOptions = Array.isArray(parsedOptions) && parsedOptions.length > 0 
-        ? parsedOptions.map(opt => ({
-            text: opt.text || '',
-            isCorrect: opt.isCorrect || false 
-          }))
-        : [{ text: '', isCorrect: false }, { text: '', isCorrect: false }];
-      // --- FIN DE LA CORRECCIÓN ---
-
-      setFormData({
-        title: question.title?.rendered || question.title || '',
-        type: question.meta?._question_type || 'multiple_choice',
-        difficulty: question.meta?._difficulty_level || 'medium',
-        category: question.meta?._question_category || '',
-        points: question.meta?._points || '1',
-        explanation: question.meta?._explanation || '',
-        quizId: question.meta?._quiz_id || '',
-        lessonId: question.meta?._question_lesson || '',
-        provider: question.meta?._question_provider || 'human',
-        options: formattedOptions, // Usamos las opciones ya formateadas y parseadas
-      });
-    } else if (mode === 'create') {
-      // La lógica para resetear el formulario en modo 'create' se mantiene igual
-      setFormData({
-        title: '',
-        type: 'multiple_choice',
-        difficulty: 'medium',
-        category: '',
-        points: '1',
-        explanation: '',
-        quizId: '',
-        lessonId: '',
-        provider: 'human',
-        options: [
-          { text: '', isCorrect: false },
-          { text: '', isCorrect: false }
-        ],
-      });
+    } catch (e) {
+      console.error("Error al parsear las opciones de la pregunta:", e);
     }
-    setErrors({});
-  }, [question, mode, isOpen]);
+    
+    const formattedOptions = Array.isArray(parsedOptions) && parsedOptions.length > 0 
+      ? parsedOptions.map(opt => ({
+          text: opt.text || '',
+          isCorrect: opt.isCorrect || false 
+        }))
+      : [{ text: '', isCorrect: false }, { text: '', isCorrect: false }];
+
+    // ❇️ ACTUALIZADO: Soporte para múltiples quizzes
+    const quizIds = question.meta?._quiz_ids || [];
+
+    setFormData({
+      title: question.title?.rendered || question.title || '',
+      type: question.meta?._question_type || 'multiple_choice',
+      difficulty: question.meta?._difficulty_level || 'medium',
+      category: question.meta?._question_category || '',
+      points: question.meta?._points || '1',
+      explanation: question.meta?._explanation || '',
+      quizIds: quizIds, // ❇️ CAMBIADO
+      lessonId: question.meta?._question_lesson || '',
+      courseId: question.meta?._course_id || '',
+      provider: question.meta?._question_provider || 'human',
+      options: formattedOptions,
+    });
+  } else if (mode === 'create') {
+    setFormData({
+      title: '',
+      type: 'multiple_choice',
+      difficulty: 'medium',
+      category: '',
+      points: '1',
+      explanation: '',
+      quizIds: [], // ❇️ CAMBIADO
+      lessonId: '',
+      courseId: '',
+      provider: 'human',
+      options: [
+        { text: '', isCorrect: false },
+        { text: '', isCorrect: false }
+      ],
+    });
+  }
+  setErrors({});
+}, [question, mode, isOpen]);
 
   // Handle form field changes
   const handleFieldChange = (field, value) => {
@@ -213,8 +214,9 @@ const handleSave = async (nextAction) => {
   const questionDataForHook = {
     title: formData.title,
     status: 'publish',
-    quizId: formData.quizId,
+    quizIds: formData.quizIds, // ❇️ CAMBIADO
     lessonId: formData.lessonId,
+    courseId: formData.courseId,
     provider: formData.provider,
     explanation: formData.explanation,
     type: formData.type,
@@ -226,15 +228,14 @@ const handleSave = async (nextAction) => {
   };
 
   try {
-    // AHORA PASAMOS LA ACCIÓN AL PADRE
     await onSave(questionDataForHook, nextAction);
 
-    // Si la acción es 'reset', el modal se encarga de limpiar su propio estado
     if (nextAction === 'reset') {
       setFormData(prev => ({
         ...prev,
         title: '',
         explanation: '',
+        quizIds: [], // ❇️ CAMBIADO
         options: [
           { text: '', isCorrect: false },
           { text: '', isCorrect: false }
@@ -411,23 +412,14 @@ const handleSaveAndNew = (e) => {
 
                {/* --- ❇️ BLOQUE DE ASIGNACIÓN ACTUALIZADO ❇️ --- */}
           {/* Quiz Assignment */}
+          {/* Quiz Assignment - Multiple Select */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Assign to Quiz
-            </label>
-            <select
-              value={formData.quizId}
-              onChange={(e) => handleFieldChange('quizId', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            <QuizSelector
+              availableQuizzes={availableQuizzes}
+              selectedQuizIds={formData.quizIds}
+              onChange={(newQuizIds) => handleFieldChange('quizIds', newQuizIds)}
               disabled={isReadOnly}
-            >
-              <option value="">No Quiz (Question Bank)</option>
-              {availableQuizzes.map(quiz => (
-                <option key={quiz.id} value={quiz.id}>
-                  {quiz.title?.rendered || quiz.title}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* ❇️ AÑADIDO: Lesson Assignment */}

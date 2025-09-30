@@ -1,361 +1,226 @@
-import React, { useMemo } from 'react';
-import {
-  Eye,
-  EyeOff,
-  Edit,
-  Trash2,
-  Copy,
-  Clock,
-  Users,
-  HelpCircle,
-  Trophy,
-  BarChart3,
-  Calendar,
-  BookOpen,
-  Target,
-  Zap,
-  Play,
-  CheckCircle,
-  AlertCircle,
-  TrendingUp
-} from 'lucide-react';
-import Card from '../common/Card.jsx';
+import React, { useState, useEffect } from 'react';
+import { Edit, Trash2, Copy, Eye, Clock, Target, BookOpen, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
 
-/**
- * Componente de tarjeta para mostrar información de un quiz
- * Usa el componente Card genérico
- * 
- * @param {Object} props
- * @param {Object} props.quiz - Datos del quiz
- * @param {string} [props.viewMode='cards'] - Modo de vista ('cards' o 'list')
- * @param {Function} [props.onEdit] - Callback para editar quiz
- * @param {Function} [props.onDelete] - Callback para eliminar quiz
- * @param {Function} [props.onDuplicate] - Callback para duplicar quiz
- * @param {Function} [props.onClick] - Callback para hacer click en el quiz
- * @param {Array} [props.courses] - Lista de cursos disponibles
- * @param {boolean} [props.showCourse=true] - Si mostrar información del curso
- * @param {boolean} [props.showStats=true] - Si mostrar estadísticas
- * @param {string} [props.className] - Clases CSS adicionales
- */
-const QuizCard = ({
-  quiz,
-  viewMode = 'cards',
-  onEdit,
-  onDelete,
-  onDuplicate,
-  onClick,
-  courses = [],
-  showCourse = true,
-  showStats = true,
-  className = ''
-}) => {
-  // --- COMPUTED VALUES ---
-  const timeLimit = parseInt(quiz.meta?._time_limit || '0');
-  const maxAttempts = parseInt(quiz.meta?._max_attempts || '0');
-  const passingScore = parseInt(quiz.meta?._passing_score || '70');
-  const randomizeQuestions = quiz.meta?._randomize_questions === 'yes';
-  const showResults = quiz.meta?._show_results === 'yes';
-  const courseId = quiz.meta?._course_id;
-  const category = quiz.meta?._quiz_category;
+const QuizCard = ({ quiz, onEdit, onDelete, onDuplicate, onClick }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [questions, setQuestions] = useState([]);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
+
+  const title = quiz.title?.rendered || quiz.title || 'Untitled Quiz';
   const difficulty = quiz.meta?._difficulty_level || 'medium';
-  
-  // Buscar el curso asociado
-  const associatedCourse = useMemo(() => {
-    if (!courseId || !courses.length) return null;
+  const category = quiz.meta?._quiz_category || 'Uncategorized';
+  const questionCount = quiz.meta?._quiz_question_ids?.length || 0;
+  const timeLimit = quiz.meta?._time_limit || 'No limit';
+  const passingScore = quiz.meta?._passing_score || '50';
+  const quizType = quiz.meta?._quiz_type || 'assessment';
+
+  const difficultyColors = {
+    easy: 'bg-green-100 text-green-800',
+    medium: 'bg-yellow-100 text-yellow-800',
+    hard: 'bg-red-100 text-red-800'
+  };
+
+  const typeColors = {
+    assessment: 'bg-blue-100 text-blue-800',
+    practice: 'bg-purple-100 text-purple-800',
+    exam: 'bg-red-100 text-red-800',
+    survey: 'bg-gray-100 text-gray-800'
+  };
+
+  // Cargar preguntas cuando se expande por primera vez
+  const loadQuestions = async () => {
+    if (questions.length > 0) return; // Ya están cargadas
     
-    return courses.find(course => 
-      course.id.toString() === courseId.toString() ||
-      course.id === parseInt(courseId, 10)
-    );
-  }, [courseId, courses]);
+    const questionIds = quiz.meta?._quiz_question_ids || [];
+    if (questionIds.length === 0) return;
 
-  // Calcular estadísticas del quiz (datos simulados - vendrían de la API)
-  const quizStats = {
-    totalQuestions: Math.floor(Math.random() * 20) + 5,
-    totalAttempts: Math.floor(Math.random() * 200) + 10,
-    averageScore: Math.floor(Math.random() * 30) + 70, // 70-100%
-    completionRate: Math.floor(Math.random() * 40) + 60, // 60-100%
-    averageTime: Math.floor(Math.random() * 25) + 5, // 5-30 minutes
-    passRate: Math.floor(Math.random() * 40) + 60 // 60-100%
-  };
-  
-  // --- UTILITY FUNCTIONS ---
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'publish':
-        return 'text-green-600 bg-green-100';
-      case 'draft':
-        return 'text-yellow-600 bg-yellow-100';
-      case 'private':
-        return 'text-gray-600 bg-gray-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
+    setLoadingQuestions(true);
+    try {
+      // Simular carga de preguntas - aquí harías la llamada real a la API
+      await new Promise(resolve => setTimeout(resolve, 500)); // Simular delay
+      
+      // Mock data - reemplaza con llamada real a la API
+      const mockQuestions = questionIds.map((id, index) => ({
+        id: id,
+        title: `Question ${index + 1}`,
+        content: `This is the content of question ${index + 1}...`,
+        difficulty: ['easy', 'medium', 'hard'][Math.floor(Math.random() * 3)]
+      }));
+      
+      setQuestions(mockQuestions);
+    } catch (error) {
+      console.error('Error loading questions:', error);
+    } finally {
+      setLoadingQuestions(false);
     }
   };
 
-  const getDifficultyColor = (level) => {
-    switch (level) {
-      case 'easy':
-        return 'text-green-600 bg-green-100';
-      case 'medium':
-        return 'text-yellow-600 bg-yellow-100';
-      case 'hard':
-        return 'text-red-600 bg-red-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
+  const handleToggleExpand = async (e) => {
+    e.stopPropagation();
+    
+    if (!isExpanded) {
+      await loadQuestions();
     }
+    
+    setIsExpanded(!isExpanded);
   };
-
-  const getScoreColor = (score) => {
-    if (score >= 90) return 'text-green-600';
-    if (score >= 80) return 'text-blue-600';
-    if (score >= 70) return 'text-yellow-600';
-    if (score >= 60) return 'text-orange-600';
-    return 'text-red-600';
-  };
-
-  const formatTime = (minutes) => {
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return null;
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  // --- ACTIONS ---
-  const actions = [
-    {
-      label: 'Edit',
-      icon: Edit,
-      onClick: onEdit,
-      color: 'text-blue-600'
-    },
-    {
-      label: 'Preview',
-      icon: Play,
-      onClick: (quiz) => console.log('Preview quiz:', quiz),
-      color: 'text-green-600'
-    },
-    {
-      label: 'Duplicate',
-      icon: Copy,
-      onClick: onDuplicate,
-      color: 'text-purple-600'
-    },
-    {
-      label: 'Delete',
-      icon: Trash2,
-      onClick: onDelete,
-      color: 'text-red-600',
-      divider: true
-    }
-  ].filter(action => action.onClick);
-
-  // --- RENDER HELPERS ---
-  const renderCardContent = () => (
-    <>
-      {/* Header con categoría y estado */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-1 text-sm text-indigo-600">
-            <HelpCircle className="h-4 w-4" />
-            <span>Quiz</span>
-          </div>
-          {category && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              {category}
-            </span>
-          )}
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(difficulty)}`}>
-            {difficulty}
-          </span>
-        </div>
-        
-        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(quiz.status)}`}>
-          {quiz.status === 'publish' ? (
-            <>
-              <Eye className="h-3 w-3 mr-1" />
-              Published
-            </>
-          ) : (
-            <>
-              <EyeOff className="h-3 w-3 mr-1" />
-              {quiz.status}
-            </>
-          )}
-        </span>
-      </div>
-
-      {/* Título */}
-      <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-        {quiz.title?.rendered || quiz.title || 'Untitled Quiz'}
-      </h3>
-
-      {/* Descripción */}
-      {quiz.excerpt?.rendered && (
-        <p className="text-sm text-gray-600 mb-4 line-clamp-3">
-          {quiz.excerpt.rendered.replace(/<[^>]*>/g, '')}
-        </p>
-      )}
-
-      {/* Curso asociado */}
-      {showCourse && associatedCourse && (
-        <div className="flex items-center space-x-1 text-sm text-gray-600 mb-3">
-          <BookOpen className="h-4 w-4" />
-          <span className="truncate">
-            Course: {associatedCourse.title?.rendered || associatedCourse.title}
-          </span>
-        </div>
-      )}
-
-      {/* Configuración del quiz */}
-      <div className="space-y-3">
-        {/* Configuración básica */}
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="flex items-center space-x-1 text-gray-600">
-            <HelpCircle className="h-4 w-4" />
-            <span>{quizStats.totalQuestions} questions</span>
-          </div>
-          {timeLimit > 0 && (
-            <div className="flex items-center space-x-1 text-gray-600">
-              <Clock className="h-4 w-4" />
-              <span>{formatTime(timeLimit)}</span>
-            </div>
-          )}
-          <div className="flex items-center space-x-1 text-gray-600">
-            <Target className="h-4 w-4" />
-            <span>{passingScore}% to pass</span>
-          </div>
-          {maxAttempts > 0 && (
-            <div className="flex items-center space-x-1 text-gray-600">
-              <BarChart3 className="h-4 w-4" />
-              <span>{maxAttempts} attempts</span>
-            </div>
-          )}
-        </div>
-
-        {/* Características especiales */}
-        <div className="flex flex-wrap gap-2">
-          {randomizeQuestions && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-              <Zap className="h-3 w-3 mr-1" />
-              Randomized
-            </span>
-          )}
-          {showResults && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Shows Results
-            </span>
-          )}
-        </div>
-
-        {/* Estadísticas */}
-        {showStats && (
-          <div className="grid grid-cols-2 gap-3 text-sm pt-2 border-t border-gray-100">
-            <div className="flex items-center space-x-1 text-gray-500">
-              <Users className="h-4 w-4" />
-              <span>{quizStats.totalAttempts} attempts</span>
-            </div>
-            <div className={`flex items-center space-x-1 ${getScoreColor(quizStats.averageScore)}`}>
-              <Trophy className="h-4 w-4" />
-              <span>{quizStats.averageScore}% avg</span>
-            </div>
-            <div className="flex items-center space-x-1 text-gray-500">
-              <Clock className="h-4 w-4" />
-              <span>{quizStats.averageTime}m avg time</span>
-            </div>
-            <div className={`flex items-center space-x-1 ${getScoreColor(quizStats.passRate)}`}>
-              <TrendingUp className="h-4 w-4" />
-              <span>{quizStats.passRate}% pass</span>
-            </div>
-          </div>
-        )}
-
-        {/* Fecha de modificación */}
-        <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-100">
-          <span>Modified {formatDate(quiz.modified)}</span>
-          <span>ID: {quiz.id}</span>
-        </div>
-      </div>
-    </>
-  );
-
-  const renderListContent = () => (
-    <div className="flex items-center w-full">
-      {/* Icono de quiz */}
-      <div className="flex-shrink-0 mr-4">
-        <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-          <HelpCircle className="h-5 w-5 text-indigo-600" />
-        </div>
-      </div>
-
-      {/* Información principal */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-gray-900 truncate">
-            {quiz.title?.rendered || quiz.title || 'Untitled Quiz'}
-          </h3>
-          <div className="flex items-center space-x-2 ml-4">
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(difficulty)}`}>
-              {difficulty}
-            </span>
-            {showStats && (
-              <span className={`text-xs font-medium ${getScoreColor(quizStats.averageScore)}`}>
-                {quizStats.averageScore}%
-              </span>
-            )}
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(quiz.status)}`}>
-              {quiz.status}
-            </span>
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
-          <div className="flex items-center space-x-1">
-            <HelpCircle className="h-3 w-3" />
-            <span>{quizStats.totalQuestions}q</span>
-          </div>
-          {timeLimit > 0 && (
-            <div className="flex items-center space-x-1">
-              <Clock className="h-3 w-3" />
-              <span>{formatTime(timeLimit)}</span>
-            </div>
-          )}
-          {showCourse && associatedCourse && (
-            <span className="truncate">
-              {associatedCourse.title?.rendered || associatedCourse.title}
-            </span>
-          )}
-          {showStats && (
-            <div className="flex items-center space-x-1">
-              <Users className="h-3 w-3" />
-              <span>{quizStats.totalAttempts}</span>
-            </div>
-          )}
-          <span>
-            {formatDate(quiz.modified)}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
 
   return (
-    <Card
-      item={quiz}
-      viewMode={viewMode}
-      actions={actions}
-      className={className}
-      clickable={!!onClick}
-      onClick={onClick}
-    >
-      {viewMode === 'cards' ? renderCardContent() : renderListContent()}
-    </Card>
+    <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-100">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 cursor-pointer" onClick={onClick}>
+            <h3 className="text-lg font-semibold text-gray-900 hover:text-indigo-600 transition-colors line-clamp-2">
+              {title}
+            </h3>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <span className={`px-2 py-1 text-xs font-medium rounded-full ${difficultyColors[difficulty]}`}>
+                {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+              </span>
+              <span className={`px-2 py-1 text-xs font-medium rounded-full ${typeColors[quizType]}`}>
+                {quizType.charAt(0).toUpperCase() + quizType.slice(1)}
+              </span>
+              <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                {category}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="p-4 bg-gray-50">
+        <div className="grid grid-cols-3 gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-gray-500" />
+            <span className="text-gray-700">{questionCount} questions</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-gray-500" />
+            <span className="text-gray-700">{timeLimit === '' ? 'No limit' : `${timeLimit} min`}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Target className="w-4 h-4 text-gray-500" />
+            <span className="text-gray-700">{passingScore}% to pass</span>
+          </div>
+        </div>
+
+        {/* Questions Preview Toggle */}
+        {questionCount > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <button
+              onClick={handleToggleExpand}
+              className="flex items-center justify-between w-full text-sm text-gray-600 hover:text-indigo-600 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <HelpCircle className="w-4 h-4" />
+                <span>Preview Questions</span>
+              </div>
+              {isExpanded ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Expandable Questions Section */}
+      {isExpanded && (
+        <div className="border-t border-gray-200 bg-white">
+          <div className="p-4">
+            <h4 className="text-sm font-medium text-gray-900 mb-3">
+              Questions ({questionCount})
+            </h4>
+            
+            {loadingQuestions ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div>
+                <span className="ml-2 text-sm text-gray-500">Loading questions...</span>
+              </div>
+            ) : questions.length > 0 ? (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {questions.map((question, index) => (
+                  <div
+                    key={question.id}
+                    className="p-3 bg-gray-50 rounded-md border border-gray-100"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h5 className="text-sm font-medium text-gray-800">
+                          {index + 1}. {question.title}
+                        </h5>
+                        <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                          {question.content?.replace(/<[^>]*>/g, '') || 'No content'}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-1 text-xs rounded-full ml-2 ${
+                        question.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
+                        question.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {question.difficulty}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                <HelpCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">No questions available</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="p-3 border-t border-gray-100 flex items-center justify-end gap-2">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick();
+          }}
+          className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+          title="View"
+        >
+          <Eye className="w-4 h-4" />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+          title="Edit"
+        >
+          <Edit className="w-4 h-4" />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDuplicate();
+          }}
+          className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+          title="Duplicate"
+        >
+          <Copy className="w-4 h-4" />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+          title="Delete"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
   );
 };
 

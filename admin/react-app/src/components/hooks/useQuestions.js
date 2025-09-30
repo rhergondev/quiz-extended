@@ -288,67 +288,65 @@ export const useQuestions = (options = {}) => {
 
   // --- CREATE QUESTION ---
   const createQuestion = useCallback(async (questionData) => {
-    try {
-      setCreating(true);
-      setError(null);
-      
-      const config = getApiConfig();
-      
-      // --- LÓGICA DE PUNTUACIÓN AUTOMÁTICA (se mantiene) ---
-      const points_for_correct = 1;
-      let points_for_incorrect = 0;
-      if (questionData.type === 'multiple_choice' && questionData.options.length > 1) {
-        points_for_incorrect = 1 / (questionData.options.length - 1);
-      }
-      
-      // Transformamos los datos del modal al formato que la API necesita
-      const apiData = {
-        title: questionData.title || '',
-        content: questionData.explanation || '', // 🛑 CAMBIADO: 'content' ahora va vacío. Ya no usamos explanation.
-        status: questionData.status || 'draft',
-        meta: {
-          _quiz_id: questionData.quizId || '',
-          _question_lesson: questionData.lessonId || '',     // ❇️ AÑADIDO
-          _question_provider: questionData.provider || '',   // ❇️ AÑADIDO
-          _question_type: questionData.type || 'multiple_choice',
-          _difficulty_level: questionData.difficulty || 'medium',
-          _question_category: questionData.category || '',
-          _explanation: questionData.explanation || '',
-          _question_options: questionData.options || [],
-          _points_correct: points_for_correct.toString(),
-          _points_incorrect: points_for_incorrect.toFixed(4).toString(),
-          // _time_limit, _feedback, etc., ya no existen.
-        }
-      };
-
-      console.log('🚀 Creating question with NEW payload:', apiData);
-
-      const response = await makeApiRequest(config.endpoints.questions, {
-        method: 'POST',
-        body: JSON.stringify(apiData)
-      });
-
-      // ... el resto de la función sigue igual ...
-      const newQuestion = await response.json();
-      
-      setQuestions(prev => [newQuestion, ...prev]);
-      
-      setPagination(prev => ({
-        ...prev,
-        total: prev.total + 1
-      }));
-
-      console.log('✅ Question created:', newQuestion);
-      return newQuestion;
-      
-    } catch (err) {
-      console.error('❌ Error creating question:', err);
-      setError(err.message || 'Failed to create question');
-      throw err;
-    } finally {
-      setCreating(false);
+  try {
+    setCreating(true);
+    setError(null);
+    
+    const config = getApiConfig();
+    
+    const points_for_correct = 1;
+    let points_for_incorrect = 0;
+    if (questionData.type === 'multiple_choice' && questionData.options.length > 1) {
+      points_for_incorrect = 1 / (questionData.options.length - 1);
     }
-  }, []);
+    
+    const apiData = {
+      title: questionData.title || '',
+      content: questionData.explanation || '',
+      status: questionData.status || 'draft',
+      meta: {
+        _quiz_ids: questionData.quizIds || [], // ❇️ Array de quiz IDs
+        _question_lesson: questionData.lessonId || '',
+        _question_provider: questionData.provider || '',
+        _course_id: questionData.courseId || '',
+        _question_type: questionData.type || 'multiple_choice',
+        _difficulty_level: questionData.difficulty || 'medium',
+        _question_category: questionData.category || '',
+        _explanation: questionData.explanation || '',
+        _question_options: questionData.options || [],
+        _points_correct: points_for_correct.toString(),
+        _points_incorrect: points_for_incorrect.toFixed(4).toString(),
+      }
+    };
+
+    console.log('🚀 Creating question with payload:', apiData);
+
+    const response = await makeApiRequest(config.endpoints.questions, {
+      method: 'POST',
+      body: JSON.stringify(apiData)
+    });
+
+    const newQuestion = await response.json();
+    
+    setQuestions(prev => [newQuestion, ...prev]);
+    
+    setPagination(prev => ({
+      ...prev,
+      total: prev.total + 1
+    }));
+
+    console.log('✅ Question created:', newQuestion);
+    return newQuestion;
+    
+  } catch (err) {
+    console.error('❌ Error creating question:', err);
+    setError(err.message || 'Failed to create question');
+    throw err;
+  } finally {
+    setCreating(false);
+  }
+}, []);
+
 
   const updateQuestion = useCallback(async (questionId, questionData) => {
   try {
@@ -357,15 +355,15 @@ export const useQuestions = (options = {}) => {
 
     const config = getApiConfig();
 
-    // La estructura de datos es idéntica a la de creación
     const apiData = {
       title: questionData.title || '',
       content: questionData.explanation || '',
       status: questionData.status || 'publish',
       meta: {
-        _quiz_id: questionData.quizId || '',
+        _quiz_ids: questionData.quizIds || [], // ❇️ Array de quiz IDs
         _question_lesson: questionData.lessonId || '',
         _question_provider: questionData.provider || '',
+        _course_id: questionData.courseId || '',
         _question_type: questionData.type || 'multiple_choice',
         _difficulty_level: questionData.difficulty || 'medium',
         _question_category: questionData.category || '',
@@ -376,7 +374,6 @@ export const useQuestions = (options = {}) => {
 
     console.log(`🚀 Updating question ${questionId} with payload:`, apiData);
 
-    // La URL ahora incluye el ID de la pregunta y el método es POST (WP lo usa para actualizar)
     const response = await makeApiRequest(`${config.endpoints.questions}/${questionId}`, {
       method: 'POST',
       body: JSON.stringify(apiData)
@@ -384,14 +381,13 @@ export const useQuestions = (options = {}) => {
 
     const updatedQuestion = await response.json();
 
-    // Actualizamos el estado local para que la UI reaccione sin recargar
     setQuestions(prev => 
       prev.map(q => (q.id === questionId ? updatedQuestion : q))
     );
 
     console.log('✅ Question updated:', updatedQuestion);
     return updatedQuestion;
-
+    
   } catch (err) {
     console.error('❌ Error updating question:', err);
     setError(err.message || 'Failed to update question');

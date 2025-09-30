@@ -1,317 +1,149 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { getApiConfig } from '../../api/config/apiConfig.js';
+// admin/react-app/src/components/hooks/useQuizzes.js
 
-/**
- * Custom hook for quiz management
- * FIXED VERSION - Added proper debouncing to prevent unlimited API calls
- */
-export const useQuizzes = (options = {}) => {
-  const { 
-    courseId = null,
-    difficulty = null,
-    category = null,
-    search = '',
-    autoFetch = true,
-    initialFilters = {},
-    debounceMs = 500 // Debounce delay for search and filters
-  } = options;
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { getApiConfig, getDefaultHeaders, buildUrl } from '../../api/config/apiConfig';
 
-  // --- STATE ---
+export const useQuizzes = (autoFetch = true) => {
   const [quizzes, setQuizzes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
     total: 0,
-    perPage: 20
+    perPage: 20,
+    hasMore: false
   });
-  const [hasMore, setHasMore] = useState(false);
 
-  // Filters state
   const [filters, setFilters] = useState({
-    search: search || '',
-    courseId: courseId,
-    difficulty: difficulty,
-    category: category,
-    status: 'publish,draft,private',
-    ...initialFilters
+    search: '',
+    courseId: 'all',
+    difficulty: 'all',
+    category: 'all',
+    quizType: 'all'
   });
 
-  // Refs para evitar re-renders innecesarios
-  const currentFiltersRef = useRef(filters);
-  const optionsRef = useRef(options);
-  const debounceTimeoutRef = useRef(null);
-  const mountedRef = useRef(true);
-  const lastFetchParamsRef = useRef('');
-
-  // Update refs when values change
-  useEffect(() => {
-    currentFiltersRef.current = filters;
-  }, [filters]);
-
-  useEffect(() => {
-    optionsRef.current = options;
-  }, [options]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // --- API FUNCTIONS ---
-  const makeApiRequest = async (url, requestOptions = {}) => {
+  // Fetch quizzes
+  const fetchQuizzes = useCallback(async (reset = false) => {
     try {
+      setLoading(true);
+      setError(null);
+
       const config = getApiConfig();
-      
-      const defaultOptions = {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-WP-Nonce': config.nonce,
-        },
-        credentials: 'same-origin',
-        ...requestOptions
+      const page = reset ? 1 : pagination.currentPage + 1;
+
+      // Build query parameters
+      const params = {
+        per_page: pagination.perPage,
+        page: page,
+        _embed: true // Para obtener datos relacionados si es necesario
       };
 
-      const response = await fetch(url, defaultOptions);
-      
+      if (filters.search) {
+        params.search = filters.search;
+      }
+      if (filters.courseId && filters.courseId !== 'all') {
+        params.course_id = filters.courseId;
+      }
+      if (filters.difficulty && filters.difficulty !== 'all') {
+        params.difficulty = filters.difficulty;
+      }
+      if (filters.category && filters.category !== 'all') {
+        params.category = filters.category;
+      }
+      if (filters.quizType && filters.quizType !== 'all') {
+        params.quiz_type = filters.quizType;
+      }
+
+      const url = buildUrl(config.endpoints.quizzes, params);
+
+      console.log('🔍 Fetching quizzes from:', url);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: getDefaultHeaders(),
+        credentials: 'same-origin'
+      });
+
       if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`API Error ${response.status}: ${response.statusText} - ${errorData}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
-      return response;
-    } catch (error) {
-      console.error('API Request Error:', error);
-      throw error;
-    }
-  };
-
-  // --- FETCH QUIZZES WITH DUPLICATE PREVENTION ---
-  const fetchQuizzes = useCallback(async (fetchOptions = {}) => {
-    const { 
-      reset = false,
-      page = 1,
-      additionalFilters = {}
-    } = fetchOptions;
-
-    try {
-      if (reset) {
-        setLoading(true);
-        setError(null);
-      }
-
-      const config = getApiConfig();
-      const currentFilters = currentFiltersRef.current;
-      
-      // Build query params
-      const queryParams = new URLSearchParams({
-        page: page.toString(),
-        per_page: '20',
-        status: currentFilters.status || 'publish,draft',
-        _embed: 'true'
-      });
-
-      // Add search
-      if (currentFilters.search) {
-        queryParams.append('search', currentFilters.search);
-      }
-
-      // Add course filter
-      if (currentFilters.courseId) {
-        queryParams.append('meta_query[0][key]', '_course_id');
-        queryParams.append('meta_query[0][value]', currentFilters.courseId.toString());
-        queryParams.append('meta_query[0][compare]', '=');
-      }
-
-      // Add difficulty filter
-      if (currentFilters.difficulty) {
-        const diffIndex = currentFilters.courseId ? 1 : 0;
-        queryParams.append(`meta_query[${diffIndex}][key]`, '_difficulty_level');
-        queryParams.append(`meta_query[${diffIndex}][value]`, currentFilters.difficulty);
-        queryParams.append(`meta_query[${diffIndex}][compare]`, '=');
-      }
-
-      // Add category filter
-      if (currentFilters.category) {
-        const catIndex = (currentFilters.courseId ? 1 : 0) + (currentFilters.difficulty ? 1 : 0);
-        queryParams.append(`meta_query[${catIndex}][key]`, '_quiz_category');
-        queryParams.append(`meta_query[${catIndex}][value]`, currentFilters.category);
-        queryParams.append(`meta_query[${catIndex}][compare]`, '=');
-      }
-
-      // Set meta query relation if multiple filters
-      const filterCount = [currentFilters.courseId, currentFilters.difficulty, currentFilters.category].filter(Boolean).length;
-      if (filterCount > 1) {
-        queryParams.append('meta_query[relation]', 'AND');
-      }
-
-      // Add additional filters
-      Object.entries(additionalFilters).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
-          queryParams.append(key, value);
-        }
-      });
-
-      const url = `${config.endpoints.quizzes}?${queryParams}`;
-      
-      // 🔥 PREVENT DUPLICATE REQUESTS
-      const currentRequestParams = `${url}-${page}-${reset}`;
-      if (currentRequestParams === lastFetchParamsRef.current) {
-        console.log('🚫 Duplicate request prevented:', url);
-        return;
-      }
-      lastFetchParamsRef.current = currentRequestParams;
-
-      console.log('🚀 Fetching quizzes:', url);
-
-      const response = await makeApiRequest(url);
       const data = await response.json();
 
-      // Check if component is still mounted
-      if (!mountedRef.current) return;
+      const totalPages = parseInt(response.headers.get('X-WP-TotalPages') || '1');
+      const total = parseInt(response.headers.get('X-WP-Total') || '0');
 
-      // Extract pagination from headers
-      const totalHeader = response.headers.get('X-WP-Total');
-      const totalPagesHeader = response.headers.get('X-WP-TotalPages');
-      
-      const newPagination = {
+      setQuizzes(prev => reset ? data : [...prev, ...data]);
+      setPagination({
         currentPage: page,
-        totalPages: totalPagesHeader ? parseInt(totalPagesHeader, 10) : 1,
-        total: totalHeader ? parseInt(totalHeader, 10) : data.length,
-        perPage: 20
-      };
+        totalPages,
+        total,
+        perPage: pagination.perPage,
+        hasMore: page < totalPages
+      });
 
-      setPagination(newPagination);
-      setHasMore(page < newPagination.totalPages);
+      console.log(`✅ Loaded ${data.length} quizzes (page ${page}/${totalPages})`);
 
-      if (reset || page === 1) {
-        setQuizzes(data);
-      } else {
-        setQuizzes(prevQuizzes => {
-          const existingIds = new Set(prevQuizzes.map(q => q.id));
-          const newQuizzes = data.filter(q => !existingIds.has(q.id));
-          return [...prevQuizzes, ...newQuizzes];
-        });
-      }
-
-      console.log('✅ Quizzes loaded:', data.length);
-      
     } catch (err) {
       console.error('❌ Error fetching quizzes:', err);
-      if (mountedRef.current) {
-        setError(err.message || 'Failed to fetch quizzes');
-        
-        if (reset || page === 1) {
-          setQuizzes([]);
-          setPagination({ currentPage: 1, totalPages: 1, total: 0, perPage: 20 });
-          setHasMore(false);
-        }
-      }
+      setError(err.message || 'Failed to fetch quizzes');
     } finally {
-      if (mountedRef.current) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
-  }, []);
+  }, [pagination.currentPage, pagination.perPage, filters]);
 
-  // --- DEBOUNCED FETCH FUNCTION ---
-  const debouncedFetch = useCallback((fetchOptions = {}) => {
-    // Clear existing timeout
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-
-    // Set new timeout
-    debounceTimeoutRef.current = setTimeout(() => {
-      if (mountedRef.current) {
-        fetchQuizzes({ reset: true, ...fetchOptions });
-      }
-    }, debounceMs);
-  }, [fetchQuizzes, debounceMs]);
-
-  // --- INITIAL LOAD (NO DEBOUNCE) ---
-  useEffect(() => {
-    if (autoFetch) {
-      console.log('🎯 Initial quiz load');
-      fetchQuizzes({ reset: true });
-    }
-  }, []); // Only run on mount
-
-  // --- UPDATE FILTERS (NO FETCH YET) ---
-  useEffect(() => {
-    setFilters(prev => {
-      const newFilters = {
-        ...prev,
-        search: search || '',
-        courseId: courseId,
-        difficulty: difficulty,
-        category: category
-      };
-      
-      // Only update if something actually changed
-      if (JSON.stringify(newFilters) !== JSON.stringify(prev)) {
-        return newFilters;
-      }
-      return prev;
-    });
-  }, [search, courseId, difficulty, category]);
-
-  // --- DEBOUNCED REFETCH WHEN FILTERS CHANGE ---
-  useEffect(() => {
-    if (autoFetch) {
-      console.log('🔄 Filters changed, debouncing fetch...');
-      debouncedFetch();
-    }
-  }, [filters, debouncedFetch, autoFetch]);
-
-  // --- CREATE QUIZ ---
+  // Create quiz
   const createQuiz = useCallback(async (quizData) => {
     try {
       setCreating(true);
       setError(null);
-      
+
       const config = getApiConfig();
-      
-      // Transform data for API
+
       const apiData = {
         title: quizData.title || '',
-        content: quizData.content || '',
-        excerpt: quizData.excerpt || '',
-        status: quizData.status || 'draft',
+        content: quizData.instructions || '',
+        status: quizData.status || 'publish',
         meta: {
           _course_id: quizData.courseId || '',
           _difficulty_level: quizData.difficulty || 'medium',
           _quiz_category: quizData.category || '',
-          _time_limit: quizData.timeLimit || '0',
-          _max_attempts: quizData.maxAttempts || '0',
-          _passing_score: quizData.passingScore || '70',
+          _time_limit: quizData.timeLimit || '',
+          _max_attempts: quizData.maxAttempts || '',
+          _passing_score: quizData.passingScore || '50',
           _randomize_questions: quizData.randomizeQuestions ? 'yes' : 'no',
           _show_results: quizData.showResults ? 'yes' : 'no',
           _quiz_question_ids: quizData.questionIds || [],
-          ...quizData.meta
+          _quiz_instructions: quizData.instructions || '',
+          _quiz_type: quizData.quizType || 'assessment',
+          _enable_negative_scoring: quizData.enableNegativeScoring || false,
         }
       };
 
-      console.log('🚀 Creating quiz:', apiData);
+      console.log('🚀 Creating quiz with payload:', apiData);
 
-      const response = await makeApiRequest(config.endpoints.quizzes, {
+      const response = await fetch(config.endpoints.quizzes, {
         method: 'POST',
+        headers: getDefaultHeaders(),
+        credentials: 'same-origin',
         body: JSON.stringify(apiData)
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
       const newQuiz = await response.json();
-      
-      // Add to quizzes list
+
       setQuizzes(prev => [newQuiz, ...prev]);
-      
-      // Update pagination
+
       setPagination(prev => ({
         ...prev,
         total: prev.total + 1
@@ -319,7 +151,7 @@ export const useQuizzes = (options = {}) => {
 
       console.log('✅ Quiz created:', newQuiz);
       return newQuiz;
-      
+
     } catch (err) {
       console.error('❌ Error creating quiz:', err);
       setError(err.message || 'Failed to create quiz');
@@ -329,70 +161,136 @@ export const useQuizzes = (options = {}) => {
     }
   }, []);
 
-  // --- DELETE QUIZ ---
-  const deleteQuiz = useCallback(async (quizId) => {
+  // Update quiz
+  const updateQuiz = useCallback(async (quizId, quizData) => {
     try {
+      setUpdating(true);
       setError(null);
-      
-      const config = getApiConfig();
-      
-      console.log('🗑️ Deleting quiz:', quizId);
 
-      await makeApiRequest(`${config.endpoints.quizzes}/${quizId}`, {
-        method: 'DELETE'
+      const config = getApiConfig();
+
+      const apiData = {
+        title: quizData.title || '',
+        content: quizData.instructions || '',
+        status: quizData.status || 'publish',
+        meta: {
+          _course_id: quizData.courseId || '',
+          _difficulty_level: quizData.difficulty || 'medium',
+          _quiz_category: quizData.category || '',
+          _time_limit: quizData.timeLimit || '',
+          _max_attempts: quizData.maxAttempts || '',
+          _passing_score: quizData.passingScore || '50',
+          _randomize_questions: quizData.randomizeQuestions ? 'yes' : 'no',
+          _show_results: quizData.showResults ? 'yes' : 'no',
+          _quiz_question_ids: quizData.questionIds || [],
+          _quiz_instructions: quizData.instructions || '',
+          _quiz_type: quizData.quizType || 'assessment',
+          _enable_negative_scoring: quizData.enableNegativeScoring || false,
+        }
+      };
+
+      console.log(`🚀 Updating quiz ${quizId} with payload:`, apiData);
+
+      const response = await fetch(`${config.endpoints.quizzes}/${quizId}`, {
+        method: 'POST',
+        headers: getDefaultHeaders(),
+        credentials: 'same-origin',
+        body: JSON.stringify(apiData)
       });
 
-      // Remove from quizzes list
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const updatedQuiz = await response.json();
+
+      setQuizzes(prev =>
+        prev.map(q => (q.id === quizId ? updatedQuiz : q))
+      );
+
+      console.log('✅ Quiz updated:', updatedQuiz);
+      return updatedQuiz;
+
+    } catch (err) {
+      console.error('❌ Error updating quiz:', err);
+      setError(err.message || 'Failed to update quiz');
+      throw err;
+    } finally {
+      setUpdating(false);
+    }
+  }, []);
+
+  // Delete quiz
+  const deleteQuiz = useCallback(async (quizId) => {
+    try {
+      setDeleting(true);
+      setError(null);
+
+      const config = getApiConfig();
+
+      console.log(`🗑️ Deleting quiz ${quizId}`);
+
+      const response = await fetch(`${config.endpoints.quizzes}/${quizId}`, {
+        method: 'DELETE',
+        headers: getDefaultHeaders(),
+        credentials: 'same-origin'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
       setQuizzes(prev => prev.filter(q => q.id !== quizId));
-      
-      // Update pagination
+
       setPagination(prev => ({
         ...prev,
-        total: Math.max(0, prev.total - 1)
+        total: prev.total - 1
       }));
 
       console.log('✅ Quiz deleted');
-      
+
     } catch (err) {
       console.error('❌ Error deleting quiz:', err);
       setError(err.message || 'Failed to delete quiz');
       throw err;
+    } finally {
+      setDeleting(false);
     }
   }, []);
 
-  // --- DUPLICATE QUIZ ---
+  // Duplicate quiz
   const duplicateQuiz = useCallback(async (quizId) => {
     try {
+      setCreating(true);
       setError(null);
-      
-      // Find the original quiz
-      const originalQuiz = quizzes.find(q => q.id === quizId);
-      if (!originalQuiz) {
+
+      const quizToDuplicate = quizzes.find(q => q.id === quizId);
+      if (!quizToDuplicate) {
         throw new Error('Quiz not found');
       }
 
-      // Create duplicate data
-      const duplicateData = {
-        title: `${originalQuiz.title?.rendered || originalQuiz.title} (Copy)`,
-        content: originalQuiz.content?.rendered || originalQuiz.content || '',
-        excerpt: originalQuiz.excerpt?.rendered || originalQuiz.excerpt || '',
-        status: 'draft',
-        courseId: originalQuiz.meta?._course_id,
-        difficulty: originalQuiz.meta?._difficulty_level,
-        category: originalQuiz.meta?._quiz_category,
-        timeLimit: originalQuiz.meta?._time_limit,
-        maxAttempts: originalQuiz.meta?._max_attempts,
-        passingScore: originalQuiz.meta?._passing_score,
-        randomizeQuestions: originalQuiz.meta?._randomize_questions === 'yes',
-        showResults: originalQuiz.meta?._show_results === 'yes',
-        questionIds: originalQuiz.meta?._quiz_question_ids || [],
-        meta: originalQuiz.meta
+      const duplicatedData = {
+        title: `${quizToDuplicate.title?.rendered || quizToDuplicate.title} (Copy)`,
+        instructions: quizToDuplicate.content?.rendered || quizToDuplicate.content || '',
+        courseId: quizToDuplicate.meta?._course_id || '',
+        difficulty: quizToDuplicate.meta?._difficulty_level || 'medium',
+        category: quizToDuplicate.meta?._quiz_category || '',
+        timeLimit: quizToDuplicate.meta?._time_limit || '',
+        maxAttempts: quizToDuplicate.meta?._max_attempts || '',
+        passingScore: quizToDuplicate.meta?._passing_score || '50',
+        randomizeQuestions: quizToDuplicate.meta?._randomize_questions === 'yes',
+        showResults: quizToDuplicate.meta?._show_results === 'yes',
+        questionIds: quizToDuplicate.meta?._quiz_question_ids || [],
+        quizType: quizToDuplicate.meta?._quiz_type || 'assessment',
+        enableNegativeScoring: quizToDuplicate.meta?._enable_negative_scoring || false,
       };
 
-      console.log('📋 Duplicating quiz:', quizId);
-      
-      return await createQuiz(duplicateData);
-      
+      const newQuiz = await createQuiz(duplicatedData);
+      console.log('✅ Quiz duplicated');
+      return newQuiz;
+
     } catch (err) {
       console.error('❌ Error duplicating quiz:', err);
       setError(err.message || 'Failed to duplicate quiz');
@@ -400,76 +298,67 @@ export const useQuizzes = (options = {}) => {
     }
   }, [quizzes, createQuiz]);
 
-  // --- PAGINATION ---
-  const loadMoreQuizzes = useCallback(() => {
-    if (hasMore && !loading) {
-      fetchQuizzes({ 
-        page: pagination.currentPage + 1,
-        reset: false 
-      });
+  // Auto-fetch on mount if enabled
+  useEffect(() => {
+    if (autoFetch && quizzes.length === 0) {
+      fetchQuizzes(true);
     }
-  }, [hasMore, loading, pagination.currentPage, fetchQuizzes]);
+  }, []);
 
-  const refreshQuizzes = useCallback(() => {
-    lastFetchParamsRef.current = ''; // Reset duplicate prevention
-    fetchQuizzes({ reset: true });
-  }, [fetchQuizzes]);
+  // Refetch when filters change
+  useEffect(() => {
+    if (autoFetch) {
+      const timeoutId = setTimeout(() => {
+        fetchQuizzes(true);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [filters]);
 
-  // --- COMPUTED VALUES ---
   const computed = useMemo(() => {
     return {
       totalQuizzes: quizzes.length,
       publishedQuizzes: quizzes.filter(q => q.status === 'publish').length,
       draftQuizzes: quizzes.filter(q => q.status === 'draft').length,
       privateQuizzes: quizzes.filter(q => q.status === 'private').length,
+      totalAttempts: quizzes.reduce((sum, quiz) => sum + (quiz.total_attempts || 0), 0),
+      totalQuestions: quizzes.reduce((sum, quiz) => {
+        const questionCount = quiz.questions_count || quiz.meta?._quiz_question_ids?.length || 0;
+        return sum + questionCount;
+      }, 0),
       quizzesByDifficulty: quizzes.reduce((acc, quiz) => {
         const difficulty = quiz.meta?._difficulty_level || 'medium';
         acc[difficulty] = (acc[difficulty] || 0) + 1;
         return acc;
       }, {}),
       quizzesByCategory: quizzes.reduce((acc, quiz) => {
-        const category = quiz.meta?._quiz_category || 'assessment';
+        const category = quiz.meta?._quiz_category || 'uncategorized';
         acc[category] = (acc[category] || 0) + 1;
         return acc;
       }, {}),
-      averageTimeLimit: quizzes.length > 0 ? 
-        Math.round(quizzes.reduce((sum, quiz) => {
-          return sum + parseInt(quiz.meta?._time_limit || '0');
-        }, 0) / quizzes.length) : 0,
-      averagePassingScore: quizzes.length > 0 ? 
-        Math.round(quizzes.reduce((sum, quiz) => {
-          return sum + parseInt(quiz.meta?._passing_score || '70');
-        }, 0) / quizzes.length) : 70,
-      quizzesWithTimeLimit: quizzes.filter(quiz => 
-        parseInt(quiz.meta?._time_limit || '0') > 0
-      ).length,
-      quizzesWithRandomization: quizzes.filter(quiz => 
-        quiz.meta?._randomize_questions === 'yes'
-      ).length,
-      totalAttempts: 0, // Este valor vendría de la API en una implementación real
-      performanceScore: 0 // Este valor vendría de la API en una implementación real
+      quizzesByType: quizzes.reduce((acc, quiz) => {
+        const type = quiz.meta?._quiz_type || 'assessment';
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      }, {})
     };
   }, [quizzes]);
 
   return {
-    // Data
     quizzes,
     loading,
-    creating,
     error,
     pagination,
-    hasMore,
     filters,
-    computed,
-
-    // Methods
+    setFilters,
+    fetchQuizzes,
     createQuiz,
+    updateQuiz,
     deleteQuiz,
     duplicateQuiz,
-    refreshQuizzes,
-    loadMoreQuizzes,
-    fetchQuizzes: debouncedFetch // Export debounced version
+    creating,
+    updating,
+    deleting,
+    computed
   };
 };
-
-export default useQuizzes;
