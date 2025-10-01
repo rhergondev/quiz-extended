@@ -69,6 +69,73 @@ final class QE_Loader
     private function __construct()
     {
         $this->plugin_dir = QUIZ_EXTENDED_PLUGIN_DIR;
+        add_action('plugins_loaded', [$this, 'load_textdomain']);
+        add_action('admin_enqueue_scripts', [$this, 'set_script_translations'], 100);
+
+    }
+
+    /**
+     * Load plugin textdomain for translations.
+     *
+     * @since 2.0.0
+     */
+    public function load_textdomain()
+    {
+        $locale = apply_filters('plugin_locale', determine_locale(), 'quiz-extended');
+        $mofile = 'quiz-extended-' . $locale . '.mo';
+
+        // Try to load from WP_LANG_DIR first (for manual installations)
+        $mofile_global = WP_LANG_DIR . '/plugins/' . $mofile;
+
+        if (file_exists($mofile_global)) {
+            load_textdomain('quiz-extended', $mofile_global);
+        } else {
+            // Load from plugin languages directory
+            load_plugin_textdomain(
+                'quiz-extended',
+                false,
+                dirname(plugin_basename(QUIZ_EXTENDED_PLUGIN_DIR . 'quiz-extended.php')) . '/languages/'
+            );
+        }
+
+        // Log for debugging
+        $this->log_info('Textdomain loaded', [
+            'locale' => $locale,
+            'mofile' => $mofile,
+            'plugin_dir' => QUIZ_EXTENDED_PLUGIN_DIR . 'languages/',
+            'loaded' => is_textdomain_loaded('quiz-extended')
+        ]);
+    }
+
+    /**
+     * Set script translations for JavaScript
+     *
+     * @since 2.0.0
+     */
+    public function set_script_translations()
+    {
+        // Get all registered scripts that contain 'quiz-extended'
+        global $wp_scripts;
+
+        if (!$wp_scripts) {
+            return;
+        }
+
+        foreach ($wp_scripts->registered as $handle => $script) {
+            if (strpos($handle, 'quiz-extended') !== false) {
+                wp_set_script_translations(
+                    $handle,
+                    'quiz-extended',
+                    QUIZ_EXTENDED_PLUGIN_DIR . 'languages'
+                );
+
+                $this->log_info('Script translations set', [
+                    'handle' => $handle,
+                    'domain' => 'quiz-extended',
+                    'path' => QUIZ_EXTENDED_PLUGIN_DIR . 'languages'
+                ]);
+            }
+        }
     }
 
     /**

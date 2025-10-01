@@ -1,0 +1,1176 @@
+# Copyright (C) 2025 Haz Historia
+# This file is distributed under the GPLv3 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Quiz Extended LMS 0.1.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/quiz-extended\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2025-10-01T15:55:12+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: quiz-extended\n"
+
+#. Plugin Name of the plugin
+#: quiz-extended.php
+#: admin/class-qe-admin-menu.php:47
+msgid "Quiz Extended LMS"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: quiz-extended.php
+msgid "https://github.com/rhergondev/quiz-extended"
+msgstr ""
+
+#. Description of the plugin
+#: quiz-extended.php
+msgid "Un LMS personalizado para gestionar cursos, preguntas y rankings."
+msgstr ""
+
+#. Author of the plugin
+#: quiz-extended.php
+msgid "Haz Historia"
+msgstr ""
+
+#. Author URI of the plugin
+#: quiz-extended.php
+msgid "https://hazhistoria.net"
+msgstr ""
+
+#: admin/class-qe-admin-menu.php:48
+#: includes/post-types/types/class-qe-course-type.php:38
+msgid "Quiz LMS"
+msgstr ""
+
+#: admin/class-qe-admin-menu.php:56
+#: admin/class-qe-assets.php:77
+msgid "Dashboard"
+msgstr ""
+
+#: admin/class-qe-admin-menu.php:57
+#: admin/class-qe-assets.php:78
+#: includes/post-types/types/class-qe-course-type.php:36
+msgid "Courses"
+msgstr ""
+
+#: admin/class-qe-admin-menu.php:58
+#: admin/class-qe-assets.php:79
+#: includes/post-types/types/class-qe-lesson-type.php:36
+msgid "Lessons"
+msgstr ""
+
+#: admin/class-qe-admin-menu.php:59
+#: admin/class-qe-assets.php:80
+#: includes/post-types/types/class-qe-quiz-type.php:36
+msgid "Quizzes"
+msgstr ""
+
+#: admin/class-qe-admin-menu.php:60
+#: admin/class-qe-assets.php:81
+#: includes/post-types/types/class-qe-question-type.php:36
+msgid "Questions"
+msgstr ""
+
+#: admin/class-qe-admin-menu.php:61
+#: admin/class-qe-assets.php:82
+msgid "Students"
+msgstr ""
+
+#: admin/class-qe-admin-menu.php:62
+#: admin/class-qe-assets.php:83
+msgid "Settings"
+msgstr ""
+
+#: admin/class-qe-assets.php:84
+#: includes/post-types/types/class-qe-course-type.php:39
+#: includes/post-types/types/class-qe-lesson-type.php:38
+#: includes/post-types/types/class-qe-question-type.php:38
+#: includes/post-types/types/class-qe-quiz-type.php:38
+msgid "Add New"
+msgstr ""
+
+#: admin/class-qe-assets.php:85
+msgid "Edit"
+msgstr ""
+
+#: admin/class-qe-assets.php:86
+msgid "Delete"
+msgstr ""
+
+#: admin/class-qe-assets.php:87
+msgid "Save"
+msgstr ""
+
+#: admin/class-qe-assets.php:88
+msgid "Cancel"
+msgstr ""
+
+#: admin/class-qe-assets.php:89
+msgid "Loading..."
+msgstr ""
+
+#: admin/class-qe-assets.php:90
+msgid "An error occurred"
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:162
+msgid "Parameter must be a number."
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:170
+#, php-format
+msgid "Parameter must be at least %d."
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:177
+#, php-format
+msgid "Parameter must be at most %d."
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:186
+msgid "Parameter must be a string."
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:194
+#, php-format
+msgid "Parameter must be at most %d characters."
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:202
+#, php-format
+msgid "Parameter must be one of: %s"
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:211
+msgid "Parameter must be an array."
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:230
+msgid "Parameter must be a boolean."
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:307
+#: includes/security/class-qe-auth.php:330
+#: includes/security/class-qe-auth.php:653
+msgid "You must be logged in to access this resource."
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:317
+msgid "Invalid security token. Please refresh and try again."
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:337
+msgid "You do not have access to this course."
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:392
+msgid "Validation failed."
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:652
+#, php-format
+msgid "%s not found."
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:660
+#, php-format
+msgid "Invalid %s ID."
+msgstr ""
+
+#: includes/api/class-qe-api-base.php:681
+msgid "User not found."
+msgstr ""
+
+#: includes/api/class-qe-feedback-rankings-api.php:106
+msgid "Could not submit feedback. Please try again."
+msgstr ""
+
+#: includes/api/class-qe-feedback-rankings-api.php:130
+#: includes/api/class-qe-feedback-rankings-api.php:215
+#: includes/api/class-qe-quiz-attempts-api.php:178
+#: includes/api/class-qe-quiz-attempts-api.php:295
+#: includes/api/class-qe-student-progress-api.php:161
+#: includes/api/class-qe-student-progress-api.php:240
+msgid "An unexpected error occurred. Please try again."
+msgstr ""
+
+#: includes/api/class-qe-quiz-attempts-api.php:105
+msgid "This quiz is not currently available."
+msgstr ""
+
+#: includes/api/class-qe-quiz-attempts-api.php:114
+msgid "You do not have permission to take this quiz."
+msgstr ""
+
+#: includes/api/class-qe-quiz-attempts-api.php:134
+msgid "Could not create quiz attempt. Please try again."
+msgstr ""
+
+#: includes/api/class-qe-quiz-attempts-api.php:218
+msgid "This quiz attempt has already been submitted."
+msgstr ""
+
+#: includes/api/class-qe-quiz-attempts-api.php:241
+msgid "Could not update quiz attempt. Please try again."
+msgstr ""
+
+#: includes/api/class-qe-quiz-attempts-api.php:256
+msgid "An unexpected error occurred while saving the attempt."
+msgstr ""
+
+#: includes/api/class-qe-quiz-attempts-api.php:331
+#: includes/api/class-qe-quiz-attempts-api.php:505
+msgid "Quiz attempt not found."
+msgstr ""
+
+#: includes/api/class-qe-quiz-attempts-api.php:346
+msgid "You cannot submit this quiz attempt."
+msgstr ""
+
+#: includes/api/class-qe-quiz-attempts-api.php:386
+#, php-format
+msgid "You have reached the maximum number of attempts (%d) for this quiz."
+msgstr ""
+
+#: includes/api/class-qe-quiz-attempts-api.php:428
+msgid "This quiz has no questions assigned."
+msgstr ""
+
+#: includes/class-qe-enrollment.php:192
+#, php-format
+msgid "User enrolled in %d course(s): %s"
+msgstr ""
+
+#: includes/class-qe-enrollment.php:297
+#, php-format
+msgid "User unenrolled from %d course(s) due to refund"
+msgstr ""
+
+#: includes/class-qe-enrollment.php:363
+#, php-format
+msgid "User unenrolled from %d course(s) due to cancellation"
+msgstr ""
+
+#: includes/class-qe-enrollment.php:391
+msgid "Link to LMS Course"
+msgstr ""
+
+#: includes/class-qe-enrollment.php:428
+msgid "Select Course:"
+msgstr ""
+
+#: includes/class-qe-enrollment.php:433
+msgid "-- No Course Linked --"
+msgstr ""
+
+#: includes/class-qe-enrollment.php:442
+msgid "When a customer purchases this product, they will be automatically enrolled in the selected course."
+msgstr ""
+
+#: includes/class-qe-enrollment.php:449
+#: includes/post-types/types/class-qe-course-type.php:41
+msgid "Edit Course"
+msgstr ""
+
+#: includes/class-qe-enrollment.php:462
+msgid "Error loading courses. Please check the error log."
+msgstr ""
+
+#: includes/class-qe-enrollment.php:544
+#, php-format
+msgid "Failed to link course: %s"
+msgstr ""
+
+#: includes/class-qe-enrollment.php:569
+msgid "Quiz Extended LMS:"
+msgstr ""
+
+#: includes/class-qe-enrollment.php:570
+msgid "WooCommerce is not active. Course enrollment through purchases will not work."
+msgstr ""
+
+#: includes/class-qe-loader.php:532
+msgid "System Diagnostics"
+msgstr ""
+
+#: includes/class-qe-loader.php:533
+msgid "Diagnostics"
+msgstr ""
+
+#: includes/class-qe-loader.php:557
+msgid "Quiz Extended LMS - System Diagnostics"
+msgstr ""
+
+#: includes/class-qe-loader.php:560
+msgid "System Status"
+msgstr ""
+
+#: includes/class-qe-loader.php:563
+msgid "Plugin Version:"
+msgstr ""
+
+#: includes/class-qe-loader.php:567
+msgid "Database Version:"
+msgstr ""
+
+#: includes/class-qe-loader.php:571
+msgid "Loaded Components:"
+msgstr ""
+
+#: includes/class-qe-loader.php:575
+msgid "Loading Errors:"
+msgstr ""
+
+#: includes/class-qe-loader.php:579
+msgid "Security Layer:"
+msgstr ""
+
+#: includes/class-qe-loader.php:582
+#: includes/class-qe-loader.php:592
+msgid "Loaded"
+msgstr ""
+
+#: includes/class-qe-loader.php:584
+#: includes/class-qe-loader.php:594
+msgid "Not Loaded"
+msgstr ""
+
+#: includes/class-qe-loader.php:589
+msgid "API System:"
+msgstr ""
+
+#: includes/class-qe-loader.php:603
+msgid "Loading Errors"
+msgstr ""
+
+#: includes/class-qe-loader.php:607
+#: includes/class-qe-loader.php:631
+msgid "Type"
+msgstr ""
+
+#: includes/class-qe-loader.php:608
+#: includes/class-qe-loader.php:630
+msgid "Component"
+msgstr ""
+
+#: includes/class-qe-loader.php:609
+msgid "Message"
+msgstr ""
+
+#: includes/class-qe-loader.php:626
+msgid "Loaded Components"
+msgstr ""
+
+#: includes/class-qe-loader.php:632
+msgid "File"
+msgstr ""
+
+#: includes/post-types/class-qe-post-types-loader.php:422
+msgid "Filter by course ID"
+msgstr ""
+
+#: includes/post-types/class-qe-post-types-loader.php:428
+msgid "Filter by difficulty level"
+msgstr ""
+
+#: includes/post-types/class-qe-post-types-loader.php:469
+msgid "You must be logged in to perform this action."
+msgstr ""
+
+#: includes/post-types/class-qe-post-types-loader.php:632
+msgid "Quiz Extended Post Types:"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-course-meta.php:67
+msgid "Course start date"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-course-meta.php:76
+msgid "Course end date"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-course-meta.php:93
+msgid "Course price"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-course-meta.php:102
+msgid "Course sale price"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-course-meta.php:119
+msgid "Course duration in weeks"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-course-meta.php:128
+msgid "Maximum number of students"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-course-meta.php:145
+msgid "Course difficulty level"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-course-meta.php:154
+msgid "Product type (free/paid)"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-course-meta.php:171
+msgid "Linked WooCommerce product ID"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-course-meta.php:187
+msgid "Array of lesson IDs associated with this course"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-course-meta.php:194
+msgid "Lessons in this course"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-course-meta.php:210
+msgid "Number of users enrolled in the course"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-course-meta.php:218
+msgid "Number of lessons in the course"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-course-meta.php:226
+msgid "Whether the course is free"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-lesson-meta.php:68
+#: includes/post-types/meta/class-qe-question-meta.php:65
+#: includes/post-types/meta/class-qe-quiz-meta.php:64
+msgid "Parent course ID"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-lesson-meta.php:85
+msgid "Lesson order"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-lesson-meta.php:94
+msgid "Lesson duration in minutes"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-lesson-meta.php:111
+msgid "Short lesson description"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-lesson-meta.php:120
+msgid "Completion criteria"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-lesson-meta.php:137
+msgid "Can be viewed without payment"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-lesson-meta.php:146
+msgid "Is this lesson required"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-lesson-meta.php:162
+msgid "Array of prerequisite lesson IDs"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-lesson-meta.php:169
+msgid "Prerequisite lessons"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-lesson-meta.php:185
+msgid "Steps/elements within the lesson"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-lesson-meta.php:224
+msgid "Lesson steps"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-lesson-meta.php:240
+msgid "Number of steps in the lesson"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-question-meta.php:74
+msgid "Associated lesson ID"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-question-meta.php:91
+msgid "Question type"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-question-meta.php:100
+msgid "Question difficulty level"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-question-meta.php:117
+msgid "Points for correct answer"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-question-meta.php:126
+msgid "Points deducted for incorrect answer"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-question-meta.php:135
+msgid "Question order"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-question-meta.php:152
+msgid "Is this question required"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-question-meta.php:168
+msgid "Array of quiz IDs containing this question"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-question-meta.php:175
+msgid "Quizzes containing this question"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-question-meta.php:191
+msgid "Answer options for the question"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-question-meta.php:205
+msgid "Question answer options"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-quiz-meta.php:81
+msgid "Quiz difficulty level"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-quiz-meta.php:90
+msgid "Quiz type"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-quiz-meta.php:107
+msgid "Time limit in minutes"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-quiz-meta.php:116
+msgid "Maximum attempts (0 = unlimited)"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-quiz-meta.php:125
+msgid "Passing score percentage (default 50)"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-quiz-meta.php:142
+msgid "Randomize question order"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-quiz-meta.php:151
+msgid "Show results after completion"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-quiz-meta.php:160
+msgid "Enable negative scoring for incorrect answers"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-quiz-meta.php:176
+msgid "Array of question IDs in this quiz"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-quiz-meta.php:183
+msgid "Questions in this quiz"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-quiz-meta.php:191
+msgid "Array of lesson IDs where this quiz appears"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-quiz-meta.php:198
+msgid "Lessons containing this quiz"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-quiz-meta.php:214
+msgid "Number of questions in the quiz"
+msgstr ""
+
+#: includes/post-types/meta/class-qe-quiz-meta.php:222
+msgid "Total number of attempts for this quiz"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-category-taxonomy.php:36
+#: includes/post-types/taxonomies/class-qe-category-taxonomy.php:46
+msgid "Categories"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-category-taxonomy.php:37
+msgid "Category"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-category-taxonomy.php:38
+msgid "Search Categories"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-category-taxonomy.php:39
+msgid "All Categories"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-category-taxonomy.php:40
+msgid "Parent Category"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-category-taxonomy.php:41
+msgid "Parent Category:"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-category-taxonomy.php:42
+msgid "Edit Category"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-category-taxonomy.php:43
+msgid "Update Category"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-category-taxonomy.php:44
+msgid "Add New Category"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-category-taxonomy.php:45
+msgid "New Category Name"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-course-type-taxonomy.php:36
+#: includes/post-types/taxonomies/class-qe-course-type-taxonomy.php:44
+msgid "Course Types"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-course-type-taxonomy.php:37
+msgid "Course Type"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-course-type-taxonomy.php:38
+msgid "Search Course Types"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-course-type-taxonomy.php:39
+msgid "All Course Types"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-course-type-taxonomy.php:40
+msgid "Edit Course Type"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-course-type-taxonomy.php:41
+msgid "Update Course Type"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-course-type-taxonomy.php:42
+msgid "Add New Course Type"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-course-type-taxonomy.php:43
+msgid "New Course Type Name"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-difficulty-taxonomy.php:37
+msgid "Difficulty Levels"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-difficulty-taxonomy.php:38
+msgid "Difficulty Level"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-difficulty-taxonomy.php:39
+msgid "Search Difficulty Levels"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-difficulty-taxonomy.php:40
+msgid "All Difficulty Levels"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-difficulty-taxonomy.php:41
+msgid "Edit Difficulty Level"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-difficulty-taxonomy.php:42
+msgid "Update Difficulty Level"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-difficulty-taxonomy.php:43
+msgid "Add New Difficulty Level"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-difficulty-taxonomy.php:44
+msgid "New Difficulty Level Name"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-difficulty-taxonomy.php:45
+msgid "Difficulty"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-provider-taxonomy.php:36
+#: includes/post-types/taxonomies/class-qe-provider-taxonomy.php:44
+msgid "Providers"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-provider-taxonomy.php:37
+msgid "Provider"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-provider-taxonomy.php:38
+msgid "Search Providers"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-provider-taxonomy.php:39
+msgid "All Providers"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-provider-taxonomy.php:40
+msgid "Edit Provider"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-provider-taxonomy.php:41
+msgid "Update Provider"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-provider-taxonomy.php:42
+msgid "Add New Provider"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-provider-taxonomy.php:43
+msgid "New Provider Name"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-topic-taxonomy.php:36
+#: includes/post-types/taxonomies/class-qe-topic-taxonomy.php:46
+msgid "Topics"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-topic-taxonomy.php:37
+msgid "Topic"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-topic-taxonomy.php:38
+msgid "Search Topics"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-topic-taxonomy.php:39
+msgid "All Topics"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-topic-taxonomy.php:40
+msgid "Parent Topic"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-topic-taxonomy.php:41
+msgid "Parent Topic:"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-topic-taxonomy.php:42
+msgid "Edit Topic"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-topic-taxonomy.php:43
+msgid "Update Topic"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-topic-taxonomy.php:44
+msgid "Add New Topic"
+msgstr ""
+
+#: includes/post-types/taxonomies/class-qe-topic-taxonomy.php:45
+msgid "New Topic Name"
+msgstr ""
+
+#: includes/post-types/types/class-qe-course-type.php:37
+msgid "Course"
+msgstr ""
+
+#: includes/post-types/types/class-qe-course-type.php:40
+msgid "Add New Course"
+msgstr ""
+
+#: includes/post-types/types/class-qe-course-type.php:42
+msgid "New Course"
+msgstr ""
+
+#: includes/post-types/types/class-qe-course-type.php:43
+msgid "View Course"
+msgstr ""
+
+#: includes/post-types/types/class-qe-course-type.php:44
+msgid "Search Courses"
+msgstr ""
+
+#: includes/post-types/types/class-qe-course-type.php:45
+msgid "No courses found"
+msgstr ""
+
+#: includes/post-types/types/class-qe-course-type.php:46
+msgid "No courses found in trash"
+msgstr ""
+
+#: includes/post-types/types/class-qe-course-type.php:47
+msgid "All Courses"
+msgstr ""
+
+#: includes/post-types/types/class-qe-course-type.php:59
+msgid "LMS Courses"
+msgstr ""
+
+#: includes/post-types/types/class-qe-lesson-type.php:37
+msgid "Lesson"
+msgstr ""
+
+#: includes/post-types/types/class-qe-lesson-type.php:39
+msgid "Add New Lesson"
+msgstr ""
+
+#: includes/post-types/types/class-qe-lesson-type.php:40
+msgid "Edit Lesson"
+msgstr ""
+
+#: includes/post-types/types/class-qe-lesson-type.php:41
+msgid "New Lesson"
+msgstr ""
+
+#: includes/post-types/types/class-qe-lesson-type.php:42
+msgid "View Lesson"
+msgstr ""
+
+#: includes/post-types/types/class-qe-lesson-type.php:43
+msgid "Search Lessons"
+msgstr ""
+
+#: includes/post-types/types/class-qe-lesson-type.php:44
+msgid "No lessons found"
+msgstr ""
+
+#: includes/post-types/types/class-qe-lesson-type.php:45
+msgid "No lessons found in trash"
+msgstr ""
+
+#: includes/post-types/types/class-qe-lesson-type.php:57
+msgid "Lessons that belong to courses"
+msgstr ""
+
+#: includes/post-types/types/class-qe-question-type.php:37
+msgid "Question"
+msgstr ""
+
+#: includes/post-types/types/class-qe-question-type.php:39
+msgid "Add New Question"
+msgstr ""
+
+#: includes/post-types/types/class-qe-question-type.php:40
+msgid "Edit Question"
+msgstr ""
+
+#: includes/post-types/types/class-qe-question-type.php:41
+msgid "New Question"
+msgstr ""
+
+#: includes/post-types/types/class-qe-question-type.php:42
+msgid "View Question"
+msgstr ""
+
+#: includes/post-types/types/class-qe-question-type.php:43
+msgid "Search Questions"
+msgstr ""
+
+#: includes/post-types/types/class-qe-question-type.php:44
+msgid "No questions found"
+msgstr ""
+
+#: includes/post-types/types/class-qe-question-type.php:45
+msgid "No questions found in trash"
+msgstr ""
+
+#: includes/post-types/types/class-qe-question-type.php:57
+msgid "Question bank for quizzes"
+msgstr ""
+
+#: includes/post-types/types/class-qe-quiz-type.php:37
+msgid "Quiz"
+msgstr ""
+
+#: includes/post-types/types/class-qe-quiz-type.php:39
+msgid "Add New Quiz"
+msgstr ""
+
+#: includes/post-types/types/class-qe-quiz-type.php:40
+msgid "Edit Quiz"
+msgstr ""
+
+#: includes/post-types/types/class-qe-quiz-type.php:41
+msgid "New Quiz"
+msgstr ""
+
+#: includes/post-types/types/class-qe-quiz-type.php:42
+msgid "View Quiz"
+msgstr ""
+
+#: includes/post-types/types/class-qe-quiz-type.php:43
+msgid "Search Quizzes"
+msgstr ""
+
+#: includes/post-types/types/class-qe-quiz-type.php:44
+msgid "No quizzes found"
+msgstr ""
+
+#: includes/post-types/types/class-qe-quiz-type.php:45
+msgid "No quizzes found in trash"
+msgstr ""
+
+#: includes/post-types/types/class-qe-quiz-type.php:57
+msgid "Assessment quizzes"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:62
+msgid "Course start date must be before end date"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:76
+msgid "Sale price cannot be greater than regular price"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:89
+msgid "The specified WooCommerce product does not exist"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:104
+msgid "Failed to validate course data"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:137
+#: includes/post-types/validators/class-qe-meta-validator.php:275
+#: includes/post-types/validators/class-qe-meta-validator.php:352
+msgid "The specified course does not exist"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:159
+#, php-format
+msgid "Prerequisite lesson %d does not exist"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:177
+msgid "Failed to validate lesson data"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:194
+msgid "Lesson steps must be an array"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:207
+#, php-format
+msgid "Step %d is missing required fields (type, order, title)"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:219
+#, php-format
+msgid "Step %d has invalid type: %s"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:235
+#, php-format
+msgid "Step %d references a non-existent quiz (ID: %d)"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:288
+msgid "Passing score must be between 0 and 100"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:301
+#, php-format
+msgid "Question %d does not exist"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:319
+msgid "Failed to validate quiz data"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:374
+msgid "Points must be a positive number"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:389
+msgid "Failed to validate question data"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:406
+msgid "Question options must be an array"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:414
+msgid "Question must have at least one option"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:426
+#, php-format
+msgid "Option %d has invalid structure"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:437
+#, php-format
+msgid "Option %d must have text"
+msgstr ""
+
+#: includes/post-types/validators/class-qe-meta-validator.php:452
+msgid "Question must have at least one correct answer"
+msgstr ""
+
+#: includes/security/class-qe-audit-log.php:1083
+#, php-format
+msgid "[%s] Security Alerts - %s"
+msgstr ""
+
+#: includes/security/class-qe-audit-log.php:1088
+msgid ""
+"Security alerts have been detected:\n"
+"\n"
+""
+msgstr ""
+
+#: includes/security/class-qe-audit-log.php:1099
+#, php-format
+msgid ""
+"\n"
+"\n"
+"View full audit log: %s\n"
+"\n"
+"This is an automated alert."
+msgstr ""
+
+#: includes/security/class-qe-audit-log.php:1117
+msgid "Quiz Extended - Recent Activity"
+msgstr ""
+
+#: includes/security/class-qe-audit-log.php:1133
+msgid "No recent activity."
+msgstr ""
+
+#: includes/security/class-qe-audit-log.php:1141
+msgid "System"
+msgstr ""
+
+#: includes/security/class-qe-audit-log.php:1147
+msgid "ago"
+msgstr ""
+
+#: includes/security/class-qe-audit-log.php:1156
+msgid "View Full Audit Log →"
+msgstr ""
+
+#: includes/security/class-qe-auth.php:130
+msgid "LMS Instructor"
+msgstr ""
+
+#: includes/security/class-qe-auth.php:141
+msgid "LMS Student"
+msgstr ""
+
+#: includes/security/class-qe-auth.php:361
+msgid "Invalid security token. Please refresh the page and try again."
+msgstr ""
+
+#: includes/security/class-qe-auth.php:470
+#: includes/security/class-qe-auth.php:490
+msgid "You do not have permission to view this resource."
+msgstr ""
+
+#: includes/security/class-qe-auth.php:509
+#, php-format
+msgid "You do not have permission to create %s."
+msgstr ""
+
+#: includes/security/class-qe-auth.php:531
+#: includes/security/class-qe-auth.php:574
+msgid "Invalid resource ID."
+msgstr ""
+
+#: includes/security/class-qe-auth.php:557
+msgid "You do not have permission to edit this resource."
+msgstr ""
+
+#: includes/security/class-qe-auth.php:600
+msgid "You do not have permission to delete this resource."
+msgstr ""
+
+#: includes/security/class-qe-auth.php:621
+msgid "You do not have permission to start this quiz."
+msgstr ""
+
+#: includes/security/class-qe-auth.php:632
+msgid "You do not have permission to submit this quiz attempt."
+msgstr ""
+
+#: includes/security/class-qe-auth.php:718
+#: includes/security/class-qe-auth.php:771
+msgid "Invalid user ID."
+msgstr ""
+
+#: includes/security/class-qe-auth.php:728
+msgid "Invalid course ID."
+msgstr ""
+
+#: includes/security/class-qe-auth.php:737
+msgid "User is already enrolled in this course."
+msgstr ""
+
+#: includes/security/class-qe-auth.php:780
+msgid "User is not enrolled in this course."
+msgstr ""
+
+#: includes/security/class-qe-rate-limiter.php:138
+#: includes/security/class-qe-rate-limiter.php:192
+#, php-format
+msgid "Rate limit exceeded. Please try again in %d seconds."
+msgstr ""
+
+#: includes/security/class-qe-rate-limiter.php:413
+msgid "Your IP address has been blocked due to suspicious activity."
+msgstr ""
+
+#: includes/security/class-qe-rate-limiter.php:414
+msgid "Access Denied"
+msgstr ""
+
+#: includes/security/class-qe-rate-limiter.php:619
+#, php-format
+msgid "[%s] Security Alert: Potential Attack Detected"
+msgstr ""
+
+#: includes/security/class-qe-rate-limiter.php:624
+#, php-format
+msgid ""
+"A potential attack has been detected and blocked.\n"
+"\n"
+"Details:\n"
+"- IP Address: %s\n"
+"- User ID: %s\n"
+"- Limit Type: %s\n"
+"- Violations: 10+\n"
+"- User Agent: %s\n"
+"\n"
+"The IP has been automatically blacklisted.\n"
+"\n"
+"Time: %s"
+msgstr ""
+
+#: includes/security/class-qe-security.php:184
+msgid "Security check failed. Please refresh the page and try again."
+msgstr ""
+
+#: includes/security/class-qe-security.php:529
+#, php-format
+msgid "Too many failed login attempts. Please try again in %d minutes."
+msgstr ""
+
+#: includes/security/class-qe-security.php:620
+#, php-format
+msgid "[%s] Security Alert: %s"
+msgstr ""
+
+#: includes/security/class-qe-security.php:626
+#, php-format
+msgid ""
+"A security event has occurred on your site:\n"
+"\n"
+"Event Type: %s\n"
+"Time: %s\n"
+"Details: %s\n"
+"\n"
+"This is an automated security notification."
+msgstr ""

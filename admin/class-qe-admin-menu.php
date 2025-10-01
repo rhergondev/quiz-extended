@@ -44,24 +44,22 @@ class QE_Admin_Menu
     {
         // Menú Principal
         add_menu_page(
-            'Quiz Extended LMS',          // Título de la página que aparece en el navegador
-            'Quiz LMS',                   // Título del menú en el sidebar
-            'manage_options',             // Capacidad requerida para verlo
-            'quiz-extended-lms',          // Slug del menú (nuestra página principal)
-            [$this, 'render_react_app'],  // Función que renderiza el contenedor de React
-            'dashicons-welcome-learn-more', // Icono del menú
-            25                            // Posición en el menú
+            __('Quiz Extended LMS', 'quiz-extended'),
+            __('Quiz LMS', 'quiz-extended'),
+            'manage_options',
+            'quiz-extended-lms',
+            [$this, 'render_react_app'],
+            'dashicons-welcome-learn-more',
+            25
         );
 
-        // Submenús que apuntan a la misma página raíz.
-        // React Router se encargará de mostrar la vista correcta basado en la URL.
-        add_submenu_page('quiz-extended-lms', 'Dashboard', 'Dashboard', 'manage_options', 'quiz-extended-lms'); // El primer submenú duplica el principal
-        add_submenu_page('quiz-extended-lms', 'Courses', 'Courses', 'manage_options', 'admin.php?page=quiz-extended-lms#/courses');
-        add_submenu_page('quiz-extended-lms', 'Lessons', 'Lessons', 'manage_options', 'admin.php?page=quiz-extended-lms#/lessons');
-        add_submenu_page('quiz-extended-lms', 'Quizzes', 'Quizzes', 'manage_options', 'admin.php?page=quiz-extended-lms#/quizzes');
-        add_submenu_page('quiz-extended-lms', 'Questions', 'Questions', 'manage_options', 'admin.php?page=quiz-extended-lms#/questions');
-        add_submenu_page('quiz-extended-lms', 'Students', 'Students', 'manage_options', 'admin.php?page=quiz-extended-lms#/students');
-        add_submenu_page('quiz-extended-lms', 'Settings', 'Settings', 'manage_options', 'admin.php?page=quiz-extended-lms#/settings');
+        add_submenu_page('quiz-extended-lms', __('Dashboard', 'quiz-extended'), __('Dashboard', 'quiz-extended'), 'manage_options', 'quiz-extended-lms');
+        add_submenu_page('quiz-extended-lms', __('Courses', 'quiz-extended'), __('Courses', 'quiz-extended'), 'manage_options', 'admin.php?page=quiz-extended-lms#/courses');
+        add_submenu_page('quiz-extended-lms', __('Lessons', 'quiz-extended'), __('Lessons', 'quiz-extended'), 'manage_options', 'admin.php?page=quiz-extended-lms#/lessons');
+        add_submenu_page('quiz-extended-lms', __('Quizzes', 'quiz-extended'), __('Quizzes', 'quiz-extended'), 'manage_options', 'admin.php?page=quiz-extended-lms#/quizzes');
+        add_submenu_page('quiz-extended-lms', __('Questions', 'quiz-extended'), __('Questions', 'quiz-extended'), 'manage_options', 'admin.php?page=quiz-extended-lms#/questions');
+        add_submenu_page('quiz-extended-lms', __('Students', 'quiz-extended'), __('Students', 'quiz-extended'), 'manage_options', 'admin.php?page=quiz-extended-lms#/students');
+        add_submenu_page('quiz-extended-lms', __('Settings', 'quiz-extended'), __('Settings', 'quiz-extended'), 'manage_options', 'admin.php?page=quiz-extended-lms#/settings');
     }
 
     /**

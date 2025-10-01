@@ -73,6 +73,22 @@ class QE_Assets
                     'custom_api' => $api_url_base . '/quiz-extended/v1',
                 ],
                 'debug' => WP_DEBUG,
+                'i18n' => [
+                    'dashboard' => __('Dashboard', 'quiz-extended'),
+                    'courses' => __('Courses', 'quiz-extended'),
+                    'lessons' => __('Lessons', 'quiz-extended'),
+                    'quizzes' => __('Quizzes', 'quiz-extended'),
+                    'questions' => __('Questions', 'quiz-extended'),
+                    'students' => __('Students', 'quiz-extended'),
+                    'settings' => __('Settings', 'quiz-extended'),
+                    'addNew' => __('Add New', 'quiz-extended'),
+                    'edit' => __('Edit', 'quiz-extended'),
+                    'delete' => __('Delete', 'quiz-extended'),
+                    'save' => __('Save', 'quiz-extended'),
+                    'cancel' => __('Cancel', 'quiz-extended'),
+                    'loading' => __('Loading...', 'quiz-extended'),
+                    'errorOccurred' => __('An error occurred', 'quiz-extended'),
+                ],
             ]
         );
     }

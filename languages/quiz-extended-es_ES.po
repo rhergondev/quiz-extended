@@ -1,0 +1,211 @@
+# Spanish translations for Quiz Extended LMS.
+# Copyright (C) 2025 Haz Historia
+# This file is distributed under the GPLv3 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Quiz Extended LMS 0.1.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/quiz-extended\n"
+"Last-Translator: Quiz Extended Team\n"
+"Language-Team: Español\n"
+"Language: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2025-10-01T15:55:12+00:00\n"
+"PO-Revision-Date: 2025-10-01 16:00+0000\n"
+"X-Generator: Manual\n"
+"X-Domain: quiz-extended\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. Plugin Name of the plugin
+#: quiz-extended.php
+#: admin/class-qe-admin-menu.php:47
+msgid "Quiz Extended LMS"
+msgstr "LMS Quiz Extendido"
+
+#. Description of the plugin
+#: quiz-extended.php
+msgid "Un LMS personalizado para gestionar cursos, preguntas y rankings."
+msgstr "Un LMS personalizado para gestionar cursos, preguntas y rankings."
+
+#: admin/class-qe-admin-menu.php:56
+#: admin/class-qe-assets.php:77
+msgid "Dashboard"
+msgstr "Panel"
+
+#: admin/class-qe-admin-menu.php:57
+#: admin/class-qe-assets.php:78
+#: includes/post-types/types/class-qe-course-type.php:36
+msgid "Courses"
+msgstr "Cursos"
+
+#: admin/class-qe-admin-menu.php:58
+#: admin/class-qe-assets.php:79
+#: includes/post-types/types/class-qe-lesson-type.php:36
+msgid "Lessons"
+msgstr "Lecciones"
+
+#: admin/class-qe-admin-menu.php:59
+#: admin/class-qe-assets.php:80
+#: includes/post-types/types/class-qe-quiz-type.php:36
+msgid "Quizzes"
+msgstr "Cuestionarios"
+
+#: admin/class-qe-admin-menu.php:60
+#: admin/class-qe-assets.php:81
+#: includes/post-types/types/class-qe-question-type.php:36
+msgid "Questions"
+msgstr "Preguntas"
+
+#: admin/class-qe-admin-menu.php:61
+#: admin/class-qe-assets.php:82
+msgid "Students"
+msgstr "Estudiantes"
+
+#: admin/class-qe-admin-menu.php:62
+#: admin/class-qe-assets.php:83
+msgid "Settings"
+msgstr "Ajustes"
+
+#: admin/class-qe-assets.php:84
+msgid "Add New"
+msgstr "Añadir nuevo"
+
+#: admin/class-qe-assets.php:85
+msgid "Edit"
+msgstr "Editar"
+
+#: admin/class-qe-assets.php:86
+msgid "Delete"
+msgstr "Eliminar"
+
+#: admin/class-qe-assets.php:87
+msgid "Save"
+msgstr "Guardar"
+
+#: admin/class-qe-assets.php:88
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: admin/class-qe-assets.php:89
+msgid "Loading..."
+msgstr "Cargando..."
+
+#: admin/class-qe-assets.php:90
+msgid "An error occurred"
+msgstr "Ocurrió un error"
+
+#: includes/api/class-qe-api-base.php:162
+msgid "Parameter must be a number."
+msgstr "El parámetro debe ser un número."
+
+#: includes/api/class-qe-api-base.php:170
+#, php-format
+msgid "Parameter must be at least %d."
+msgstr "El parámetro debe ser al menos %d."
+
+#: includes/api/class-qe-api-base.php:177
+#, php-format
+msgid "Parameter must be at most %d."
+msgstr "El parámetro debe ser como máximo %d."
+
+#: includes/api/class-qe-api-base.php:186
+msgid "Parameter must be a string."
+msgstr "El parámetro debe ser una cadena de texto."
+
+#: includes/api/class-qe-api-base.php:194
+#, php-format
+msgid "Parameter must be at most %d characters."
+msgstr "El parámetro debe tener como máximo %d caracteres."
+
+#: includes/api/class-qe-api-base.php:307
+msgid "You must be logged in to access this resource."
+msgstr "Debes iniciar sesión para acceder a este recurso."
+
+#: includes/api/class-qe-api-base.php:317
+msgid "Invalid security token. Please refresh and try again."
+msgstr "Token de seguridad inválido. Por favor, actualiza la página e inténtalo de nuevo."
+
+#: includes/api/class-qe-api-base.php:337
+msgid "You do not have access to this course."
+msgstr "No tienes acceso a este curso."
+
+#: includes/api/class-qe-api-base.php:392
+msgid "Validation failed."
+msgstr "La validación falló."
+
+#: includes/api/class-qe-quiz-attempts-api.php:105
+msgid "This quiz is not currently available."
+msgstr "Este cuestionario no está disponible actualmente."
+
+#: includes/api/class-qe-quiz-attempts-api.php:114
+msgid "You do not have permission to take this quiz."
+msgstr "No tienes permiso para realizar este cuestionario."
+
+#: includes/api/class-qe-quiz-attempts-api.php:218
+msgid "This quiz attempt has already been submitted."
+msgstr "Este intento de cuestionario ya ha sido enviado."
+
+#: includes/class-qe-enrollment.php:391
+msgid "Link to LMS Course"
+msgstr "Vincular con curso LMS"
+
+#: includes/class-qe-enrollment.php:428
+msgid "Select Course:"
+msgstr "Seleccionar curso:"
+
+#: includes/class-qe-enrollment.php:433
+msgid "-- No Course Linked --"
+msgstr "-- Sin curso vinculado --"
+
+#: includes/class-qe-enrollment.php:442
+msgid "When a customer purchases this product, they will be automatically enrolled in the selected course."
+msgstr "Cuando un cliente compre este producto, será inscrito automáticamente en el curso seleccionado."
+
+#: includes/post-types/types/class-qe-course-type.php:37
+msgid "Course"
+msgstr "Curso"
+
+#: includes/post-types/types/class-qe-course-type.php:40
+msgid "Add New Course"
+msgstr "Añadir nuevo curso"
+
+#: includes/post-types/types/class-qe-course-type.php:44
+msgid "Search Courses"
+msgstr "Buscar cursos"
+
+#: includes/post-types/types/class-qe-course-type.php:45
+msgid "No courses found"
+msgstr "No se encontraron cursos"
+
+#: includes/post-types/types/class-qe-lesson-type.php:37
+msgid "Lesson"
+msgstr "Lección"
+
+#: includes/post-types/types/class-qe-quiz-type.php:37
+msgid "Quiz"
+msgstr "Cuestionario"
+
+#: includes/post-types/types/class-qe-question-type.php:37
+msgid "Question"
+msgstr "Pregunta"
+
+#: includes/security/class-qe-auth.php:130
+msgid "LMS Instructor"
+msgstr "Instructor LMS"
+
+#: includes/security/class-qe-auth.php:141
+msgid "LMS Student"
+msgstr "Estudiante LMS"
+
+#: includes/security/class-qe-auth.php:470
+msgid "You do not have permission to view this resource."
+msgstr "No tienes permiso para ver este recurso."
+
+#: includes/security/class-qe-rate-limiter.php:413
+msgid "Your IP address has been blocked due to suspicious activity."
+msgstr "Tu dirección IP ha sido bloqueada debido a actividad sospechosa."
+
+#: includes/security/class-qe-rate-limiter.php:414
+msgid "Access Denied"
+msgstr "Acceso denegado"
