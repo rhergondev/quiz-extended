@@ -171,7 +171,6 @@ class QE_Quiz_Attempts_API extends QE_API_Base
         } catch (Exception $e) {
             $this->log_error('Exception in start_quiz_attempt', [
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
             ]);
 
             return $this->error_response(
@@ -221,18 +220,40 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 );
             }
 
-            // Grade the attempt
-            $grading_result = $this->grade_attempt($attempt, $answers);
-            if (is_wp_error($grading_result)) {
-                return $grading_result;
-            }
+            $this->get_db()->query('START TRANSACTION');
 
-            // Update attempt record
-            $update_result = $this->complete_attempt($attempt_id, $grading_result);
-            if (!$update_result) {
+            // Grade the attempt
+            try {
+                // Grade the attempt
+                $grading_result = $this->grade_attempt($attempt, $answers);
+                if (is_wp_error($grading_result)) {
+                    // AÑADIDO: Revertir si hay error
+                    $this->get_db()->query('ROLLBACK');
+                    return $grading_result;
+                }
+
+                // Update attempt record
+                $update_result = $this->complete_attempt($attempt_id, $grading_result);
+                if (!$update_result) {
+                    $this->get_db()->query('ROLLBACK');
+                    return $this->error_response(
+                        'db_error',
+                        __('Could not update quiz attempt. Please try again.', 'quiz-extended'),
+                        500
+                    );
+                }
+
+                $this->get_db()->query('COMMIT');
+
+            } catch (Exception $e) {
+                $this->get_db()->query('ROLLBACK');
+                $this->log_error('Exception during attempt submission transaction', [
+                    'message' => $e->getMessage(),
+                    'attempt_id' => $attempt_id,
+                ]);
                 return $this->error_response(
-                    'db_error',
-                    __('Could not update quiz attempt. Please try again.', 'quiz-extended'),
+                    'internal_error',
+                    __('An unexpected error occurred while saving the attempt.', 'quiz-extended'),
                     500
                 );
             }

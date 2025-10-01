@@ -144,12 +144,6 @@ final class QE_Loader
     {
         $this->log_info('Loading security layer...');
 
-        // Create security directory if it doesn't exist
-        $security_dir = $this->plugin_dir . 'includes/security/';
-        if (!is_dir($security_dir)) {
-            $security_dir = $this->plugin_dir . 'includes/';
-        }
-
         $security_files = [
             'security' => 'includes/security/class-qe-security.php',
             'auth' => 'includes/security/class-qe-auth.php',
@@ -157,20 +151,8 @@ final class QE_Loader
             'audit_log' => 'includes/security/class-qe-audit-log.php'
         ];
 
-        // Try alternate paths if security directory doesn't exist
-        $alt_security_files = [
-            'security' => 'includes/class-qe-security.php',
-            'auth' => 'includes/class-qe-auth.php',
-            'rate_limiter' => 'includes/class-qe-rate-limiter.php',
-            'audit_log' => 'includes/class-qe-audit-log.php'
-        ];
-
         foreach ($security_files as $name => $file) {
-            if (!$this->load_file($name, $file, 'security')) {
-                // Try alternate path
-                $alt_file = $alt_security_files[$name];
-                $this->load_file($name, $alt_file, 'security');
-            }
+            $this->load_file($name, $file, 'security');
         }
 
         // Verify critical security classes are loaded
@@ -235,31 +217,9 @@ final class QE_Loader
             return;
         }
 
-        // Create API directory if it doesn't exist
-        $api_dir = $this->plugin_dir . 'includes/api/';
-        if (!is_dir($api_dir)) {
-            $api_dir = $this->plugin_dir . 'includes/';
-        }
-
+        // MODIFICADO: Se elimina la lógica de fallback al API monolítica.
         // Load API loader (which loads all API modules)
-        $api_loader_paths = [
-            'includes/api/class-qe-api-loader.php',
-            'includes/class-qe-api-loader.php'
-        ];
-
-        $loaded = false;
-        foreach ($api_loader_paths as $path) {
-            if ($this->load_file('api_loader', $path, 'api')) {
-                $loaded = true;
-                break;
-            }
-        }
-
-        if (!$loaded) {
-            // Fallback: Load old monolithic API if new modules not found
-            $this->log_info('New API modules not found, loading legacy API...');
-            $this->load_file('api_legacy', 'includes/class-qe-api.php', 'api');
-        }
+        $this->load_file('api_loader', 'includes/api/class-qe-api-loader.php', 'api');
     }
 
     // ============================================================

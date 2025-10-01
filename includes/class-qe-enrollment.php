@@ -212,6 +212,36 @@ class QE_Enrollment
         }
     }
 
+    private function clear_student_course_data($user_id, $course_id)
+    {
+        global $wpdb;
+
+        if (empty($user_id) || empty($course_id)) {
+            return;
+        }
+
+        $table_progress = $wpdb->prefix . 'qe_student_progress';
+        $wpdb->delete($table_progress, ['user_id' => $user_id, 'course_id' => $course_id], ['%d', '%d']);
+
+        $table_attempts = $wpdb->prefix . 'qe_quiz_attempts';
+        $table_answers = $wpdb->prefix . 'qe_attempt_answers';
+
+        $attempt_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT attempt_id FROM {$table_attempts} WHERE user_id = %d AND course_id = %d",
+            $user_id,
+            $course_id
+        ));
+
+        if (!empty($attempt_ids)) {
+            $wpdb->query("DELETE FROM {$table_answers} WHERE attempt_id IN (" . implode(',', $attempt_ids) . ")");
+
+            $wpdb->delete($table_attempts, ['user_id' => $user_id, 'course_id' => $course_id], ['%d', '%d']);
+        }
+
+        $table_rankings = $wpdb->prefix . 'qe_rankings';
+        $wpdb->delete($table_rankings, ['user_id' => $user_id, 'course_id' => $course_id], ['%d', '%d']);
+    }
+
     /**
      * Unenroll user from course when order is refunded
      *
@@ -245,6 +275,8 @@ class QE_Enrollment
                     delete_user_meta($user_id, '_enrolled_course_' . $course_id);
                     delete_user_meta($user_id, '_enrolled_course_' . $course_id . '_date');
                     delete_user_meta($user_id, '_enrolled_course_' . $course_id . '_order_id');
+
+                    $this->clear_student_course_data($user_id, $course_id);
 
                     $unenrolled_courses[] = $course_id;
 
@@ -309,6 +341,8 @@ class QE_Enrollment
                     delete_user_meta($user_id, '_enrolled_course_' . $course_id);
                     delete_user_meta($user_id, '_enrolled_course_' . $course_id . '_date');
                     delete_user_meta($user_id, '_enrolled_course_' . $course_id . '_order_id');
+
+                    $this->clear_student_course_data($user_id, $course_id);
 
                     $unenrolled_courses[] = $course_id;
 

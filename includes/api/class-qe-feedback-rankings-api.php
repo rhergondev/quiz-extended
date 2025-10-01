@@ -185,9 +185,7 @@ class QE_Feedback_Rankings_API extends QE_API_Base
                 $enriched_rankings[] = [
                     'position' => $position++,
                     'user_id' => (int) $ranking->user_id,
-                    'user_name' => $ranking->is_fake_user
-                        ? sanitize_text_field($user->display_name)
-                        : __('Anonymous User', 'quiz-extended'),
+                    'user_name' => sanitize_text_field($user->display_name),
                     'avatar_url' => get_avatar_url($ranking->user_id),
                     'average_score' => (float) $ranking->average_score,
                     'average_score_with_risk' => (float) $ranking->average_score_with_risk,
