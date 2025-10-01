@@ -219,8 +219,7 @@ class QE_API
             // Should we randomize questions?
             $randomize = get_post_meta($quiz_id, '_randomize_questions', true);
 
-            // Support both boolean and legacy 'yes'/'no' format
-            if ($randomize === true || $randomize === 'yes' || $randomize === 1 || $randomize === '1') {
+            if ($randomize === 'yes') {
                 shuffle($question_ids);
             }
 

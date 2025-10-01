@@ -123,7 +123,7 @@ class QE_Post_Types
             'show_in_rest' => true,
             'rest_base' => 'course',
             'rest_controller_class' => 'WP_REST_Posts_Controller',
-            'capability_type' => 'post', // Changed from 'course' to 'post' for public read access
+            'capability_type' => 'course',
             'map_meta_cap' => true,
         ];
 
@@ -162,7 +162,7 @@ class QE_Post_Types
             'show_in_rest' => true,
             'rest_base' => 'lesson',
             'rest_controller_class' => 'WP_REST_Posts_Controller',
-            'capability_type' => 'post', // Changed from 'lesson' to 'post' for public read access
+            'capability_type' => 'lesson',
             'map_meta_cap' => true,
         ];
 
@@ -200,7 +200,7 @@ class QE_Post_Types
             'show_in_rest' => true,
             'rest_base' => 'quiz',
             'rest_controller_class' => 'WP_REST_Posts_Controller',
-            'capability_type' => 'post', // Changed from 'quiz' to 'post' for public read access
+            'capability_type' => 'quiz',
             'map_meta_cap' => true,
         ];
 
@@ -239,7 +239,7 @@ class QE_Post_Types
             'show_in_rest' => true,
             'rest_base' => 'question',
             'rest_controller_class' => 'WP_REST_Posts_Controller',
-            'capability_type' => 'post', // Changed from 'question' to 'post' for API access
+            'capability_type' => 'question',
             'map_meta_cap' => true,
         ];
 
@@ -1224,21 +1224,11 @@ class QE_Post_Types
                 continue;
             }
 
-            // Handle data field - could be array or object from JSON
-            $data = [];
-            if (isset($step['data'])) {
-                if (is_array($step['data'])) {
-                    $data = $step['data'];
-                } elseif (is_object($step['data'])) {
-                    $data = (array) $step['data'];
-                }
-            }
-
             $sanitized_step = [
                 'type' => in_array($step['type'], $valid_types) ? $step['type'] : 'text',
                 'order' => isset($step['order']) ? absint($step['order']) : 0,
                 'title' => isset($step['title']) ? sanitize_text_field($step['title']) : '',
-                'data' => $data
+                'data' => isset($step['data']) && is_array($step['data']) ? $step['data'] : []
             ];
 
             // Sanitize data based on type
