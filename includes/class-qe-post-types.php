@@ -1278,9 +1278,19 @@ class QE_Post_Types
      * @return bool Whether user can edit
      * @since 2.0.0
      */
-    public function auth_callback()
+    public function auth_callback($allowed, $meta_key, $object_id, $user_id, $cap, $caps)
     {
-        return current_user_can('edit_posts');
+        $post_type = get_post_type($object_id);
+
+        $capability_map = [
+            'course' => 'edit_courses',
+            'lesson' => 'edit_lessons',
+            'quiz' => 'edit_quizzes',
+            'question' => 'edit_questions'
+        ];
+
+        $required_cap = $capability_map[$post_type] ?? 'edit_posts';
+        return current_user_can($required_cap);
     }
 
     // ============================================================
@@ -1498,30 +1508,24 @@ class QE_Post_Types
             $params = $request->get_params();
             $meta_query = [];
 
-            // Handle meta_query array format from frontend
+            $allowed_operators = ['=', '!=', '>', '>=', '<', '<=', 'LIKE', 'NOT LIKE', 'IN', 'NOT IN'];
+
             if (isset($params['meta_query']) && is_array($params['meta_query'])) {
                 foreach ($params['meta_query'] as $condition) {
                     if (!isset($condition['key']) || !isset($condition['value'])) {
                         continue;
                     }
 
+                    $compare = isset($condition['compare']) ? $condition['compare'] : '=';
+                    if (!in_array($compare, $allowed_operators, true)) {
+                        $compare = '=';
+                    }
+
                     $meta_query[] = [
                         'key' => sanitize_text_field($condition['key']),
                         'value' => sanitize_text_field($condition['value']),
-                        'compare' => isset($condition['compare']) ? $condition['compare'] : '=',
+                        'compare' => $compare,
                         'type' => isset($condition['type']) ? $condition['type'] : 'CHAR'
-                    ];
-                }
-            }
-
-            // Handle individual meta parameters (fallback)
-            if (empty($meta_query)) {
-                if (isset($params['meta_key']) && isset($params['meta_value'])) {
-                    $meta_query[] = [
-                        'key' => sanitize_text_field($params['meta_key']),
-                        'value' => sanitize_text_field($params['meta_value']),
-                        'compare' => isset($params['meta_compare']) ? $params['meta_compare'] : '=',
-                        'type' => 'CHAR'
                     ];
                 }
             }
@@ -1555,7 +1559,12 @@ class QE_Post_Types
     public function add_collection_params($params)
     {
         // Allow multiple statuses by default
-        $params['status']['default'] = 'publish,draft,private';
+        $params['status']['default'] = 'publish';
+
+        if (current_user_can('edit_posts')) {
+            $params['status']['enum'][] = 'draft';
+            $params['status']['enum'][] = 'private';
+        }
 
         // Add meta_query support
         $params['meta_query'] = [
@@ -1618,9 +1627,11 @@ class QE_Post_Types
      */
     public function handle_rest_authentication($result, $server, $request)
     {
-        $route = $request->get_route();
+        if (is_wp_error($result)) {
+            return $result;
+        }
 
-        // Only handle our custom post type routes
+        $route = $request->get_route();
         $our_routes = ['/wp/v2/course', '/wp/v2/lesson', '/wp/v2/quiz', '/wp/v2/question'];
         $is_our_route = false;
 
@@ -1635,25 +1646,70 @@ class QE_Post_Types
             return $result;
         }
 
-        // Check if user is logged in
+        $method = $request->get_method();
+
+        if ($method === 'GET') {
+            if (!is_user_logged_in()) {
+                return new WP_Error(
+                    'rest_not_logged_in',
+                    __('You must be logged in to view this content.', 'quiz-extended'),
+                    ['status' => 401]
+                );
+            }
+            return $result;
+        }
+
         if (!is_user_logged_in()) {
             return new WP_Error(
                 'rest_not_logged_in',
-                __('You are not currently logged in.', 'quiz-extended'),
+                __('You must be logged in to perform this action.', 'quiz-extended'),
                 ['status' => 401]
             );
         }
 
-        // For POST requests, check if user can create posts
-        if ($request->get_method() === 'POST' && !current_user_can('edit_posts')) {
+        $post_type = $this->get_post_type_from_route($route);
+        if (!$this->user_can_modify_post_type($post_type, $method)) {
             return new WP_Error(
-                'rest_cannot_create',
-                __('Sorry, you are not allowed to create content.', 'quiz-extended'),
+                'rest_forbidden',
+                __('You do not have permission to perform this action.', 'quiz-extended'),
                 ['status' => 403]
             );
         }
 
         return $result;
+    }
+    /**
+     * Check if current user can modify a given post type based on HTTP method
+     *
+     * @param string $post_type Post type (course, lesson, quiz, question)
+     * @param string $method HTTP method (POST, PUT, DELETE)
+     * @return bool Whether user can modify
+     * @since 2.0.0
+     */
+    private function user_can_modify_post_type($post_type, $method)
+    {
+        $capability_map = [
+            'POST' => "publish_{$post_type}s",
+            'PUT' => "edit_{$post_type}s",
+            'PATCH' => "edit_{$post_type}s",
+            'DELETE' => "delete_{$post_type}s"
+        ];
+
+        $required_cap = $capability_map[$method] ?? 'edit_posts';
+        return current_user_can($required_cap);
+    }
+
+    private function get_post_type_from_route($route)
+    {
+        if (strpos($route, '/course') !== false)
+            return 'course';
+        if (strpos($route, '/lesson') !== false)
+            return 'lesson';
+        if (strpos($route, '/quiz') !== false)
+            return 'quiz';
+        if (strpos($route, '/question') !== false)
+            return 'question';
+        return 'post';
     }
 
     // ============================================================
