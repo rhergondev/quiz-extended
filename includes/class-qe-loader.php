@@ -1,12 +1,14 @@
 <?php
 /**
- * QE_Loader Class
+ * QE_Loader Class - UPDATED VERSION
  *
- * This class is responsible for loading all necessary files,
- * initializing the plugin's components, and registering all hooks.
+ * Responsible for loading all necessary files and initializing the plugin's components.
+ * Now includes modular API and security systems.
  *
- * @package QuizExtended
- * @since 1.0.0
+ * @package    QuizExtended
+ * @subpackage QuizExtended/includes
+ * @version    2.0.0
+ * @since      1.0.0
  */
 
 // Exit if accessed directly.
@@ -16,13 +18,30 @@ if (!defined('ABSPATH')) {
 
 final class QE_Loader
 {
-
     /**
      * The single instance of the class.
      * @var QE_Loader
      * @since 1.0.0
      */
     private static $instance = null;
+
+    /**
+     * Plugin directory path
+     * @var string
+     */
+    private $plugin_dir;
+
+    /**
+     * Loaded components
+     * @var array
+     */
+    private $loaded_components = [];
+
+    /**
+     * Loading errors
+     * @var array
+     */
+    private $loading_errors = [];
 
     /**
      * Main QE_Loader Instance.
@@ -49,7 +68,7 @@ final class QE_Loader
      */
     private function __construct()
     {
-        // This is where we will load our files and initialize classes.
+        $this->plugin_dir = QUIZ_EXTENDED_PLUGIN_DIR;
     }
 
     /**
@@ -59,55 +78,599 @@ final class QE_Loader
      */
     public function run()
     {
-        $this->load_dependencies();
+        $this->log_info('Starting Quiz Extended LMS initialization...');
+
+        // Load dependencies in order
+        $this->load_core_classes();
+        $this->load_security_layer();
+        $this->load_api_modules();
+        $this->load_admin_components();
+
+        // Initialize services
         $this->initialize_services();
+
+        // Check for loading errors
+        if (!empty($this->loading_errors)) {
+            $this->handle_loading_errors();
+        } else {
+            $this->log_info('Quiz Extended LMS initialized successfully', [
+                'loaded_components' => count($this->loaded_components),
+                'components' => array_keys($this->loaded_components)
+            ]);
+        }
+
+        // Display admin notice if there are errors
+        if (!empty($this->loading_errors)) {
+            add_action('admin_notices', [$this, 'display_loading_errors']);
+        }
+    }
+
+    // ============================================================
+    // CORE CLASSES
+    // ============================================================
+
+    /**
+     * Load core system classes
+     *
+     * @since 2.0.0
+     * @access private
+     */
+    private function load_core_classes()
+    {
+        $this->log_info('Loading core classes...');
+
+        $core_files = [
+            'database' => 'includes/class-qe-database.php',
+            'post_types' => 'includes/class-qe-post-types.php',
+            'enrollment' => 'includes/class-qe-enrollment.php'
+        ];
+
+        foreach ($core_files as $name => $file) {
+            $this->load_file($name, $file, 'core');
+        }
+    }
+
+    // ============================================================
+    // SECURITY LAYER
+    // ============================================================
+
+    /**
+     * Load security layer components
+     *
+     * @since 2.0.0
+     * @access private
+     */
+    private function load_security_layer()
+    {
+        $this->log_info('Loading security layer...');
+
+        // Create security directory if it doesn't exist
+        $security_dir = $this->plugin_dir . 'includes/security/';
+        if (!is_dir($security_dir)) {
+            $security_dir = $this->plugin_dir . 'includes/';
+        }
+
+        $security_files = [
+            'security' => 'includes/security/class-qe-security.php',
+            'auth' => 'includes/security/class-qe-auth.php',
+            'rate_limiter' => 'includes/security/class-qe-rate-limiter.php',
+            'audit_log' => 'includes/security/class-qe-audit-log.php'
+        ];
+
+        // Try alternate paths if security directory doesn't exist
+        $alt_security_files = [
+            'security' => 'includes/class-qe-security.php',
+            'auth' => 'includes/class-qe-auth.php',
+            'rate_limiter' => 'includes/class-qe-rate-limiter.php',
+            'audit_log' => 'includes/class-qe-audit-log.php'
+        ];
+
+        foreach ($security_files as $name => $file) {
+            if (!$this->load_file($name, $file, 'security')) {
+                // Try alternate path
+                $alt_file = $alt_security_files[$name];
+                $this->load_file($name, $alt_file, 'security');
+            }
+        }
+
+        // Verify critical security classes are loaded
+        $this->verify_security_layer();
     }
 
     /**
-     * Load the required dependencies for this plugin.
+     * Verify security layer is properly loaded
      *
-     * Includes the following files:
-     * - QE_Database: Creates and manages custom database tables.
-     * - QE_Post_Types: Registers Custom Post Types and Taxonomies.
-     * - QE_API: Registers the custom REST API endpoints.
-     * - QE_Enrollment: Handles WooCommerce integration for enrollments.
-     * - QE_Admin_Menu: Creates the admin menu for our React app.
-     * - QE_Assets: Enqueues the React app scripts and styles.
-     *
-     * @since    1.0.0
-     * @access   private
+     * @since 2.0.0
+     * @access private
      */
-    private function load_dependencies()
+    private function verify_security_layer()
     {
-        // Core Logic
-        require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-database.php';
-        require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-post-types.php';
-        require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-api.php';
-        require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-enrollment.php';
+        $required_classes = [
+            'QE_Security',
+            'QE_Auth',
+            'QE_Rate_Limiter',
+            'QE_Audit_Log'
+        ];
 
-        // Admin Area
-        require_once QUIZ_EXTENDED_PLUGIN_DIR . 'admin/class-qe-admin-menu.php';
-        require_once QUIZ_EXTENDED_PLUGIN_DIR . 'admin/class-qe-assets.php';
+        $missing_classes = [];
+
+        foreach ($required_classes as $class) {
+            if (!class_exists($class)) {
+                $missing_classes[] = $class;
+            }
+        }
+
+        if (!empty($missing_classes)) {
+            $this->loading_errors[] = [
+                'type' => 'critical',
+                'message' => 'Security layer incomplete. Missing classes: ' . implode(', ', $missing_classes),
+                'component' => 'security'
+            ];
+        } else {
+            $this->log_info('Security layer verified successfully');
+        }
     }
+
+    // ============================================================
+    // API MODULES
+    // ============================================================
+
+    /**
+     * Load API modules
+     *
+     * @since 2.0.0
+     * @access private
+     */
+    private function load_api_modules()
+    {
+        $this->log_info('Loading API modules...');
+
+        // Check if security layer is loaded first
+        if (!class_exists('QE_Security')) {
+            $this->loading_errors[] = [
+                'type' => 'warning',
+                'message' => 'API modules not loaded: Security layer required first',
+                'component' => 'api'
+            ];
+            return;
+        }
+
+        // Create API directory if it doesn't exist
+        $api_dir = $this->plugin_dir . 'includes/api/';
+        if (!is_dir($api_dir)) {
+            $api_dir = $this->plugin_dir . 'includes/';
+        }
+
+        // Load API loader (which loads all API modules)
+        $api_loader_paths = [
+            'includes/api/class-qe-api-loader.php',
+            'includes/class-qe-api-loader.php'
+        ];
+
+        $loaded = false;
+        foreach ($api_loader_paths as $path) {
+            if ($this->load_file('api_loader', $path, 'api')) {
+                $loaded = true;
+                break;
+            }
+        }
+
+        if (!$loaded) {
+            // Fallback: Load old monolithic API if new modules not found
+            $this->log_info('New API modules not found, loading legacy API...');
+            $this->load_file('api_legacy', 'includes/class-qe-api.php', 'api');
+        }
+    }
+
+    // ============================================================
+    // ADMIN COMPONENTS
+    // ============================================================
+
+    /**
+     * Load admin area components
+     *
+     * @since 2.0.0
+     * @access private
+     */
+    private function load_admin_components()
+    {
+        $this->log_info('Loading admin components...');
+
+        $admin_files = [
+            'admin_menu' => 'admin/class-qe-admin-menu.php',
+            'admin_assets' => 'admin/class-qe-assets.php'
+        ];
+
+        foreach ($admin_files as $name => $file) {
+            $this->load_file($name, $file, 'admin');
+        }
+    }
+
+    // ============================================================
+    // SERVICE INITIALIZATION
+    // ============================================================
 
     /**
      * Initialize all services by creating instances of the classes.
-     * This is where we will hook everything into WordPress.
      *
-     * @since    1.0.0
-     * @access   private
+     * @since 1.0.0
+     * @access private
      */
     private function initialize_services()
     {
-        // Activation hook is in the main plugin file.
-        // new QE_Database(); // This class only has static methods for now.
+        $this->log_info('Initializing services...');
 
-        // Initialize classes that register hooks in their constructors.
-        new QE_Post_Types();
-        new QE_API();
-        new QE_Enrollment();
-        new QE_Admin_Menu();
-        new QE_Assets();
+        try {
+            // Core services
+            if (class_exists('QE_Post_Types')) {
+                new QE_Post_Types();
+                $this->loaded_components['post_types_initialized'] = true;
+            }
+
+            if (class_exists('QE_Enrollment')) {
+                new QE_Enrollment();
+                $this->loaded_components['enrollment_initialized'] = true;
+            }
+
+            // Admin services (only in admin)
+            if (is_admin()) {
+                if (class_exists('QE_Admin_Menu')) {
+                    new QE_Admin_Menu();
+                    $this->loaded_components['admin_menu_initialized'] = true;
+                }
+
+                if (class_exists('QE_Assets')) {
+                    new QE_Assets();
+                    $this->loaded_components['admin_assets_initialized'] = true;
+                }
+            }
+
+            // Security services are auto-initialized via singleton pattern
+            // API services are auto-initialized via QE_API_Loader
+
+            $this->log_info('Services initialized successfully');
+
+        } catch (Exception $e) {
+            $this->loading_errors[] = [
+                'type' => 'error',
+                'message' => 'Service initialization failed: ' . $e->getMessage(),
+                'component' => 'initialization'
+            ];
+        }
+    }
+
+    // ============================================================
+    // FILE LOADING HELPERS
+    // ============================================================
+
+    /**
+     * Load a single file
+     *
+     * @param string $name Component name
+     * @param string $file File path relative to plugin directory
+     * @param string $type Component type (core, security, api, admin)
+     * @return bool Success
+     */
+    private function load_file($name, $file, $type = 'core')
+    {
+        $full_path = $this->plugin_dir . $file;
+
+        if (!file_exists($full_path)) {
+            $this->log_error("File not found: {$file}");
+            return false;
+        }
+
+        try {
+            require_once $full_path;
+            $this->loaded_components[$name] = [
+                'file' => $file,
+                'type' => $type,
+                'loaded_at' => microtime(true)
+            ];
+            $this->log_info("Loaded: {$name} ({$type})");
+            return true;
+
+        } catch (Exception $e) {
+            $this->loading_errors[] = [
+                'type' => 'error',
+                'message' => "Failed to load {$name}: " . $e->getMessage(),
+                'component' => $type,
+                'file' => $file
+            ];
+            $this->log_error("Failed to load {$name}", [
+                'file' => $file,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    // ============================================================
+    // ERROR HANDLING
+    // ============================================================
+
+    /**
+     * Handle loading errors
+     *
+     * @since 2.0.0
+     * @access private
+     */
+    private function handle_loading_errors()
+    {
+        $critical_errors = array_filter($this->loading_errors, function ($error) {
+            return $error['type'] === 'critical';
+        });
+
+        if (!empty($critical_errors)) {
+            $this->log_error('Critical loading errors detected', [
+                'count' => count($critical_errors),
+                'errors' => $critical_errors
+            ]);
+        }
+    }
+
+    /**
+     * Display loading errors in admin
+     *
+     * @since 2.0.0
+     */
+    public function display_loading_errors()
+    {
+        if (empty($this->loading_errors)) {
+            return;
+        }
+
+        foreach ($this->loading_errors as $error) {
+            $class = 'notice notice-' . ($error['type'] === 'critical' ? 'error' : 'warning');
+            printf(
+                '<div class="%s"><p><strong>Quiz Extended LMS:</strong> %s</p></div>',
+                esc_attr($class),
+                esc_html($error['message'])
+            );
+        }
+    }
+
+    // ============================================================
+    // STATUS AND DIAGNOSTICS
+    // ============================================================
+
+    /**
+     * Get loader status
+     *
+     * @return array Status information
+     */
+    public function get_status()
+    {
+        return [
+            'loaded_components' => array_keys($this->loaded_components),
+            'component_count' => count($this->loaded_components),
+            'errors' => $this->loading_errors,
+            'error_count' => count($this->loading_errors),
+            'security_loaded' => class_exists('QE_Security'),
+            'api_loaded' => class_exists('QE_API_Loader') || class_exists('QE_API'),
+            'database_version' => QE_Database::get_db_version(),
+            'plugin_version' => QUIZ_EXTENDED_VERSION
+        ];
+    }
+
+    /**
+     * Get loaded components details
+     *
+     * @return array Components details
+     */
+    public function get_loaded_components()
+    {
+        return $this->loaded_components;
+    }
+
+    /**
+     * Get loading errors
+     *
+     * @return array Loading errors
+     */
+    public function get_errors()
+    {
+        return $this->loading_errors;
+    }
+
+    /**
+     * Check if a component is loaded
+     *
+     * @param string $component Component name
+     * @return bool True if loaded
+     */
+    public function is_component_loaded($component)
+    {
+        return isset($this->loaded_components[$component]);
+    }
+
+    /**
+     * Get component load time
+     *
+     * @param string $component Component name
+     * @return float|null Load time or null if not loaded
+     */
+    public function get_component_load_time($component)
+    {
+        if (!isset($this->loaded_components[$component])) {
+            return null;
+        }
+
+        return $this->loaded_components[$component]['loaded_at'];
+    }
+
+    // ============================================================
+    // LOGGING
+    // ============================================================
+
+    /**
+     * Log info message
+     *
+     * @param string $message Message
+     * @param array $context Context data
+     */
+    private function log_info($message, $context = [])
+    {
+        if (defined('WP_DEBUG') && WP_DEBUG && defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+            error_log(sprintf(
+                '[Quiz Extended Loader] INFO: %s %s',
+                $message,
+                !empty($context) ? '| ' . json_encode($context) : ''
+            ));
+        }
+    }
+
+    /**
+     * Log error message
+     *
+     * @param string $message Message
+     * @param array $context Context data
+     */
+    private function log_error($message, $context = [])
+    {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log(sprintf(
+                '[Quiz Extended Loader] ERROR: %s %s',
+                $message,
+                !empty($context) ? '| ' . json_encode($context) : ''
+            ));
+        }
+    }
+
+    // ============================================================
+    // ADMIN DIAGNOSTICS PAGE
+    // ============================================================
+
+    /**
+     * Register diagnostics admin page
+     *
+     * @since 2.0.0
+     */
+    public function register_diagnostics_page()
+    {
+        if (!is_admin()) {
+            return;
+        }
+
+        add_action('admin_menu', function () {
+            add_submenu_page(
+                'quiz-extended-lms',
+                __('System Diagnostics', 'quiz-extended'),
+                __('Diagnostics', 'quiz-extended'),
+                'manage_options',
+                'qe-diagnostics',
+                [$this, 'render_diagnostics_page']
+            );
+        });
+    }
+
+    /**
+     * Render diagnostics page
+     *
+     * @since 2.0.0
+     */
+    public function render_diagnostics_page()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have sufficient permissions to access this page.'));
+        }
+
+        $status = $this->get_status();
+        $components = $this->get_loaded_components();
+
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Quiz Extended LMS - System Diagnostics', 'quiz-extended'); ?></h1>
+
+            <div class="card">
+                <h2><?php _e('System Status', 'quiz-extended'); ?></h2>
+                <table class="widefat">
+                    <tr>
+                        <td><strong><?php _e('Plugin Version:', 'quiz-extended'); ?></strong></td>
+                        <td><?php echo esc_html($status['plugin_version']); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php _e('Database Version:', 'quiz-extended'); ?></strong></td>
+                        <td><?php echo esc_html($status['database_version']); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php _e('Loaded Components:', 'quiz-extended'); ?></strong></td>
+                        <td><?php echo esc_html($status['component_count']); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php _e('Loading Errors:', 'quiz-extended'); ?></strong></td>
+                        <td><?php echo esc_html($status['error_count']); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php _e('Security Layer:', 'quiz-extended'); ?></strong></td>
+                        <td>
+                            <?php if ($status['security_loaded']): ?>
+                                <span style="color: green;">✓ <?php _e('Loaded', 'quiz-extended'); ?></span>
+                            <?php else: ?>
+                                <span style="color: red;">✗ <?php _e('Not Loaded', 'quiz-extended'); ?></span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php _e('API System:', 'quiz-extended'); ?></strong></td>
+                        <td>
+                            <?php if ($status['api_loaded']): ?>
+                                <span style="color: green;">✓ <?php _e('Loaded', 'quiz-extended'); ?></span>
+                            <?php else: ?>
+                                <span style="color: red;">✗ <?php _e('Not Loaded', 'quiz-extended'); ?></span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <?php if (!empty($status['errors'])): ?>
+                <div class="card">
+                    <h2><?php _e('Loading Errors', 'quiz-extended'); ?></h2>
+                    <table class="widefat">
+                        <thead>
+                            <tr>
+                                <th><?php _e('Type', 'quiz-extended'); ?></th>
+                                <th><?php _e('Component', 'quiz-extended'); ?></th>
+                                <th><?php _e('Message', 'quiz-extended'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($status['errors'] as $error): ?>
+                                <tr>
+                                    <td><?php echo esc_html($error['type']); ?></td>
+                                    <td><?php echo esc_html($error['component']); ?></td>
+                                    <td><?php echo esc_html($error['message']); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+
+            <div class="card">
+                <h2><?php _e('Loaded Components', 'quiz-extended'); ?></h2>
+                <table class="widefat">
+                    <thead>
+                        <tr>
+                            <th><?php _e('Component', 'quiz-extended'); ?></th>
+                            <th><?php _e('Type', 'quiz-extended'); ?></th>
+                            <th><?php _e('File', 'quiz-extended'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($components as $name => $details): ?>
+                            <tr>
+                                <td><?php echo esc_html($name); ?></td>
+                                <td><?php echo esc_html($details['type']); ?></td>
+                                <td><code><?php echo esc_html($details['file']); ?></code></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?php
     }
 }
 
