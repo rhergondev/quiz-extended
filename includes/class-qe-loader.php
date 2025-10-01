@@ -121,7 +121,7 @@ final class QE_Loader
 
         $core_files = [
             'database' => 'includes/class-qe-database.php',
-            'post_types' => 'includes/class-qe-post-types.php',
+            'post_types_loader' => 'includes/post-types/class-qe-post-types-loader.php',
             'enrollment' => 'includes/class-qe-enrollment.php'
         ];
 
@@ -301,9 +301,8 @@ final class QE_Loader
         $this->log_info('Initializing services...');
 
         try {
-            // Core services
-            if (class_exists('QE_Post_Types')) {
-                new QE_Post_Types();
+            if (class_exists('QE_Post_Types_Loader')) {
+                QE_Post_Types_Loader::instance()->init();
                 $this->loaded_components['post_types_initialized'] = true;
             }
 
