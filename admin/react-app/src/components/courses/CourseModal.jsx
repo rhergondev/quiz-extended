@@ -60,45 +60,44 @@ const CourseModal = ({
   // --- EFFECTS ---
   
   useEffect(() => {
-    if (course && mode !== 'create') {
-      const meta = course.meta || {};
-      setFormData({
-        title: course.title?.rendered || course.title || '',
-        content: course.content?.rendered || '',
-        featured_media: course.featured_media || null,
-        status: course.status || 'draft',
-        _course_position: meta._course_position || '0',
-        _product_type: meta._product_type || 'free',
-        _price: meta._price || '0',
-        _sale_price: meta._sale_price || '',
-        _start_date: meta._start_date || '',
-        _end_date: meta._end_date || '',
-        qe_category: course.qe_category || []
-      });
-      
-      if (course.featured_media_url) {
-        setImagePreview(course.featured_media_url);
-      }
-    } else {
-      // Reset form for creation mode
-      setFormData({
-        title: '',
-        content: '',
-        featured_media: null,
-        status: 'draft',
-        _course_position: '0',
-        _product_type: 'free',
-        _price: '0',
-        _sale_price: '',
-        _start_date: '',
-        _end_date: '',
-        qe_category: []
-      });
+  if (course && mode !== 'create') {
+    const meta = course.meta || {};
+    
+    let contentValue = '';
+    if (course.content?.rendered) {
+      contentValue = course.content.rendered;
+    } else if (course.content) {
+      contentValue = course.content;
+    } else if (course.description?.rendered) {
+      contentValue = course.description.rendered;
+    } else if (course.description) {
+      contentValue = course.description;
+    } else if (meta._course_description) {
+      contentValue = meta._course_description;
+    }
+    
+    setFormData({
+      title: course.title?.rendered || course.title || '',
+      content: contentValue, // 🔥 Usar el valor correcto
+      featured_media: course.featured_media || null,
+      status: course.status || 'draft',
+      _course_position: meta._course_position || '0',
+      _product_type: meta._product_type || 'free',
+      _price: meta._price || '0',
+      _sale_price: meta._sale_price || '0',
+      _start_date: meta._start_date || '',
+      _end_date: meta._end_date || '',
+      qe_category: course.qe_category || []
+    });
+
+    if (course.featured_media && course._embedded?.['wp:featuredmedia']?.[0]) {
+      const imageUrl = course._embedded['wp:featuredmedia'][0].source_url;
+      setImagePreview(imageUrl);
+    } else if (course.featured_media) {
       setImagePreview(null);
     }
-    setErrors({});
-    setSubmitError(null);
-  }, [course, mode]);
+  }
+}, [course, mode]);
   
   useEffect(() => {
     if (!isOpen) {

@@ -19,6 +19,7 @@ import ContentManager from '../common/ContentManager';
 import CourseCard from './CourseCard';
 import CourseModal from './CourseModal';
 import DeleteModal from '../common/DeleteModal';
+import * as courseService from '../../api/services/courseService';
 
 const CoursesManager = () => {
   // --- LOCAL STATE ---
@@ -147,38 +148,48 @@ const CoursesManager = () => {
   };
 
   const handleSaveCourse = async (courseData, nextAction) => {
-    try {
-      console.log('💾 CoursesManager - Saving course:', courseData, 'Next action:', nextAction);
-      console.log('💾 CoursesManager - Categories being sent:', courseData.qe_category);
-      console.log('💾 CoursesManager - Featured media being sent:', courseData.featured_media);
+  try {
+    console.log('💾 CoursesManager - Saving course:', courseData, 'Next action:', nextAction);
+    
+    let result;
+    if (modalMode === 'create') {
+      result = await createCourse(courseData);
+      console.log('✅ Course created:', result);
       
-      let result;
-      if (modalMode === 'create') {
-        result = await createCourse(courseData);
-        console.log('✅ CoursesManager - Course created:', result);
-      } else if (modalMode === 'edit') {
-        result = await updateCourse(selectedCourse.id, courseData);
-        console.log('✅ CoursesManager - Course updated:', result);
+      if (result?.id) {
+        const refreshedCourse = await courseService.getOne(result.id);
+        result = refreshedCourse;
+        console.log('✅ Course refreshed with embedded data:', result);
       }
-
-      // Handle next action
-      if (nextAction === 'close') {
-        closeModal();
-      } else if (nextAction === 'create') {
-        setSelectedCourse(null);
-        setModalMode('create');
-      } else if (nextAction === 'edit' && result?.id) {
-        setSelectedCourse(result);
-        setModalMode('edit');
+    } else if (modalMode === 'edit') {
+      result = await updateCourse(selectedCourse.id, courseData);
+      console.log('✅ Course updated:', result);
+      
+      if (result?.id) {
+        const refreshedCourse = await courseService.getOne(result.id);
+        result = refreshedCourse;
+        console.log('✅ Course refreshed with embedded data:', result);
       }
-
-      return result;
-
-    } catch (error) {
-      console.error('❌ CoursesManager - Error saving course:', error);
-      throw error;
     }
-  };
+
+    // Handle next action
+    if (nextAction === 'close') {
+      closeModal();
+    } else if (nextAction === 'create') {
+      setSelectedCourse(null);
+      setModalMode('create');
+    } else if (nextAction === 'edit' && result?.id) {
+      setSelectedCourse(result);
+      setModalMode('edit');
+    }
+
+    return result;
+
+  } catch (error) {
+    console.error('❌ CoursesManager - Error saving course:', error);
+    throw error;
+  }
+};
 
   const handleDeleteClick = useCallback((course) => {
     console.log('🗑️ Delete clicked for course:', course);
