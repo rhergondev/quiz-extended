@@ -14,13 +14,16 @@ import {
   RefreshCw
 } from 'lucide-react';
 
-import { useLessons } from '../hooks/useLessons';
+import useLessons from '../../hooks/useLessons.js';
 import { useSearchInput, useFilterDebounce } from '../../api/utils/debounceUtils.js';
 
 import ContentManager from '../common/ContentManager';
 import LessonCard from './LessonCard';
 import LessonModal from './LessonModal';
 import DeleteModal from '../common/DeleteModal';
+import PageHeader from '../common/PageHeader.jsx';
+import FilterBar from '../common/FilterBar.jsx';
+import { useTranslation } from 'react-i18next';
 
 const LessonsManager = () => {
   // --- LOCAL STATE ---
@@ -33,6 +36,8 @@ const LessonsManager = () => {
   const [modalMode, setModalMode] = useState(null); // 'create', 'edit', 'view'
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const { t } = useTranslation();
 
   // --- DEBOUNCED SEARCH INPUT ---
   const {
@@ -250,6 +255,7 @@ const LessonsManager = () => {
     ];
   }, [computed]);
 
+
   // --- FILTER OPTIONS ---
   const courseOptions = useMemo(() => [
     { value: 'all', label: 'All Courses' },
@@ -275,142 +281,71 @@ const LessonsManager = () => {
     { value: 'private', label: 'Private' }
   ];
 
+  const isLoadingTaxonomies = false; 
+
+  const searchConfig = {
+    value: searchValue,
+    onChange: handleSearchChangeWrapper,
+    onClear: clearSearch,
+    placeholder: 'Search lessons...',
+    isLoading: isSearching,
+  };
+
+  const filtersConfig = [
+    {
+      label: 'Course',
+      value: filters.courseId,
+      onChange: (value) => updateFilter('courseId', value),
+      options: courseOptions, // Example with dynamic options
+      placeholder: 'All Courses',
+      isLoading: isLoadingTaxonomies,
+      showSearch: true,
+    },
+    {
+      label: 'Lesson Type',
+      value: filters.lessonType,
+      onChange: (value) => updateFilter('lessonType', value),
+      options: lessonTypeOptions,
+      placeholder: 'All Types',
+    },
+    {
+      label: 'Status',
+      value: filters.status,
+      onChange: (value) => updateFilter('status', value),
+      options: statusOptions,
+      placeholder: 'All Statuses',
+    },
+  ];
+
   // --- RENDER ---
   return (
     <div className="space-y-6 p-6">
       {/* Header with Stats */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Lesson Management</h1>
-            <p className="text-gray-600 mt-1">Create and manage interactive lessons with multiple content types.</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            {/* Loading indicator */}
-            {(loading || isSearching || isFiltering) && (
-              <div className="flex items-center text-sm text-gray-500">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-                {isSearching ? 'Searching...' : isFiltering ? 'Filtering...' : 'Loading...'}
-              </div>
-            )}
-            <button 
-              onClick={handleRefresh} 
-              disabled={loading} 
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              <RefreshCw className="h-4 w-4 mr-2 inline" />
-              Refresh
-            </button>
-            <button 
-              onClick={() => {
-                console.log('🟢 Create button clicked');
-                openModal('create');
-              }}
-              disabled={creating} 
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              {creating ? 'Creating...' : 'Create Lesson'}
-            </button>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {statsCards.map((stat, index) => {
-            const Icon = stat.icon;
-            return (
-              <div key={index} className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center">
-                  <div className={`flex-shrink-0 ${stat.iconColor}`}>
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">{stat.label}</p>
-                    <p className="text-lg font-semibold text-gray-900">{stat.value}</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <PageHeader
+        title={t('lessons.title')}
+        description="Create and manage interactive lessons with multiple content types."
+        stats={statsCards}
+        isLoading={loading && lessons.length > 0} // Show a generic loading indicator when refreshing
+        primaryAction={{
+          text: t('lessons.addNew'),
+          onClick: () => openModal('create'),
+          isLoading: creating,
+        }}
+        secondaryAction={{
+          text: t('common.refresh'),
+          onClick: handleRefresh,
+          isLoading: loading,
+          icon: RefreshCw,
+        }}
+      />
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Search Input with Debouncing */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search lessons..."
-              value={searchValue}
-              onChange={handleSearchChangeWrapper}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            />
-            {searchValue && (
-              <button
-                onClick={clearSearch}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-              >
-                <span className="sr-only">Clear search</span>
-                ×
-              </button>
-            )}
-          </div>
+        <FilterBar
+        searchConfig={searchConfig}
+        filtersConfig={filtersConfig}
+        onResetFilters={resetFilters}
+      />
 
-          {/* Course Filter */}
-          <select
-            value={filters.courseId}
-            onChange={(e) => handleCourseChange(e.target.value)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {courseOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          {/* Lesson Type Filter */}
-          <select
-            value={filters.lessonType}
-            onChange={(e) => handleLessonTypeChange(e.target.value)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {lessonTypeOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          {/* Status Filter */}
-          <select
-            value={filters.status}
-            onChange={(e) => handleStatusChange(e.target.value)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {statusOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Clear Filters Button */}
-        <div className="mt-4 flex justify-end">
-          <button
-            onClick={resetFilters}
-            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
-          >
-            Clear All Filters
-          </button>
-        </div>
-      </div>
 
       {/* Content Manager with Infinite Scroll */}
       <ContentManager

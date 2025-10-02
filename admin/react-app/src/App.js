@@ -1,10 +1,15 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { I18nextProvider } from 'react-i18next';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import CoursesManager from './components/courses/CoursesManager';
 import LessonsManager from './components/lessons/LessonsManager';
 import QuizzesManager from './components/quizzes/QuizzesManager';
 import UsersPage from './pages/UsersPage';
 import QuestionsManager from './components/questions/QuestionsManager';
+
+import i18n from './i18n/config';
 
 /**
  * El componente raíz de la aplicación.
@@ -13,34 +18,32 @@ import QuestionsManager from './components/questions/QuestionsManager';
  */
 function App() {
   return (
-    <Router>
-      <div className="qe-lms-admin-app">
-        <Routes>
-          {/* --- RUTAS PRINCIPALES --- */}
-
-          {/* Ruta para la página de Cursos */}
-          <Route path="/courses" element={<CoursesManager />} />
-          
-          {/* Ruta para la página de Lecciones */}
-          <Route path="/lessons" element={<LessonsManager  />} />
-          
-          {/* Ruta para la página de Quizzes */}
-          <Route path="/quizzes" element={<QuizzesManager />} />
-          
-          {/* Ruta para la página de Preguntas */}
-          <Route path="/questions" element={<QuestionsManager />} />
-
-          {/* Rutas de marcador de posición para futuras páginas */}
-          <Route path="/students" element={<UsersPage />} />
-          <Route path="/settings" element={<h1>Página de Ajustes (Próximamente)</h1>} />
-
-          {/* --- RUTA POR DEFECTO --- */}
-          {/* Si la URL no coincide con ninguna ruta (ej. la raíz),
-              redirigimos a la página de Cursos como vista por defecto. */}
-          <Route path="*" element={<Navigate to="/courses" replace />} />
-        </Routes>
-      </div>
-    </Router>
+    <I18nextProvider i18n={i18n}>
+      <Router>
+        <div className="qe-lms-admin-app">
+          <Routes>
+            <Route path="/" element={<h1>Página de prueba</h1>} />
+            <Route path="/courses" element={<CoursesManager />} />
+            <Route path="/lessons" element={<LessonsManager  />} />
+            <Route path="/quizzes" element={<QuizzesManager />} />
+            <Route path="/questions" element={<QuestionsManager />} />
+            <Route path="/students" element={<UsersPage />} />
+            <Route path="/settings" element={<h1>Página de Ajustes (Próximamente)</h1>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          <ToastContainer 
+            position="top-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop
+            closeOnClick
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+          />
+        </div>
+      </Router>
+    </I18nextProvider>
   );
 }
 

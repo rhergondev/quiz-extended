@@ -1,444 +1,274 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+/**
+ * useCourses - Course Management Hook (Refactored)
+ * 
+ * Uses useResource for base functionality
+ * Extended with course-specific features
+ * 
+ * @package QuizExtended
+ * @subpackage Hooks
+ * @version 2.0.0
+ */
 
-const useCourses = (options = {}) => {
+import { useMemo } from 'react';
+import { useResource } from './useResource';
+import * as courseService from '../api/services/courseService';
+
+/**
+ * Course management hook
+ * 
+ * @param {Object} options - Configuration options
+ * @param {string} options.search - Search term
+ * @param {string} options.category - Category filter
+ * @param {string} options.difficulty - Difficulty filter
+ * @param {string} options.status - Status filter
+ * @param {boolean} options.autoFetch - Auto-fetch on mount (default: true)
+ * @param {number} options.perPage - Items per page (default: 20)
+ * @returns {Object} Course state and methods
+ */
+export const useCourses = (options = {}) => {
   const {
     search = '',
     category = null,
     difficulty = null,
     status = null,
-    price = null,
     autoFetch = true,
-    debounceMs = 500
+    perPage = 20
   } = options;
 
-  // --- STATE ---
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [creating, setCreating] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  // --- PAGINATION ---
-  const [pagination, setPagination] = useState({
-    page: 1,
-    perPage: 12,
-    total: 0,
-    totalPages: 0,
-    hasMore: true
-  });
-
-  // --- COMPUTED STATS ---
-  const computed = useMemo(() => {
-    const totalCourses = courses.length;
-    const publishedCourses = courses.filter(c => c.status === 'publish').length;
-    const draftCourses = courses.filter(c => c.status === 'draft').length;
-    
-    // Mock data para stats más complejas
-    const totalStudents = courses.reduce((sum, course) => {
-      return sum + (course.meta?._student_count || Math.floor(Math.random() * 150));
-    }, 0);
-
-    const totalRevenue = courses.reduce((sum, course) => {
-      const price = parseFloat(course.meta?._course_price || 0);
-      const students = course.meta?._student_count || Math.floor(Math.random() * 150);
-      return sum + (price * students);
-    }, 0);
-
-    const averagePrice = totalCourses > 0 ? 
-      courses.reduce((sum, course) => sum + parseFloat(course.meta?._course_price || 0), 0) / totalCourses : 0;
-
-    const averageCompletionRate = totalCourses > 0 ?
-      courses.reduce((sum, course) => sum + (course.meta?._completion_rate || Math.floor(Math.random() * 100)), 0) / totalCourses : 0;
-
+  // ============================================================
+  // DATA PROCESSOR
+  // ============================================================
+  
+  /**
+   * Process/enhance course data with computed values
+   */
+  const dataProcessor = useMemo(() => (course) => {
     return {
-      totalCourses,
-      publishedCourses,
-      draftCourses,
-      totalStudents,
-      totalRevenue: totalRevenue.toFixed(2),
-      averagePrice: averagePrice.toFixed(2),
-      averageCompletionRate: averageCompletionRate.toFixed(1)
+      ...course,
+      // Enhanced computed values
+      lesson_count: course.meta?._lesson_count || 0,
+      student_count: course.meta?._student_count || 0,
+      enrolled_users_count: course.meta?.enrolled_users_count || 0,
+      price: parseFloat(course.meta?._course_price || 0),
+      sale_price: parseFloat(course.meta?._sale_price || 0),
+      difficulty: course.meta?._course_difficulty || 'intermediate',
+      category: course.meta?._course_category || 'general',
+      completion_rate: parseInt(course.meta?._completion_rate || '0'),
+      duration_hours: parseInt(course.meta?._course_duration || '0'),
+      featured: course.meta?._featured === 'yes',
+      // Computed flags
+      on_sale: course.meta?._sale_price && 
+               parseFloat(course.meta._sale_price) < parseFloat(course.meta._course_price || 0),
+      has_lessons: (course.meta?._lesson_count || 0) > 0,
+      has_students: (course.meta?._student_count || 0) > 0
     };
-  }, [courses]);
-
-  // --- API FUNCTIONS ---
-  const buildApiUrl = useCallback((reset = false) => {
-    const params = new URLSearchParams({
-      per_page: pagination.perPage.toString(),
-      page: reset ? '1' : pagination.page.toString(),
-      orderby: 'date',
-      order: 'desc',
-      _fields: 'id,title,content,excerpt,status,date,modified,meta,featured_media'
-    });
-
-    if (search) params.append('search', search);
-    if (status) params.append('status', status);
-    if (category) params.append('course_category', category);
-    if (difficulty) params.append('course_difficulty', difficulty);
-
-    return `/wp-json/wp/v2/course?${params.toString()}`;
-  }, [search, category, difficulty, status, pagination.page, pagination.perPage]);
-
-  const fetchCourses = useCallback(async (reset = false) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const url = buildApiUrl(reset);
-      console.log('🔄 Fetching courses from:', url);
-
-      // 🔧 MEJORAR: Headers con mejor manejo de nonce
-      const headers = {
-        'Content-Type': 'application/json'
-      };
-
-      // Solo agregar nonce si está disponible
-      if (window.wpApiSettings?.nonce) {
-        headers['X-WP-Nonce'] = window.wpApiSettings.nonce;
-      } else if (window.qe_data?.nonce) {
-        headers['X-WP-Nonce'] = window.qe_data.nonce;
-      }
-
-      console.log('🔑 Request headers:', headers);
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: headers,
-        credentials: 'same-origin'
-      });
-
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        // Intentar obtener detalles del error
-        let errorDetails;
-        try {
-          errorDetails = await response.json();
-          console.error('❌ API Error Details:', errorDetails);
-        } catch (e) {
-          errorDetails = { message: `HTTP ${response.status} ${response.statusText}` };
-        }
-        
-        throw new Error(`API Error: ${errorDetails.message || response.statusText}`);
-      }
-
-      const data = await response.json();
-      const totalFromHeader = parseInt(response.headers.get('X-WP-Total') || '0');
-      const totalPagesFromHeader = parseInt(response.headers.get('X-WP-TotalPages') || '1');
-
-      console.log('✅ Courses fetched:', {
-        count: data.length,
-        total: totalFromHeader,
-        totalPages: totalPagesFromHeader,
-        reset
-      });
-
-      // Procesar datos de cursos
-      const processedCourses = data.map(course => ({
-        ...course,
-        lesson_count: course.meta?._lesson_count || Math.floor(Math.random() * 20) + 1,
-        student_count: course.meta?._student_count || Math.floor(Math.random() * 150),
-        price: parseFloat(course.meta?._course_price || 0),
-        difficulty: course.meta?._course_difficulty || 'intermediate',
-        category: course.meta?._course_category || 'general',
-        completion_rate: course.meta?._completion_rate || Math.floor(Math.random() * 100),
-        duration_hours: course.meta?._course_duration || Math.floor(Math.random() * 50) + 5
-      }));
-
-      if (reset) {
-        setCourses(processedCourses);
-      } else {
-        setCourses(prev => [...prev, ...processedCourses]);
-      }
-
-      setPagination(prev => ({
-        ...prev,
-        page: reset ? 2 : prev.page + 1,
-        total: totalFromHeader,
-        totalPages: totalPagesFromHeader,
-        hasMore: reset ? 
-          totalPagesFromHeader > 1 : 
-          prev.page < totalPagesFromHeader
-      }));
-
-    } catch (err) {
-      console.error('❌ Error fetching courses:', err);
-      setError(err.message);
-      
-      // Mock data for development - SIEMPRE usar mock si hay error
-      console.log('🧪 Using mock course data due to API error');
-      const mockCourses = generateMockCourses();
-      setCourses(reset ? mockCourses : prev => [...prev, ...mockCourses]);
-      setPagination(prev => ({
-        ...prev,
-        page: reset ? 2 : prev.page + 1,
-        total: 50,
-        totalPages: 5,
-        hasMore: reset ? true : prev.page < 5
-      }));
-    } finally {
-      setLoading(false);
-    }
-  }, [buildApiUrl]);
-
-  // 🔧 MEJORAR: Helper para obtener headers con nonce
-  const getRequestHeaders = useCallback(() => {
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-
-    // Intentar múltiples fuentes de nonce
-    const nonce = window.wpApiSettings?.nonce || 
-                  window.qe_data?.nonce || 
-                  window.qeApiConfig?.nonce;
-
-    if (nonce) {
-      headers['X-WP-Nonce'] = nonce;
-      console.log('🔑 Using nonce from:', 
-        window.wpApiSettings?.nonce ? 'wpApiSettings' :
-        window.qe_data?.nonce ? 'qe_data' : 'qeApiConfig');
-    } else {
-      console.warn('⚠️ No nonce found in any source');
-    }
-
-    return headers;
   }, []);
 
-  const createCourse = useCallback(async (courseData) => {
-    try {
-      setCreating(true);
-      setError(null);
-
-      const response = await fetch('/wp-json/wp/v2/course', {
-        method: 'POST',
-        headers: getRequestHeaders(),
-        credentials: 'same-origin',
-        body: JSON.stringify({
-          title: courseData.title,
-          content: courseData.description || '',
-          status: courseData.status || 'draft',
-          meta: {
-            _course_price: courseData.price || '0',
-            _course_difficulty: courseData.difficulty || 'intermediate',
-            _course_category: courseData.category || 'general',
-            _course_duration: courseData.duration || 0,
-            _course_max_students: courseData.maxStudents || 0
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errorDetails = await response.json().catch(() => ({}));
-        throw new Error(`Failed to create course: ${errorDetails.message || response.statusText}`);
-      }
-
-      const newCourse = await response.json();
-      console.log('✅ Course created:', newCourse);
-
-      setCourses(prev => [newCourse, ...prev]);
-      return newCourse;
-
-    } catch (err) {
-      console.error('❌ Error creating course:', err);
-      
-      // Mock creation for development
-      const mockCourse = {
-        id: Date.now(),
-        title: { rendered: courseData.title },
-        content: { rendered: courseData.description || '' },
-        status: courseData.status || 'draft',
-        date: new Date().toISOString(),
-        meta: {
-          _course_price: courseData.price || '0',
-          _course_difficulty: courseData.difficulty || 'intermediate',
-          _course_category: courseData.category || 'general'
-        },
-        lesson_count: 0,
-        student_count: 0,
-        price: parseFloat(courseData.price || 0)
+  // ============================================================
+  // COMPUTED VALUES CALCULATOR
+  // ============================================================
+  
+  /**
+   * Calculate course-specific computed values
+   */
+  const computedValuesCalculator = useMemo(() => (courses) => {
+    const total = courses.length;
+    
+    if (total === 0) {
+      return {
+        total: 0,
+        published: 0,
+        draft: 0,
+        private: 0,
+        totalStudents: 0,
+        totalLessons: 0,
+        averagePrice: 0,
+        averageDuration: 0,
+        averageCompletionRate: 0,
+        byCategory: {},
+        byDifficulty: {},
+        featuredCount: 0,
+        onSaleCount: 0
       };
+    }
 
-      setCourses(prev => [mockCourse, ...prev]);
-      return mockCourse;
+    // Aggregate values
+    let totalStudents = 0;
+    let totalLessons = 0;
+    let totalPrice = 0;
+    let totalDuration = 0;
+    let totalCompletionRate = 0;
+    let priceCount = 0;
+    const byCategory = {};
+    const byDifficulty = {};
+    let featuredCount = 0;
+    let onSaleCount = 0;
+
+    courses.forEach(course => {
+      // Students and lessons
+      totalStudents += course.student_count || 0;
+      totalLessons += course.lesson_count || 0;
       
-    } finally {
-      setCreating(false);
-    }
-  }, [getRequestHeaders]);
-
-  const updateCourse = useCallback(async (courseId, courseData) => {
-    try {
-      setUpdating(true);
-      setError(null);
-
-      const response = await fetch(`/wp-json/wp/v2/course/${courseId}`, {
-        method: 'POST',
-        headers: getRequestHeaders(),
-        credentials: 'same-origin',
-        body: JSON.stringify({
-          title: courseData.title,
-          content: courseData.description || '',
-          status: courseData.status || 'draft',
-          meta: {
-            _course_price: courseData.price || '0',
-            _course_difficulty: courseData.difficulty || 'intermediate',
-            _course_category: courseData.category || 'general',
-            _course_duration: courseData.duration || 0,
-            _course_max_students: courseData.maxStudents || 0
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errorDetails = await response.json().catch(() => ({}));
-        throw new Error(`Failed to update course: ${errorDetails.message || response.statusText}`);
+      // Price (only count non-zero prices)
+      const price = course.price || 0;
+      if (price > 0) {
+        totalPrice += price;
+        priceCount++;
       }
-
-      const updatedCourse = await response.json();
-      console.log('✅ Course updated:', updatedCourse);
-
-      setCourses(prev => prev.map(course => 
-        course.id === courseId ? updatedCourse : course
-      ));
       
-      return updatedCourse;
+      // Duration
+      totalDuration += course.duration_hours || 0;
+      
+      // Completion rate
+      totalCompletionRate += course.completion_rate || 0;
+      
+      // Category counts
+      const cat = course.category || 'uncategorized';
+      byCategory[cat] = (byCategory[cat] || 0) + 1;
+      
+      // Difficulty counts
+      const diff = course.difficulty || 'intermediate';
+      byDifficulty[diff] = (byDifficulty[diff] || 0) + 1;
+      
+      // Featured
+      if (course.featured) featuredCount++;
+      
+      // On sale
+      if (course.on_sale) onSaleCount++;
+    });
 
-    } catch (err) {
-      console.error('❌ Error updating course:', err);
-      throw err;
-    } finally {
-      setUpdating(false);
-    }
-  }, [getRequestHeaders]);
+    return {
+      total,
+      published: courses.filter(c => c.status === 'publish').length,
+      draft: courses.filter(c => c.status === 'draft').length,
+      private: courses.filter(c => c.status === 'private').length,
+      totalStudents,
+      totalLessons,
+      averagePrice: priceCount > 0 ? Math.round(totalPrice / priceCount) : 0,
+      averageDuration: total > 0 ? Math.round(totalDuration / total) : 0,
+      averageCompletionRate: total > 0 ? Math.round(totalCompletionRate / total) : 0,
+      byCategory,
+      byDifficulty,
+      featuredCount,
+      onSaleCount
+    };
+  }, []);
 
-  const deleteCourse = useCallback(async (courseId) => {
-    try {
-      setDeleting(true);
-      setError(null);
+  // ============================================================
+  // USE BASE RESOURCE HOOK
+  // ============================================================
+  
+  const {
+    items: courses,
+    loading,
+    creating,
+    updating,
+    deleting,
+    error,
+    pagination,
+    computed,
+    filters,
+    updateFilter,
+    resetFilters,
+    setFilters,
+    fetchItems: fetchCourses,
+    loadMore: loadMoreCourses,
+    createItem: createCourse,
+    updateItem: updateCourse,
+    deleteItem: deleteCourse,
+    duplicateItem: duplicateCourse,
+    refresh,
+    hasMore
+  } = useResource({
+    service: courseService,
+    resourceName: 'course',
+    initialFilters: {
+      search,
+      category,
+      difficulty,
+      status: status || 'publish,draft,private'
+    },
+    debounceMs: 500,
+    autoFetch,
+    perPage,
+    dataProcessor,
+    computedValuesCalculator
+  });
 
-      const response = await fetch(`/wp-json/wp/v2/course/${courseId}`, {
-        method: 'DELETE',
-        headers: getRequestHeaders(),
-        credentials: 'same-origin'
-      });
+  // ============================================================
+  // COURSE-SPECIFIC METHODS
+  // ============================================================
+  
+  /**
+   * Publish course (set status to 'publish')
+   */
+  const publishCourse = async (courseId) => {
+    return updateCourse(courseId, { status: 'publish' });
+  };
 
-      if (!response.ok) {
-        const errorDetails = await response.json().catch(() => ({}));
-        console.warn('⚠️ Delete request failed, proceeding with local removal:', errorDetails.message);
-      }
+  /**
+   * Unpublish course (set status to 'draft')
+   */
+  const unpublishCourse = async (courseId) => {
+    return updateCourse(courseId, { status: 'draft' });
+  };
 
-      console.log('✅ Course deleted:', courseId);
-      setCourses(prev => prev.filter(course => course.id !== courseId));
-      return true;
+  /**
+   * Toggle course featured status
+   */
+  const toggleFeatured = async (courseId, featured) => {
+    return updateCourse(courseId, { featured });
+  };
 
-    } catch (err) {
-      console.error('❌ Error deleting course:', err);
-      // Always remove locally even if API fails
-      setCourses(prev => prev.filter(course => course.id !== courseId));
-      return true;
-    } finally {
-      setDeleting(false);
-    }
-  }, [getRequestHeaders]);
+  /**
+   * Update course price
+   */
+  const updatePrice = async (courseId, price, salePrice = null) => {
+    return updateCourse(courseId, { 
+      price, 
+      ...(salePrice !== null && { salePrice }) 
+    });
+  };
 
-  const duplicateCourse = useCallback(async (courseId) => {
-    try {
-      const originalCourse = courses.find(c => c.id === courseId);
-      if (!originalCourse) throw new Error('Course not found');
-
-      const duplicateData = {
-        title: `${originalCourse.title?.rendered || 'Untitled'} (Copy)`,
-        description: originalCourse.content?.rendered || '',
-        status: 'draft',
-        price: originalCourse.meta?._course_price || '0',
-        difficulty: originalCourse.meta?._course_difficulty || 'intermediate',
-        category: originalCourse.meta?._course_category || 'general'
-      };
-
-      return await createCourse(duplicateData);
-
-    } catch (err) {
-      console.error('❌ Error duplicating course:', err);
-      throw err;
-    }
-  }, [courses, createCourse]);
-
-  // --- EFFECTS ---
-  useEffect(() => {
-    if (autoFetch) {
-      const timeoutId = setTimeout(() => {
-        fetchCourses(true);
-      }, debounceMs);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [search, category, difficulty, status, autoFetch, debounceMs, fetchCourses]);
-
+  // ============================================================
+  // RETURN
+  // ============================================================
+  
   return {
     // Data
     courses,
     loading,
+    creating,
+    updating,
+    deleting,
     error,
     pagination,
     computed,
 
-    // Loading states
-    creating,
-    updating,
-    deleting,
+    // Filters
+    filters,
+    updateFilter,
+    resetFilters,
+    setFilters,
 
-    // Functions
+    // Actions
     fetchCourses,
+    loadMoreCourses,
     createCourse,
     updateCourse,
     deleteCourse,
     duplicateCourse,
+    refresh,
 
-    // Utils
-    refresh: () => fetchCourses(true)
+    // Course-specific actions
+    publishCourse,
+    unpublishCourse,
+    toggleFeatured,
+    updatePrice,
+
+    // Helpers
+    hasMore
   };
-};
-
-// --- MOCK DATA GENERATOR ---
-const generateMockCourses = () => {
-  const categories = ['programming', 'design', 'business', 'marketing', 'photography'];
-  const difficulties = ['beginner', 'intermediate', 'advanced', 'expert'];
-  const statuses = ['publish', 'draft', 'private'];
-
-  return Array.from({ length: 12 }, (_, i) => ({
-    id: 1000 + i,
-    title: { 
-      rendered: `Course ${i + 1}: ${categories[i % categories.length].charAt(0).toUpperCase() + categories[i % categories.length].slice(1)} Fundamentals`
-    },
-    content: { 
-      rendered: `This is a comprehensive course about ${categories[i % categories.length]}. Learn all the fundamentals and advanced techniques.`
-    },
-    excerpt: { 
-      rendered: `Learn ${categories[i % categories.length]} from scratch with hands-on projects and expert guidance.`
-    },
-    status: statuses[i % statuses.length],
-    date: new Date(Date.now() - (i * 24 * 60 * 60 * 1000)).toISOString(),
-    modified: new Date().toISOString(),
-    featured_media: 0,
-    meta: {
-      _course_price: (Math.random() * 200 + 50).toFixed(2),
-      _course_difficulty: difficulties[i % difficulties.length],
-      _course_category: categories[i % categories.length],
-      _course_duration: Math.floor(Math.random() * 40) + 10,
-      _lesson_count: Math.floor(Math.random() * 15) + 5,
-      _student_count: Math.floor(Math.random() * 200) + 10,
-      _completion_rate: Math.floor(Math.random() * 40) + 60
-    },
-    lesson_count: Math.floor(Math.random() * 15) + 5,
-    student_count: Math.floor(Math.random() * 200) + 10,
-    price: parseFloat((Math.random() * 200 + 50).toFixed(2)),
-    difficulty: difficulties[i % difficulties.length],
-    category: categories[i % categories.length],
-    completion_rate: Math.floor(Math.random() * 40) + 60,
-    duration_hours: Math.floor(Math.random() * 40) + 10
-  }));
 };
 
 export default useCourses;

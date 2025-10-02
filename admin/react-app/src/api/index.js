@@ -1,9 +1,19 @@
 /**
- * Main API entry point
- * Exports all API functions to maintain backward compatibility
+ * Main API Entry Point - CONSOLIDATED
+ * 
+ * Exports all API functions with backward compatibility
+ * Now using baseService foundation
+ * 
+ * @package QuizExtended
+ * @subpackage API
+ * @version 2.0.0
  */
 
-// Core Course Operations
+// ============================================================
+// CORE SERVICES
+// ============================================================
+
+// Course Operations
 export {
   getCourses,
   getCourse,
@@ -12,21 +22,83 @@ export {
   deleteCourse,
   duplicateCourse,
   getCoursesCount,
-  courseExists
+  courseExists,
+  getEnrolledUsersCount,
+  updateCourseStatus,
+  publishCourse,
+  unpublishCourse,
+  toggleCourseFeatured,
+  searchCoursesByTitle,
+  getCoursesByCategory,
+  getCoursesByDifficulty,
+  getFeaturedCourses,
+  getPublishedCourses
 } from './services/courseService.js';
 
-// Core Lesson Operations
+// Lesson Operations
 export {
-  getLesson,
+  getLessons,
   getLessonsByCourse,
+  getLesson,
   createLesson,
   updateLesson,
   deleteLesson,
   duplicateLesson,
-  getLessonsCount
+  getLessonsCount,
+  lessonExists,
+  updateLessonStatus,
+  publishLesson,
+  unpublishLesson,
+  updateLessonOrder,
+  moveLessonToCourse,
+  getLessonsByType,
+  getPublishedLessons,
+  getLessonStatistics
 } from './services/lessonService.js';
 
-// Batch Actions
+// Quiz Operations
+export {
+  getQuizzes,
+  getQuizzesByCourse,
+  getQuiz,
+  createQuiz,
+  updateQuiz,
+  deleteQuiz,
+  duplicateQuiz,
+  getQuizzesCount,
+  addQuestionToQuiz,
+  removeQuestionFromQuiz,
+  updateQuizStatus,
+  getQuizStatistics
+} from './services/quizService.js';
+
+// Question Operations
+export {
+  getQuestions,
+  getQuestionsByQuiz,
+  getQuestion,
+  createQuestion,
+  updateQuestion,
+  deleteQuestion,
+  duplicateQuestion,
+  getQuestionsCount,
+  questionExists,
+  updateQuestionStatus,
+  updateQuestionOrder,
+  getQuestionsByType,
+  getQuestionsByDifficulty,
+  getQuestionsByCategory,
+  getQuestionsByProvider,
+  getPublishedQuestions as getPublishedQuestions_,
+  getQuestionStatistics,
+  bulkCreateQuestions
+} from './services/questionService.js';
+
+// ============================================================
+// BATCH OPERATIONS
+// ============================================================
+
+// Course Batch Actions
 export {
   batchDeleteCourses,
   batchUpdateStatus,
@@ -45,9 +117,13 @@ export {
   executeBatchLessonOperations
 } from './services/lessonBatchActionsService.js';
 
+// ============================================================
+// SPECIALIZED SERVICES
+// ============================================================
+
 // Category Operations
 export {
-  getCoursesByCategory,
+  getCoursesByCategory as getCoursesByCategoryDetailed,
   getCourseCategories,
   getCategoryCourseCount,
   getPopularCategories,
@@ -62,21 +138,48 @@ export {
 export {
   advancedCourseSearch,
   searchCourses,
-  searchCoursesByTitle,
+  searchCoursesByTitle as searchCoursesByTitleAdvanced,
   searchCoursesByPriceRange,
-  searchCoursesByDifficulty,
+  searchCoursesByDifficulty as searchCoursesByDifficultyAdvanced,
   searchCoursesByDateRange,
   getSearchSuggestions,
   getPopularSearchTerms,
   getSearchStatistics
 } from './services/courseSearchService.js';
 
-// COMPATIBILITY ALIASES (for backward compatibility)
+// ============================================================
+// COMPATIBILITY ALIASES
+// ============================================================
+
+// Backward compatibility for renamed functions
 export { getCategoryStatistics as getCategoryStats } from './services/courseCategoryService.js';
 
-// Configuration and utilities (for advanced users)
+// ============================================================
+// CONFIGURATION & UTILITIES
+// ============================================================
+
+// Base Service (for advanced users creating custom services)
+export { createResourceService, makeApiRequest } from './services/baseService.js';
+
+// API Configuration
 export { getApiConfig, DEFAULT_PAGINATION } from './config/apiConfig.js';
+
+// Error Handling
+export {
+  ErrorType,
+  createErrorObject,
+  logError,
+  handleApiError,
+  safeAsync,
+  createValidationError,
+  isErrorType,
+  setupGlobalErrorHandler
+} from './utils/errorHandler.js';
+
+// Batch Utilities
 export { BATCH_CONFIG } from './utils/batchUtils.js';
+
+// Data Utilities - Course
 export { 
   VALID_COURSE_STATUSES, 
   VALID_DIFFICULTY_LEVELS,
@@ -85,6 +188,7 @@ export {
   sanitizeCourseData
 } from './utils/courseDataUtils.js';
 
+// Data Utilities - Lesson
 export {
   VALID_LESSON_STATUSES,
   VALID_LESSON_TYPES,
@@ -95,10 +199,20 @@ export {
   sanitizeLessonData
 } from './utils/lessonDataUtils.js';
 
-// HTTP utilities (for advanced users who need direct HTTP access)
+// HTTP Utilities
 export {
   httpGet,
   httpPost,
   httpPut,
-  httpDelete
+  httpDelete,
+  extractPaginationFromHeaders
 } from './utils/httpUtils.js';
+
+// Debounce Utilities
+export {
+  useDebouncedCallback,
+  useRequestDeduplicator,
+  useSearchInput,
+  useFilterDebounce,
+  RequestDeduplicator
+} from './utils/debounceUtils.js';

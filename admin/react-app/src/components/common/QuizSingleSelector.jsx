@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, HelpCircle, ChevronDown, AlertCircle, RefreshCw } from 'lucide-react';
-import { useQuizzes } from '../hooks/useQuizzes';
+import useQuizzes from '../../hooks/useQuizzes';
 
 const QuizSingleSelector = ({
   value = '',

@@ -1,0 +1,47 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "duplicate": "Duplicate",
+    "loading": "Loading...",
+    "search": "Search...",
+    "filter": "Filter",
+    "reset": "Reset",
+    "refresh": "Refresh",
+    "actions": "Actions",
+    "status": "Status",
+    "published": "Published",
+    "draft": "Draft",
+    "private": "Private"
+  },
+  "courses": {
+    "title": "Courses",
+    "addNew": "Add New Course",
+    "noCourses": "No courses found",
+    "enrolled": "Enrolled Users",
+    "publishedDate": "Published Date",
+    "startDate": "Start Date",
+    "endDate": "End Date"
+  },
+  "lessons": {
+    "title": "Lessons",
+    "addNew": "Add New Lesson",
+    "noLessons": "No lessons found"
+  },
+  "quizzes": {
+    "title": "Quizzes",
+    "addNew": "Add New Quiz"
+  },
+  "questions": {
+    "title": "Questions",
+    "addNew": "Add New Question"
+  },
+  "notifications": {
+    "createSuccess": "{{resource}} created successfully",
+    "updateSuccess": "{{resource}} updated successfully",
+    "deleteSuccess": "{{resource}} deleted successfully",
+    "error": "An error occurred"
+  }
+}

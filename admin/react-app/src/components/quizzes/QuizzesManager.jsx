@@ -3,8 +3,8 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { BookOpen, Clock, Target, Users, TrendingUp, Award } from 'lucide-react';
 
-import { useQuizzes } from '../hooks/useQuizzes.js';
-import { useCourses } from '../hooks/useCourses.js'; // Si tienes este hook
+import { useQuizzes } from '../../hooks/useQuizzes.js';
+import useCourses from '../../hooks/useCourses.js';
 
 import ContentManager from '../common/ContentManager.jsx';
 import QuizCard from './QuizCard.jsx';

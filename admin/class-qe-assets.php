@@ -89,6 +89,7 @@ class QE_Assets
                     'loading' => __('Loading...', 'quiz-extended'),
                     'errorOccurred' => __('An error occurred', 'quiz-extended'),
                 ],
+                'locale' => get_user_locale(),
             ]
         );
     }

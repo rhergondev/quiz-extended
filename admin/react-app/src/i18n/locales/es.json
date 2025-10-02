@@ -1,0 +1,47 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "duplicate": "Duplicar",
+    "loading": "Cargando...",
+    "search": "Buscar...",
+    "filter": "Filtrar",
+    "reset": "Reiniciar",
+    "refresh": "Refrescar",
+    "actions": "Acciones",
+    "status": "Estado",
+    "published": "Publicado",
+    "draft": "Borrador",
+    "private": "Privado"
+  },
+  "courses": {
+    "title": "Cursos",
+    "addNew": "Añadir Nuevo Curso",
+    "noCourses": "No se encontraron cursos",
+    "enrolled": "Usuarios Inscritos",
+    "publishedDate": "Fecha de Publicación",
+    "startDate": "Fecha de Inicio",
+    "endDate": "Fecha de Fin"
+  },
+  "lessons": {
+    "title": "Lecciones",
+    "addNew": "Añadir Nueva Lección",
+    "noLessons": "No se encontraron lecciones"
+  },
+  "quizzes": {
+    "title": "Cuestionarios",
+    "addNew": "Añadir Nuevo Cuestionario"
+  },
+  "questions": {
+    "title": "Preguntas",
+    "addNew": "Añadir Nueva Pregunta"
+  },
+  "notifications": {
+    "createSuccess": "{{resource}} creado exitosamente",
+    "updateSuccess": "{{resource}} actualizado exitosamente",
+    "deleteSuccess": "{{resource}} eliminado exitosamente",
+    "error": "Ocurrió un error"
+  }
+}

@@ -1,84 +1,26 @@
 /**
- * Lesson Service - Complete New Version
- * Direct WordPress API integration with proper endpoint handling
- * FIXED: Course filtering now works correctly
+ * Lesson Service - Refactored
+ * 
+ * Uses baseService for common CRUD operations
+ * Extended with lesson-specific functionality
+ * 
+ * @package QuizExtended
+ * @subpackage API/Services
+ * @version 2.0.0
  */
 
+import { createResourceService, buildQueryParams } from './baseService.js';
 import { 
-  transformLessonDataForApi,
-  sanitizeLessonData,
-  validateLessonData 
+  sanitizeLessonData, 
+  validateLessonData, 
+  transformLessonDataForApi 
 } from '../utils/lessonDataUtils.js';
 
 /**
- * Get WordPress configuration and validate
- */
-const getWpConfig = () => {
-  const config = window.qe_data || {};
-  
-  if (!config.nonce) {
-    throw new Error('WordPress configuration not found. Make sure qe_data is properly loaded.');
-  }
-  
-  if (!config.endpoints || !config.endpoints.lessons) {
-    throw new Error('Lessons endpoint not configured in WordPress');
-  }
-  
-  return config;
-};
-
-/**
- * Make a direct API call to WordPress REST API
- */
-const makeApiRequest = async (url, options = {}) => {
-  try {
-    const config = getWpConfig();
-    
-    console.log('🚀 API Request:', url);
-    console.log('📋 Options:', options);
-    
-    const defaultOptions = {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-WP-Nonce': config.nonce,
-      },
-      credentials: 'same-origin',
-      ...options
-    };
-
-    const response = await fetch(url, defaultOptions);
-    
-    console.log('📡 Response Status:', response.status);
-    console.log('📊 Response Headers:', {
-      'X-WP-Total': response.headers.get('X-WP-Total'),
-      'X-WP-TotalPages': response.headers.get('X-WP-TotalPages'),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('❌ API Error Response:', errorData);
-      throw new Error(`API Error ${response.status}: ${response.statusText} - ${errorData}`);
-    }
-
-    const data = await response.json();
-    console.log('✅ Response Data Count:', Array.isArray(data) ? data.length : 'Not an array');
-    
-    return {
-      data,
-      headers: {
-        'X-WP-Total': response.headers.get('X-WP-Total'),
-        'X-WP-TotalPages': response.headers.get('X-WP-TotalPages')
-      }
-    };
-
-  } catch (error) {
-    console.error('💥 API Request Failed:', error);
-    throw error;
-  }
-};
-
-/**
- * Build query parameters for lesson requests
+ * Custom query params builder for lessons
+ * Handles course filtering with proper meta_query format
+ * @param {Object} options - Filter options
+ * @returns {URLSearchParams} Query parameters
  */
 const buildLessonQueryParams = (options = {}) => {
   const {
@@ -87,6 +29,7 @@ const buildLessonQueryParams = (options = {}) => {
     status = 'publish,draft,private',
     search = '',
     courseId = null,
+    lessonType = null,
     orderBy = 'menu_order',
     order = 'asc',
     embed = true
@@ -108,7 +51,7 @@ const buildLessonQueryParams = (options = {}) => {
     params.append('search', search.trim());
   }
 
-  // FIXED: Use proper meta_query format for course filtering
+  // IMPORTANT: Course filtering with meta_query
   if (courseId) {
     const numericCourseId = parseInt(courseId, 10);
     if (Number.isInteger(numericCourseId) && numericCourseId > 0) {
@@ -119,236 +62,127 @@ const buildLessonQueryParams = (options = {}) => {
     }
   }
 
-  console.log('🔧 Built query params:', params.toString());
+  // Lesson type filtering
+  if (lessonType) {
+    params.append('meta_query[1][key]', '_lesson_type');
+    params.append('meta_query[1][value]', lessonType);
+    params.append('meta_query[1][compare]', '=');
+  }
+
   return params;
 };
 
+// Create base lesson service with custom handlers
+const baseLessonService = createResourceService('lesson', 'lessons', {
+  sanitizer: sanitizeLessonData,
+  validator: validateLessonData,
+  transformer: transformLessonDataForApi,
+  buildParams: buildLessonQueryParams
+});
+
 /**
- * Get all lessons with optional filtering
+ * Get all lessons with optional filters
+ * @param {Object} options - Filter options
+ * @returns {Promise<Object>} Lessons and pagination
  */
 export const getLessons = async (options = {}) => {
-  try {
-    const config = getWpConfig();
-    const params = buildLessonQueryParams(options);
-    
-    const url = `${config.endpoints.lessons}?${params.toString()}`;
-    console.log('🎯 GET Lessons URL:', url);
-    
-    const response = await makeApiRequest(url);
-    
-    // Sanitize the lesson data
-    const sanitizedLessons = response.data ? response.data.map(sanitizeLessonData) : [];
-    
-    return {
-      data: sanitizedLessons,
-      pagination: {
-        currentPage: options.page || 1,
-        totalPages: parseInt(response.headers['X-WP-TotalPages'] || '1'),
-        total: parseInt(response.headers['X-WP-Total'] || '0'),
-        perPage: options.perPage || 20
-      }
-    };
-    
-  } catch (error) {
-    console.error('❌ Error fetching lessons:', error);
-    throw error;
-  }
+  return baseLessonService.getAll(options);
 };
 
 /**
  * Get lessons for a specific course
+ * @param {number} courseId - Course ID
+ * @param {Object} options - Additional options
+ * @returns {Promise<Object>} Lessons and pagination
  */
 export const getLessonsByCourse = async (courseId, options = {}) => {
-  try {
-    if (!courseId || !Number.isInteger(courseId) || courseId <= 0) {
-      throw new Error('Invalid course ID provided');
-    }
-
-    console.log('🎓 Getting lessons for course:', courseId);
-    
-    // Use the general getLessons method with courseId filter
-    return getLessons({
-      ...options,
-      courseId: courseId
-    });
-    
-  } catch (error) {
-    console.error('❌ Error fetching lessons by course:', error);
-    throw error;
+  if (!courseId || !Number.isInteger(courseId) || courseId <= 0) {
+    throw new Error('Invalid course ID provided');
   }
+
+  console.log('🎓 Getting lessons for course:', courseId);
+  
+  return getLessons({
+    ...options,
+    courseId
+  });
 };
 
 /**
- * Get a single lesson by ID
+ * Get single lesson by ID
+ * @param {number} lessonId - Lesson ID
+ * @param {Object} options - Additional options
+ * @returns {Promise<Object>} Lesson data
  */
 export const getLesson = async (lessonId, options = {}) => {
-  try {
-    if (!lessonId || !Number.isInteger(lessonId) || lessonId <= 0) {
-      throw new Error('Invalid lesson ID provided');
-    }
-
-    const config = getWpConfig();
-    const { embed = true } = options;
-    
-    const params = new URLSearchParams();
-    if (embed) {
-      params.append('_embed', 'true');
-    }
-
-    const url = `${config.endpoints.lessons}/${lessonId}?${params.toString()}`;
-    console.log('🎯 GET Single Lesson URL:', url);
-    
-    const response = await makeApiRequest(url);
-    
-    return sanitizeLessonData(response.data);
-
-  } catch (error) {
-    console.error(`❌ Error fetching lesson ${lessonId}:`, error);
-    
-    // Return null for 404 errors (lesson not found)
-    if (error.message.includes('404')) {
-      return null;
-    }
-    
-    throw error;
-  }
+  return baseLessonService.getOne(lessonId, options);
 };
 
 /**
- * Create a new lesson
+ * Create new lesson
+ * @param {Object} lessonData - Lesson data
+ * @returns {Promise<Object>} Created lesson
  */
 export const createLesson = async (lessonData) => {
-  try {
-    const config = getWpConfig();
-    
-    // Validate lesson data before sending
-    const validation = validateLessonData(lessonData);
-    if (!validation.isValid) {
-      throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
-    }
-
-    // Transform data for API
-    const transformedData = transformLessonDataForApi(lessonData);
-
-    console.log('📝 Creating lesson with data:', transformedData);
-    
-    const response = await makeApiRequest(config.endpoints.lessons, {
-      method: 'POST',
-      body: JSON.stringify(transformedData)
-    });
-    
-    console.log('✅ Lesson created successfully:', response.data.id);
-    return sanitizeLessonData(response.data);
-
-  } catch (error) {
-    console.error('❌ Error creating lesson:', error);
-    throw error;
-  }
+  return baseLessonService.create(lessonData);
 };
 
 /**
- * Update an existing lesson
+ * Update existing lesson
+ * @param {number} lessonId - Lesson ID
+ * @param {Object} lessonData - Lesson data
+ * @returns {Promise<Object>} Updated lesson
  */
 export const updateLesson = async (lessonId, lessonData) => {
-  try {
-    if (!lessonId || !Number.isInteger(lessonId) || lessonId <= 0) {
-      throw new Error('Invalid lesson ID provided');
-    }
-
-    const config = getWpConfig();
-
-    // Validate lesson data before sending
-    const validation = validateLessonData(lessonData);
-    if (!validation.isValid) {
-      throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
-    }
-
-    // Transform data for API
-    const transformedData = transformLessonDataForApi(lessonData);
-
-    console.log(`✏️ Updating lesson ${lessonId} with data:`, transformedData);
-    
-    const url = `${config.endpoints.lessons}/${lessonId}`;
-    const response = await makeApiRequest(url, {
-      method: 'POST', // WordPress REST API uses POST for updates
-      body: JSON.stringify(transformedData)
-    });
-    
-    console.log('✅ Lesson updated successfully:', lessonId);
-    return sanitizeLessonData(response.data);
-
-  } catch (error) {
-    console.error(`❌ Error updating lesson ${lessonId}:`, error);
-    throw error;
-  }
+  return baseLessonService.update(lessonId, lessonData);
 };
 
 /**
- * Delete a lesson
+ * Delete lesson
+ * @param {number} lessonId - Lesson ID
+ * @param {Object} options - Delete options
+ * @returns {Promise<boolean>} Success status
  */
 export const deleteLesson = async (lessonId, options = {}) => {
-  try {
-    if (!lessonId || !Number.isInteger(lessonId) || lessonId <= 0) {
-      throw new Error('Invalid lesson ID provided');
-    }
-
-    const config = getWpConfig();
-    const { force = false } = options;
-    
-    const params = new URLSearchParams();
-    if (force) {
-      params.append('force', 'true');
-    }
-
-    console.log(`🗑️ Deleting lesson ${lessonId}...`);
-    
-    const url = `${config.endpoints.lessons}/${lessonId}?${params.toString()}`;
-    const response = await makeApiRequest(url, {
-      method: 'DELETE'
-    });
-    
-    console.log('✅ Lesson deleted successfully:', lessonId);
-    return response.data;
-
-  } catch (error) {
-    console.error(`❌ Error deleting lesson ${lessonId}:`, error);
-    throw error;
-  }
+  return baseLessonService.delete(lessonId, options);
 };
 
 /**
- * Duplicate a lesson
+ * Duplicate existing lesson
+ * @param {number} lessonId - Lesson ID to duplicate
+ * @returns {Promise<Object>} Duplicated lesson
  */
 export const duplicateLesson = async (lessonId) => {
   try {
-    if (!lessonId || !Number.isInteger(lessonId) || lessonId <= 0) {
-      throw new Error('Invalid lesson ID provided');
-    }
-
-    console.log(`📋 Duplicating lesson ${lessonId}...`);
-    
-    // First, get the original lesson
     const originalLesson = await getLesson(lessonId);
+    
     if (!originalLesson) {
-      throw new Error('Original lesson not found');
+      throw new Error('Lesson not found');
     }
 
-    // Prepare data for duplication
     const duplicateData = {
-      title: `${originalLesson.title} (Copy)`,
-      content: originalLesson.content,
-      status: 'draft', // Always create duplicates as drafts
-      meta: {
-        ...originalLesson.meta,
-        _lesson_order: (parseInt(originalLesson.meta._lesson_order || '1') + 1).toString()
-      }
+      title: `${originalLesson.title?.rendered || originalLesson.title || 'Untitled'} (Copy)`,
+      content: originalLesson.content?.rendered || originalLesson.content || '',
+      excerpt: originalLesson.excerpt?.rendered || originalLesson.excerpt || '',
+      status: 'draft',
+      courseId: originalLesson.meta?._course_id,
+      lessonOrder: (parseInt(originalLesson.meta?._lesson_order || '0') + 1),
+      lessonType: originalLesson.meta?._lesson_type || 'mixed',
+      description: originalLesson.meta?._lesson_description || '',
+      steps: originalLesson.meta?._lesson_steps || [],
+      prerequisiteLessons: originalLesson.meta?._prerequisite_lessons || [],
+      completionCriteria: originalLesson.meta?._completion_criteria || 'view',
+      isRequired: originalLesson.meta?._is_required === 'yes',
+      duration: originalLesson.meta?._duration_minutes || 0,
+      videoUrl: originalLesson.meta?._video_url || '',
+      hasQuiz: originalLesson.meta?._has_quiz === 'yes'
     };
 
-    // Create the duplicate
-    const duplicatedLesson = await createLesson(duplicateData);
+    console.log('📋 Duplicating lesson:', lessonId);
+    const duplicated = await createLesson(duplicateData);
+    console.log('✅ Lesson duplicated:', duplicated.id);
     
-    console.log('✅ Lesson duplicated successfully:', duplicatedLesson.id);
-    return duplicatedLesson;
+    return duplicated;
 
   } catch (error) {
     console.error(`❌ Error duplicating lesson ${lessonId}:`, error);
@@ -358,255 +192,149 @@ export const duplicateLesson = async (lessonId) => {
 
 /**
  * Get lessons count with optional filters
+ * @param {Object} options - Filter options
+ * @returns {Promise<number>} Total count
  */
 export const getLessonsCount = async (options = {}) => {
+  return baseLessonService.getCount(options);
+};
+
+/**
+ * Check if lesson exists
+ * @param {number} lessonId - Lesson ID
+ * @returns {Promise<boolean>} Exists status
+ */
+export const lessonExists = async (lessonId) => {
   try {
-    const result = await getLessons({ ...options, perPage: 1 });
-    return result.pagination.total;
+    const lesson = await getLesson(lessonId);
+    return !!lesson;
   } catch (error) {
-    console.error('❌ Error getting lessons count:', error);
-    return 0;
+    return false;
   }
 };
 
 /**
- * Batch delete multiple lessons
+ * Update lesson status
+ * @param {number} lessonId - Lesson ID
+ * @param {string} newStatus - New status ('publish', 'draft', 'private')
+ * @returns {Promise<Object>} Updated lesson
  */
-export const batchDeleteLessons = async (lessonIds, force = false) => {
-  try {
-    if (!Array.isArray(lessonIds) || lessonIds.length === 0) {
-      throw new Error('Invalid lesson IDs array provided');
-    }
-
-    console.log(`🗑️ Batch deleting ${lessonIds.length} lessons...`);
-    
-    const results = {
-      successful: [],
-      failed: []
-    };
-
-    // Process deletions in parallel (but be careful with rate limits)
-    const deletePromises = lessonIds.map(async (lessonId) => {
-      try {
-        await deleteLesson(lessonId, { force });
-        results.successful.push(lessonId);
-        return { id: lessonId, success: true };
-      } catch (error) {
-        results.failed.push({ id: lessonId, error: error.message });
-        return { id: lessonId, success: false, error: error.message };
-      }
-    });
-
-    await Promise.allSettled(deletePromises);
-    
-    console.log(`✅ Batch delete completed: ${results.successful.length} successful, ${results.failed.length} failed`);
-    
-    return results;
-
-  } catch (error) {
-    console.error('❌ Error in batch delete lessons:', error);
-    throw error;
+export const updateLessonStatus = async (lessonId, newStatus) => {
+  if (!['publish', 'draft', 'private'].includes(newStatus)) {
+    throw new Error(`Invalid status: ${newStatus}`);
   }
+
+  return updateLesson(lessonId, { status: newStatus });
 };
 
 /**
- * Batch update lesson status
+ * Publish lesson (set status to 'publish')
+ * @param {number} lessonId - Lesson ID
+ * @returns {Promise<Object>} Updated lesson
  */
-export const batchUpdateLessonStatus = async (lessonIds, newStatus) => {
-  try {
-    if (!Array.isArray(lessonIds) || lessonIds.length === 0) {
-      throw new Error('Invalid lesson IDs array provided');
-    }
-
-    if (!['publish', 'draft', 'private', 'pending'].includes(newStatus)) {
-      throw new Error('Invalid status provided');
-    }
-
-    console.log(`📊 Batch updating ${lessonIds.length} lessons to status: ${newStatus}...`);
-    
-    const results = {
-      successful: [],
-      failed: []
-    };
-
-    // Process updates in parallel
-    const updatePromises = lessonIds.map(async (lessonId) => {
-      try {
-        await updateLesson(lessonId, { status: newStatus });
-        results.successful.push(lessonId);
-        return { id: lessonId, success: true };
-      } catch (error) {
-        results.failed.push({ id: lessonId, error: error.message });
-        return { id: lessonId, success: false, error: error.message };
-      }
-    });
-
-    await Promise.allSettled(updatePromises);
-    
-    console.log(`✅ Batch status update completed: ${results.successful.length} successful, ${results.failed.length} failed`);
-    
-    return results;
-
-  } catch (error) {
-    console.error('❌ Error in batch update lesson status:', error);
-    throw error;
-  }
+export const publishLesson = async (lessonId) => {
+  return updateLessonStatus(lessonId, 'publish');
 };
 
 /**
- * Move lessons to a different course
+ * Unpublish lesson (set status to 'draft')
+ * @param {number} lessonId - Lesson ID
+ * @returns {Promise<Object>} Updated lesson
  */
-export const moveLessonsToCourse = async (lessonIds, newCourseId) => {
-  try {
-    if (!Array.isArray(lessonIds) || lessonIds.length === 0) {
-      throw new Error('Invalid lesson IDs array provided');
-    }
-
-    const numericCourseId = parseInt(newCourseId, 10);
-    if (!Number.isInteger(numericCourseId) || numericCourseId <= 0) {
-      throw new Error('Invalid course ID provided');
-    }
-
-    console.log(`🎓 Moving ${lessonIds.length} lessons to course: ${numericCourseId}...`);
-    
-    const results = {
-      successful: [],
-      failed: []
-    };
-
-    // Process moves in parallel
-    const movePromises = lessonIds.map(async (lessonId) => {
-      try {
-        await updateLesson(lessonId, {
-          meta: {
-            _course_id: numericCourseId.toString()
-          }
-        });
-        results.successful.push(lessonId);
-        return { id: lessonId, success: true };
-      } catch (error) {
-        results.failed.push({ id: lessonId, error: error.message });
-        return { id: lessonId, success: false, error: error.message };
-      }
-    });
-
-    await Promise.allSettled(movePromises);
-    
-    console.log(`✅ Batch move completed: ${results.successful.length} successful, ${results.failed.length} failed`);
-    
-    return results;
-
-  } catch (error) {
-    console.error('❌ Error moving lessons to course:', error);
-    throw error;
-  }
+export const unpublishLesson = async (lessonId) => {
+  return updateLessonStatus(lessonId, 'draft');
 };
 
 /**
- * Search lessons with advanced filters
+ * Update lesson order
+ * @param {number} lessonId - Lesson ID
+ * @param {number} newOrder - New order
+ * @returns {Promise<Object>} Updated lesson
  */
-export const searchLessons = async (query, filters = {}) => {
-  try {
-    if (!query || typeof query !== 'string' || query.trim().length < 2) {
-      throw new Error('Search query must be at least 2 characters long');
-    }
+export const updateLessonOrder = async (lessonId, newOrder) => {
+  return updateLesson(lessonId, { lessonOrder: newOrder });
+};
 
-    console.log(`🔍 Searching lessons with query: "${query.trim()}"`);
-    
-    const searchOptions = {
-      search: query.trim(),
-      perPage: filters.perPage || 20,
-      page: filters.page || 1,
-      status: filters.status || 'publish,draft,private',
-      courseId: filters.courseId || null,
-      orderBy: filters.orderBy || 'relevance',
-      order: filters.order || 'desc'
-    };
+/**
+ * Move lesson to different course
+ * @param {number} lessonId - Lesson ID
+ * @param {number} newCourseId - New course ID
+ * @returns {Promise<Object>} Updated lesson
+ */
+export const moveLessonToCourse = async (lessonId, newCourseId) => {
+  return updateLesson(lessonId, { courseId: newCourseId });
+};
 
-    return getLessons(searchOptions);
+/**
+ * Get lessons by type
+ * @param {string} lessonType - Lesson type (video, text, quiz, etc.)
+ * @param {Object} options - Additional options
+ * @returns {Promise<Object>} Filtered lessons
+ */
+export const getLessonsByType = async (lessonType, options = {}) => {
+  return getLessons({
+    ...options,
+    lessonType
+  });
+};
 
-  } catch (error) {
-    console.error('❌ Error searching lessons:', error);
-    throw error;
-  }
+/**
+ * Get published lessons only
+ * @param {Object} options - Additional options
+ * @returns {Promise<Object>} Published lessons
+ */
+export const getPublishedLessons = async (options = {}) => {
+  return getLessons({
+    ...options,
+    status: 'publish'
+  });
 };
 
 /**
  * Get lesson statistics
+ * @param {Object} options - Filter options
+ * @returns {Promise<Object>} Statistics
  */
-export const getLessonStatistics = async (courseId = null) => {
+export const getLessonStatistics = async (options = {}) => {
   try {
-    console.log('📊 Getting lesson statistics...', courseId ? `for course ${courseId}` : 'for all lessons');
-    
-    const options = courseId ? { courseId, perPage: -1 } : { perPage: -1 };
-    const result = await getLessons(options);
+    const result = await getLessons({ ...options, perPage: 100 });
     
     const stats = {
-      total: result.data.length,
-      byStatus: {
-        publish: result.data.filter(l => l.status === 'publish').length,
-        draft: result.data.filter(l => l.status === 'draft').length,
-        private: result.data.filter(l => l.status === 'private').length,
-        pending: result.data.filter(l => l.status === 'pending').length
-      },
-      byType: result.data.reduce((acc, lesson) => {
-        const type = lesson.meta?._lesson_type || 'text';
-        acc[type] = (acc[type] || 0) + 1;
-        return acc;
-      }, {}),
-      byContentType: {
-        free: result.data.filter(l => l.meta?._content_type !== 'premium').length,
-        premium: result.data.filter(l => l.meta?._content_type === 'premium').length
-      },
-      totalDuration: result.data.reduce((total, lesson) => {
-        const duration = parseInt(lesson.meta?._duration_minutes || '0');
-        return total + duration;
-      }, 0),
-      averageDuration: result.data.length > 0 
-        ? Math.round(result.data.reduce((total, lesson) => {
-            const duration = parseInt(lesson.meta?._duration_minutes || '0');
-            return total + duration;
-          }, 0) / result.data.length)
-        : 0,
-      lessonsWithQuizzes: result.data.filter(lesson => 
-        lesson.meta?._has_quiz === 'yes' || lesson.meta?._lesson_type === 'quiz'
-      ).length
+      total: result.pagination.total,
+      published: 0,
+      draft: 0,
+      byType: {},
+      withQuizzes: 0,
+      totalDuration: 0,
+      averageDuration: 0
     };
 
-    console.log('✅ Lesson statistics:', stats);
+    result.data.forEach(lesson => {
+      // Count by status
+      if (lesson.status === 'publish') stats.published++;
+      if (lesson.status === 'draft') stats.draft++;
+
+      // Count by type
+      const type = lesson.meta?._lesson_type || 'mixed';
+      stats.byType[type] = (stats.byType[type] || 0) + 1;
+
+      // Count lessons with quizzes
+      if (lesson.meta?._has_quiz === 'yes') stats.withQuizzes++;
+
+      // Calculate duration
+      const duration = parseInt(lesson.meta?._duration_minutes || '0');
+      stats.totalDuration += duration;
+    });
+
+    stats.averageDuration = result.data.length > 0 
+      ? Math.round(stats.totalDuration / result.data.length) 
+      : 0;
+
+    console.log('📊 Lesson statistics:', stats);
     return stats;
 
   } catch (error) {
     console.error('❌ Error getting lesson statistics:', error);
     throw error;
-  }
-};
-
-/**
- * Test API configuration and endpoints
- */
-export const testApiConfig = () => {
-  try {
-    const config = getWpConfig();
-    
-    console.log('🧪 API Configuration Test:');
-    console.log('✅ WordPress config found:', !!config);
-    console.log('✅ Nonce present:', !!config.nonce);
-    console.log('✅ Endpoints configured:', !!config.endpoints);
-    console.log('✅ Lessons endpoint:', config.endpoints?.lessons);
-    console.log('✅ Courses endpoint:', config.endpoints?.courses);
-    
-    return {
-      success: true,
-      config: config,
-      endpoints: config.endpoints
-    };
-    
-  } catch (error) {
-    console.error('❌ API Configuration Test Failed:', error);
-    return {
-      success: false,
-      error: error.message
-    };
   }
 };

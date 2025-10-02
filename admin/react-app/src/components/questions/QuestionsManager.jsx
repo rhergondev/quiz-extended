@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { HelpCircle, Target, FileText, ToggleLeft, Search, FileWarning, Star } from 'lucide-react';
 
-import { useQuestions } from '../hooks/useQuestions.js';
-import { useQuizzes } from '../hooks/useQuizzes.js';
+import useQuestions from '../../hooks/useQuestions.js';
+import { useQuizzes } from '../../hooks/useQuizzes.js';
 import { useFilterDebounce } from '../../api/utils/debounceUtils.js';
 
 import ContentManager from '../common/ContentManager.jsx';

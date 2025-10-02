@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { getApiConfig } from '../../api/config/apiConfig.js';
+import { getApiConfig } from '../api/config/apiConfig.js';
 
 /**
  * Custom hook for user management

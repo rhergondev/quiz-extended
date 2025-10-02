@@ -1,556 +1,370 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { getApiConfig } from '../../api/config/apiConfig.js';
+/**
+ * useQuestions - Question Management Hook (Refactored)
+ * 
+ * Uses useResource for base functionality
+ * Extended with question-specific features
+ * 
+ * @package QuizExtended
+ * @subpackage Hooks
+ * @version 2.0.0
+ */
+
+import { useMemo } from 'react';
+import { useResource } from './useResource';
+import * as questionService from '../api/services/questionService';
 
 /**
- * Custom hook for question management
- * FIXED VERSION - Added proper debouncing to prevent unlimited API calls
+ * Question management hook
+ * 
+ * @param {Object} options - Configuration options
+ * @param {string} options.search - Search term
+ * @param {number} options.quizId - Quiz ID filter
+ * @param {string} options.type - Question type filter
+ * @param {string} options.difficulty - Difficulty filter
+ * @param {string} options.category - Category filter
+ * @param {string} options.provider - Provider filter
+ * @param {string} options.status - Status filter
+ * @param {boolean} options.autoFetch - Auto-fetch on mount (default: true)
+ * @param {number} options.perPage - Items per page (default: 20)
+ * @returns {Object} Question state and methods
  */
 export const useQuestions = (options = {}) => {
-  const { 
+  const {
+    search = '',
     quizId = null,
     type = null,
     difficulty = null,
     category = null,
-    search = '',
+    provider = null,
+    status = null,
     autoFetch = true,
-    initialFilters = {},
-    debounceMs = 500 // Debounce delay for search and filters
+    perPage = 20
   } = options;
 
-  // --- STATE ---
-  const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  const [error, setError] = useState(null);
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    total: 0,
-    perPage: 20
-  });
-  const [hasMore, setHasMore] = useState(false);
-
-  // Filters state
-  const [filters, setFilters] = useState({
-    search: search || '',
-    quizId: quizId,
-    type: type,
-    difficulty: difficulty,
-    category: category,
-    status: 'publish,draft,private',
-    ...initialFilters
-  });
-
-  // Refs para evitar re-renders innecesarios y duplicados
-  const currentFiltersRef = useRef(filters);
-  const optionsRef = useRef(options);
-  const debounceTimeoutRef = useRef(null);
-  const mountedRef = useRef(true);
-  const lastFetchParamsRef = useRef('');
-
-  // Update refs when values change
-  useEffect(() => {
-    currentFiltersRef.current = filters;
-  }, [filters]);
-
-  useEffect(() => {
-    optionsRef.current = options;
-  }, [options]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
+  // ============================================================
+  // DATA PROCESSOR
+  // ============================================================
+  
+  /**
+   * Process/enhance question data with computed values
+   */
+  const dataProcessor = useMemo(() => (question) => {
+    return {
+      ...question,
+      // Enhanced computed values
+      quiz_id: question.meta?._quiz_id || null,
+      question_type: question.meta?._question_type || 'multiple_choice',
+      difficulty: question.meta?._difficulty_level || 'intermediate',
+      category: question.meta?._question_category || '',
+      points: parseInt(question.meta?._points || '1'),
+      time_limit: parseInt(question.meta?._time_limit || '0'),
+      options: question.meta?._question_options || [],
+      correct_answer: question.meta?._correct_answer || '',
+      explanation: question.meta?._explanation || '',
+      question_order: parseInt(question.meta?._question_order || '0'),
+      provider: question.meta?._provider || 'custom',
+      // Computed flags
+      has_options: Array.isArray(question.meta?._question_options) && 
+                   question.meta._question_options.length > 0,
+      has_explanation: Boolean(question.meta?._explanation),
+      has_time_limit: parseInt(question.meta?._time_limit || '0') > 0,
+      is_multiple_choice: question.meta?._question_type === 'multiple_choice',
+      is_true_false: question.meta?._question_type === 'true_false',
+      is_short_answer: question.meta?._question_type === 'short_answer',
+      is_essay: question.meta?._question_type === 'essay',
+      is_ai_generated: question.meta?._provider === 'ai',
+      is_imported: question.meta?._provider === 'imported'
     };
   }, []);
 
-  // --- API FUNCTIONS ---
-  const makeApiRequest = async (url, requestOptions = {}) => {
-    try {
-      const config = getApiConfig();
-      
-      const defaultOptions = {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-WP-Nonce': config.nonce,
-        },
-        credentials: 'same-origin',
-        ...requestOptions
+  // ============================================================
+  // COMPUTED VALUES CALCULATOR
+  // ============================================================
+  
+  /**
+   * Calculate question-specific computed values
+   */
+  const computedValuesCalculator = useMemo(() => (questions) => {
+    const total = questions.length;
+    
+    if (total === 0) {
+      return {
+        total: 0,
+        published: 0,
+        draft: 0,
+        private: 0,
+        totalPoints: 0,
+        averagePoints: 0,
+        byType: {},
+        byDifficulty: {},
+        byProvider: {},
+        withExplanation: 0,
+        withTimeLimit: 0,
+        multipleChoiceQuestions: 0,
+        trueFalseQuestions: 0,
+        shortAnswerQuestions: 0,
+        essayQuestions: 0
       };
+    }
 
-      const response = await fetch(url, defaultOptions);
+    // Aggregate values
+    let totalPoints = 0;
+    const byType = {};
+    const byDifficulty = {};
+    const byProvider = {};
+    let withExplanation = 0;
+    let withTimeLimit = 0;
+    let multipleChoiceQuestions = 0;
+    let trueFalseQuestions = 0;
+    let shortAnswerQuestions = 0;
+    let essayQuestions = 0;
+
+    questions.forEach(question => {
+      // Points
+      totalPoints += question.points || 0;
       
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`API Error ${response.status}: ${response.statusText} - ${errorData}`);
+      // Type counts
+      const type = question.question_type || 'multiple_choice';
+      byType[type] = (byType[type] || 0) + 1;
+      
+      // Difficulty counts
+      const diff = question.difficulty || 'intermediate';
+      byDifficulty[diff] = (byDifficulty[diff] || 0) + 1;
+      
+      // Provider counts
+      const prov = question.provider || 'custom';
+      byProvider[prov] = (byProvider[prov] || 0) + 1;
+      
+      // Features
+      if (question.has_explanation) withExplanation++;
+      if (question.has_time_limit) withTimeLimit++;
+      
+      // Specific type counts
+      if (question.is_multiple_choice) multipleChoiceQuestions++;
+      if (question.is_true_false) trueFalseQuestions++;
+      if (question.is_short_answer) shortAnswerQuestions++;
+      if (question.is_essay) essayQuestions++;
+    });
+
+    return {
+      total,
+      published: questions.filter(q => q.status === 'publish').length,
+      draft: questions.filter(q => q.status === 'draft').length,
+      private: questions.filter(q => q.status === 'private').length,
+      totalPoints,
+      averagePoints: total > 0 ? Math.round((totalPoints / total) * 10) / 10 : 0,
+      byType,
+      byDifficulty,
+      byProvider,
+      withExplanation,
+      withTimeLimit,
+      multipleChoiceQuestions,
+      trueFalseQuestions,
+      shortAnswerQuestions,
+      essayQuestions
+    };
+  }, []);
+
+  // ============================================================
+  // USE BASE RESOURCE HOOK
+  // ============================================================
+  
+  const {
+    items: questions,
+    loading,
+    creating,
+    updating,
+    deleting,
+    error,
+    pagination,
+    computed,
+    filters,
+    updateFilter,
+    resetFilters,
+    setFilters,
+    fetchItems: fetchQuestions,
+    loadMore: loadMoreQuestions,
+    createItem: createQuestion,
+    updateItem: updateQuestion,
+    deleteItem: deleteQuestion,
+    duplicateItem: duplicateQuestion,
+    refresh,
+    hasMore
+  } = useResource({
+    service: questionService,
+    resourceName: 'question',
+    initialFilters: {
+      search,
+      quizId,
+      type,
+      difficulty,
+      category,
+      provider,
+      status: status || 'publish,draft,private'
+    },
+    debounceMs: 500,
+    autoFetch,
+    perPage,
+    dataProcessor,
+    computedValuesCalculator
+  });
+
+  // ============================================================
+  // QUESTION-SPECIFIC METHODS
+  // ============================================================
+  
+  /**
+   * Publish question (set status to 'publish')
+   */
+  const publishQuestion = async (questionId) => {
+    return updateQuestion(questionId, { status: 'publish' });
+  };
+
+  /**
+   * Unpublish question (set status to 'draft')
+   */
+  const unpublishQuestion = async (questionId) => {
+    return updateQuestion(questionId, { status: 'draft' });
+  };
+
+  /**
+   * Update question order
+   */
+  const updateQuestionOrder = async (questionId, newOrder) => {
+    return updateQuestion(questionId, { questionOrder: newOrder });
+  };
+
+  /**
+   * Update question type
+   */
+  const updateQuestionType = async (questionId, newType) => {
+    return updateQuestion(questionId, { type: newType });
+  };
+
+  /**
+   * Add option to question
+   */
+  const addOptionToQuestion = async (questionId, option) => {
+    const question = questions.find(q => q.id === questionId);
+    if (!question) throw new Error('Question not found');
+    
+    const currentOptions = question.options || [];
+    return updateQuestion(questionId, { 
+      options: [...currentOptions, option] 
+    });
+  };
+
+  /**
+   * Remove option from question
+   */
+  const removeOptionFromQuestion = async (questionId, optionIndex) => {
+    const question = questions.find(q => q.id === questionId);
+    if (!question) throw new Error('Question not found');
+    
+    const currentOptions = question.options || [];
+    return updateQuestion(questionId, { 
+      options: currentOptions.filter((_, index) => index !== optionIndex) 
+    });
+  };
+
+  /**
+   * Update correct answer
+   */
+  const updateCorrectAnswer = async (questionId, correctAnswer) => {
+    return updateQuestion(questionId, { correctAnswer });
+  };
+
+  /**
+   * Update explanation
+   */
+  const updateExplanation = async (questionId, explanation) => {
+    return updateQuestion(questionId, { explanation });
+  };
+
+  /**
+   * Bulk create questions
+   */
+  const bulkCreateQuestions = async (questionsData) => {
+    try {
+      if (!Array.isArray(questionsData) || questionsData.length === 0) {
+        throw new Error('Invalid questions data array');
       }
 
-      return response;
+      console.log(`📝 Bulk creating ${questionsData.length} questions...`);
+      
+      const results = {
+        successful: [],
+        failed: []
+      };
+
+      for (const questionData of questionsData) {
+        try {
+          const created = await createQuestion(questionData);
+          results.successful.push(created);
+        } catch (error) {
+          results.failed.push({
+            data: questionData,
+            error: error.message
+          });
+        }
+      }
+
+      console.log(`✅ Bulk create completed: ${results.successful.length} successful, ${results.failed.length} failed`);
+      
+      // Refresh to update the list
+      await refresh();
+      
+      return results;
+
     } catch (error) {
-      console.error('API Request Error:', error);
+      console.error('❌ Error in bulk create questions:', error);
       throw error;
     }
   };
 
-  // --- FETCH QUESTIONS WITH DUPLICATE PREVENTION ---
-  const fetchQuestions = useCallback(async (fetchOptions = {}) => {
-    const { 
-      reset = false,
-      page = 1,
-      additionalFilters = {}
-    } = fetchOptions;
-
-    try {
-      if (reset) {
-        setLoading(true);
-        setError(null);
-      }
-
-      const config = getApiConfig();
-      const currentFilters = currentFiltersRef.current;
-      
-      // Build query params
-      const queryParams = new URLSearchParams({
-        page: page.toString(),
-        per_page: '20',
-        status: currentFilters.status || 'publish,draft',
-        orderby: 'date',
-        order: 'desc',
-        _embed: 'true'
-      });
-
-      // Add search
-      if (currentFilters.search) {
-        queryParams.append('search', currentFilters.search);
-      }
-
-      // Add quiz filter
-      if (currentFilters.quizId) {
-        queryParams.append('meta_query[0][key]', '_quiz_id');
-        queryParams.append('meta_query[0][value]', currentFilters.quizId.toString());
-        queryParams.append('meta_query[0][compare]', '=');
-        queryParams.append('meta_query[0][type]', 'NUMERIC');
-      }
-
-      // Add question type filter
-      if (currentFilters.type) {
-        const typeIndex = currentFilters.quizId ? 1 : 0;
-        queryParams.append(`meta_query[${typeIndex}][key]`, '_question_type');
-        queryParams.append(`meta_query[${typeIndex}][value]`, currentFilters.type);
-        queryParams.append(`meta_query[${typeIndex}][compare]`, '=');
-      }
-
-      // Add difficulty filter
-      if (currentFilters.difficulty) {
-        const diffIndex = (currentFilters.quizId ? 1 : 0) + (currentFilters.type ? 1 : 0);
-        queryParams.append(`meta_query[${diffIndex}][key]`, '_difficulty_level');
-        queryParams.append(`meta_query[${diffIndex}][value]`, currentFilters.difficulty);
-        queryParams.append(`meta_query[${diffIndex}][compare]`, '=');
-      }
-
-      // Add category filter
-      if (currentFilters.category) {
-        const catIndex = (currentFilters.quizId ? 1 : 0) + (currentFilters.type ? 1 : 0) + (currentFilters.difficulty ? 1 : 0);
-        queryParams.append(`meta_query[${catIndex}][key]`, '_question_category');
-        queryParams.append(`meta_query[${catIndex}][value]`, currentFilters.category);
-        queryParams.append(`meta_query[${catIndex}][compare]`, '=');
-      }
-
-      // Set meta query relation if multiple filters
-      const filterCount = [currentFilters.quizId, currentFilters.type, currentFilters.difficulty, currentFilters.category].filter(Boolean).length;
-      if (filterCount > 1) {
-        queryParams.append('meta_query[relation]', 'AND');
-      }
-
-      // Add additional filters
-      Object.entries(additionalFilters).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
-          queryParams.append(key, value);
-        }
-      });
-
-      const url = `${config.endpoints.questions}?${queryParams}`;
-      
-      // 🔥 PREVENT DUPLICATE REQUESTS
-      const currentRequestParams = `${url}-${page}-${reset}`;
-      if (currentRequestParams === lastFetchParamsRef.current) {
-        console.log('🚫 Duplicate question request prevented:', url);
-        return;
-      }
-      lastFetchParamsRef.current = currentRequestParams;
-
-      console.log('🚀 Fetching questions:', url);
-
-      const response = await makeApiRequest(url);
-      const data = await response.json();
-
-      // Check if component is still mounted
-      if (!mountedRef.current) return;
-
-      // Extract pagination from headers
-      const totalHeader = response.headers.get('X-WP-Total');
-      const totalPagesHeader = response.headers.get('X-WP-TotalPages');
-      
-      const newPagination = {
-        currentPage: page,
-        totalPages: totalPagesHeader ? parseInt(totalPagesHeader, 10) : 1,
-        total: totalHeader ? parseInt(totalHeader, 10) : data.length,
-        perPage: 20
-      };
-
-      setPagination(newPagination);
-      setHasMore(page < newPagination.totalPages);
-
-      if (reset || page === 1) {
-        setQuestions(data);
-      } else {
-        setQuestions(prevQuestions => {
-          const existingIds = new Set(prevQuestions.map(q => q.id));
-          const newQuestions = data.filter(q => !existingIds.has(q.id));
-          return [...prevQuestions, ...newQuestions];
-        });
-      }
-
-      console.log('✅ Questions loaded:', data.length);
-      
-    } catch (err) {
-      console.error('❌ Error fetching questions:', err);
-      if (mountedRef.current) {
-        setError(err.message || 'Failed to fetch questions');
-        
-        if (reset || page === 1) {
-          setQuestions([]);
-          setPagination({ currentPage: 1, totalPages: 1, total: 0, perPage: 20 });
-          setHasMore(false);
-        }
-      }
-    } finally {
-      if (mountedRef.current) {
-        setLoading(false);
-      }
-    }
-  }, []);
-
-  // --- DEBOUNCED FETCH FUNCTION ---
-  const debouncedFetch = useCallback((fetchOptions = {}) => {
-    // Clear existing timeout
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-
-    // Set new timeout
-    debounceTimeoutRef.current = setTimeout(() => {
-      if (mountedRef.current) {
-        fetchQuestions({ reset: true, ...fetchOptions });
-      }
-    }, debounceMs);
-  }, [fetchQuestions, debounceMs]);
-
-  // --- INITIAL LOAD (NO DEBOUNCE) ---
-  useEffect(() => {
-    if (autoFetch) {
-      console.log('🎯 Initial question load');
-      fetchQuestions({ reset: true });
-    }
-  }, []); // Only run on mount
-
-  // --- UPDATE FILTERS (NO FETCH YET) ---
-  useEffect(() => {
-    setFilters(prev => {
-      const newFilters = {
-        ...prev,
-        search: search || '',
-        quizId: quizId,
-        type: type,
-        difficulty: difficulty,
-        category: category
-      };
-      
-      // Only update if something actually changed
-      if (JSON.stringify(newFilters) !== JSON.stringify(prev)) {
-        return newFilters;
-      }
-      return prev;
-    });
-  }, [search, quizId, type, difficulty, category]);
-
-  // --- DEBOUNCED REFETCH WHEN FILTERS CHANGE ---
-  useEffect(() => {
-    if (autoFetch) {
-      console.log('🔄 Question filters changed, debouncing fetch...');
-      debouncedFetch();
-    }
-  }, [filters, debouncedFetch, autoFetch]);
-
-  // --- CREATE QUESTION ---
-  const createQuestion = useCallback(async (questionData) => {
-  try {
-    setCreating(true);
-    setError(null);
-    
-    const config = getApiConfig();
-    
-    const points_for_correct = 1;
-    let points_for_incorrect = 0;
-    if (questionData.type === 'multiple_choice' && questionData.options.length > 1) {
-      points_for_incorrect = 1 / (questionData.options.length - 1);
-    }
-    
-    const apiData = {
-      title: questionData.title || '',
-      content: questionData.explanation || '',
-      status: questionData.status || 'draft',
-      meta: {
-        _quiz_ids: questionData.quizIds || [], // ❇️ Array de quiz IDs
-        _question_lesson: questionData.lessonId || '',
-        _question_provider: questionData.provider || '',
-        _course_id: questionData.courseId || '',
-        _question_type: questionData.type || 'multiple_choice',
-        _difficulty_level: questionData.difficulty || 'medium',
-        _question_category: questionData.category || '',
-        _explanation: questionData.explanation || '',
-        _question_options: questionData.options || [],
-        _points_correct: points_for_correct.toString(),
-        _points_incorrect: points_for_incorrect.toFixed(4).toString(),
-      }
-    };
-
-    console.log('🚀 Creating question with payload:', apiData);
-
-    const response = await makeApiRequest(config.endpoints.questions, {
-      method: 'POST',
-      body: JSON.stringify(apiData)
-    });
-
-    const newQuestion = await response.json();
-    
-    setQuestions(prev => [newQuestion, ...prev]);
-    
-    setPagination(prev => ({
-      ...prev,
-      total: prev.total + 1
-    }));
-
-    console.log('✅ Question created:', newQuestion);
-    return newQuestion;
-    
-  } catch (err) {
-    console.error('❌ Error creating question:', err);
-    setError(err.message || 'Failed to create question');
-    throw err;
-  } finally {
-    setCreating(false);
-  }
-}, []);
-
-
-  const updateQuestion = useCallback(async (questionId, questionData) => {
-  try {
-    setUpdating(true);
-    setError(null);
-
-    const config = getApiConfig();
-
-    const apiData = {
-      title: questionData.title || '',
-      content: questionData.explanation || '',
-      status: questionData.status || 'publish',
-      meta: {
-        _quiz_ids: questionData.quizIds || [], // ❇️ Array de quiz IDs
-        _question_lesson: questionData.lessonId || '',
-        _question_provider: questionData.provider || '',
-        _course_id: questionData.courseId || '',
-        _question_type: questionData.type || 'multiple_choice',
-        _difficulty_level: questionData.difficulty || 'medium',
-        _question_category: questionData.category || '',
-        _explanation: questionData.explanation || '',
-        _question_options: questionData.options || [],
-      }
-    };
-
-    console.log(`🚀 Updating question ${questionId} with payload:`, apiData);
-
-    const response = await makeApiRequest(`${config.endpoints.questions}/${questionId}`, {
-      method: 'POST',
-      body: JSON.stringify(apiData)
-    });
-
-    const updatedQuestion = await response.json();
-
-    setQuestions(prev => 
-      prev.map(q => (q.id === questionId ? updatedQuestion : q))
-    );
-
-    console.log('✅ Question updated:', updatedQuestion);
-    return updatedQuestion;
-    
-  } catch (err) {
-    console.error('❌ Error updating question:', err);
-    setError(err.message || 'Failed to update question');
-    throw err;
-  } finally {
-    setUpdating(false);
-  }
-}, []);
-
-  // --- DELETE QUESTION ---
-  const deleteQuestion = useCallback(async (questionId) => {
-    try {
-      setError(null);
-      
-      const config = getApiConfig();
-      
-      console.log('🗑️ Deleting question:', questionId);
-
-      await makeApiRequest(`${config.endpoints.questions}/${questionId}`, {
-        method: 'DELETE'
-      });
-
-      // Remove from questions list
-      setQuestions(prev => prev.filter(q => q.id !== questionId));
-      
-      // Update pagination
-      setPagination(prev => ({
-        ...prev,
-        total: Math.max(0, prev.total - 1)
-      }));
-
-      console.log('✅ Question deleted');
-      
-    } catch (err) {
-      console.error('❌ Error deleting question:', err);
-      setError(err.message || 'Failed to delete question');
-      throw err;
-    }
-  }, []);
-
-  // --- DUPLICATE QUESTION ---
-  const duplicateQuestion = useCallback(async (questionId) => {
-    try {
-      setError(null);
-      
-      // Find the original question
-      const originalQuestion = questions.find(q => q.id === questionId);
-      if (!originalQuestion) {
-        throw new Error('Question not found');
-      }
-
-      // Create duplicate data
-      const duplicateData = {
-        title: `${originalQuestion.title?.rendered || originalQuestion.title} (Copy)`,
-        content: originalQuestion.content?.rendered || originalQuestion.content || '',
-        excerpt: originalQuestion.excerpt?.rendered || originalQuestion.excerpt || '',
-        status: 'draft',
-        quizId: originalQuestion.meta?._quiz_id,
-        type: originalQuestion.meta?._question_type,
-        difficulty: originalQuestion.meta?._difficulty_level,
-        category: originalQuestion.meta?._question_category,
-        points: originalQuestion.meta?._points,
-        timeLimit: originalQuestion.meta?._time_limit,
-        options: originalQuestion.meta?._question_options,
-        correctAnswer: originalQuestion.meta?._correct_answer,
-        explanation: originalQuestion.meta?._explanation,
-        questionOrder: originalQuestion.meta?._question_order,
-        meta: originalQuestion.meta
-      };
-
-      console.log('📋 Duplicating question:', questionId);
-      
-      return await createQuestion(duplicateData);
-      
-    } catch (err) {
-      console.error('❌ Error duplicating question:', err);
-      setError(err.message || 'Failed to duplicate question');
-      throw err;
-    }
-  }, [questions, createQuestion]);
-
-  // --- PAGINATION ---
-  const loadMoreQuestions = useCallback(() => {
-    if (hasMore && !loading) {
-      fetchQuestions({ 
-        page: pagination.currentPage + 1,
-        reset: false 
-      });
-    }
-  }, [hasMore, loading, pagination.currentPage, fetchQuestions]);
-
-  const refreshQuestions = useCallback(() => {
-    lastFetchParamsRef.current = ''; // Reset duplicate prevention
-    fetchQuestions({ reset: true });
-  }, [fetchQuestions]);
-
-  // --- COMPUTED VALUES ---
-  const computed = useMemo(() => {
-    return {
-      totalQuestions: questions.length,
-      publishedQuestions: questions.filter(q => q.status === 'publish').length,
-      draftQuestions: questions.filter(q => q.status === 'draft').length,
-      privateQuestions: questions.filter(q => q.status === 'private').length,
-      questionsByType: questions.reduce((acc, question) => {
-        const type = question.meta?._question_type || 'multiple_choice';
-        acc[type] = (acc[type] || 0) + 1;
-        return acc;
-      }, {}),
-      questionsByDifficulty: questions.reduce((acc, question) => {
-        const difficulty = question.meta?._difficulty_level || 'medium';
-        acc[difficulty] = (acc[difficulty] || 0) + 1;
-        return acc;
-      }, {}),
-      questionsByCategory: questions.reduce((acc, question) => {
-        const category = question.meta?._question_category || 'general';
-        acc[category] = (acc[category] || 0) + 1;
-        return acc;
-      }, {}),
-      averagePoints: questions.length > 0 ? 
-        Math.round(questions.reduce((sum, question) => {
-          return sum + parseInt(question.meta?._points || '1');
-        }, 0) / questions.length) : 1,
-      totalPoints: questions.reduce((sum, question) => {
-        return sum + parseInt(question.meta?._points || '1');
-      }, 0),
-      questionsWithTimeLimit: questions.filter(question => 
-        parseInt(question.meta?._time_limit || '0') > 0
-      ).length,
-      questionsWithExplanation: questions.filter(question => 
-        question.meta?._explanation && question.meta._explanation.trim() !== ''
-      ).length,
-      multipleChoiceQuestions: questions.filter(question => 
-        question.meta?._question_type === 'multiple_choice'
-      ).length,
-      trueFalseQuestions: questions.filter(question => 
-        question.meta?._question_type === 'true_false'
-      ).length,
-      essayQuestions: questions.filter(question => 
-        question.meta?._question_type === 'essay'
-      ).length
-    };
-  }, [questions]);
-
+  // ============================================================
+  // RETURN
+  // ============================================================
+  
   return {
     // Data
     questions,
     loading,
     creating,
     updating,
+    deleting,
     error,
     pagination,
-    hasMore,
-    filters,
     computed,
 
-    // Methods
+    // Filters
+    filters,
+    updateFilter,
+    resetFilters,
+    setFilters,
+
+    // Actions
+    fetchQuestions,
+    loadMoreQuestions,
     createQuestion,
     updateQuestion,
     deleteQuestion,
     duplicateQuestion,
-    refreshQuestions,
-    loadMoreQuestions,
-    fetchQuestions: debouncedFetch // Export debounced version
+    refresh,
+
+    // Question-specific actions
+    publishQuestion,
+    unpublishQuestion,
+    updateQuestionOrder,
+    updateQuestionType,
+    addOptionToQuestion,
+    removeOptionFromQuestion,
+    updateCorrectAnswer,
+    updateExplanation,
+    bulkCreateQuestions,
+
+    // Helpers
+    hasMore
   };
 };
 

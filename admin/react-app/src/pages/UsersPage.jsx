@@ -14,8 +14,9 @@ import {
 } from 'lucide-react';
 
 // Hook imports
-import { useUsers } from '../components/hooks/useUsers.js';
-import { useCourses } from '../components/hooks/useCourses.js';
+import  useUsers from '../hooks/useUsers.js';
+import { useCourses } from '../hooks/useCourses.js';
+
 
 // Component imports
 import UserCard from '../components/users/UserCard.jsx';

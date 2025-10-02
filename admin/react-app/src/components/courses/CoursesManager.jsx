@@ -12,7 +12,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 
-import useCourses from '../hooks/useCourses.js';
+import useCourses from '../../hooks/useCourses';
 import { useSearchInput, useFilterDebounce } from '../../api/utils/debounceUtils.js';
 
 import ContentManager from '../common/ContentManager';
