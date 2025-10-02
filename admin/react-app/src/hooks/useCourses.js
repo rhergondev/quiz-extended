@@ -158,6 +158,8 @@ export const useCourses = (options = {}) => {
   // USE BASE RESOURCE HOOK
   // ============================================================
   
+
+  
   const {
     items: courses,
     loading,

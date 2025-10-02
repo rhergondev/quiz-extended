@@ -148,16 +148,18 @@ const CoursesManager = () => {
 
   const handleSaveCourse = async (courseData, nextAction) => {
     try {
-      console.log('💾 Saving course:', courseData, 'Next action:', nextAction);
+      console.log('💾 CoursesManager - Saving course:', courseData, 'Next action:', nextAction);
+      console.log('💾 CoursesManager - Categories being sent:', courseData.qe_category);
+      console.log('💾 CoursesManager - Featured media being sent:', courseData.featured_media);
       
       let result;
       if (modalMode === 'create') {
         result = await createCourse(courseData);
+        console.log('✅ CoursesManager - Course created:', result);
       } else if (modalMode === 'edit') {
         result = await updateCourse(selectedCourse.id, courseData);
+        console.log('✅ CoursesManager - Course updated:', result);
       }
-
-      console.log('✅ Course saved successfully:', result);
 
       // Handle next action
       if (nextAction === 'close') {
@@ -173,7 +175,7 @@ const CoursesManager = () => {
       return result;
 
     } catch (error) {
-      console.error('❌ Error saving course:', error);
+      console.error('❌ CoursesManager - Error saving course:', error);
       throw error;
     }
   };

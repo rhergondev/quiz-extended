@@ -52,28 +52,28 @@ class QE_Meta_Validator
             }
 
             // Validate dates
-            if (isset($meta['_start_date']) && isset($meta['_end_date'])) {
+            if (!empty($meta['_start_date']) && !empty($meta['_end_date'])) {
                 $start = strtotime($meta['_start_date']);
                 $end = strtotime($meta['_end_date']);
 
                 if ($start && $end && $start > $end) {
                     return new WP_Error(
                         'invalid_date_range',
-                        __('Course start date must be before end date', 'quiz-extended'),
+                        __('Course start date must be before end date.', 'quiz-extended'),
                         ['status' => 400]
                     );
                 }
             }
 
             // Validate price
-            if (isset($meta['_price']) && isset($meta['_sale_price'])) {
+            if (isset($meta['_price']) && isset($meta['_sale_price']) && !empty($meta['_sale_price'])) {
                 $price = floatval($meta['_price']);
                 $sale_price = floatval($meta['_sale_price']);
 
                 if ($sale_price > $price) {
                     return new WP_Error(
                         'invalid_sale_price',
-                        __('Sale price cannot be greater than regular price', 'quiz-extended'),
+                        __('Sale price cannot be greater than regular price.', 'quiz-extended'),
                         ['status' => 400]
                     );
                 }
@@ -86,7 +86,7 @@ class QE_Meta_Validator
                 if ($product_id > 0 && !$this->validate_woocommerce_product($product_id)) {
                     return new WP_Error(
                         'invalid_product_id',
-                        __('The specified WooCommerce product does not exist', 'quiz-extended'),
+                        __('The specified WooCommerce product does not exist.', 'quiz-extended'),
                         ['status' => 400]
                     );
                 }
@@ -101,7 +101,7 @@ class QE_Meta_Validator
 
             return new WP_Error(
                 'validation_failed',
-                __('Failed to validate course data', 'quiz-extended'),
+                __('Failed to validate course data.', 'quiz-extended'),
                 ['status' => 500]
             );
         }

@@ -5,7 +5,9 @@
     "delete": "Delete",
     "edit": "Edit",
     "duplicate": "Duplicate",
+    "view": "View",
     "loading": "Loading...",
+    "uploading": "Uploading...",
     "search": "Search...",
     "filter": "Filter",
     "reset": "Reset",
@@ -14,28 +16,211 @@
     "status": "Status",
     "published": "Published",
     "draft": "Draft",
-    "private": "Private"
+    "private": "Private",
+    "clearFilters": "Clear All Filters",
+    "noResults": "No results found",
+    "loadingMore": "Loading more...",
+    "endOfList": "You've reached the end of the list.",
+    "updating": "Updating...",
+    "searching": "Searching...",
+    "filtering": "Filtering..."
   },
   "courses": {
     "title": "Courses",
+    "description": "Create and manage courses with lessons, pricing and enrollment",
     "addNew": "Add New Course",
+    "createCourse": "Create Course",
+    "editCourse": "Edit Course",
+    "viewCourse": "View Course",
+    "duplicateCourse": "Duplicate Course",
+    "deleteCourse": "Delete Course",
     "noCourses": "No courses found",
-    "enrolled": "Enrolled Users",
-    "publishedDate": "Published Date",
-    "startDate": "Start Date",
-    "endDate": "End Date"
+    "noCoursesDescription": "You haven't created any courses yet.",
+    "searchPlaceholder": "Search courses...",
+    "loadingCourses": "Loading courses...",
+    "loadingMoreCourses": "Loading more courses...",
+    
+    "fields": {
+      "title": "Course Title",
+      "description": "Description",
+      "excerpt": "Short Description",
+      "image": "Featured Image",
+      "category": "Category",
+      "difficulty": "Difficulty",
+      "price": "Price",
+      "salePrice": "Sale Price",
+      "productType": "Product Type",
+      "duration": "Duration",
+      "lessons": "Lessons",
+      "students": "Students",
+      "enrolled": "Enrolled",
+      "completion": "Completion",
+      "status": "Status",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "position": "Display Position",
+      "maxStudents": "Maximum Students",
+      "difficultyLevel": "Difficulty Level"
+    },
+    
+    "category": {
+      "label": "Category",
+      "all": "All Categories",
+      "programming": "Programming",
+      "design": "Design",
+      "business": "Business",
+      "marketing": "Marketing",
+      "photography": "Photography"
+    },
+    
+    "difficulty": {
+      "label": "Difficulty",
+      "all": "All Levels",
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced",
+      "expert": "Expert"
+    },
+    
+    "status": {
+      "label": "Status",
+      "all": "All Status",
+      "publish": "Published",
+      "draft": "Draft",
+      "private": "Private"
+    },
+    
+    "priceFilter": {
+      "label": "Price",
+      "all": "All Prices",
+      "free": "Free",
+      "paid": "Paid",
+      "premium": "Premium ($100+)"
+    },
+    
+    "stats": {
+      "totalCourses": "Total Courses",
+      "totalStudents": "Students",
+      "totalLessons": "Lessons",
+      "averagePrice": "Avg. Price",
+      "revenue": "Revenue",
+      "completionRate": "Completion Rate",
+      "averageDuration": "Avg. Duration"
+    },
+    
+    "units": {
+      "hours": "hours",
+      "hour": "hour",
+      "weeks": "weeks",
+      "week": "week",
+      "lessons": "lessons",
+      "lesson": "lesson",
+      "students": "students",
+      "student": "student",
+      "free": "Free",
+      "duration": "duration"
+    },
+    
+    "tabs": {
+      "basic": "Basic Info",
+      "taxonomies": "Categories & Tags",
+      "pricing": "Pricing",
+      "schedule": "Schedule",
+      "lessons": "Lessons",
+      "settings": "Settings"
+    },
+    
+    "taxonomies": {
+      "categories": "Categories",
+      "topics": "Topics",
+      "difficulty": "Difficulty",
+      "providers": "Providers",
+      "courseTypes": "Course Types"
+    },
+    
+    "placeholders": {
+      "title": "Enter course title...",
+      "excerpt": "Brief description for cards and previews...",
+      "content": "Full course description, what students will learn...",
+      "newCategory": "New category name..."
+    },
+    
+    "actions": {
+      "uploadImage": "Upload Image",
+      "addCategory": "Add New",
+      "saveAndCreate": "Save & Create Another"
+    },
+    
+    "hints": {
+      "optional": "Optional",
+      "salePrice": "If set, this will be shown as the discounted price",
+      "startDate": "When the course becomes available to students",
+      "endDate": "When the course closes or expires (optional)",
+      "duration": "Estimated time to complete the course",
+      "createLessons": "Create lessons first to assign them to this course",
+      "position": "Lower numbers appear first in the course list",
+      "maxStudents": "0 = unlimited enrollment",
+      "difficultyLevel": "This is a meta field, different from taxonomy",
+      "image": "Recommended size: 1200x675px. Max 5MB."
+    },
+    
+    "labels": {
+      "pricePreview": "Price Preview",
+      "schedulePreview": "Schedule Preview",
+      "selected": "selected"
+    },
+    
+    "info": {
+      "woocommerce": "WooCommerce Integration",
+      "woocommerceDesc": "A WooCommerce product will be automatically created/updated when you save this course."
+    },
+    
+    "difficultyLevels": {
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard"
+    },
+    
+    "validation": {
+      "titleRequired": "Title is required",
+      "contentRequired": "Description is required",
+      "priceInvalid": "Price must be greater than 0",
+      "endDateInvalid": "End date must be after start date",
+      "positionInvalid": "Position must be a number",
+      "fixErrors": "Please fix errors before saving"
+    },
+    
+    "messages": {
+      "createSuccess": "Course created successfully",
+      "updateSuccess": "Course updated successfully",
+      "deleteSuccess": "Course deleted successfully",
+      "duplicateSuccess": "Course duplicated successfully",
+      "createError": "Error creating course",
+      "updateError": "Error updating course",
+      "deleteError": "Error deleting course",
+      "duplicateError": "Error duplicating course",
+      "deleteConfirmTitle": "Delete Course",
+      "deleteConfirmMessage": "Are you sure you want to delete \"{{title}}\"? This action cannot be undone and will also remove all associated lessons.",
+      "found": "{{count}} course found",
+      "found_plural": "{{count}} courses found",
+      "noCategories": "No categories available",
+      "noLessons": "No lessons available yet"
+    }
   },
   "lessons": {
     "title": "Lessons",
+    "description": "Create and manage interactive lessons with multiple content types",
     "addNew": "Add New Lesson",
     "noLessons": "No lessons found"
   },
   "quizzes": {
     "title": "Quizzes",
+    "description": "Create and manage quizzes to assess student learning",
     "addNew": "Add New Quiz"
   },
   "questions": {
     "title": "Questions",
+    "description": "Create and manage questions for quizzes",
     "addNew": "Add New Question"
   },
   "notifications": {

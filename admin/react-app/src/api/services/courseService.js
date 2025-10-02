@@ -1,341 +1,307 @@
 /**
- * Base Service - Core API Foundation
+ * Course Service - Refactored
  * 
- * Generic CRUD operations factory for all resources
- * Eliminates code duplication across services
+ * Uses baseService for common CRUD operations
+ * Extended with course-specific functionality
  * 
  * @package QuizExtended
  * @subpackage API/Services
- * @version 1.0.0
+ * @version 2.0.0
  */
 
-import { getApiConfig } from '../config/apiConfig.js';
+import { createResourceService } from './baseService.js';
+import { 
+  sanitizeCourseData, 
+  validateCourseData, 
+  transformCourseDataForApi 
+} from '../utils/courseDataUtils.js';
+
+// Create base course service with custom handlers
+const baseCourseService = createResourceService('course', 'courses', {
+  sanitizer: sanitizeCourseData,
+  validator: validateCourseData,
+  transformer: transformCourseDataForApi
+});
+
+// ============================================================
+// EXPORT COMPATIBLE WITH useResource (getAll, getOne, create, update, delete)
+// ============================================================
 
 /**
- * Get WordPress configuration with validation
- * @throws {Error} If configuration is missing
+ * Get all courses with optional filters
+ * Compatible with useResource hook
+ * @param {Object} options - Filter options
+ * @returns {Promise<Object>} Courses and pagination
  */
-const getWpConfig = () => {
-  const config = window.qe_data || {};
-  
-  if (!config.nonce) {
-    throw new Error('WordPress configuration not found. Ensure qe_data is loaded.');
-  }
-  
-  if (!config.endpoints) {
-    throw new Error('API endpoints not configured in WordPress');
-  }
-  
-  return config;
+export const getAll = async (options = {}) => {
+  return baseCourseService.getAll(options);
 };
 
 /**
- * Make HTTP request to WordPress REST API
- * @param {string} url - Full request URL
- * @param {Object} options - Fetch options
- * @returns {Promise<Object>} Response with data and headers
+ * Get single course by ID
+ * Compatible with useResource hook
+ * @param {number} courseId - Course ID
+ * @param {Object} options - Additional options
+ * @returns {Promise<Object>} Course data
  */
-const makeApiRequest = async (url, options = {}) => {
+export const getOne = async (courseId, options = {}) => {
+  return baseCourseService.getOne(courseId, options);
+};
+
+/**
+ * Create new course
+ * Compatible with useResource hook
+ * @param {Object} courseData - Course data
+ * @returns {Promise<Object>} Created course
+ */
+export const create = async (courseData) => {
+  return baseCourseService.create(courseData);
+};
+
+/**
+ * Update existing course
+ * Compatible with useResource hook
+ * @param {number} courseId - Course ID
+ * @param {Object} courseData - Course data
+ * @returns {Promise<Object>} Updated course
+ */
+export const update = async (courseId, courseData) => {
+  return baseCourseService.update(courseId, courseData);
+};
+
+/**
+ * Delete course
+ * Compatible with useResource hook
+ * @param {number} courseId - Course ID
+ * @param {Object} options - Delete options
+ * @returns {Promise<boolean>} Success status
+ */
+export const deleteFn = async (courseId, options = {}) => {
+  return baseCourseService.delete(courseId, options);
+};
+
+// Export as 'delete' for useResource compatibility
+export { deleteFn as delete };
+
+/**
+ * Duplicate existing course
+ * Compatible with useResource hook
+ * @param {number} courseId - Course ID to duplicate
+ * @returns {Promise<Object>} Duplicated course
+ */
+export const duplicate = async (courseId) => {
   try {
-    const config = getWpConfig();
+    const originalCourse = await getOne(courseId);
     
-    const defaultOptions = {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-WP-Nonce': config.nonce,
-      },
-      credentials: 'same-origin',
-      ...options
-    };
-
-    const response = await fetch(url, defaultOptions);
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      throw new Error(`API Error ${response.status}: ${response.statusText} - ${errorData}`);
+    if (!originalCourse) {
+      throw new Error('Course not found');
     }
 
-    const data = await response.json();
-    
-    return {
-      data,
-      headers: {
-        'X-WP-Total': response.headers.get('X-WP-Total'),
-        'X-WP-TotalPages': response.headers.get('X-WP-TotalPages')
-      }
+    const duplicateData = {
+      title: `${originalCourse.title?.rendered || originalCourse.title || 'Untitled'} (Copy)`,
+      description: originalCourse.content?.rendered || originalCourse.content || '',
+      excerpt: originalCourse.excerpt?.rendered || originalCourse.excerpt || '',
+      status: 'draft',
+      price: originalCourse.meta?._course_price || '0',
+      salePrice: originalCourse.meta?._sale_price || '',
+      difficulty: originalCourse.meta?._course_difficulty || 'intermediate',
+      category: originalCourse.meta?._course_category || 'general',
+      duration: originalCourse.meta?._course_duration || 0,
+      maxStudents: originalCourse.meta?._max_students || 0,
+      featured: false,
+      startDate: '',
+      endDate: ''
     };
 
+    console.log('📋 Duplicating course:', courseId);
+    const duplicated = await create(duplicateData);
+    console.log('✅ Course duplicated:', duplicated.id);
+    
+    return duplicated;
+
   } catch (error) {
-    console.error('💥 API Request Failed:', url, error);
+    console.error(`❌ Error duplicating course ${courseId}:`, error);
     throw error;
   }
 };
 
+// ============================================================
+// LEGACY API (for backward compatibility)
+// ============================================================
+
 /**
- * Build query parameters for resource requests
+ * @deprecated Use getAll() instead
+ */
+export const getCourses = getAll;
+
+/**
+ * @deprecated Use getOne() instead
+ */
+export const getCourse = getOne;
+
+/**
+ * @deprecated Use create() instead
+ */
+export const createCourse = create;
+
+/**
+ * @deprecated Use update() instead
+ */
+export const updateCourse = update;
+
+/**
+ * @deprecated Use delete() instead
+ */
+export const deleteCourse = deleteFn;
+
+/**
+ * @deprecated Use duplicate() instead
+ */
+export const duplicateCourse = duplicate;
+
+// ============================================================
+// ADDITIONAL HELPER METHODS
+// ============================================================
+
+/**
+ * Get courses count with optional filters
  * @param {Object} options - Filter options
- * @returns {URLSearchParams} Query parameters
+ * @returns {Promise<number>} Total count
  */
-const buildQueryParams = (options = {}) => {
-  const {
-    page = 1,
-    perPage = 20,
-    status = 'publish,draft,private',
-    search = '',
-    orderBy = 'date',
-    order = 'desc',
-    embed = true
-  } = options;
+export const getCount = async (options = {}) => {
+  return baseCourseService.getCount(options);
+};
 
-  const params = new URLSearchParams({
-    page: page.toString(),
-    per_page: perPage.toString(),
-    status: status,
-    orderby: orderBy,
-    order: order
+/**
+ * Check if course exists
+ * @param {number} courseId - Course ID
+ * @returns {Promise<boolean>} Exists status
+ */
+export const courseExists = async (courseId) => {
+  try {
+    const course = await getOne(courseId);
+    return !!course;
+  } catch (error) {
+    return false;
+  }
+};
+
+/**
+ * Get enrolled users count for a course
+ * @param {number} courseId - Course ID
+ * @returns {Promise<number>} Enrolled users count
+ */
+export const getEnrolledUsersCount = async (courseId) => {
+  try {
+    const course = await getOne(courseId);
+    return parseInt(course.meta?.enrolled_users_count || '0');
+  } catch (error) {
+    console.error(`❌ Error getting enrolled users for course ${courseId}:`, error);
+    return 0;
+  }
+};
+
+/**
+ * Update course status
+ * @param {number} courseId - Course ID
+ * @param {string} newStatus - New status ('publish', 'draft', 'private')
+ * @returns {Promise<Object>} Updated course
+ */
+export const updateCourseStatus = async (courseId, newStatus) => {
+  if (!['publish', 'draft', 'private'].includes(newStatus)) {
+    throw new Error(`Invalid status: ${newStatus}`);
+  }
+
+  return update(courseId, { status: newStatus });
+};
+
+/**
+ * Publish course (set status to 'publish')
+ * @param {number} courseId - Course ID
+ * @returns {Promise<Object>} Updated course
+ */
+export const publishCourse = async (courseId) => {
+  return updateCourseStatus(courseId, 'publish');
+};
+
+/**
+ * Unpublish course (set status to 'draft')
+ * @param {number} courseId - Course ID
+ * @returns {Promise<Object>} Updated course
+ */
+export const unpublishCourse = async (courseId) => {
+  return updateCourseStatus(courseId, 'draft');
+};
+
+/**
+ * Feature/Unfeature course
+ * @param {number} courseId - Course ID
+ * @param {boolean} featured - Featured status
+ * @returns {Promise<Object>} Updated course
+ */
+export const toggleCourseFeatured = async (courseId, featured) => {
+  return update(courseId, { featured });
+};
+
+/**
+ * Search courses by title
+ * @param {string} searchTerm - Search term
+ * @param {Object} options - Additional options
+ * @returns {Promise<Object>} Search results
+ */
+export const searchCoursesByTitle = async (searchTerm, options = {}) => {
+  return getAll({
+    ...options,
+    search: searchTerm
   });
-
-  if (embed) {
-    params.append('_embed', 'true');
-  }
-
-  if (search && search.trim()) {
-    params.append('search', search.trim());
-  }
-
-  return params;
 };
 
 /**
- * Create a resource service with CRUD operations
- * 
- * @param {string} resourceName - Resource name (e.g., 'course', 'lesson')
- * @param {string} endpointKey - Key in config.endpoints (e.g., 'courses', 'lessons')
- * @param {Object} customOptions - Custom options
- * @param {Function} customOptions.sanitizer - Custom data sanitizer function
- * @param {Function} customOptions.validator - Custom data validator function
- * @param {Function} customOptions.transformer - Custom data transformer for API
- * @param {Function} customOptions.buildParams - Custom query params builder
- * @returns {Object} Service methods
+ * Get courses by category
+ * @param {string} category - Category name
+ * @param {Object} options - Additional options
+ * @returns {Promise<Object>} Filtered courses
  */
-export const createResourceService = (resourceName, endpointKey, customOptions = {}) => {
-  const {
-    sanitizer = (data) => data,
-    validator = () => ({ isValid: true, errors: [] }),
-    transformer = (data) => data,
-    buildParams: customBuildParams = buildQueryParams
-  } = customOptions;
-
-  /**
-   * Get endpoint URL from config
-   * @returns {string} Endpoint URL
-   */
-  const getEndpoint = () => {
-    const config = getWpConfig();
-    if (!config.endpoints[endpointKey]) {
-      throw new Error(`Endpoint '${endpointKey}' not configured`);
-    }
-    return config.endpoints[endpointKey];
-  };
-
-  return {
-    /**
-     * Get all resources with filtering
-     * @param {Object} options - Filter options
-     * @returns {Promise<Object>} Resources and pagination
-     */
-    getAll: async (options = {}) => {
-      try {
-        const endpoint = getEndpoint();
-        const params = customBuildParams(options);
-        const url = `${endpoint}?${params.toString()}`;
-        
-        console.log(`🎯 GET ${resourceName}s:`, url);
-        
-        const response = await makeApiRequest(url);
-        
-        const sanitizedData = Array.isArray(response.data)
-          ? response.data.map(sanitizer)
-          : [];
-        
-        return {
-          data: sanitizedData,
-          pagination: {
-            currentPage: options.page || 1,
-            totalPages: parseInt(response.headers['X-WP-TotalPages'] || '1'),
-            total: parseInt(response.headers['X-WP-Total'] || '0'),
-            perPage: options.perPage || 20
-          }
-        };
-        
-      } catch (error) {
-        console.error(`❌ Error fetching ${resourceName}s:`, error);
-        throw error;
-      }
-    },
-
-    /**
-     * Get single resource by ID
-     * @param {number} id - Resource ID
-     * @param {Object} options - Additional options
-     * @returns {Promise<Object>} Resource data
-     */
-    getOne: async (id, options = {}) => {
-      try {
-        if (!id || !Number.isInteger(id) || id <= 0) {
-          throw new Error(`Invalid ${resourceName} ID: ${id}`);
-        }
-
-        const endpoint = getEndpoint();
-        const params = new URLSearchParams();
-        
-        if (options.embed !== false) {
-          params.append('_embed', 'true');
-        }
-
-        const url = `${endpoint}/${id}?${params.toString()}`;
-        console.log(`🎯 GET ${resourceName}:`, url);
-        
-        const response = await makeApiRequest(url);
-        
-        return sanitizer(response.data);
-        
-      } catch (error) {
-        console.error(`❌ Error fetching ${resourceName} ${id}:`, error);
-        
-        // Return null for 404 errors
-        if (error.message.includes('404')) {
-          return null;
-        }
-        
-        throw error;
-      }
-    },
-
-    /**
-     * Create new resource
-     * @param {Object} data - Resource data
-     * @returns {Promise<Object>} Created resource
-     */
-    create: async (data) => {
-      try {
-        // Validate data
-        const validation = validator(data);
-        if (!validation.isValid) {
-          throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
-        }
-
-        const endpoint = getEndpoint();
-        const transformedData = transformer(data);
-
-        console.log(`📝 Creating ${resourceName}:`, transformedData);
-        
-        const response = await makeApiRequest(endpoint, {
-          method: 'POST',
-          body: JSON.stringify(transformedData)
-        });
-        
-        console.log(`✅ ${resourceName} created:`, response.data.id);
-        return sanitizer(response.data);
-        
-      } catch (error) {
-        console.error(`❌ Error creating ${resourceName}:`, error);
-        throw error;
-      }
-    },
-
-    /**
-     * Update existing resource
-     * @param {number} id - Resource ID
-     * @param {Object} data - Resource data
-     * @returns {Promise<Object>} Updated resource
-     */
-    update: async (id, data) => {
-      try {
-        if (!id || !Number.isInteger(id) || id <= 0) {
-          throw new Error(`Invalid ${resourceName} ID: ${id}`);
-        }
-
-        // Validate data
-        const validation = validator(data);
-        if (!validation.isValid) {
-          throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
-        }
-
-        const endpoint = getEndpoint();
-        const transformedData = transformer(data);
-
-        console.log(`✏️ Updating ${resourceName} ${id}:`, transformedData);
-        
-        const url = `${endpoint}/${id}`;
-        const response = await makeApiRequest(url, {
-          method: 'POST', // WordPress REST API uses POST for updates
-          body: JSON.stringify(transformedData)
-        });
-        
-        console.log(`✅ ${resourceName} updated:`, id);
-        return sanitizer(response.data);
-        
-      } catch (error) {
-        console.error(`❌ Error updating ${resourceName} ${id}:`, error);
-        throw error;
-      }
-    },
-
-    /**
-     * Delete resource
-     * @param {number} id - Resource ID
-     * @param {Object} options - Delete options
-     * @returns {Promise<boolean>} Success status
-     */
-    delete: async (id, options = {}) => {
-      try {
-        if (!id || !Number.isInteger(id) || id <= 0) {
-          throw new Error(`Invalid ${resourceName} ID: ${id}`);
-        }
-
-        const endpoint = getEndpoint();
-        const params = new URLSearchParams();
-        
-        if (options.force) {
-          params.append('force', 'true');
-        }
-
-        const url = `${endpoint}/${id}?${params.toString()}`;
-        console.log(`🗑️ Deleting ${resourceName} ${id}`);
-        
-        await makeApiRequest(url, {
-          method: 'DELETE'
-        });
-        
-        console.log(`✅ ${resourceName} deleted:`, id);
-        return true;
-        
-      } catch (error) {
-        console.error(`❌ Error deleting ${resourceName} ${id}:`, error);
-        throw error;
-      }
-    },
-
-    /**
-     * Get resource count
-     * @param {Object} options - Filter options
-     * @returns {Promise<number>} Total count
-     */
-    getCount: async (options = {}) => {
-      try {
-        const result = await service.getAll({ ...options, perPage: 1 });
-        return result.pagination.total;
-      } catch (error) {
-        console.error(`❌ Error getting ${resourceName} count:`, error);
-        return 0;
-      }
-    }
-  };
+export const getCoursesByCategory = async (category, options = {}) => {
+  return getAll({
+    ...options,
+    category
+  });
 };
 
 /**
- * Export helper to make API requests directly
- * (for custom operations not covered by CRUD)
+ * Get courses by difficulty
+ * @param {string} difficulty - Difficulty level
+ * @param {Object} options - Additional options
+ * @returns {Promise<Object>} Filtered courses
  */
-export { makeApiRequest, buildQueryParams };
+export const getCoursesByDifficulty = async (difficulty, options = {}) => {
+  return getAll({
+    ...options,
+    difficulty
+  });
+};
+
+/**
+ * Get featured courses
+ * @param {Object} options - Additional options
+ * @returns {Promise<Object>} Featured courses
+ */
+export const getFeaturedCourses = async (options = {}) => {
+  return getAll({
+    ...options,
+    featured: true
+  });
+};
+
+/**
+ * Get published courses only
+ * @param {Object} options - Additional options
+ * @returns {Promise<Object>} Published courses
+ */
+export const getPublishedCourses = async (options = {}) => {
+  return getAll({
+    ...options,
+    status: 'publish'
+  });
+};

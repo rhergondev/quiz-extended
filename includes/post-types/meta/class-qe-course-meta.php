@@ -89,19 +89,26 @@ class QE_Course_Meta
         register_post_meta($this->post_type, '_price', [
             'show_in_rest' => true,
             'single' => true,
-            'type' => 'string',
+            'type' => 'number',
             'description' => __('Course price', 'quiz-extended'),
             'sanitize_callback' => [$this, 'sanitize_price_field'],
             'auth_callback' => [$this, 'auth_callback'],
         ]);
 
         register_post_meta($this->post_type, '_sale_price', [
-            'show_in_rest' => true,
+            'show_in_rest' => [
+                'schema' => [
+                    'description' => __('Course sale price', 'quiz-extended'),
+                    'type' => ['number', 'null'],
+                    'default' => null,
+                ]
+            ],
             'single' => true,
-            'type' => 'string',
+            'type' => 'number',
             'description' => __('Course sale price', 'quiz-extended'),
-            'sanitize_callback' => [$this, 'sanitize_price_field'],
+            'sanitize_callback' => [$this, 'sanitize_optional_price'],
             'auth_callback' => [$this, 'auth_callback'],
+            'default' => null,
         ]);
     }
 
@@ -113,21 +120,35 @@ class QE_Course_Meta
     private function register_numeric_fields()
     {
         register_post_meta($this->post_type, '_duration_weeks', [
-            'show_in_rest' => true,
+            'show_in_rest' => [
+                'schema' => [
+                    'description' => __('Course duration in weeks', 'quiz-extended'),
+                    'type' => 'integer',
+                    'default' => null,
+                ]
+            ],
             'single' => true,
             'type' => 'integer',
             'description' => __('Course duration in weeks', 'quiz-extended'),
-            'sanitize_callback' => 'absint',
+            'sanitize_callback' => [$this, 'sanitize_optional_integer'],
             'auth_callback' => [$this, 'auth_callback'],
+            'default' => null,
         ]);
 
         register_post_meta($this->post_type, '_max_students', [
-            'show_in_rest' => true,
+            'show_in_rest' => [
+                'schema' => [
+                    'description' => __('Maximum number of students', 'quiz-extended'),
+                    'type' => 'integer',
+                    'default' => null,
+                ]
+            ],
             'single' => true,
             'type' => 'integer',
             'description' => __('Maximum number of students', 'quiz-extended'),
-            'sanitize_callback' => 'absint',
+            'sanitize_callback' => [$this, 'sanitize_optional_integer'],
             'auth_callback' => [$this, 'auth_callback'],
+            'default' => null,
         ]);
     }
 
@@ -280,6 +301,60 @@ class QE_Course_Meta
         }
 
         return number_format($price, 2, '.', '');
+    }
+
+    /**
+     * Sanitize optional price field
+     *
+     * @param mixed $value Price value
+     * @return float|null Sanitized price or null
+     */
+    public function sanitize_optional_price($value)
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $value = preg_replace('/[^0-9.]/', '', $value);
+        $price = floatval($value);
+
+        if ($price < 0) {
+            $price = 0;
+        }
+
+        return $price > 0 ? $price : null;
+    }
+
+    /**
+     * Sanitize integer field
+     *
+     * @param mixed $value Integer value
+     * @return int Sanitized integer
+     */
+    public function sanitize_integer_field($value)
+    {
+        return absint($value);
+    }
+
+    /**
+     * Sanitize optional integer field
+     *
+     * @param mixed $value Integer value
+     * @return int|null Sanitized integer or null
+     */
+    public function sanitize_optional_integer($value)
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $int_value = absint($value);
+
+        if ($int_value === 0 && $value !== 0 && $value !== '0') {
+            return null;
+        }
+
+        return $int_value;
     }
 
     /**

@@ -1,5 +1,3 @@
-// src/components/common/FilterDropdown.jsx (Updated)
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ChevronDown, Search, X } from 'lucide-react';
 
@@ -16,7 +14,8 @@ const FilterDropdown = ({
   placeholder = 'Select an option',
   isLoading: parentIsLoading = false,
   showSearch = false,
-  className = ''
+  className = '',
+  refreshTrigger 
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [internalOptions, setInternalOptions] = useState(staticOptions || []);
@@ -36,14 +35,14 @@ const FilterDropdown = ({
           }
         })
         .catch(err => {
-          console.error(`Error fetching options for ${label}:`, err);
+          console.error(`Error fetching options:`, err);
           setError('Could not load options.');
         })
         .finally(() => setIsLoading(false));
     } else if (staticOptions) {
       setInternalOptions(staticOptions);
     }
-  }, [fetchOptions, staticOptions, label]);
+  }, [fetchOptions, staticOptions, refreshTrigger]);
   
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -73,6 +72,7 @@ const FilterDropdown = ({
   const handleSelect = (optionValue) => {
     onChange(optionValue);
     setIsOpen(false);
+    setSearchTerm('');
   };
 
   const totalLoading = parentIsLoading || isLoading;
@@ -96,24 +96,20 @@ const FilterDropdown = ({
         <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">
           {showSearch && (
             <div className="p-2 border-b">
-              {/* ❇️ CHANGE: Search bar structure updated */}
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  // ❇️ CHANGE: Padding adjusted for right-aligned icon
                   className="w-full pl-3 pr-8 py-1.5 text-sm border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                 />
                 <div className="absolute inset-y-0 right-0 flex items-center pr-2.5">
                   {searchTerm ? (
-                    // ❇️ ADDED: Clear button when there is a search term
                     <button type="button" onClick={() => setSearchTerm('')} className="text-gray-500 hover:text-gray-700">
                       <X className="h-4 w-4" />
                     </button>
                   ) : (
-                    // ❇️ MOVED: Search icon is now on the right
                     <Search className="h-4 w-4 text-gray-400" />
                   )}
                 </div>
