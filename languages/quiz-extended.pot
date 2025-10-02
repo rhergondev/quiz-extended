@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-10-01T15:55:12+00:00\n"
+"POT-Creation-Date: 2025-10-02T06:42:55+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: quiz-extended\n"
@@ -292,79 +292,79 @@ msgstr ""
 msgid "WooCommerce is not active. Course enrollment through purchases will not work."
 msgstr ""
 
-#: includes/class-qe-loader.php:532
+#: includes/class-qe-loader.php:584
 msgid "System Diagnostics"
 msgstr ""
 
-#: includes/class-qe-loader.php:533
+#: includes/class-qe-loader.php:585
 msgid "Diagnostics"
 msgstr ""
 
-#: includes/class-qe-loader.php:557
+#: includes/class-qe-loader.php:609
 msgid "Quiz Extended LMS - System Diagnostics"
 msgstr ""
 
-#: includes/class-qe-loader.php:560
+#: includes/class-qe-loader.php:612
 msgid "System Status"
 msgstr ""
 
-#: includes/class-qe-loader.php:563
+#: includes/class-qe-loader.php:615
 msgid "Plugin Version:"
 msgstr ""
 
-#: includes/class-qe-loader.php:567
+#: includes/class-qe-loader.php:619
 msgid "Database Version:"
 msgstr ""
 
-#: includes/class-qe-loader.php:571
+#: includes/class-qe-loader.php:623
 msgid "Loaded Components:"
 msgstr ""
 
-#: includes/class-qe-loader.php:575
+#: includes/class-qe-loader.php:627
 msgid "Loading Errors:"
 msgstr ""
 
-#: includes/class-qe-loader.php:579
+#: includes/class-qe-loader.php:631
 msgid "Security Layer:"
 msgstr ""
 
-#: includes/class-qe-loader.php:582
-#: includes/class-qe-loader.php:592
+#: includes/class-qe-loader.php:634
+#: includes/class-qe-loader.php:644
 msgid "Loaded"
 msgstr ""
 
-#: includes/class-qe-loader.php:584
-#: includes/class-qe-loader.php:594
+#: includes/class-qe-loader.php:636
+#: includes/class-qe-loader.php:646
 msgid "Not Loaded"
 msgstr ""
 
-#: includes/class-qe-loader.php:589
+#: includes/class-qe-loader.php:641
 msgid "API System:"
 msgstr ""
 
-#: includes/class-qe-loader.php:603
+#: includes/class-qe-loader.php:655
 msgid "Loading Errors"
 msgstr ""
 
-#: includes/class-qe-loader.php:607
-#: includes/class-qe-loader.php:631
+#: includes/class-qe-loader.php:659
+#: includes/class-qe-loader.php:683
 msgid "Type"
 msgstr ""
 
-#: includes/class-qe-loader.php:608
-#: includes/class-qe-loader.php:630
+#: includes/class-qe-loader.php:660
+#: includes/class-qe-loader.php:682
 msgid "Component"
 msgstr ""
 
-#: includes/class-qe-loader.php:609
+#: includes/class-qe-loader.php:661
 msgid "Message"
 msgstr ""
 
-#: includes/class-qe-loader.php:626
+#: includes/class-qe-loader.php:678
 msgid "Loaded Components"
 msgstr ""
 
-#: includes/class-qe-loader.php:632
+#: includes/class-qe-loader.php:684
 msgid "File"
 msgstr ""
 

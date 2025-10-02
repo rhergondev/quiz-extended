@@ -8,7 +8,10 @@
     "start": "npm run css:watch & wp-scripts start",
     "dev": "npm run css:watch & wp-scripts start",
     "css:build": "npx tailwindcss -i ./src/styles/tailwind-input.css -o ./src/styles/tailwind.css --minify",
-    "css:watch": "npx tailwindcss -i ./src/styles/tailwind-input.css -o ./src/styles/tailwind.css --watch"
+    "css:watch": "npx tailwindcss -i ./src/styles/tailwind-input.css -o ./src/styles/tailwind.css --watch",
+    "i18n:extract": "cd ../.. && php -d memory_limit=-1 /usr/local/bin/wp i18n make-pot . languages/quiz-extended.pot --domain=quiz-extended --exclude=node_modules,build,vendor",
+    "i18n:compile": "cd ../.. && ./scripts/build-translations.sh",
+    "i18n:all": "npm run i18n:extract && npm run i18n:compile"
   },
   "repository": {
     "type": "git",
