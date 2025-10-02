@@ -69,90 +69,133 @@ export const useCourses = (options = {}) => {
   // ============================================================
   
   /**
-   * Calculate course-specific computed values
-   */
-  const computedValuesCalculator = useMemo(() => (courses) => {
-    const total = courses.length;
-    
-    if (total === 0) {
-      return {
-        total: 0,
-        published: 0,
-        draft: 0,
-        private: 0,
-        totalStudents: 0,
-        totalLessons: 0,
-        averagePrice: 0,
-        averageDuration: 0,
-        averageCompletionRate: 0,
-        byCategory: {},
-        byDifficulty: {},
-        featuredCount: 0,
-        onSaleCount: 0
-      };
-    }
-
-    // Aggregate values
-    let totalStudents = 0;
-    let totalLessons = 0;
-    let totalPrice = 0;
-    let totalDuration = 0;
-    let totalCompletionRate = 0;
-    let priceCount = 0;
-    const byCategory = {};
-    const byDifficulty = {};
-    let featuredCount = 0;
-    let onSaleCount = 0;
-
-    courses.forEach(course => {
-      // Students and lessons
-      totalStudents += course.student_count || 0;
-      totalLessons += course.lesson_count || 0;
-      
-      // Price (only count non-zero prices)
-      const price = course.price || 0;
-      if (price > 0) {
-        totalPrice += price;
-        priceCount++;
-      }
-      
-      // Duration
-      totalDuration += course.duration_hours || 0;
-      
-      // Completion rate
-      totalCompletionRate += course.completion_rate || 0;
-      
-      // Category counts
-      const cat = course.category || 'uncategorized';
-      byCategory[cat] = (byCategory[cat] || 0) + 1;
-      
-      // Difficulty counts
-      const diff = course.difficulty || 'intermediate';
-      byDifficulty[diff] = (byDifficulty[diff] || 0) + 1;
-      
-      // Featured
-      if (course.featured) featuredCount++;
-      
-      // On sale
-      if (course.on_sale) onSaleCount++;
-    });
-
+ * Calculate computed statistics from courses data
+ */
+const computedValuesCalculator = useMemo(() => (courses) => {
+  if (!Array.isArray(courses) || courses.length === 0) {
     return {
-      total,
-      published: courses.filter(c => c.status === 'publish').length,
-      draft: courses.filter(c => c.status === 'draft').length,
-      private: courses.filter(c => c.status === 'private').length,
-      totalStudents,
-      totalLessons,
-      averagePrice: priceCount > 0 ? Math.round(totalPrice / priceCount) : 0,
-      averageDuration: total > 0 ? Math.round(totalDuration / total) : 0,
-      averageCompletionRate: total > 0 ? Math.round(totalCompletionRate / total) : 0,
-      byCategory,
-      byDifficulty,
-      featuredCount,
-      onSaleCount
+      totalCourses: 0,
+      publishedCourses: 0,
+      draftCourses: 0,
+      privateCourses: 0,
+      totalStudents: 0,
+      totalLessons: 0,
+      totalPrice: 0,
+      averagePrice: 0,
+      totalRevenue: 0,
+      averageDuration: 0,
+      averageCompletionRate: 0,
+      featuredCount: 0,
+      onSaleCount: 0,
+      freeCoursesCount: 0,
+      paidCoursesCount: 0,
+      byCategory: {},
+      byDifficulty: {},
     };
-  }, []);
+  }
+
+  const total = courses.length;
+  let publishedCount = 0;
+  let draftCount = 0;
+  let privateCount = 0;
+  let totalStudents = 0;
+  let totalLessons = 0;
+  let totalPrice = 0;
+  let priceCount = 0;
+  let totalRevenue = 0;
+  let totalDuration = 0;
+  let totalCompletionRate = 0;
+  let featuredCount = 0;
+  let onSaleCount = 0;
+  let freeCoursesCount = 0;
+  let paidCoursesCount = 0;
+  
+  const byCategory = {};
+  const byDifficulty = {};
+
+  courses.forEach(course => {
+    const meta = course.meta || {};
+    const status = course.status || 'draft';
+    const price = parseFloat(meta._price || 0);
+    const salePrice = parseFloat(meta._sale_price || 0);
+    const students = parseInt(meta._student_count || course.enrolled_users_count || 0);
+    const lessons = parseInt(meta._lesson_count || course.lessons_count || 0);
+    const duration = parseInt(meta._course_duration || 0);
+    const completionRate = parseFloat(meta._completion_rate || 0);
+    const featured = meta._featured === 'yes' || meta._featured === true;
+    const productType = meta._product_type || 'free';
+    
+    // Status counts
+    if (status === 'publish') publishedCount++;
+    if (status === 'draft') draftCount++;
+    if (status === 'private') privateCount++;
+    
+    // Student and lesson totals
+    totalStudents += students;
+    totalLessons += lessons;
+    
+    // Price calculations
+    if (productType === 'paid' && price > 0) {
+      totalPrice += price;
+      priceCount++;
+      paidCoursesCount++;
+      
+      // Revenue calculation (price * students)
+      // If there's a sale price, use that instead
+      const effectivePrice = salePrice > 0 && salePrice < price ? salePrice : price;
+      totalRevenue += effectivePrice * students;
+      
+      // Check if on sale
+      if (salePrice > 0 && salePrice < price) {
+        onSaleCount++;
+      }
+    } else {
+      freeCoursesCount++;
+    }
+    
+    // Duration and completion
+    if (duration > 0) totalDuration += duration;
+    if (completionRate > 0) totalCompletionRate += completionRate;
+    
+    // Featured count
+    if (featured) featuredCount++;
+    
+    // Category breakdown
+    const categories = course.qe_category || [];
+    if (Array.isArray(categories) && categories.length > 0) {
+      categories.forEach(catId => {
+        const catName = course._embedded?.['wp:term']?.[0]?.find(t => t.id === catId)?.name || 'Uncategorized';
+        byCategory[catName] = (byCategory[catName] || 0) + 1;
+      });
+    } else {
+      byCategory['Uncategorized'] = (byCategory['Uncategorized'] || 0) + 1;
+    }
+    
+    // Difficulty breakdown
+    const difficulty = meta._course_difficulty || meta._difficulty || 'intermediate';
+    byDifficulty[difficulty] = (byDifficulty[difficulty] || 0) + 1;
+  });
+
+  return {
+    totalCourses: total,
+    publishedCourses: publishedCount,
+    draftCourses: draftCount,
+    privateCourses: privateCount,
+    totalStudents,
+    totalLessons,
+    totalPrice,
+    averagePrice: priceCount > 0 ? Math.round(totalPrice / priceCount) : 0,
+    totalRevenue: Math.round(totalRevenue),
+    averageDuration: total > 0 ? Math.round(totalDuration / total) : 0,
+    averageCompletionRate: total > 0 ? Math.round(totalCompletionRate / total) : 0,
+    featuredCount,
+    onSaleCount,
+    freeCoursesCount,
+    paidCoursesCount,
+    byCategory,
+    byDifficulty,
+  };
+}, []);
 
   // ============================================================
   // USE BASE RESOURCE HOOK
