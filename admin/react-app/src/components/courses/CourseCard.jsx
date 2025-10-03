@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Edit, Trash2, Copy, BookOpen, Users, Calendar, DollarSign
+  Edit, Trash2, Copy, BookOpen, Users, Calendar, DollarSign, ImageIcon
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import BaseCard from '../common/BaseCard';
@@ -72,10 +72,13 @@ const CourseCard = ({ course, viewMode, onEdit, onDelete, onDuplicate, onClick }
     return colors[slug] || 'bg-gray-100 text-gray-800';
   };
   
-  const formatPrice = (priceValue) => {
+ const formatPrice = (priceValue) => {
     const numericPrice = Number(priceValue);
     if (isNaN(numericPrice) || numericPrice === 0) return t('courses.units.free');
-    return `$${numericPrice.toFixed(2)}`;
+    return new Intl.NumberFormat('es-ES', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(numericPrice);
   };
   
   const formatDate = (dateString) => {
@@ -150,6 +153,53 @@ const CourseCard = ({ course, viewMode, onEdit, onDelete, onDuplicate, onClick }
     </p>
   );
 
+const listContent = (
+    <div className="flex items-center w-full gap-4">
+      {/* Featured Image */}
+      <div className="flex-shrink-0 w-16 h-16 bg-gray-100 rounded-md flex items-center justify-center">
+        {imageUrl ? ( // ❇️ FIX: Use imageUrl here
+          <img 
+            src={imageUrl} 
+            alt={imageAlt} // ❇️ FIX: Use imageAlt here
+            className="w-full h-full object-cover rounded-md"
+          />
+        ) : (
+          <ImageIcon className="w-8 h-8 text-gray-400" />
+        )}
+      </div>
+
+      {/* Main Info */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-gray-900 truncate" title={title.rendered || title}>
+          {title.rendered || title}
+        </p>
+        <p className="text-sm text-gray-500 truncate mt-1">
+          {cleanDescription || 'No description.'}
+        </p>
+      </div>
+
+      {/* Stats for List View */}
+      <div className="hidden md:flex items-center gap-6 text-sm flex-shrink-0">
+        <div className="flex items-center gap-2 text-gray-600" title="Lessons">
+          <BookOpen className="w-4 h-4" />
+          <span>{lessonCount}</span>
+        </div>
+        <div className="flex items-center gap-2 text-gray-600" title="Students">
+          <Users className="w-4 h-4" />
+          <span>{studentCount}</span>
+        </div>
+        <div className="flex items-center gap-2 text-gray-600" title="End Date">
+          <Calendar className="w-4 h-4" />
+          <span>{formatDate(endDate)}</span>
+        </div>
+        <div className="flex items-center gap-2 font-medium text-gray-800" title="Price">
+          <DollarSign className="w-4 h-4" />
+          <span>{formatPrice(price)}</span>
+        </div>
+      </div>
+    </div>
+  );
+
   /**
    * Stats Slot - Lessons, Students, Date, Price
    */
@@ -185,10 +235,18 @@ const CourseCard = ({ course, viewMode, onEdit, onDelete, onDuplicate, onClick }
       onClick={() => onClick(course)}
       header={headerContent}
       stats={statsContent}
+      listContent={listContent}
     >
       {mainContent}
     </BaseCard>
   );
+};
+
+CourseCard.defaultProps = {
+  onEdit: () => {},
+  onDelete: () => {},
+  onDuplicate: () => {},
+  onClick: () => {},
 };
 
 export default CourseCard;

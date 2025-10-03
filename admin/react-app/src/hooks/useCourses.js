@@ -140,18 +140,18 @@ const computedValuesCalculator = useMemo(() => (courses) => {
       priceCount++;
       paidCoursesCount++;
       
-      // Revenue calculation (price * students)
-      // If there's a sale price, use that instead
-      const effectivePrice = salePrice > 0 && salePrice < price ? salePrice : price;
+      // Revenue calculation: usar el precio efectivo (sale o normal)
+      const effectivePrice = (salePrice > 0 && salePrice < price) ? salePrice : price;
       totalRevenue += effectivePrice * students;
       
       // Check if on sale
       if (salePrice > 0 && salePrice < price) {
         onSaleCount++;
       }
-    } else {
+    } else if (productType === 'free' || price === 0) {  // CORRECCIÓN: condición más explícita
       freeCoursesCount++;
     }
+
     
     // Duration and completion
     if (duration > 0) totalDuration += duration;
@@ -184,8 +184,8 @@ const computedValuesCalculator = useMemo(() => (courses) => {
     totalStudents,
     totalLessons,
     totalPrice,
-    averagePrice: priceCount > 0 ? Math.round(totalPrice / priceCount) : 0,
-    totalRevenue: Math.round(totalRevenue),
+    averagePrice: priceCount > 0 ? Math.round((totalPrice / priceCount) * 100) / 100 : 0,
+    totalRevenue: Math.round(totalRevenue * 100) / 100,
     averageDuration: total > 0 ? Math.round(totalDuration / total) : 0,
     averageCompletionRate: total > 0 ? Math.round(totalCompletionRate / total) : 0,
     featuredCount,

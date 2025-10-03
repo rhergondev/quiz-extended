@@ -516,14 +516,14 @@ export const validateRange = (value, min, max, fieldName) => {
  * @param {boolean} showFree - Show 'Free' for 0 price (default: true)
  * @returns {string} Formatted price
  */
-export const formatPrice = (price, currency = '$', showFree = true) => {
+export const formatPrice = (price, currency = '€', showFree = true) => {  // Cambiar $ por €
   const sanitizedPrice = sanitizePrice(price);
   
   if (sanitizedPrice === 0 && showFree) {
     return 'Free';
   }
   
-  return `${currency}${sanitizedPrice.toFixed(2)}`;
+  return `${sanitizedPrice.toFixed(2)}€`;
 };
 
 /**

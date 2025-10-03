@@ -101,7 +101,7 @@
       "all": "Todos los Precios",
       "free": "Gratis",
       "paid": "De Pago",
-      "premium": "Premium ($100+)"
+      "premium": "Premium (€100+)"
     },
     
     "stats": {
@@ -110,6 +110,8 @@
       "totalLessons": "Lecciones",
       "averagePrice": "Precio Promedio",
       "revenue": "Ingresos",
+      "totalRevenue": "Ingresos Totales",
+      "featuredCourses": "Cursos Destacados",
       "completionRate": "Tasa de Finalización",
       "averageDuration": "Duración Promedio"
     },

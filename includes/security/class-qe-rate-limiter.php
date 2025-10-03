@@ -20,22 +20,20 @@ class QE_Rate_Limiter
 {
     /**
      * The single instance of the class
-     * 
-     * @var QE_Rate_Limiter
+     * * @var QE_Rate_Limiter
      */
     private static $instance = null;
 
     /**
      * Rate limit rules
-     * 
-     * @var array
+     * * @var array
      */
     private $limits = [
-        // API endpoints
+        // 🔥 CORRECCIÓN: Aumentado el límite para evitar bloqueos al buscar en el admin.
         'api_general' => [
-            'limit' => 60,          // requests
-            'window' => 60,         // seconds
-            'action' => 'throttle'  // throttle|block
+            'limit' => 300,         // Aumentado de 60 a 300 peticiones
+            'window' => 60,         // por minuto
+            'action' => 'throttle'
         ],
         'api_quiz_start' => [
             'limit' => 10,
@@ -125,6 +123,12 @@ class QE_Rate_Limiter
         if (!$limit_type) {
             return $result; // No rate limiting for this route
         }
+
+        // 🔥 CORRECCIÓN: Asegurarse de que los administradores no sean bloqueados.
+        if ($this->should_bypass($limit_type)) {
+            return $result;
+        }
+
 
         // Check if limit exceeded
         $check = $this->check_limit($limit_type, $this->get_identifier());

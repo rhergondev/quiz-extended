@@ -95,7 +95,7 @@
       "all": "All Prices",
       "free": "Free",
       "paid": "Paid",
-      "premium": "Premium ($100+)"
+      "premium": "Premium (€100+)"
     },
     
     "stats": {
@@ -104,6 +104,8 @@
       "totalLessons": "Lessons",
       "averagePrice": "Avg. Price",
       "revenue": "Revenue",
+      "totalRevenue": "Total Revenue",
+      "featuredCourses": "Featured Courses",
       "completionRate": "Completion Rate",
       "averageDuration": "Avg. Duration"
     },

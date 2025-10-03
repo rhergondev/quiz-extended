@@ -1042,7 +1042,7 @@ export const formatCourseForSEO = (course) => {
     image: formatted.featured_media_url,
     price: formatted.meta._price,
     salePrice: formatted.meta._sale_price,
-    currency: 'USD',
+    currency: 'EUR',
     availability: isEnrollable(course) ? 'InStock' : 'OutOfStock',
     category: formatted.formattedDifficulty,
     lessons: formatted.lessonsCount,

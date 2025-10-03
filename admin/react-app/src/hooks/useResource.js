@@ -1,10 +1,8 @@
 /**
  * useResource - Generic Resource Management Hook
- * 
- * Base hook that provides CRUD operations, pagination, and filtering
+ * * Base hook that provides CRUD operations, pagination, and filtering
  * for any WordPress REST API resource
- * 
- * @package QuizExtended
+ * * @package QuizExtended
  * @subpackage Hooks
  * @version 1.0.0
  */
@@ -13,8 +11,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 
 /**
  * Generic resource management hook
- * 
- * @param {Object} options - Configuration options
+ * * @param {Object} options - Configuration options
  * @param {Object} options.service - Service object with CRUD methods (from baseService)
  * @param {string} options.resourceName - Resource name for logging (e.g., 'course', 'lesson')
  * @param {Object} options.initialFilters - Initial filter values
@@ -67,6 +64,19 @@ export const useResource = ({
   const mountedRef = useRef(true);
   const lastFetchParamsRef = useRef('');
   const isFirstRenderRef = useRef(true);
+  
+  // 🔥 CORRECCIÓN: Se añade un useEffect para que el hook reaccione a los cambios en los filtros.
+  // Esto es lo que hace que el filtrado funcione dinámicamente.
+  const initialFiltersJSON = JSON.stringify(initialFilters);
+  useEffect(() => {
+    if (!isFirstRenderRef.current) {
+        setFilters({
+            search: '',
+            ...initialFilters,
+        });
+    }
+  }, [initialFiltersJSON]);
+
 
   // ============================================================
   // CLEANUP
@@ -188,34 +198,24 @@ export const useResource = ({
     try {
       setCreating(true);
       setError(null);
-
       console.log(`📝 Creating ${resourceName}:`, data);
-
+  
       const newItem = await service.create(data);
-      
       if (!mountedRef.current) return null;
-
-      // Process new item if processor provided
-      const processedItem = dataProcessor 
-        ? dataProcessor(newItem) 
-        : newItem;
-
-      // Add to items array at the beginning
+  
+      const fullNewItem = await service.getOne(newItem.id);
+      if (!mountedRef.current) return null;
+  
+      const processedItem = dataProcessor ? dataProcessor(fullNewItem) : fullNewItem;
+  
       setItems(prev => [processedItem, ...prev]);
-      
-      // Update pagination total
-      setPagination(prev => ({
-        ...prev,
-        total: prev.total + 1
-      }));
-
-      console.log(`✅ ${resourceName} created:`, processedItem.id);
-      
+      setPagination(prev => ({ ...prev, total: prev.total + 1 }));
+  
+      console.log(`✅ ${resourceName} created with full data:`, processedItem.id);
       return processedItem;
-
+  
     } catch (err) {
       if (!mountedRef.current) return null;
-      
       console.error(`❌ Error creating ${resourceName}:`, err);
       setError(err.message || `Failed to create ${resourceName}`);
       throw err;
@@ -234,30 +234,23 @@ export const useResource = ({
     try {
       setUpdating(true);
       setError(null);
-
       console.log(`✏️ Updating ${resourceName} ${id}:`, data);
-
-      const updatedItem = await service.update(id, data);
-      
+  
+      await service.update(id, data);
       if (!mountedRef.current) return null;
-
-      // Process updated item if processor provided
-      const processedItem = dataProcessor 
-        ? dataProcessor(updatedItem) 
-        : updatedItem;
-
-      // Update in items array
-      setItems(prev => prev.map(item => 
-        item.id === id ? processedItem : item
-      ));
-
-      console.log(`✅ ${resourceName} ${id} updated`);
-      
+  
+      const fullUpdatedItem = await service.getOne(id);
+      if (!mountedRef.current) return null;
+  
+      const processedItem = dataProcessor ? dataProcessor(fullUpdatedItem) : fullUpdatedItem;
+  
+      setItems(prev => prev.map(item => (item.id === id ? processedItem : item)));
+  
+      console.log(`✅ ${resourceName} ${id} updated with full data`);
       return processedItem;
-
+  
     } catch (err) {
       if (!mountedRef.current) return null;
-      
       console.error(`❌ Error updating ${resourceName} ${id}:`, err);
       setError(err.message || `Failed to update ${resourceName}`);
       throw err;

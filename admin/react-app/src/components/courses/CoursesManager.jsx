@@ -4,7 +4,7 @@ import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { 
   BookOpen, 
   Users, 
-  DollarSign, 
+  EuroIcon,
   TrendingUp,
   Award,
   Target
@@ -12,6 +12,7 @@ import {
 
 import useCourses from '../../hooks/useCourses';
 import { useSearchInput, useFilterDebounce } from '../../api/utils/debounceUtils.js';
+import { useTaxonomyOptions } from '../../hooks/useTaxonomyOptions';
 import * as courseService from '../../api/services/courseService';
 
 import ContentManager from '../common/ContentManager';
@@ -20,6 +21,7 @@ import CourseModal from './CourseModal';
 import DeleteModal from '../common/DeleteModal';
 import PageHeader from '../common/PageHeader.jsx';
 import FilterBar from '../common/FilterBar.jsx';
+import ResourceGrid from '../common/ResourceGrid.jsx';
 import { useTranslation } from 'react-i18next';
 
 const CoursesManager = () => {
@@ -35,31 +37,15 @@ const CoursesManager = () => {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // --- DEBOUNCED SEARCH INPUT ---
-  const {
-    searchValue,
-    isSearching,
-    handleSearchChange,
-    clearSearch
-  } = useSearchInput('', async (searchTerm) => {
-    console.log('🔍 Course search triggered:', searchTerm);
-  }, 500);
+  
 
-  // --- DEBOUNCED FILTERS ---
-  const {
-    filters,
-    isFiltering,
-    updateFilter,
-    resetFilters
-  } = useFilterDebounce(
-    {
-      category: 'all',
-      status: 'all'
-    },
-    async (newFilters) => {
-      console.log('🔧 Course filters changed:', newFilters);
-    },
-    300
+  // --- DEBOUNCED SEARCH INPUT ---
+  const { searchValue, isSearching, handleSearchChange, clearSearch } = useSearchInput('', () => {}, 500);
+  
+  // 🔥 CORRECCIÓN: Definir todos los filtros iniciales para que el reseteo funcione.
+  const { filters, isFiltering, updateFilter, resetFilters } = useFilterDebounce(
+    { category: 'all', status: 'all' },
+    () => {}, 300
   );
 
   // --- HOOKS WITH PROPER DEBOUNCING ---
@@ -84,6 +70,9 @@ const CoursesManager = () => {
     autoFetch: true,
     debounceMs: 500
   });
+
+    const { options: taxonomyOptions, isLoading: isLoadingTaxonomies } = useTaxonomyOptions(['qe_category']);
+
 
   // --- INFINITE SCROLL LOGIC ---
   const observer = useRef();
@@ -145,7 +134,6 @@ const CoursesManager = () => {
         result = await createCourse(courseData);
         console.log('✅ Course created:', result);
         
-        // 🔥 FIX: Refrescar para obtener datos embebidos
         if (result?.id) {
           const refreshedCourse = await courseService.getOne(result.id);
           result = refreshedCourse;
@@ -212,6 +200,11 @@ const CoursesManager = () => {
 
   // --- STATISTICS CARDS ---
   const statsCards = useMemo(() => {
+
+    const formatCurrency = (value) => new Intl.NumberFormat('es-ES', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(value || 0);
     return [
       {
         label: t('courses.stats.totalCourses'),
@@ -227,13 +220,13 @@ const CoursesManager = () => {
       },
       {
         label: t('courses.stats.averagePrice'),
-        value: computed.averagePrice ? `$${computed.averagePrice}` : '$0',
-        icon: DollarSign,
+        value: formatCurrency(computed.averagePrice),
+        icon: EuroIcon,
         iconColor: 'text-green-500'
       },
       {
         label: t('courses.stats.totalRevenue'),
-        value: computed.totalRevenue ? `$${computed.totalRevenue.toLocaleString()}` : '$0',
+        value: formatCurrency(computed.totalRevenue),
         icon: TrendingUp,
         iconColor: 'text-indigo-500'
       },
@@ -272,7 +265,7 @@ const CoursesManager = () => {
   // --- SEARCH CONFIG ---
   const searchConfig = {
     value: searchValue,
-    onChange: handleSearchChangeWrapper,
+    onChange: (e) => handleSearchChange(e.target.value),
     onClear: clearSearch,
     placeholder: t('courses.searchPlaceholder'),
     isLoading: isSearching,
@@ -283,17 +276,11 @@ const CoursesManager = () => {
     {
       label: t('courses.category.label'),
       value: filters.category,
-      onChange: handleCategoryChange,
-      options: categoryOptions,
-      placeholder: t('courses.category.all')
+      onChange: (value) => updateFilter('category', value),
+      options: taxonomyOptions.qe_category || [],
+      placeholder: t('courses.category.all'),
+      isLoading: isLoadingTaxonomies,
     },
-    {
-      label: t('courses.status.label'),
-      value: filters.status,
-      onChange: handleStatusChange,
-      options: statusOptions,
-      placeholder: t('courses.status.all')
-    }
   ];
 
   // --- RENDER ---
@@ -318,77 +305,44 @@ const CoursesManager = () => {
         searchConfig={searchConfig}
         filtersConfig={filtersConfig}
         onRefresh={handleRefresh}
-        onReset={resetFilters}
+        onResetFilters={resetFilters}
         isLoading={loading}
       />
 
       {/* Content Manager with Infinite Scroll */}
       <ContentManager
-        title={t('courses.title')}
-        description={t('courses.description')}
-        createButtonText={t('courses.createCourse')}
-        onCreateClick={() => openModal('create')}
-        items={courses}
-        loading={loading && courses.length === 0}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        showCreateButton={false} // Ya está en PageHeader
-        showItemCount={true}
-        showViewToggle={true}
-        emptyState={{ 
-          icon: BookOpen, 
-          title: t('courses.noCourses'),
-          description: t('courses.noCoursesDescription'),
-          actionText: t('courses.createCourse'),
-          onAction: () => openModal('create')
-        }}
-      >
-        {/* Courses Grid/List */}
-        {courses.map((course, index) => {
-          // Ref para el último elemento (infinite scroll)
-          if (index === courses.length - 1) {
-            return (
-              <div key={course.id} ref={lastCourseElementRef}>
-                <CourseCard
-                  course={course}
-                  onEdit={() => openModal('edit', course)}
-                  onDelete={() => handleDeleteClick(course)}
-                  onDuplicate={() => handleDuplicate(course)}
-                  onClick={() => handleCourseClick(course)}
-                  viewMode={viewMode}
-                />
-              </div>
-            );
-          } else {
-            return (
-              <CourseCard
-                key={course.id}
-                course={course}
-                onEdit={() => openModal('edit', course)}
-                onDelete={() => handleDeleteClick(course)}
-                onDuplicate={() => handleDuplicate(course)}
-                onClick={() => handleCourseClick(course)}
+                items={courses}
+                loading={loading && courses.length === 0}
                 viewMode={viewMode}
-              />
-            );
-          }
-        })}
+                onViewModeChange={setViewMode}
+                emptyState={{ icon: BookOpen, title: t('courses.noCourses'), onAction: () => openModal('create') }}
+            >
+                <ResourceGrid
+                    items={courses}
+                    ItemComponent={CourseCard}
+                    lastItemRef={lastCourseElementRef}
+                    itemProps={{
+                        resourceName: 'course',
+                        viewMode: viewMode,
+                        onEdit: (course) => openModal('edit', course),
+                        onDelete: handleDeleteClick,
+                        onDuplicate: handleDuplicate,
+                        onClick: handleCourseClick,
+                    }}
+                />
 
-        {/* Loading more indicator */}
-        {loading && courses.length > 0 && (
-          <div className="col-span-full text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-            <p className="mt-2 text-sm text-gray-500">{t('common.loadingMore')}</p>
-          </div>
-        )}
-
-        {/* End of list indicator */}
-        {!loading && !hasMore && courses.length > 0 && (
-          <div className="col-span-full text-center py-8">
-            <p className="text-sm text-gray-500">{t('common.endOfList')}</p>
-          </div>
-        )}
-      </ContentManager>
+                {/* Indicadores de carga/fin de lista se quedan aquí */}
+                {loading && courses.length > 0 && (
+                    <div className="col-span-full text-center py-8">
+                        {/* ...spinner... */}
+                    </div>
+                )}
+                {!loading && !hasMore && courses.length > 0 && (
+                    <div className="col-span-full text-center py-8">
+                        <p className="text-sm text-gray-500">{t('common.endOfList')}</p>
+                    </div>
+                )}
+            </ContentManager>
 
       {/* Course Modal */}
       <CourseModal

@@ -1,26 +1,41 @@
 /**
  * Course Service - Refactored
- * 
- * Uses baseService for common CRUD operations
+ * * Uses baseService for common CRUD operations
  * Extended with course-specific functionality
- * 
- * @package QuizExtended
+ * * @package QuizExtended
  * @subpackage API/Services
  * @version 2.0.0
  */
 
-import { createResourceService } from './baseService.js';
+import { createResourceService, buildQueryParams } from './baseService.js';
 import { 
   sanitizeCourseData, 
   validateCourseData, 
   transformCourseDataForApi 
 } from '../utils/courseDataUtils.js';
 
+// 🔥 AÑADIDO: Constructor de parámetros personalizado para cursos
+const buildCourseQueryParams = (options = {}) => {
+  // Llama al constructor base para obtener los parámetros por defecto
+  const params = buildQueryParams(options);
+
+  // Añade el filtro específico de categoría si existe
+  if (options.category) {
+    // La API de WordPress espera el slug de la taxonomía como clave y el ID del término como valor
+    params.append('qe_category', options.category.toString());
+  }
+
+  return params;
+};
+
+
 // Create base course service with custom handlers
 const baseCourseService = createResourceService('course', 'courses', {
   sanitizer: sanitizeCourseData,
   validator: validateCourseData,
-  transformer: transformCourseDataForApi
+  transformer: transformCourseDataForApi,
+  // 🔥 AÑADIDO: Pasa el constructor personalizado al servicio
+  buildParams: buildCourseQueryParams
 });
 
 // ============================================================

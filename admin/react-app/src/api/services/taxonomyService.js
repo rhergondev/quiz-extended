@@ -2,11 +2,9 @@
 
 /**
  * Taxonomy Service
- * 
- * Handles all taxonomy-related API calls using the same pattern as other services
+ * * Handles all taxonomy-related API calls using the same pattern as other services
  * Taxonomies: qe_category, qe_topic, qe_difficulty, qe_provider, qe_course_type
- * 
- * @package QuizExtended
+ * * @package QuizExtended
  * @subpackage Admin/ReactApp/API/Services
  * @version 1.0.0
  */
@@ -54,6 +52,7 @@ const makeApiRequest = async (url, options = {}) => {
     throw new Error(`API Error ${response.status}: ${response.statusText} - ${errorData}`);
   }
 
+  // MODIFICADO: Devolvemos el objeto response completo para poder acceder a los headers
   return response;
 };
 
@@ -63,8 +62,7 @@ const makeApiRequest = async (url, options = {}) => {
 
 /**
  * Get all terms for a specific taxonomy
- * 
- * @param {string} taxonomy - Taxonomy slug (e.g., 'qe_category')
+ * * @param {string} taxonomy - Taxonomy slug (e.g., 'qe_category')
  * @param {Object} options - Query options
  * @param {number} options.perPage - Items per page (default: 100)
  * @param {string} options.search - Search term
@@ -95,6 +93,7 @@ export const getTaxonomyTerms = async (taxonomy, options = {}) => {
     console.log(`🔍 Fetching ${taxonomy} terms:`, url);
 
     const response = await makeApiRequest(url);
+    // 🔥 CORRECCIÓN: El servicio base ya parsea a JSON. Accedemos directamente a la data.
     const terms = await response.json();
 
     console.log(`✅ Fetched ${terms.length} ${taxonomy} terms`);
@@ -113,8 +112,7 @@ export const getTaxonomyTerms = async (taxonomy, options = {}) => {
 
 /**
  * Get a single taxonomy term by ID
- * 
- * @param {string} taxonomy - Taxonomy slug
+ * * @param {string} taxonomy - Taxonomy slug
  * @param {number} termId - Term ID
  * @returns {Promise<Object>} Taxonomy term object
  */
@@ -144,8 +142,7 @@ export const getTaxonomyTerm = async (taxonomy, termId) => {
 
 /**
  * Create a new taxonomy term
- * 
- * @param {string} taxonomy - Taxonomy slug
+ * * @param {string} taxonomy - Taxonomy slug
  * @param {Object} termData - Term data
  * @param {string} termData.name - Term name (required)
  * @param {string} termData.slug - Term slug (optional)
@@ -183,8 +180,7 @@ export const createTaxonomyTerm = async (taxonomy, termData) => {
 
 /**
  * Update a taxonomy term
- * 
- * @param {string} taxonomy - Taxonomy slug
+ * * @param {string} taxonomy - Taxonomy slug
  * @param {number} termId - Term ID
  * @param {Object} termData - Updated term data
  * @returns {Promise<Object>} Updated term object
@@ -219,8 +215,7 @@ export const updateTaxonomyTerm = async (taxonomy, termId, termData) => {
 
 /**
  * Delete a taxonomy term
- * 
- * @param {string} taxonomy - Taxonomy slug
+ * * @param {string} taxonomy - Taxonomy slug
  * @param {number} termId - Term ID
  * @param {boolean} force - Force delete (default: false)
  * @returns {Promise<Object>} Deletion response
@@ -294,8 +289,7 @@ export const createTopic = (data) => createTaxonomyTerm('qe_topic', data);
 /**
  * Get all taxonomy options for forms
  * Returns a structured object with all taxonomies
- * 
- * @returns {Promise<Object>} Object with all taxonomy options
+ * * @returns {Promise<Object>} Object with all taxonomy options
  */
 export const getAllTaxonomyOptions = async () => {
   try {

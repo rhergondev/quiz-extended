@@ -36,7 +36,7 @@ const CourseModal = ({
     title: '',
     content: '',
     featured_media: null,
-    status: 'draft',
+    status: 'publish',
     _course_position: '0',
     _product_type: 'free',
     _price: '0',
