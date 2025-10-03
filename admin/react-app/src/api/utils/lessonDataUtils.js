@@ -1,8 +1,7 @@
 /**
  * Lesson Data Validation and Transformation Utilities
  * Complete refactor to match WordPress REST API requirements
- * 
- * @package QuizExtended
+ * * @package QuizExtended
  * @subpackage API/Utils
  * @version 3.0.0
  */
@@ -44,7 +43,7 @@ const DEFAULT_LESSON_META = {
   _content_type: 'free',
   _prerequisite_lessons: [],
   _resources_urls: [],
-  _completion_criteria: 'view',
+  _completion_criteria: 'view_all', // 🔥 CAMBIO: Valor por defecto actualizado
   _is_required: false,
   _lesson_description: '',
   _lesson_steps: [],
@@ -68,7 +67,8 @@ export const VALID_LESSON_TYPES = [
   'live',
   'mixed',
   'pdf',
-  'audio'
+  'audio',
+  'interactive' // Añadido para consistencia con el modal
 ];
 
 /**
@@ -78,8 +78,13 @@ export const VALID_CONTENT_TYPES = ['free', 'premium'];
 
 /**
  * Valid completion criteria
+ * 🔥 CAMBIO: Valores actualizados para coincidir con el modal
  */
 export const VALID_COMPLETION_CRITERIA = [
+  'view_all',
+  'pass_quiz',
+  'complete_steps',
+  // Se mantienen los antiguos por si se usan en otro lugar
   'view',
   'quiz',
   'assignment',
@@ -93,213 +98,46 @@ export const VALID_COMPLETION_CRITERIA = [
 
 /**
  * Transform lesson data for WordPress REST API requests
- * 
- * WordPress REST API structure:
+ * * WordPress REST API structure:
  * - Root level: title, content, status, menu_order
  * - meta object: All custom fields with _ prefix
- * 
- * @param {Object} lessonData - Raw lesson data from modal/form
+ * * @param {Object} lessonData - Raw lesson data from modal/form
  * @returns {Object} Formatted data for WordPress REST API
  */
 export const transformLessonDataForApi = (lessonData) => {
   console.log('🔄 transformLessonDataForApi - Input:', lessonData);
 
-  // ============================================================
-  // ROOT LEVEL FIELDS (WordPress standard)
-  // ============================================================
-  
   const transformed = {
-    // Title - required
     title: sanitizeString(lessonData.title),
-    
-    // Content - lesson main content
     content: sanitizeString(lessonData.content || ''),
-    
-    // Excerpt - short description
-    excerpt: sanitizeString(lessonData.excerpt || ''),
-    
-    // Status
-    status: sanitizePostStatus(lessonData.status, 'draft'),
-    
-    // Menu Order (used for lesson ordering)
-    menu_order: sanitizeInteger(lessonData.menu_order || lessonData.order || 1, 1, 0)
+    excerpt: sanitizeString(lessonData.description || ''),
+    status: sanitizePostStatus(lessonData.status, 'publish'), // Siempre publicar
+    menu_order: sanitizeInteger(lessonData.lessonOrder || 1, 1, 0)
   };
 
-  // ============================================================
-  // META FIELDS (Custom fields with _ prefix)
-  // ============================================================
-  
   transformed.meta = {};
 
-  // Course ID (relationship) - required
-  if (lessonData._course_id !== undefined) {
-    transformed.meta._course_id = sanitizeOptionalInteger(lessonData._course_id, 1);
-  } else if (lessonData.courseId !== undefined) {
+  if (lessonData.courseId !== undefined) {
     transformed.meta._course_id = sanitizeOptionalInteger(lessonData.courseId, 1);
-  } else if (lessonData.meta?._course_id !== undefined) {
-    transformed.meta._course_id = sanitizeOptionalInteger(lessonData.meta._course_id, 1);
   }
-
-  // Lesson Order (can also use menu_order)
-  if (lessonData._lesson_order !== undefined) {
-    transformed.meta._lesson_order = sanitizeInteger(lessonData._lesson_order, 1, 0);
-  } else if (lessonData.lessonOrder !== undefined) {
+  if (lessonData.lessonOrder !== undefined) {
     transformed.meta._lesson_order = sanitizeInteger(lessonData.lessonOrder, 1, 0);
-  } else if (lessonData.meta?._lesson_order !== undefined) {
-    transformed.meta._lesson_order = sanitizeInteger(lessonData.meta._lesson_order, 1, 0);
   }
-
-  // Duration in minutes
-  if (lessonData._duration_minutes !== undefined) {
-    transformed.meta._duration_minutes = sanitizeInteger(lessonData._duration_minutes, 0, 0);
-  } else if (lessonData.duration !== undefined) {
-    transformed.meta._duration_minutes = sanitizeInteger(lessonData.duration, 0, 0);
-  } else if (lessonData.meta?._duration_minutes !== undefined) {
-    transformed.meta._duration_minutes = sanitizeInteger(lessonData.meta._duration_minutes, 0, 0);
-  }
-
-  // Lesson Type
-  if (lessonData._lesson_type !== undefined) {
-    transformed.meta._lesson_type = sanitizeEnum(
-      lessonData._lesson_type,
-      VALID_LESSON_TYPES,
-      'text'
-    );
-  } else if (lessonData.type !== undefined) {
-    transformed.meta._lesson_type = sanitizeEnum(
-      lessonData.type,
-      VALID_LESSON_TYPES,
-      'text'
-    );
-  } else if (lessonData.meta?._lesson_type !== undefined) {
-    transformed.meta._lesson_type = sanitizeEnum(
-      lessonData.meta._lesson_type,
-      VALID_LESSON_TYPES,
-      'text'
-    );
-  }
-
-  // Video URL (for video lessons)
-  if (lessonData._video_url !== undefined) {
-    transformed.meta._video_url = sanitizeUrl(lessonData._video_url);
-  } else if (lessonData.videoUrl !== undefined) {
-    transformed.meta._video_url = sanitizeUrl(lessonData.videoUrl);
-  } else if (lessonData.meta?._video_url !== undefined) {
-    transformed.meta._video_url = sanitizeUrl(lessonData.meta._video_url);
-  }
-
-  // Content Type (free/premium)
-  if (lessonData._content_type !== undefined) {
-    transformed.meta._content_type = sanitizeEnum(
-      lessonData._content_type,
-      VALID_CONTENT_TYPES,
-      'free'
-    );
-  } else if (lessonData.contentType !== undefined) {
-    transformed.meta._content_type = sanitizeEnum(
-      lessonData.contentType,
-      VALID_CONTENT_TYPES,
-      'free'
-    );
-  } else if (lessonData.meta?._content_type !== undefined) {
-    transformed.meta._content_type = sanitizeEnum(
-      lessonData.meta._content_type,
-      VALID_CONTENT_TYPES,
-      'free'
-    );
-  }
-
-  // Prerequisite Lessons (array of IDs)
-  if (lessonData._prerequisite_lessons !== undefined) {
-    transformed.meta._prerequisite_lessons = sanitizeIdArray(lessonData._prerequisite_lessons);
-  } else if (lessonData.prerequisites !== undefined) {
-    transformed.meta._prerequisite_lessons = sanitizeIdArray(lessonData.prerequisites);
-  } else if (lessonData.meta?._prerequisite_lessons !== undefined) {
-    transformed.meta._prerequisite_lessons = sanitizeIdArray(lessonData.meta._prerequisite_lessons);
-  }
-
-  // Resources URLs (array of URLs)
-  if (lessonData._resources_urls !== undefined) {
-    transformed.meta._resources_urls = Array.isArray(lessonData._resources_urls)
-      ? lessonData._resources_urls.map(url => sanitizeUrl(url)).filter(url => url !== '')
-      : [];
-  } else if (lessonData.resources !== undefined) {
-    transformed.meta._resources_urls = Array.isArray(lessonData.resources)
-      ? lessonData.resources.map(url => sanitizeUrl(url)).filter(url => url !== '')
-      : [];
-  } else if (lessonData.meta?._resources_urls !== undefined) {
-    transformed.meta._resources_urls = Array.isArray(lessonData.meta._resources_urls)
-      ? lessonData.meta._resources_urls.map(url => sanitizeUrl(url)).filter(url => url !== '')
-      : [];
-  }
-
-  // Completion Criteria
-  if (lessonData._completion_criteria !== undefined) {
-    transformed.meta._completion_criteria = sanitizeEnum(
-      lessonData._completion_criteria,
-      VALID_COMPLETION_CRITERIA,
-      'view'
-    );
-  } else if (lessonData.completionCriteria !== undefined) {
+  if (lessonData.completionCriteria !== undefined) {
     transformed.meta._completion_criteria = sanitizeEnum(
       lessonData.completionCriteria,
       VALID_COMPLETION_CRITERIA,
-      'view'
-    );
-  } else if (lessonData.meta?._completion_criteria !== undefined) {
-    transformed.meta._completion_criteria = sanitizeEnum(
-      lessonData.meta._completion_criteria,
-      VALID_COMPLETION_CRITERIA,
-      'view'
+      'view_all'
     );
   }
-
-  // Is Required
-  if (lessonData._is_required !== undefined) {
-    transformed.meta._is_required = sanitizeBoolean(lessonData._is_required);
-  } else if (lessonData.isRequired !== undefined) {
-    transformed.meta._is_required = sanitizeBoolean(lessonData.isRequired);
-  } else if (lessonData.meta?._is_required !== undefined) {
-    transformed.meta._is_required = sanitizeBoolean(lessonData.meta._is_required);
-  }
-
-  // Lesson Description
-  if (lessonData._lesson_description !== undefined) {
-    transformed.meta._lesson_description = sanitizeString(lessonData._lesson_description);
-  } else if (lessonData.description !== undefined) {
+  if (lessonData.description !== undefined) {
     transformed.meta._lesson_description = sanitizeString(lessonData.description);
-  } else if (lessonData.meta?._lesson_description !== undefined) {
-    transformed.meta._lesson_description = sanitizeString(lessonData.meta._lesson_description);
   }
-
-  // Lesson Steps (complex array)
-  if (lessonData._lesson_steps !== undefined) {
-    transformed.meta._lesson_steps = sanitizeLessonSteps(lessonData._lesson_steps);
-  } else if (lessonData.steps !== undefined) {
+  if (lessonData.steps !== undefined) {
     transformed.meta._lesson_steps = sanitizeLessonSteps(lessonData.steps);
-  } else if (lessonData.meta?._lesson_steps !== undefined) {
-    transformed.meta._lesson_steps = sanitizeLessonSteps(lessonData.meta._lesson_steps);
   }
 
-  // Has Quiz
-  if (lessonData._has_quiz !== undefined) {
-    transformed.meta._has_quiz = sanitizeBoolean(lessonData._has_quiz);
-  } else if (lessonData.hasQuiz !== undefined) {
-    transformed.meta._has_quiz = sanitizeBoolean(lessonData.hasQuiz);
-  } else if (lessonData.meta?._has_quiz !== undefined) {
-    transformed.meta._has_quiz = sanitizeBoolean(lessonData.meta._has_quiz);
-  }
 
-  // Quiz ID (if has quiz)
-  if (lessonData._quiz_id !== undefined) {
-    transformed.meta._quiz_id = sanitizeOptionalInteger(lessonData._quiz_id, 1);
-  } else if (lessonData.quizId !== undefined) {
-    transformed.meta._quiz_id = sanitizeOptionalInteger(lessonData.quizId, 1);
-  } else if (lessonData.meta?._quiz_id !== undefined) {
-    transformed.meta._quiz_id = sanitizeOptionalInteger(lessonData.meta._quiz_id, 1);
-  }
-
-  // Apply defaults for missing fields
   transformed.meta = {
     ...DEFAULT_LESSON_META,
     ...transformed.meta
@@ -330,9 +168,9 @@ const sanitizeLessonSteps = (steps) => {
         ['video', 'text', 'pdf', 'quiz', 'image', 'audio'],
         'text'
       ),
-      order: sanitizeInteger(step.order, index, 0),
+      order: sanitizeInteger(step.order, index + 1, 1),
       title: sanitizeString(step.title),
-      data: step.data || {}
+      data: step.data && typeof step.data === 'object' ? step.data : {} 
     };
   }).filter(step => step !== null);
 };
@@ -344,8 +182,7 @@ const sanitizeLessonSteps = (steps) => {
 /**
  * Sanitize lesson data from API for display in React components
  * Normalizes WordPress REST API response format
- * 
- * @param {Object} lessonData - Raw lesson data from WordPress API
+ * * @param {Object} lessonData - Raw lesson data from WordPress API
  * @returns {Object} Sanitized lesson data
  */
 export const sanitizeLessonData = (lessonData) => {
@@ -354,13 +191,11 @@ export const sanitizeLessonData = (lessonData) => {
     return null;
   }
 
-  // Extract title, content, excerpt (handle both object and string)
   const title = sanitizeRenderedContent(lessonData.title);
   const content = sanitizeRenderedContent(lessonData.content);
   const excerpt = sanitizeRenderedContent(lessonData.excerpt);
 
   const sanitized = {
-    // Core WordPress fields
     id: lessonData.id || 0,
     title,
     content,
@@ -372,25 +207,17 @@ export const sanitizeLessonData = (lessonData) => {
     author: lessonData.author || 0,
     menu_order: sanitizeInteger(lessonData.menu_order, 1, 0),
 
-    // Meta fields (with defaults)
     meta: {
       ...DEFAULT_LESSON_META,
       ...lessonData.meta,
-      // Ensure boolean fields are actual booleans
       _is_required: sanitizeBoolean(lessonData.meta?._is_required),
       _has_quiz: sanitizeBoolean(lessonData.meta?._has_quiz),
-      // Ensure arrays
       _prerequisite_lessons: sanitizeIdArray(lessonData.meta?._prerequisite_lessons),
       _lesson_steps: sanitizeLessonSteps(lessonData.meta?._lesson_steps),
-      _resources_urls: Array.isArray(lessonData.meta?._resources_urls)
-        ? lessonData.meta._resources_urls
-        : []
+      _resources_urls: Array.isArray(lessonData.meta?._resources_urls) ? lessonData.meta._resources_urls : []
     },
 
-    // Embedded data
     _embedded: lessonData._embedded || {},
-
-    // Links
     _links: lessonData._links || {}
   };
 
@@ -403,36 +230,20 @@ export const sanitizeLessonData = (lessonData) => {
 
 /**
  * Validate lesson data before API request
- * 
- * @param {Object} lessonData - Lesson data to validate
+ * * @param {Object} lessonData - Lesson data to validate
  * @returns {Object} { isValid: boolean, errors: string[] }
  */
 export const validateLessonData = (lessonData) => {
   const errors = [];
 
-  // ============================================================
-  // REQUIRED FIELDS
-  // ============================================================
-  
   const titleError = validateRequired(lessonData.title, 'Lesson title');
   if (titleError) errors.push(titleError);
 
-  // ============================================================
-  // STATUS VALIDATION
-  // ============================================================
-  
   if (lessonData.status && !VALID_LESSON_STATUSES.includes(lessonData.status)) {
     errors.push(`Invalid status. Must be one of: ${VALID_LESSON_STATUSES.join(', ')}`);
   }
-
-  // ============================================================
-  // META FIELDS VALIDATION
-  // ============================================================
   
-  // Extract meta (handle both flat and nested structure)
   const meta = lessonData.meta || lessonData;
-
-  // Course ID validation (required for lessons)
   const courseId = meta._course_id || lessonData.courseId;
   if (!courseId) {
     errors.push('Course ID is required');
@@ -440,46 +251,9 @@ export const validateLessonData = (lessonData) => {
     errors.push('Course ID must be a positive number');
   }
 
-  // Lesson Order validation
-  const lessonOrder = meta._lesson_order || lessonData.lessonOrder || lessonData.order;
-  if (lessonOrder !== undefined) {
-    const orderInt = parseInt(lessonOrder);
-    if (isNaN(orderInt) || orderInt < 0) {
-      errors.push('Lesson order must be a non-negative number');
-    }
-  }
-
-  // Duration validation
-  const duration = meta._duration_minutes || lessonData.duration;
-  if (duration !== undefined) {
-    const durationInt = parseInt(duration);
-    if (isNaN(durationInt) || durationInt < 0) {
-      errors.push('Duration must be a non-negative number');
-    }
-  }
-
-  // Lesson Type validation
-  const lessonType = meta._lesson_type || lessonData.type;
-  if (lessonType && !VALID_LESSON_TYPES.includes(lessonType)) {
-    errors.push(`Invalid lesson type. Must be one of: ${VALID_LESSON_TYPES.join(', ')}`);
-  }
-
-  // Content Type validation
-  const contentType = meta._content_type || lessonData.contentType;
-  if (contentType && !VALID_CONTENT_TYPES.includes(contentType)) {
-    errors.push(`Invalid content type. Must be one of: ${VALID_CONTENT_TYPES.join(', ')}`);
-  }
-
-  // Completion Criteria validation
   const completionCriteria = meta._completion_criteria || lessonData.completionCriteria;
   if (completionCriteria && !VALID_COMPLETION_CRITERIA.includes(completionCriteria)) {
     errors.push(`Invalid completion criteria. Must be one of: ${VALID_COMPLETION_CRITERIA.join(', ')}`);
-  }
-
-  // Video URL validation (for video lessons)
-  const videoUrl = meta._video_url || lessonData.videoUrl;
-  if (lessonType === 'video' && videoUrl && !isValidUrl(videoUrl)) {
-    errors.push('Video URL must be a valid URL');
   }
 
   return createValidationResult(errors);
@@ -501,28 +275,24 @@ export const formatLessonForDisplay = (lesson) => {
     return null;
   }
 
-  // Calculate estimated reading time for text lessons
   let estimatedReadingTime = null;
   if (sanitized.meta._lesson_type === 'text' && sanitized.content) {
     const wordCount = sanitized.content.split(/\s+/).length;
-    estimatedReadingTime = Math.ceil(wordCount / 200); // 200 words per minute
+    estimatedReadingTime = Math.ceil(wordCount / 200);
   }
 
   return {
     ...sanitized,
-    // Formatted values for display
     formattedType: capitalize(sanitized.meta._lesson_type),
     formattedContentType: sanitized.meta._content_type === 'premium' ? 'Premium' : 'Free',
     formattedDuration: formatDuration(sanitized.meta._duration_minutes),
     formattedDate: formatDate(sanitized.date),
     formattedModified: formatDate(sanitized.modified),
     
-    // Short excerpt
     shortExcerpt: sanitized.excerpt
       ? truncateText(sanitized.excerpt, 100)
       : 'No description available',
     
-    // Badges
     isRequired: sanitized.meta._is_required,
     hasQuiz: sanitized.meta._has_quiz,
     hasVideo: sanitized.meta._lesson_type === 'video' && sanitized.meta._video_url !== '',
@@ -530,23 +300,19 @@ export const formatLessonForDisplay = (lesson) => {
     hasResources: sanitized.meta._resources_urls.length > 0,
     hasSteps: sanitized.meta._lesson_steps.length > 0,
     
-    // Counts
     prerequisitesCount: sanitized.meta._prerequisite_lessons.length,
     resourcesCount: sanitized.meta._resources_urls.length,
     stepsCount: sanitized.meta._lesson_steps.length,
     
-    // Time estimates
     estimatedReadingTime,
     formattedEstimatedTime: estimatedReadingTime 
       ? `~${estimatedReadingTime} min read`
       : null,
     
-    // Status badges
     isPublished: sanitized.status === 'publish',
     isDraft: sanitized.status === 'draft',
     isPrivate: sanitized.status === 'private',
     
-    // Type checks
     isVideoLesson: sanitized.meta._lesson_type === 'video',
     isTextLesson: sanitized.meta._lesson_type === 'text',
     isQuizLesson: sanitized.meta._lesson_type === 'quiz',

@@ -1,12 +1,10 @@
 /**
  * Base Service - Core API Foundation
- * 
- * Generic CRUD operations factory for all resources
+ * * Generic CRUD operations factory for all resources
  * Eliminates code duplication across services
- * 
- * @package QuizExtended
+ * * @package QuizExtended
  * @subpackage API/Services
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 import { getApiConfig } from '../config/apiConfig.js';
@@ -80,7 +78,6 @@ const buildQueryParams = (options = {}) => {
   const {
     page = 1,
     perPage = 20,
-    status = 'publish,draft,private',
     search = '',
     orderBy = 'date',
     order = 'desc',
@@ -90,7 +87,6 @@ const buildQueryParams = (options = {}) => {
   const params = new URLSearchParams({
     page: page.toString(),
     per_page: perPage.toString(),
-    status: status,
     orderby: orderBy,
     order: order
   });
@@ -108,8 +104,7 @@ const buildQueryParams = (options = {}) => {
 
 /**
  * Create a resource service with CRUD operations
- * 
- * @param {string} resourceName - Resource name (e.g., 'course', 'lesson')
+ * * @param {string} resourceName - Resource name (e.g., 'course', 'lesson')
  * @param {string} endpointKey - Key in config.endpoints (e.g., 'courses', 'lessons')
  * @param {Object} customOptions - Custom options
  * @param {Function} customOptions.sanitizer - Custom data sanitizer function
@@ -203,7 +198,6 @@ export const createResourceService = (resourceName, endpointKey, customOptions =
       } catch (error) {
         console.error(`❌ Error fetching ${resourceName} ${id}:`, error);
         
-        // Return null for 404 errors
         if (error.message.includes('404')) {
           return null;
         }
@@ -219,7 +213,6 @@ export const createResourceService = (resourceName, endpointKey, customOptions =
      */
     create: async (data) => {
       try {
-        // Validate data
         const validation = validator(data);
         if (!validation.isValid) {
           throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
@@ -256,7 +249,6 @@ export const createResourceService = (resourceName, endpointKey, customOptions =
           throw new Error(`Invalid ${resourceName} ID: ${id}`);
         }
 
-        // Validate data
         const validation = validator(data);
         if (!validation.isValid) {
           throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
@@ -334,8 +326,4 @@ export const createResourceService = (resourceName, endpointKey, customOptions =
   };
 };
 
-/**
- * Export helper to make API requests directly
- * (for custom operations not covered by CRUD)
- */
 export { makeApiRequest, buildQueryParams };

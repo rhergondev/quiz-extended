@@ -1,3 +1,5 @@
+// admin/react-app/src/components/lessons/LessonsManager.jsx
+
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { 
   BookOpen, 
@@ -11,24 +13,34 @@ import {
   CheckCircle,
   AlertCircle,
   Search,
-  RefreshCw
+  RefreshCw,
+  Video,
+  FileImage,
+  Download
 } from 'lucide-react';
 
+// Hooks
 import useLessons from '../../hooks/useLessons.js';
+import useCourses from '../../hooks/useCourses.js';
 import { useSearchInput, useFilterDebounce } from '../../api/utils/debounceUtils.js';
+import { useTranslation } from 'react-i18next';
 
+// Components
 import ContentManager from '../common/ContentManager';
 import LessonCard from './LessonCard';
 import LessonModal from './LessonModal';
 import DeleteModal from '../common/DeleteModal';
 import PageHeader from '../common/PageHeader.jsx';
 import FilterBar from '../common/FilterBar.jsx';
-import { useTranslation } from 'react-i18next';
 
 const LessonsManager = () => {
-  // --- LOCAL STATE ---
+  const { t } = useTranslation();
+
+  // ============================================================
+  // LOCAL STATE
+  // ============================================================
+  
   const [viewMode, setViewMode] = useState('cards');
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [lessonToDelete, setLessonToDelete] = useState(null);
   
@@ -37,38 +49,26 @@ const LessonsManager = () => {
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { t } = useTranslation();
-
-  // --- DEBOUNCED SEARCH INPUT ---
-  const {
-    searchValue,
-    isSearching,
-    handleSearchChange,
-    clearSearch
-  } = useSearchInput('', async (searchTerm) => {
-    console.log('🔍 Lesson search triggered:', searchTerm);
-  }, 500);
-
-  // --- DEBOUNCED FILTERS ---
-  const {
-    filters,
-    isFiltering,
-    updateFilter,
-    resetFilters
-  } = useFilterDebounce(
-    {
-      courseId: 'all',
-      lessonType: 'all',
-      status: 'all',
-      difficulty: 'all'
+  // ============================================================
+  // SEARCH & FILTERS WITH DEBOUNCE
+  // ============================================================
+  
+  const { searchValue, isSearching, handleSearchChange, clearSearch } = 
+    useSearchInput('', () => {}, 500);
+  
+  const { filters, isFiltering, updateFilter, resetFilters } = useFilterDebounce(
+    { 
+      courseId: 'all', 
     },
-    async (newFilters) => {
-      console.log('🔧 Lesson filters changed:', newFilters);
-    },
+    () => {}, 
     300
   );
 
-  // --- HOOKS WITH PROPER DEBOUNCING ---
+  // ============================================================
+  // DATA FETCHING HOOKS
+  // ============================================================
+  
+  // Fetch lessons
   const { 
     lessons, 
     loading, 
@@ -85,69 +85,177 @@ const LessonsManager = () => {
     fetchLessons
   } = useLessons({
     search: searchValue,
-    courseId: filters.courseId !== 'all' ? filters.courseId : null,
+    courseId: filters.courseId !== 'all' ? parseInt(filters.courseId) : null,
     lessonType: filters.lessonType !== 'all' ? filters.lessonType : null,
     status: filters.status !== 'all' ? filters.status : null,
     autoFetch: true,
-    debounceMs: 500
+    perPage: 20
   });
 
-  // --- INFINITE SCROLL LOGIC ---
+  // Fetch courses for dropdown
+  const { 
+    courses, 
+    loading: coursesLoading 
+  } = useCourses({
+    status: 'publish,draft',
+    autoFetch: true,
+    perPage: 100
+  });
+
+  // ============================================================
+  // COMPUTED VALUES
+  // ============================================================
+  
+  // Transform courses into options for dropdown
+  const courseOptions = useMemo(() => {
+    if (!courses) return [{ value: 'all', label: t('lessons.course.all') }];
+    
+    return [
+      { value: 'all', label: t('lessons.course.all') },
+      ...courses.map(course => ({
+        value: course.id.toString(),
+        label: course.title?.rendered || course.title || `Course #${course.id}`
+      }))
+    ];
+  }, [courses, t]);
+
+  // Lesson type options
+  const lessonTypeOptions = useMemo(() => [
+    { value: 'all', label: t('lessons.lessonType.all') },
+    { value: 'video', label: t('lessons.lessonType.video') },
+    { value: 'text', label: t('lessons.lessonType.text') },
+    { value: 'mixed', label: t('lessons.lessonType.mixed') },
+    { value: 'quiz', label: t('lessons.lessonType.quiz') },
+    { value: 'interactive', label: t('lessons.lessonType.interactive') }
+  ], [t]);
+
+
+  // Statistics cards
+  const statsCards = useMemo(() => {
+    // Count lessons by type
+    const videoLessons = lessons.filter(l => l.lesson_type === 'video').length;
+    const textLessons = lessons.filter(l => l.lesson_type === 'text').length;
+    const mixedLessons = lessons.filter(l => l.lesson_type === 'mixed').length;
+    
+    // Calculate total steps
+    const totalSteps = lessons.reduce((sum, lesson) => 
+      sum + (lesson.steps_count || 0), 0
+    );
+    
+    // Average steps per lesson
+    const averageSteps = lessons.length > 0 
+      ? Math.round(totalSteps / lessons.length) 
+      : 0;
+
+    return [
+      { 
+        label: t('lessons.stats.totalLessons'), 
+        value: pagination.total || lessons.length || 0, 
+        icon: BookOpen, 
+        iconColor: 'text-blue-500' 
+      },
+      { 
+        label: t('lessons.stats.videoLessons'), 
+        value: videoLessons, 
+        icon: Video, 
+        iconColor: 'text-purple-500' 
+      },
+      { 
+        label: t('lessons.stats.textLessons'), 
+        value: textLessons, 
+        icon: FileText, 
+        iconColor: 'text-green-500' 
+      },
+      { 
+        label: t('lessons.stats.mixedLessons'), 
+        value: mixedLessons, 
+        icon: FileImage, 
+        iconColor: 'text-orange-500' 
+      },
+      { 
+        label: t('lessons.stats.totalSteps'), 
+        value: totalSteps, 
+        icon: Target, 
+        iconColor: 'text-indigo-500' 
+      },
+      { 
+        label: t('lessons.stats.averageSteps'), 
+        value: averageSteps, 
+        icon: TrendingUp, 
+        iconColor: 'text-teal-500' 
+      }
+    ];
+  }, [lessons, pagination, t]);
+
+  // ============================================================
+  // INFINITE SCROLL
+  // ============================================================
+  
   const observer = useRef();
   const hasMore = pagination.hasMore;
   
   const lastLessonElementRef = useCallback(node => {
     if (loading) return;
     if (observer.current) observer.current.disconnect();
+    
     observer.current = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && hasMore) {
         console.log('📄 Loading more lessons...');
         fetchLessons(false);
       }
     });
+    
     if (node) observer.current.observe(node);
   }, [loading, hasMore, fetchLessons]);
 
-  // --- EVENT HANDLERS ---
+  // ============================================================
+  // EVENT HANDLERS
+  // ============================================================
+  
   const handleSearchChangeWrapper = useCallback((event) => {
     const value = event.target.value;
     handleSearchChange(value);
   }, [handleSearchChange]);
 
   const handleCourseChange = useCallback((courseId) => {
+    console.log('📚 Course filter changed:', courseId);
     updateFilter('courseId', courseId);
   }, [updateFilter]);
 
   const handleLessonTypeChange = useCallback((lessonType) => {
+    console.log('🎬 Lesson type filter changed:', lessonType);
     updateFilter('lessonType', lessonType);
   }, [updateFilter]);
 
   const handleStatusChange = useCallback((status) => {
+    console.log('📝 Status filter changed:', status);
     updateFilter('status', status);
   }, [updateFilter]);
 
   const handleRefresh = useCallback(() => {
+    console.log('🔄 Refreshing lessons...');
     fetchLessons(true);
   }, [fetchLessons]);
 
-  // --- MODAL HANDLERS ---
-  const openModal = (mode, lesson = null) => {
+  // ============================================================
+  // MODAL HANDLERS
+  // ============================================================
+  
+  const openModal = useCallback((mode, lesson = null) => {
     console.log('🔵 Opening modal:', mode, lesson);
     setModalMode(mode);
     setSelectedLesson(lesson);
     setIsModalOpen(true);
-    setShowCreateModal(mode === 'create');
-  };
+  }, []);
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     console.log('🔴 Closing modal');
     setIsModalOpen(false);
-    setShowCreateModal(false);
     setTimeout(() => {
       setModalMode(null);
       setSelectedLesson(null);
     }, 300);
-  };
+  }, []);
 
   const handleSaveLesson = async (lessonData, nextAction) => {
     try {
@@ -156,21 +264,18 @@ const LessonsManager = () => {
       let result;
       if (modalMode === 'create') {
         result = await createLesson(lessonData);
+        console.log('✅ Lesson created:', result);
       } else if (modalMode === 'edit') {
         result = await updateLesson(selectedLesson.id, lessonData);
+        console.log('✅ Lesson updated:', result);
       }
-
-      console.log('✅ Lesson saved successfully:', result);
 
       // Handle next action
       if (nextAction === 'close') {
         closeModal();
-      } else if (nextAction === 'create') {
+      } else if (nextAction === 'reset') {
         setSelectedLesson(null);
         setModalMode('create');
-      } else if (nextAction === 'edit' && result?.id) {
-        setSelectedLesson(result);
-        setModalMode('edit');
       }
 
       return result;
@@ -181,6 +286,10 @@ const LessonsManager = () => {
     }
   };
 
+  // ============================================================
+  // DELETE HANDLERS
+  // ============================================================
+  
   const handleDeleteClick = useCallback((lesson) => {
     console.log('🗑️ Delete clicked for lesson:', lesson);
     setLessonToDelete(lesson);
@@ -189,238 +298,172 @@ const LessonsManager = () => {
 
   const handleDeleteConfirm = async () => {
     if (!lessonToDelete) return;
-
+    
     try {
-      console.log('🗑️ Confirming delete for lesson:', lessonToDelete.id);
+      console.log('🗑️ Deleting lesson:', lessonToDelete.id);
       await deleteLesson(lessonToDelete.id);
+      console.log('✅ Lesson deleted successfully');
+      
       setShowDeleteModal(false);
       setLessonToDelete(null);
-      console.log('✅ Lesson deleted successfully');
     } catch (error) {
       console.error('❌ Error deleting lesson:', error);
     }
   };
 
-  const handleDuplicate = useCallback(async (lesson) => {
+  const handleDuplicate = async (lesson) => {
     try {
+      console.log('📋 Duplicating lesson:', lesson.id);
       await duplicateLesson(lesson.id);
+      console.log('✅ Lesson duplicated successfully');
     } catch (error) {
-      console.error('Error duplicating lesson:', error);
+      console.error('❌ Error duplicating lesson:', error);
     }
-  }, [duplicateLesson]);
+  };
 
   const handleLessonClick = useCallback((lesson) => {
+    console.log('👁️ View lesson:', lesson);
     openModal('view', lesson);
-  }, []);
+  }, [openModal]);
 
-  // --- COMPUTED VALUES ---
-  const statsCards = useMemo(() => {
-    return [
-      {
-        label: 'Total Lessons',
-        value: computed.totalLessons || 0,
-        icon: BookOpen,
-        iconColor: 'text-blue-500'
-      },
-      {
-        label: 'Published',
-        value: computed.publishedLessons || 0,
-        icon: CheckCircle,
-        iconColor: 'text-green-500'
-      },
-      {
-        label: 'Draft',
-        value: computed.draftLessons || 0,
-        icon: AlertCircle,
-        iconColor: 'text-yellow-500'
-      },
-      {
-        label: 'Total Steps',
-        value: computed.totalSteps || 0,
-        icon: Target,
-        iconColor: 'text-purple-500'
-      },
-      {
-        label: 'Avg. Steps/Lesson',
-        value: computed.averageStepsPerLesson || 0,
-        icon: TrendingUp,
-        iconColor: 'text-indigo-500'
-      },
-      {
-        label: 'Avg. Duration',
-        value: `${computed.averageDuration || 0} min`,
-        icon: Clock,
-        iconColor: 'text-red-500'
-      }
-    ];
-  }, [computed]);
-
-
-  // --- FILTER OPTIONS ---
-  const courseOptions = useMemo(() => [
-    { value: 'all', label: 'All Courses' },
-    { value: '1', label: 'JavaScript Fundamentals' },
-    { value: '2', label: 'React Development' },
-    { value: '3', label: 'Node.js Backend' },
-    { value: '4', label: 'WordPress Development' },
-  ], []);
-
-  const lessonTypeOptions = [
-    { value: 'all', label: 'All Types' },
-    { value: 'video', label: 'Video' },
-    { value: 'text', label: 'Text' },
-    { value: 'mixed', label: 'Mixed' },
-    { value: 'quiz', label: 'Quiz' },
-    { value: 'interactive', label: 'Interactive' }
-  ];
-
-  const statusOptions = [
-    { value: 'all', label: 'All Status' },
-    { value: 'publish', label: 'Published' },
-    { value: 'draft', label: 'Draft' },
-    { value: 'private', label: 'Private' }
-  ];
-
-  const isLoadingTaxonomies = false; 
-
+  // ============================================================
+  // FILTER CONFIGURATION
+  // ============================================================
+  
   const searchConfig = {
+    placeholder: t('lessons.searchPlaceholder'),
     value: searchValue,
     onChange: handleSearchChangeWrapper,
     onClear: clearSearch,
-    placeholder: 'Search lessons...',
-    isLoading: isSearching,
+    isSearching: isSearching
   };
 
   const filtersConfig = [
     {
-      label: 'Course',
+      label: t('lessons.course.label'),
       value: filters.courseId,
-      onChange: (value) => updateFilter('courseId', value),
-      options: courseOptions, // Example with dynamic options
-      placeholder: 'All Courses',
-      isLoading: isLoadingTaxonomies,
-      showSearch: true,
-    },
-    {
-      label: 'Lesson Type',
-      value: filters.lessonType,
-      onChange: (value) => updateFilter('lessonType', value),
-      options: lessonTypeOptions,
-      placeholder: 'All Types',
-    },
-    {
-      label: 'Status',
-      value: filters.status,
-      onChange: (value) => updateFilter('status', value),
-      options: statusOptions,
-      placeholder: 'All Statuses',
+      options: courseOptions,
+      onChange: handleCourseChange,
+      loading: coursesLoading
     },
   ];
 
-  // --- RENDER ---
+  // ============================================================
+  // RENDER
+  // ============================================================
+  
   return (
     <div className="space-y-6 p-6">
-      {/* Header with Stats */}
+      
+      {/* Page Header with Stats */}
       <PageHeader
         title={t('lessons.title')}
-        description="Create and manage interactive lessons with multiple content types."
+        description={t('lessons.description')}
         stats={statsCards}
-        isLoading={loading && lessons.length > 0} // Show a generic loading indicator when refreshing
+        isLoading={loading && lessons.length === 0}
         primaryAction={{
           text: t('lessons.addNew'),
           onClick: () => openModal('create'),
           isLoading: creating,
+          icon: BookOpen
         }}
         secondaryAction={{
           text: t('common.refresh'),
           onClick: handleRefresh,
           isLoading: loading,
-          icon: RefreshCw,
+          icon: RefreshCw
         }}
       />
 
       {/* Filters and Search */}
-        <FilterBar
+      <FilterBar
         searchConfig={searchConfig}
         filtersConfig={filtersConfig}
         onResetFilters={resetFilters}
       />
 
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 text-red-400 mr-2 flex-shrink-0" />
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+        </div>
+      )}
 
-      {/* Content Manager with Infinite Scroll */}
+      {/* Content Manager with Cards */}
       <ContentManager
-        title="Lessons"
-        description="Manage and organize all your lessons"
-        createButtonText="Create Lesson"
-        onCreateClick={() => {
-          console.log('🟡 ContentManager Create button clicked');
-          openModal('create');
-        }}
+        title={t('lessons.title')}
+        description={t('lessons.description')}
+        createButtonText={t('lessons.addNew')}
+        onCreateClick={() => openModal('create')}
         items={lessons}
         loading={loading && lessons.length === 0}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        showCreateButton={true}
+        showCreateButton={false}
         showItemCount={true}
         showViewToggle={true}
+        showStatistics={false}
         emptyState={{ 
           icon: BookOpen, 
-          title: 'No lessons found',
-          description: 'Create your first lesson to get started',
-          actionText: 'Create Lesson',
-          onAction: () => {
-            console.log('🟡 EmptyState Create button clicked');
-            openModal('create');
-          }
+          title: t('lessons.noLessons'),
+          description: lessons.length === 0 && !loading
+            ? t('lessons.noLessonsDescription')
+            : t('common.noResults'),
+          actionText: t('lessons.addNew'),
+          onAction: () => openModal('create')
         }}
       >
-          {lessons.map((lesson, index) => {
-            // Ref para el último elemento (infinite scroll)
-            if (index === lessons.length - 1) {
-              return (
-                <div key={lesson.id} ref={lastLessonElementRef}>
-                  <LessonCard
-                    lesson={lesson}
-                    onEdit={() => openModal('edit', lesson)}
-                    onDelete={() => handleDeleteClick(lesson)}
-                    onDuplicate={() => handleDuplicate(lesson)}
-                    onClick={() => handleLessonClick(lesson)}
-                  />
-                </div>
-              );
-            }
-            
+        {lessons.map((lesson, index) => {
+          const cardProps = {
+            lesson,
+            courses,
+            onEdit: () => openModal('edit', lesson),
+            onDelete: () => handleDeleteClick(lesson),
+            onDuplicate: () => handleDuplicate(lesson),
+            onClick: () => handleLessonClick(lesson),
+            viewMode: viewMode
+          };
+
+          if (index === lessons.length - 1) {
             return (
-              <div key={lesson.id}> {/* 🔧 AGREGADO: Wrapper div como en QuizCard */}
-                <LessonCard
-                  lesson={lesson}
-                  onEdit={() => openModal('edit', lesson)}
-                  onDelete={() => handleDeleteClick(lesson)}
-                  onDuplicate={() => handleDuplicate(lesson)}
-                  onClick={() => handleLessonClick(lesson)}
-                />
+              <div key={lesson.id} ref={lastLessonElementRef}>
+                <LessonCard {...cardProps} />
               </div>
             );
-          })}
-
-          {/* 🔧 CORREGIDO: Loading state DENTRO del grid con col-span-full */}
-          {loading && lessons.length > 0 && (
-            <div className="flex justify-center py-8 col-span-full">
-              <div className="flex items-center text-sm text-gray-500">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-2"></div>
-                <span>Loading more lessons...</span>
-              </div>
+          }
+          
+          return (
+            <div key={lesson.id}>
+              <LessonCard {...cardProps} />
             </div>
-          )}
+          );
+        })}
 
-          {/* 🔧 CORREGIDO: End state DENTRO del grid con col-span-full */}
-          {!loading && !hasMore && lessons.length > 0 && (
-            <div className="text-center py-6 col-span-full">
-              <p className="text-gray-500">You've reached the end of the list.</p>
+        {/* Loading state */}
+        {loading && lessons.length > 0 && (
+          <div className="flex justify-center py-8 col-span-full">
+            <div className="flex items-center text-sm text-gray-500">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-2"></div>
+              <span>{t('lessons.loadingMoreLessons')}</span>
             </div>
-          )}
+          </div>
+        )}
+
+        {/* End of list */}
+        {!loading && !hasMore && lessons.length > 0 && (
+          <div className="text-center py-6 col-span-full">
+            <p className="text-gray-500">{t('common.endOfList')}</p>
+          </div>
+        )}
       </ContentManager>
 
+      {/* ============================================================
+          MODALS
+          ============================================================ */}
+      
       {/* Lesson Modal */}
       {isModalOpen && (
         <LessonModal
@@ -438,10 +481,15 @@ const LessonsManager = () => {
       {showDeleteModal && (
         <DeleteModal
           isOpen={showDeleteModal}
-          onClose={() => setShowDeleteModal(false)}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setLessonToDelete(null);
+          }}
           onConfirm={handleDeleteConfirm}
-          title="Delete Lesson"
-          message={`Are you sure you want to delete "${lessonToDelete?.title?.rendered || lessonToDelete?.title}"? This action cannot be undone.`}
+          title={t('lessons.messages.deleteConfirmTitle')}
+          message={t('lessons.messages.deleteConfirmMessage', { 
+            title: lessonToDelete?.title?.rendered || lessonToDelete?.title || ''
+          })}
           isLoading={deleting}
         />
       )}

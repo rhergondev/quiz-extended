@@ -1,11 +1,9 @@
 /**
  * Question Service - Refactored
- * 
- * Uses baseService for common CRUD operations
+ * * Uses baseService for common CRUD operations
  * Extended with question-specific functionality
  * NOW USES questionDataUtils.js
- * 
- * @package QuizExtended
+ * * @package QuizExtended
  * @subpackage API/Services
  * @version 2.0.0
  */
@@ -71,9 +69,11 @@ export const update = async (questionId, questionData) => {
  * @param {number} questionId - Question ID
  * @returns {Promise<boolean>} Success status
  */
-export const deleteQuestion = async (questionId) => {
+export const deleteFn = async (questionId) => {
   return baseQuestionService.delete(questionId);
 };
+export { deleteFn as delete };
+
 
 // ============================================================
 // BACKWARD COMPATIBILITY ALIASES
@@ -83,6 +83,8 @@ export const getQuestions = getAll;
 export const getQuestion = getOne;
 export const createQuestion = create;
 export const updateQuestion = update;
+export const deleteQuestion = deleteFn;
+
 
 // ============================================================
 // QUESTION-SPECIFIC METHODS
@@ -146,7 +148,7 @@ export const questionExists = async (questionId) => {
  * @returns {Promise<Object>} Updated question
  */
 export const updateQuestionStatus = async (questionId, newStatus) => {
-  return updateQuestion(questionId, { status: newStatus });
+  return update(questionId, { status: newStatus });
 };
 
 /**
@@ -156,7 +158,7 @@ export const updateQuestionStatus = async (questionId, newStatus) => {
  * @returns {Promise<Object>} Updated question
  */
 export const updateQuestionOrder = async (questionId, newOrder) => {
-  return updateQuestion(questionId, {
+  return update(questionId, {
     meta: {
       _question_order: newOrder
     }
@@ -263,7 +265,7 @@ export const bulkCreateQuestions = async (questionsData) => {
     console.log(`📝 Bulk creating ${questionsData.length} questions...`);
     
     const createPromises = questionsData.map(questionData => 
-      createQuestion(questionData)
+      create(questionData)
     );
     
     const createdQuestions = await Promise.all(createPromises);

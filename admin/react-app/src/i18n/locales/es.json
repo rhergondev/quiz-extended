@@ -39,7 +39,6 @@
     "searchPlaceholder": "Buscar cursos...",
     "loadingCourses": "Cargando cursos...",
     "loadingMoreCourses": "Cargando más cursos...",
-    
     "fields": {
       "title": "Título del Curso",
       "description": "Descripción",
@@ -62,7 +61,6 @@
       "maxStudents": "Estudiantes Máximos",
       "difficultyLevel": "Nivel de Dificultad"
     },
-    
     "category": {
       "label": "Categoría",
       "all": "Todas las Categorías",
@@ -72,7 +70,6 @@
       "marketing": "Marketing",
       "photography": "Fotografía"
     },
-    
     "difficulty": {
       "label": "Dificultad",
       "all": "Todos los Niveles",
@@ -81,13 +78,11 @@
       "advanced": "Avanzado",
       "expert": "Experto"
     },
-    
     "difficultyLevels": {
       "easy": "Fácil",
       "medium": "Medio",
       "hard": "Difícil"
     },
-    
     "status": {
       "label": "Estado",
       "all": "Todos los Estados",
@@ -95,7 +90,6 @@
       "draft": "Borrador",
       "private": "Privado"
     },
-    
     "priceFilter": {
       "label": "Precio",
       "all": "Todos los Precios",
@@ -103,7 +97,6 @@
       "paid": "De Pago",
       "premium": "Premium (€100+)"
     },
-    
     "stats": {
       "totalCourses": "Cursos Totales",
       "totalStudents": "Estudiantes",
@@ -115,7 +108,6 @@
       "completionRate": "Tasa de Finalización",
       "averageDuration": "Duración Promedio"
     },
-    
     "units": {
       "hours": "horas",
       "hour": "hora",
@@ -128,7 +120,6 @@
       "free": "Gratis",
       "duration": "duración"
     },
-    
     "tabs": {
       "basic": "Información Básica",
       "taxonomies": "Categorías y Etiquetas",
@@ -137,7 +128,6 @@
       "lessons": "Lecciones",
       "settings": "Configuración"
     },
-    
     "taxonomies": {
       "categories": "Categorías",
       "topics": "Temas",
@@ -145,20 +135,17 @@
       "providers": "Proveedores",
       "courseTypes": "Tipos de Curso"
     },
-    
     "placeholders": {
       "title": "Introduce el título del curso...",
       "excerpt": "Descripción breve para tarjetas y vistas previas...",
       "content": "Descripción completa del curso, qué aprenderán los estudiantes...",
       "newCategory": "Nombre de la nueva categoría..."
     },
-    
     "actions": {
       "uploadImage": "Subir Imagen",
       "addCategory": "Añadir Nueva",
       "saveAndCreate": "Guardar y Crear Otro"
     },
-    
     "hints": {
       "optional": "Opcional",
       "salePrice": "Si se establece, se mostrará como el precio con descuento",
@@ -171,18 +158,15 @@
       "difficultyLevel": "Este es un campo meta, diferente de la taxonomía",
       "image": "Tamaño recomendado: 1200x675px. Máx 5MB."
     },
-    
     "labels": {
       "pricePreview": "Vista Previa del Precio",
       "schedulePreview": "Vista Previa del Calendario",
       "selected": "seleccionadas"
     },
-    
     "info": {
       "woocommerce": "Integración con WooCommerce",
       "woocommerceDesc": "Se creará/actualizará automáticamente un producto de WooCommerce al guardar este curso."
     },
-    
     "validation": {
       "titleRequired": "El título es obligatorio",
       "contentRequired": "La descripción es obligatoria",
@@ -191,7 +175,6 @@
       "positionInvalid": "La posición debe ser un número",
       "fixErrors": "Por favor corrige los errores antes de guardar"
     },
-    
     "messages": {
       "createSuccess": "Curso creado exitosamente",
       "updateSuccess": "Curso actualizado exitosamente",
@@ -213,7 +196,196 @@
     "title": "Lecciones",
     "description": "Crea y gestiona lecciones interactivas con múltiples tipos de contenido",
     "addNew": "Añadir Nueva Lección",
-    "noLessons": "No se encontraron lecciones"
+    "createLesson": "Crear Lección",
+    "editLesson": "Editar Lección",
+    "viewLesson": "Ver Lección",
+    "duplicateLesson": "Duplicar Lección",
+    "deleteLesson": "Eliminar Lección",
+    "noLessons": "No se encontraron lecciones",
+    "noLessonsDescription": "Aún no has creado ninguna lección.",
+    "searchPlaceholder": "Buscar lecciones por título...",
+    "loadingLessons": "Cargando lecciones...",
+    "loadingMoreLessons": "Cargando más lecciones...",
+    "fields": {
+      "title": "Título de la Lección",
+      "description": "Descripción",
+      "content": "Contenido General",
+      "course": "Curso",
+      "lessonType": "Tipo de Lección",
+      "lessonOrder": "Orden de la Lección",
+      "status": "Estado",
+      "steps": "Pasos de Contenido",
+      "prerequisiteLessons": "Lecciones Prerequisito",
+      "completionCriteria": "Criterio de Finalización",
+      "isRequired": "Es Obligatoria",
+      "duration": "Duración",
+      "resources": "Recursos"
+    },
+    "lessonType": {
+      "label": "Tipo de Lección",
+      "all": "Todos los Tipos",
+      "video": "Video",
+      "text": "Contenido de Texto",
+      "mixed": "Contenido Mixto",
+      "quiz": "Cuestionario",
+      "interactive": "Interactivo"
+    },
+    "status": {
+      "label": "Estado",
+      "all": "Todos los Estados",
+      "publish": "Publicado",
+      "draft": "Borrador",
+      "private": "Privado"
+    },
+    "course": {
+      "label": "Curso",
+      "all": "Todos los Cursos",
+      "select": "Seleccionar un curso...",
+      "required": "El curso es obligatorio"
+    },
+    "stats": {
+      "totalLessons": "Total de Lecciones",
+      "videoLessons": "Lecciones de Video",
+      "textLessons": "Lecciones de Texto",
+      "mixedLessons": "Lecciones Mixtas",
+      "totalSteps": "Total de Pasos",
+      "averageSteps": "Promedio Pasos/Lección",
+      "completedLessons": "Lecciones Completadas",
+      "requiredLessons": "Lecciones Obligatorias"
+    },
+    "steps": {
+      "title": "Pasos de Contenido",
+      "description": "Añade y organiza los pasos de contenido para esta lección",
+      "addStep": "Añadir Paso",
+      "addFirstStep": "Añadir Primer Paso",
+      "noSteps": "Esta lección aún no tiene pasos de contenido.",
+      "noStepsDescription": "Los pasos te permiten organizar el contenido en secciones manejables.",
+      "stepTitle": "Título del Paso",
+      "stepType": "Tipo de Paso",
+      "required": "Se requiere al menos un paso",
+      "allStepsMustHaveTitle": "Todos los pasos deben tener un título"
+    },
+    "stepTypes": {
+      "video": {
+        "label": "Video",
+        "description": "Contenido de video",
+        "videoUrl": "URL del Video",
+        "duration": "Duración (minutos)",
+        "autoplay": "Reproducción Automática",
+        "subtitlesUrl": "URL de Subtítulos"
+      },
+      "text": {
+        "label": "Contenido de Texto",
+        "description": "Contenido de texto enriquecido",
+        "content": "Contenido",
+        "estimatedTime": "Tiempo Estimado (minutos)"
+      },
+      "pdf": {
+        "label": "Documento PDF",
+        "description": "Archivo PDF descargable",
+        "fileUrl": "URL del Archivo",
+        "fileName": "Nombre del Archivo",
+        "fileSize": "Tamaño del Archivo",
+        "downloadable": "Permitir Descarga"
+      },
+      "quiz": {
+        "label": "Cuestionario",
+        "description": "Evaluación de conocimientos",
+        "quizId": "Cuestionario",
+        "passingScore": "Puntuación Mínima",
+        "maxAttempts": "Intentos Máximos",
+        "required": "Obligatorio para Completar"
+      },
+      "image": {
+        "label": "Imagen",
+        "description": "Contenido visual",
+        "imageUrl": "URL de la Imagen",
+        "altText": "Texto Alternativo",
+        "caption": "Pie de Foto",
+        "lightbox": "Habilitar Lightbox"
+      },
+      "audio": {
+        "label": "Audio",
+        "description": "Contenido de audio",
+        "audioUrl": "URL del Audio",
+        "duration": "Duración (minutos)",
+        "transcriptUrl": "URL de Transcripción"
+      }
+    },
+    "tabs": {
+      "basic": "Información Básica",
+      "steps": "Pasos de Contenido",
+      "settings": "Configuración Avanzada"
+    },
+    "completionCriteria": {
+      "label": "Criterio de Finalización",
+      "viewAll": "Ver Todo el Contenido",
+      "passQuiz": "Aprobar Cuestionario",
+      "completeSteps": "Completar Todos los Pasos"
+    },
+    "placeholders": {
+      "title": "Introduce el título de la lección...",
+      "description": "Breve descripción de la lección...",
+      "content": "Contenido general de la lección (opcional)...",
+      "stepTitle": "Introduce el título del paso...",
+      "videoUrl": "https://... (URL del video)",
+      "imageUrl": "https://... (URL de la imagen)",
+      "audioUrl": "https://... (URL del audio)",
+      "pdfUrl": "https://... (URL del PDF)"
+    },
+    "hints": {
+      "course": "La lección debe estar asociada a un curso",
+      "lessonType": "El tipo determina cómo se presenta la lección",
+      "description": "Esta descripción aparece en tarjetas y vistas previas",
+      "content": "Este contenido aparece antes de los pasos de la lección. HTML es soportado.",
+      "lessonOrder": "Orden de esta lección dentro del curso",
+      "steps": "Organiza el contenido en pasos manejables",
+      "completionCriteria": "¿Qué debe hacer el estudiante para completar esta lección?",
+      "isRequired": "Si está marcada, los estudiantes deben completar esta lección",
+      "prerequisiteLessons": "Lecciones que deben completarse antes de esta"
+    },
+    "actions": {
+      "addStep": "Añadir Paso",
+      "removeStep": "Eliminar Paso",
+      "moveUp": "Mover Arriba",
+      "moveDown": "Mover Abajo",
+      "expandStep": "Expandir Paso",
+      "collapseStep": "Contraer Paso"
+    },
+    "validation": {
+      "titleRequired": "El título es obligatorio",
+      "courseRequired": "Debes seleccionar un curso",
+      "stepsRequired": "Se requiere al menos un paso",
+      "stepTitleRequired": "El título del paso es obligatorio",
+      "videoUrlRequired": "La URL del video es obligatoria",
+      "imageUrlRequired": "La URL de la imagen es obligatoria",
+      "audioUrlRequired": "La URL del audio es obligatoria",
+      "pdfUrlRequired": "La URL del PDF es obligatoria",
+      "quizRequired": "Debes seleccionar un cuestionario",
+      "fixErrors": "Por favor corrige los errores antes de guardar"
+    },
+    "messages": {
+      "createSuccess": "Lección creada exitosamente",
+      "updateSuccess": "Lección actualizada exitosamente",
+      "deleteSuccess": "Lección eliminada exitosamente",
+      "duplicateSuccess": "Lección duplicada exitosamente",
+      "createError": "Error al crear la lección",
+      "updateError": "Error al actualizar la lección",
+      "deleteError": "Error al eliminar la lección",
+      "duplicateError": "Error al duplicar la lección",
+      "deleteConfirmTitle": "Eliminar Lección",
+      "deleteConfirmMessage": "¿Estás seguro de que quieres eliminar \"{{title}}\"? Esta acción no se puede deshacer.",
+      "found": "{{count}} lección encontrada",
+      "found_plural": "{{count}} lecciones encontradas",
+      "noCourses": "No hay cursos disponibles",
+      "noQuizzes": "No hay cuestionarios disponibles"
+    },
+    "filters": {
+      "course": "Filtrar por Curso",
+      "type": "Filtrar por Tipo",
+      "status": "Filtrar por Estado",
+      "clearFilters": "Limpiar Filtros"
+    }
   },
   "quizzes": {
     "title": "Cuestionarios",

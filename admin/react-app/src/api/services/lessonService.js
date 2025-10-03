@@ -1,12 +1,10 @@
 /**
  * Lesson Service - Refactored
- * 
- * Uses baseService for common CRUD operations
+ * * Uses baseService for common CRUD operations
  * Extended with lesson-specific functionality
- * 
- * @package QuizExtended
+ * * @package QuizExtended
  * @subpackage API/Services
- * @version 2.0.0
+ * @version 2.0.1
  */
 
 import { createResourceService, buildQueryParams } from './baseService.js';
@@ -26,7 +24,6 @@ const buildLessonQueryParams = (options = {}) => {
   const {
     page = 1,
     perPage = 20,
-    status = 'publish,draft,private',
     search = '',
     courseId = null,
     lessonType = null,
@@ -38,7 +35,6 @@ const buildLessonQueryParams = (options = {}) => {
   const params = new URLSearchParams({
     page: page.toString(),
     per_page: perPage.toString(),
-    status: status,
     orderby: orderBy,
     order: order
   });
@@ -51,18 +47,13 @@ const buildLessonQueryParams = (options = {}) => {
     params.append('search', search.trim());
   }
 
-  // IMPORTANT: Course filtering with meta_query
   if (courseId) {
     const numericCourseId = parseInt(courseId, 10);
     if (Number.isInteger(numericCourseId) && numericCourseId > 0) {
-      params.append('meta_query[0][key]', '_course_id');
-      params.append('meta_query[0][value]', numericCourseId.toString());
-      params.append('meta_query[0][compare]', '=');
-      params.append('meta_query[0][type]', 'NUMERIC');
+      params.append('course_id', numericCourseId.toString());
     }
   }
 
-  // Lesson type filtering
   if (lessonType) {
     params.append('meta_query[1][key]', '_lesson_type');
     params.append('meta_query[1][value]', lessonType);
@@ -85,7 +76,7 @@ const baseLessonService = createResourceService('lesson', 'lessons', {
  * @param {Object} options - Filter options
  * @returns {Promise<Object>} Lessons and pagination
  */
-export const getLessons = async (options = {}) => {
+export const getAll = async (options = {}) => {
   return baseLessonService.getAll(options);
 };
 
@@ -102,7 +93,7 @@ export const getLessonsByCourse = async (courseId, options = {}) => {
 
   console.log('🎓 Getting lessons for course:', courseId);
   
-  return getLessons({
+  return getAll({
     ...options,
     courseId
   });
@@ -114,7 +105,7 @@ export const getLessonsByCourse = async (courseId, options = {}) => {
  * @param {Object} options - Additional options
  * @returns {Promise<Object>} Lesson data
  */
-export const getLesson = async (lessonId, options = {}) => {
+export const getOne = async (lessonId, options = {}) => {
   return baseLessonService.getOne(lessonId, options);
 };
 
@@ -123,7 +114,7 @@ export const getLesson = async (lessonId, options = {}) => {
  * @param {Object} lessonData - Lesson data
  * @returns {Promise<Object>} Created lesson
  */
-export const createLesson = async (lessonData) => {
+export const create = async (lessonData) => {
   return baseLessonService.create(lessonData);
 };
 
@@ -133,7 +124,7 @@ export const createLesson = async (lessonData) => {
  * @param {Object} lessonData - Lesson data
  * @returns {Promise<Object>} Updated lesson
  */
-export const updateLesson = async (lessonId, lessonData) => {
+export const update = async (lessonId, lessonData) => {
   return baseLessonService.update(lessonId, lessonData);
 };
 
@@ -143,9 +134,11 @@ export const updateLesson = async (lessonId, lessonData) => {
  * @param {Object} options - Delete options
  * @returns {Promise<boolean>} Success status
  */
-export const deleteLesson = async (lessonId, options = {}) => {
+export const deleteFn = async (lessonId, options = {}) => {
   return baseLessonService.delete(lessonId, options);
 };
+export { deleteFn as delete };
+
 
 /**
  * Duplicate existing lesson
@@ -154,7 +147,7 @@ export const deleteLesson = async (lessonId, options = {}) => {
  */
 export const duplicateLesson = async (lessonId) => {
   try {
-    const originalLesson = await getLesson(lessonId);
+    const originalLesson = await getOne(lessonId);
     
     if (!originalLesson) {
       throw new Error('Lesson not found');
@@ -179,7 +172,7 @@ export const duplicateLesson = async (lessonId) => {
     };
 
     console.log('📋 Duplicating lesson:', lessonId);
-    const duplicated = await createLesson(duplicateData);
+    const duplicated = await create(duplicateData);
     console.log('✅ Lesson duplicated:', duplicated.id);
     
     return duplicated;
@@ -206,7 +199,7 @@ export const getLessonsCount = async (options = {}) => {
  */
 export const lessonExists = async (lessonId) => {
   try {
-    const lesson = await getLesson(lessonId);
+    const lesson = await getOne(lessonId);
     return !!lesson;
   } catch (error) {
     return false;
@@ -224,7 +217,7 @@ export const updateLessonStatus = async (lessonId, newStatus) => {
     throw new Error(`Invalid status: ${newStatus}`);
   }
 
-  return updateLesson(lessonId, { status: newStatus });
+  return update(lessonId, { status: newStatus });
 };
 
 /**
@@ -252,7 +245,7 @@ export const unpublishLesson = async (lessonId) => {
  * @returns {Promise<Object>} Updated lesson
  */
 export const updateLessonOrder = async (lessonId, newOrder) => {
-  return updateLesson(lessonId, { lessonOrder: newOrder });
+  return update(lessonId, { lessonOrder: newOrder });
 };
 
 /**
@@ -262,7 +255,7 @@ export const updateLessonOrder = async (lessonId, newOrder) => {
  * @returns {Promise<Object>} Updated lesson
  */
 export const moveLessonToCourse = async (lessonId, newCourseId) => {
-  return updateLesson(lessonId, { courseId: newCourseId });
+  return update(lessonId, { courseId: newCourseId });
 };
 
 /**
@@ -272,7 +265,7 @@ export const moveLessonToCourse = async (lessonId, newCourseId) => {
  * @returns {Promise<Object>} Filtered lessons
  */
 export const getLessonsByType = async (lessonType, options = {}) => {
-  return getLessons({
+  return getAll({
     ...options,
     lessonType
   });
@@ -284,7 +277,7 @@ export const getLessonsByType = async (lessonType, options = {}) => {
  * @returns {Promise<Object>} Published lessons
  */
 export const getPublishedLessons = async (options = {}) => {
-  return getLessons({
+  return getAll({
     ...options,
     status: 'publish'
   });
@@ -297,7 +290,7 @@ export const getPublishedLessons = async (options = {}) => {
  */
 export const getLessonStatistics = async (options = {}) => {
   try {
-    const result = await getLessons({ ...options, perPage: 100 });
+    const result = await getAll({ ...options, perPage: 100 });
     
     const stats = {
       total: result.pagination.total,
@@ -338,3 +331,9 @@ export const getLessonStatistics = async (options = {}) => {
     throw error;
   }
 };
+// Backward compatibility aliases
+export const getLessons = getAll;
+export const getLesson = getOne;
+export const createLesson = create;
+export const updateLesson = update;
+export const deleteLesson = deleteFn;

@@ -27,7 +27,7 @@
   },
   "courses": {
     "title": "Courses",
-    "description": "Create and manage courses with lessons, pricing and enrollment",
+    "description": "Create and manage courses with lessons, pricing, and enrollments",
     "addNew": "Add New Course",
     "createCourse": "Create Course",
     "editCourse": "Edit Course",
@@ -39,7 +39,6 @@
     "searchPlaceholder": "Search courses...",
     "loadingCourses": "Loading courses...",
     "loadingMoreCourses": "Loading more courses...",
-    
     "fields": {
       "title": "Course Title",
       "description": "Description",
@@ -62,7 +61,6 @@
       "maxStudents": "Maximum Students",
       "difficultyLevel": "Difficulty Level"
     },
-    
     "category": {
       "label": "Category",
       "all": "All Categories",
@@ -72,7 +70,6 @@
       "marketing": "Marketing",
       "photography": "Photography"
     },
-    
     "difficulty": {
       "label": "Difficulty",
       "all": "All Levels",
@@ -81,23 +78,25 @@
       "advanced": "Advanced",
       "expert": "Expert"
     },
-    
+    "difficultyLevels": {
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard"
+    },
     "status": {
       "label": "Status",
-      "all": "All Status",
+      "all": "All Statuses",
       "publish": "Published",
       "draft": "Draft",
       "private": "Private"
     },
-    
     "priceFilter": {
       "label": "Price",
       "all": "All Prices",
       "free": "Free",
       "paid": "Paid",
-      "premium": "Premium (€100+)"
+      "premium": "Premium ($100+)"
     },
-    
     "stats": {
       "totalCourses": "Total Courses",
       "totalStudents": "Students",
@@ -109,7 +108,6 @@
       "completionRate": "Completion Rate",
       "averageDuration": "Avg. Duration"
     },
-    
     "units": {
       "hours": "hours",
       "hour": "hour",
@@ -122,7 +120,6 @@
       "free": "Free",
       "duration": "duration"
     },
-    
     "tabs": {
       "basic": "Basic Info",
       "taxonomies": "Categories & Tags",
@@ -131,7 +128,6 @@
       "lessons": "Lessons",
       "settings": "Settings"
     },
-    
     "taxonomies": {
       "categories": "Categories",
       "topics": "Topics",
@@ -139,20 +135,17 @@
       "providers": "Providers",
       "courseTypes": "Course Types"
     },
-    
     "placeholders": {
       "title": "Enter course title...",
-      "excerpt": "Brief description for cards and previews...",
+      "excerpt": "Short description for cards and previews...",
       "content": "Full course description, what students will learn...",
       "newCategory": "New category name..."
     },
-    
     "actions": {
       "uploadImage": "Upload Image",
       "addCategory": "Add New",
       "saveAndCreate": "Save & Create Another"
     },
-    
     "hints": {
       "optional": "Optional",
       "salePrice": "If set, this will be shown as the discounted price",
@@ -162,36 +155,26 @@
       "createLessons": "Create lessons first to assign them to this course",
       "position": "Lower numbers appear first in the course list",
       "maxStudents": "0 = unlimited enrollment",
-      "difficultyLevel": "This is a meta field, different from taxonomy",
+      "difficultyLevel": "This is a meta field, different from the taxonomy",
       "image": "Recommended size: 1200x675px. Max 5MB."
     },
-    
     "labels": {
       "pricePreview": "Price Preview",
       "schedulePreview": "Schedule Preview",
       "selected": "selected"
     },
-    
     "info": {
       "woocommerce": "WooCommerce Integration",
       "woocommerceDesc": "A WooCommerce product will be automatically created/updated when you save this course."
     },
-    
-    "difficultyLevels": {
-      "easy": "Easy",
-      "medium": "Medium",
-      "hard": "Hard"
-    },
-    
     "validation": {
       "titleRequired": "Title is required",
       "contentRequired": "Description is required",
       "priceInvalid": "Price must be greater than 0",
       "endDateInvalid": "End date must be after start date",
       "positionInvalid": "Position must be a number",
-      "fixErrors": "Please fix errors before saving"
+      "fixErrors": "Please fix the errors before saving"
     },
-    
     "messages": {
       "createSuccess": "Course created successfully",
       "updateSuccess": "Course updated successfully",
@@ -213,7 +196,196 @@
     "title": "Lessons",
     "description": "Create and manage interactive lessons with multiple content types",
     "addNew": "Add New Lesson",
-    "noLessons": "No lessons found"
+    "createLesson": "Create Lesson",
+    "editLesson": "Edit Lesson",
+    "viewLesson": "View Lesson",
+    "duplicateLesson": "Duplicate Lesson",
+    "deleteLesson": "Delete Lesson",
+    "noLessons": "No lessons found",
+    "noLessonsDescription": "You haven't created any lessons yet.",
+    "searchPlaceholder": "Search lessons by title...",
+    "loadingLessons": "Loading lessons...",
+    "loadingMoreLessons": "Loading more lessons...",
+    "fields": {
+      "title": "Lesson Title",
+      "description": "Description",
+      "content": "General Content",
+      "course": "Course",
+      "lessonType": "Lesson Type",
+      "lessonOrder": "Lesson Order",
+      "status": "Status",
+      "steps": "Content Steps",
+      "prerequisiteLessons": "Prerequisite Lessons",
+      "completionCriteria": "Completion Criteria",
+      "isRequired": "Is Required",
+      "duration": "Duration",
+      "resources": "Resources"
+    },
+    "lessonType": {
+      "label": "Lesson Type",
+      "all": "All Types",
+      "video": "Video",
+      "text": "Text Content",
+      "mixed": "Mixed Content",
+      "quiz": "Quiz",
+      "interactive": "Interactive"
+    },
+    "status": {
+      "label": "Status",
+      "all": "All Statuses",
+      "publish": "Published",
+      "draft": "Draft",
+      "private": "Private"
+    },
+    "course": {
+      "label": "Course",
+      "all": "All Courses",
+      "select": "Select a course...",
+      "required": "Course is required"
+    },
+    "stats": {
+      "totalLessons": "Total Lessons",
+      "videoLessons": "Video Lessons",
+      "textLessons": "Text Lessons",
+      "mixedLessons": "Mixed Lessons",
+      "totalSteps": "Total Steps",
+      "averageSteps": "Avg. Steps/Lesson",
+      "completedLessons": "Completed Lessons",
+      "requiredLessons": "Required Lessons"
+    },
+    "steps": {
+      "title": "Content Steps",
+      "description": "Add and organize the content steps for this lesson",
+      "addStep": "Add Step",
+      "addFirstStep": "Add First Step",
+      "noSteps": "This lesson has no content steps yet.",
+      "noStepsDescription": "Steps allow you to organize content into manageable sections.",
+      "stepTitle": "Step Title",
+      "stepType": "Step Type",
+      "required": "At least one step is required",
+      "allStepsMustHaveTitle": "All steps must have a title"
+    },
+    "stepTypes": {
+      "video": {
+        "label": "Video",
+        "description": "Video content",
+        "videoUrl": "Video URL",
+        "duration": "Duration (minutes)",
+        "autoplay": "Autoplay",
+        "subtitlesUrl": "Subtitles URL"
+      },
+      "text": {
+        "label": "Text Content",
+        "description": "Rich text content",
+        "content": "Content",
+        "estimatedTime": "Estimated Time (minutes)"
+      },
+      "pdf": {
+        "label": "PDF Document",
+        "description": "Downloadable PDF file",
+        "fileUrl": "File URL",
+        "fileName": "File Name",
+        "fileSize": "File Size",
+        "downloadable": "Allow Download"
+      },
+      "quiz": {
+        "label": "Quiz",
+        "description": "Knowledge assessment",
+        "quizId": "Quiz",
+        "passingScore": "Passing Score",
+        "maxAttempts": "Max Attempts",
+        "required": "Required to Complete"
+      },
+      "image": {
+        "label": "Image",
+        "description": "Visual content",
+        "imageUrl": "Image URL",
+        "altText": "Alt Text",
+        "caption": "Caption",
+        "lightbox": "Enable Lightbox"
+      },
+      "audio": {
+        "label": "Audio",
+        "description": "Audio content",
+        "audioUrl": "Audio URL",
+        "duration": "Duration (minutes)",
+        "transcriptUrl": "Transcript URL"
+      }
+    },
+    "tabs": {
+      "basic": "Basic Info",
+      "steps": "Content Steps",
+      "settings": "Advanced Settings"
+    },
+    "completionCriteria": {
+      "label": "Completion Criteria",
+      "viewAll": "View All Content",
+      "passQuiz": "Pass Quiz",
+      "completeSteps": "Complete All Steps"
+    },
+    "placeholders": {
+      "title": "Enter lesson title...",
+      "description": "Brief description of the lesson...",
+      "content": "General lesson content (optional)...",
+      "stepTitle": "Enter step title...",
+      "videoUrl": "https://... (Video URL)",
+      "imageUrl": "https://... (Image URL)",
+      "audioUrl": "https://... (Audio URL)",
+      "pdfUrl": "https://... (PDF URL)"
+    },
+    "hints": {
+      "course": "The lesson must be associated with a course",
+      "lessonType": "The type determines how the lesson is presented",
+      "description": "This description appears on cards and previews",
+      "content": "This content appears before the lesson steps. HTML is supported.",
+      "lessonOrder": "Order of this lesson within the course",
+      "steps": "Organize content into manageable steps",
+      "completionCriteria": "What the student must do to complete this lesson",
+      "isRequired": "If checked, students must complete this lesson",
+      "prerequisiteLessons": "Lessons that must be completed before this one"
+    },
+    "actions": {
+      "addStep": "Add Step",
+      "removeStep": "Remove Step",
+      "moveUp": "Move Up",
+      "moveDown": "Move Down",
+      "expandStep": "Expand Step",
+      "collapseStep": "Collapse Step"
+    },
+    "validation": {
+      "titleRequired": "Title is required",
+      "courseRequired": "You must select a course",
+      "stepsRequired": "At least one step is required",
+      "stepTitleRequired": "Step title is required",
+      "videoUrlRequired": "Video URL is required",
+      "imageUrlRequired": "Image URL is required",
+      "audioUrlRequired": "Audio URL is required",
+      "pdfUrlRequired": "PDF URL is required",
+      "quizRequired": "You must select a quiz",
+      "fixErrors": "Please fix the errors before saving"
+    },
+    "messages": {
+      "createSuccess": "Lesson created successfully",
+      "updateSuccess": "Lesson updated successfully",
+      "deleteSuccess": "Lesson deleted successfully",
+      "duplicateSuccess": "Lesson duplicated successfully",
+      "createError": "Error creating lesson",
+      "updateError": "Error updating lesson",
+      "deleteError": "Error deleting lesson",
+      "duplicateError": "Error duplicating lesson",
+      "deleteConfirmTitle": "Delete Lesson",
+      "deleteConfirmMessage": "Are you sure you want to delete \"{{title}}\"? This action cannot be undone.",
+      "found": "{{count}} lesson found",
+      "found_plural": "{{count}} lessons found",
+      "noCourses": "No courses available",
+      "noQuizzes": "No quizzes available"
+    },
+    "filters": {
+      "course": "Filter by Course",
+      "type": "Filter by Type",
+      "status": "Filter by Status",
+      "clearFilters": "Clear Filters"
+    }
   },
   "quizzes": {
     "title": "Quizzes",
