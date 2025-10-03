@@ -61,7 +61,8 @@ class QE_Quiz_Type extends QE_Post_Types_Base
                 'title',
                 'editor',
                 'author',
-                'custom-fields'
+                'custom-fields',
+                'excerpt' // 🔥 AÑADIDO: Soporte para extracto (excerpt).
             ],
             'rewrite' => ['slug' => 'quizzes'],
         ];

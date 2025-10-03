@@ -65,11 +65,10 @@ export {
   updateQuiz,
   deleteQuiz,
   duplicateQuiz,
-  getQuizzesCount,
+  getQuizStatistics,
   addQuestionToQuiz,
   removeQuestionFromQuiz,
-  updateQuizStatus,
-  getQuizStatistics
+  updateQuizQuestionOrder
 } from './services/quizService.js';
 
 // Question Operations

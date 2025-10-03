@@ -1,10 +1,67 @@
-// admin/react-app/src/components/quizzes/QuizModal.jsx
+// src/components/quizzes/QuizModal.jsx
 
-import React, { useState, useEffect } from 'react';
-import { X, Search, Trash2, AlertCircle, Save } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Search, Trash2, AlertCircle, Save, HelpCircle, GripVertical } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { getApiConfig, getDefaultHeaders } from '../../api/config/apiConfig';
+import { useQuestions } from '../../hooks/useQuestions'; // To get existing questions
+import Button from '../common/Button';
+
+// A simple DND setup for reordering questions
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+const SortableQuestionItem = ({ question, onRemove, isReadOnly }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+    } = useSortable({ id: question.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+            <div className="flex items-center gap-3">
+                {!isReadOnly && (
+                    <button type="button" {...attributes} {...listeners} className="cursor-move text-gray-400 hover:text-gray-600">
+                        <GripVertical className="h-5 w-5" />
+                    </button>
+                )}
+                <div>
+                    <p className="text-sm text-gray-900">{question.title?.rendered || question.title}</p>
+                    <p className="text-xs text-gray-500">
+                        {question.meta?._question_type} • {question.meta?._difficulty_level}
+                    </p>
+                </div>
+            </div>
+            {!isReadOnly && (
+                <button type="button" onClick={() => onRemove(question.id)} className="text-red-600 hover:text-red-800">
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            )}
+        </div>
+    );
+};
+
 
 const QuizModal = ({
   isOpen,
@@ -16,30 +73,29 @@ const QuizModal = ({
   availableCategories = [],
   isLoading = false
 }) => {
-  // Form state
   const [formData, setFormData] = useState({
     title: '',
-    instructions: '',
+    content: '', // Instructions
+    status: 'publish',
     courseId: '',
-    category: '',
-    difficulty: 'medium',
-    quizType: 'assessment',
+    qe_category: [], // Use the taxonomy name
+    difficulty_level: 'medium',
+    quiz_type: 'assessment',
+    passing_score: '70',
+    time_limit: '',
+    max_attempts: '',
+    randomize_questions: false,
+    show_results: true,
+    enable_negative_scoring: false,
     questionIds: [],
-    passingScore: '50',
-    timeLimit: '',
-    maxAttempts: '',
-    randomizeQuestions: false,
-    showResults: true,
-    enableNegativeScoring: false,
   });
 
   const [errors, setErrors] = useState({});
-
-  // State for question search and selection
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [selectedQuestions, setSelectedQuestions] = useState([]);
+  
+  // State for question search
+  const [searchQuery, setSearchQuery] = useState('');
+  const { questions: searchResults, loading: isSearching, error: searchError, fetchQuestions } = useQuestions({ autoFetch: false });
 
   const difficultyLevels = [
     { value: 'easy', label: 'Easy' },
@@ -53,675 +109,323 @@ const QuizModal = ({
     { value: 'exam', label: 'Exam' },
     { value: 'survey', label: 'Survey' }
   ];
+  
+  const { questions: allQuestions, loading: questionsLoading } = useQuestions({ perPage: 100 });
 
-  // Initialize form data when quiz changes
+
+  // Effect to populate form on edit/view mode
   useEffect(() => {
     if (quiz && mode !== 'create') {
+      const meta = quiz.meta || {};
       setFormData({
         title: quiz.title?.rendered || quiz.title || '',
-        instructions: quiz.content?.rendered || quiz.content || '',
-        courseId: quiz.meta?._course_id || '',
-        category: quiz.meta?._quiz_category || '',
-        difficulty: quiz.meta?._difficulty_level || 'medium',
-        quizType: quiz.meta?._quiz_type || 'assessment',
-        questionIds: quiz.meta?._quiz_question_ids || [],
-        passingScore: quiz.meta?._passing_score || '50',
-        timeLimit: quiz.meta?._time_limit || '',
-        maxAttempts: quiz.meta?._max_attempts || '',
-        randomizeQuestions: quiz.meta?._randomize_questions === 'yes',
-        showResults: quiz.meta?._show_results === 'yes',
-        enableNegativeScoring: quiz.meta?._enable_negative_scoring || false,
+        content: quiz.content?.rendered || quiz.content || meta._quiz_instructions || '',
+        status: quiz.status || 'publish',
+        courseId: meta._course_id?.toString() || '',
+        qe_category: quiz.qe_category || [],
+        difficulty_level: meta._difficulty_level || 'medium',
+        quiz_type: meta._quiz_type || 'assessment',
+        passing_score: meta._passing_score?.toString() || '70',
+        time_limit: meta._time_limit?.toString() || '',
+        max_attempts: meta._max_attempts?.toString() || '',
+        randomize_questions: meta._randomize_questions || false,
+        show_results: meta._show_results !== undefined ? meta._show_results : true,
+        enable_negative_scoring: meta._enable_negative_scoring || false,
+        questionIds: meta._quiz_question_ids || [],
       });
+      
+      const questionDetails = (meta._quiz_question_ids || []).map(id => 
+        allQuestions.find(q => q.id === id)
+      ).filter(Boolean);
+      setSelectedQuestions(questionDetails);
 
-      // Load selected questions if we have IDs
-      if (quiz.meta?._quiz_question_ids?.length > 0) {
-        loadQuestionsFromIds(quiz.meta._quiz_question_ids);
-      }
-    } else if (mode === 'create') {
+    } else {
       resetForm();
     }
-    setErrors({});
-  }, [quiz, mode, isOpen]);
+  }, [quiz, mode, isOpen, allQuestions]);
 
   const resetForm = () => {
     setFormData({
       title: '',
-      instructions: '',
+      content: '',
+      status: 'publish',
       courseId: '',
-      category: '',
-      difficulty: 'medium',
-      quizType: 'assessment',
+      qe_category: [],
+      difficulty_level: 'medium',
+      quiz_type: 'assessment',
+      passing_score: '70',
+      time_limit: '',
+      max_attempts: '',
+      randomize_questions: false,
+      show_results: true,
+      enable_negative_scoring: false,
       questionIds: [],
-      passingScore: '50',
-      timeLimit: '',
-      maxAttempts: '',
-      randomizeQuestions: false,
-      showResults: true,
-      enableNegativeScoring: false,
     });
     setSelectedQuestions([]);
     setSearchQuery('');
-    setSearchResults([]);
+    setErrors({});
   };
 
-  // Load questions from IDs (for edit mode)
-  const loadQuestionsFromIds = async (questionIds) => {
-    try {
-      const config = getApiConfig();
-      const promises = questionIds.map(id =>
-        fetch(`${config.endpoints.questions}/${id}`, {
-          headers: getDefaultHeaders(),
-          credentials: 'same-origin'
-        }).then(res => res.json())
-      );
-      const questions = await Promise.all(promises);
-      setSelectedQuestions(questions);
-    } catch (error) {
-      console.error('Error loading questions:', error);
-    }
-  };
-
-  // Handle form field changes
   const handleFieldChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: null }));
-    }
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
+  };
+  
+    const handleCategoryChange = (categoryId) => {
+    setFormData(prev => ({
+      ...prev,
+      qe_category: [categoryId] // Store as an array of IDs
+    }));
   };
 
-  // Validate form
   const validateForm = () => {
     const newErrors = {};
-
-    if (!formData.title.trim()) {
-      newErrors.title = 'Quiz title is required';
-    }
-
-    if (!formData.courseId) {
-      newErrors.courseId = 'Please select a course';
-    }
-
-    if (!formData.category) {
-      newErrors.category = 'Please select a category';
-    }
-
-    if (selectedQuestions.length === 0) {
-      newErrors.questions = 'Please add at least one question to the quiz';
-    }
-
+    if (!formData.title.trim()) newErrors.title = 'Quiz title is required';
+    if (!formData.courseId) newErrors.courseId = 'Please select a course';
+    if (selectedQuestions.length === 0) newErrors.questions = 'Please add at least one question';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Search questions
-  const handleSearchQuestions = async () => {
+  const handleSearchQuestions = (e) => {
+    e.preventDefault();
     if (!searchQuery.trim()) return;
-
-    setIsSearching(true);
-    try {
-      const config = getApiConfig();
-      const params = new URLSearchParams({
-        search: searchQuery,
-        per_page: 20,
-        status: 'publish,draft', // Para que muestre tanto publicadas como borradores
-        _fields: 'id,title,content,meta' // Optimizar la respuesta
-      });
-      
-      // USAR TU ENDPOINT CONFIGURADO, NO UNO HARDCODEADO
-      const url = `${config.endpoints.questions}?${params}`;
-      console.log('🔍 Searching questions at:', url);
-      
-      const response = await fetch(url, {
-        headers: getDefaultHeaders(),
-        credentials: 'same-origin'
-      });
-
-      console.log('📡 Response status:', response.status, response.statusText);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('❌ API Error:', errorData);
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-
-      const results = await response.json();
-      
-      // Formatear las preguntas para que coincidan con tu estructura
-      const formattedResults = results.map(question => ({
-        id: question.id,
-        title: question.title?.rendered || question.title,
-        content: question.content?.rendered || question.content,
-        options: question.meta?._question_options || [],
-        meta: question.meta || {}
-      }));
-      
-      setSearchResults(formattedResults);
-      
-    } catch (error) {
-      console.error('Error searching questions:', error);
-      setErrors({ search: 'Failed to search questions' });
-    } finally {
-      setIsSearching(false);
-    }
+    fetchQuestions(true, { search: searchQuery }); // true to reset previous results
   };
 
-  // Add question to quiz
   const addQuestionToQuiz = (question) => {
-    if (!selectedQuestions.find(q => q.id === question.id)) {
-      setSelectedQuestions(prev => [...prev, question]);
+    if (!selectedQuestions.some(q => q.id === question.id)) {
+      const newSelected = [...selectedQuestions, question];
+      setSelectedQuestions(newSelected);
       setFormData(prev => ({
         ...prev,
-        questionIds: [...prev.questionIds, question.id]
+        questionIds: newSelected.map(q => q.id)
       }));
-      // Clear search results after adding
-      setSearchResults([]);
-      setSearchQuery('');
+      setSearchQuery(''); // Clear search after adding
     }
   };
 
-  // Remove question from quiz
   const removeQuestionFromQuiz = (questionId) => {
-    setSelectedQuestions(prev => prev.filter(q => q.id !== questionId));
+    const newSelected = selectedQuestions.filter(q => q.id !== questionId);
+    setSelectedQuestions(newSelected);
     setFormData(prev => ({
       ...prev,
-      questionIds: prev.questionIds.filter(id => id !== questionId)
+      questionIds: newSelected.map(q => q.id)
     }));
   };
 
-  // Handle save
+  const sensors = useSensors(useSensor(PointerSensor));
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      const oldIndex = selectedQuestions.findIndex(q => q.id === active.id);
+      const newIndex = selectedQuestions.findIndex(q => q.id === over.id);
+      const newOrder = arrayMove(selectedQuestions, oldIndex, newIndex);
+      setSelectedQuestions(newOrder);
+      setFormData(prev => ({ ...prev, questionIds: newOrder.map(q => q.id) }));
+    }
+  };
+  
   const handleSave = async (nextAction) => {
     if (!validateForm()) return;
 
-    const quizDataForHook = {
-      title: formData.title,
-      instructions: formData.instructions,
-      status: 'publish',
-      courseId: formData.courseId,
-      category: formData.category,
-      difficulty: formData.difficulty,
-      quizType: formData.quizType,
-      questionIds: formData.questionIds,
-      passingScore: formData.passingScore,
-      timeLimit: formData.timeLimit,
-      maxAttempts: formData.maxAttempts,
-      randomizeQuestions: formData.randomizeQuestions,
-      showResults: formData.showResults,
-      enableNegativeScoring: formData.enableNegativeScoring,
+    // This object structure matches what `transformQuizDataForApi` expects
+    const quizDataForApi = {
+        title: formData.title,
+        content: formData.content,
+        status: formData.status,
+        meta: {
+            _course_id: formData.courseId,
+            _difficulty_level: formData.difficulty_level,
+            _quiz_type: formData.quiz_type,
+            _passing_score: formData.passing_score,
+            _time_limit: formData.time_limit,
+            _max_attempts: formData.max_attempts,
+            _randomize_questions: formData.randomize_questions,
+            _show_results: formData.show_results,
+            _enable_negative_scoring: formData.enable_negative_scoring,
+            _quiz_question_ids: formData.questionIds,
+        },
+        qe_category: formData.qe_category,
     };
 
     try {
-      await onSave(quizDataForHook, nextAction);
-
-      if (nextAction === 'reset') {
-        resetForm();
-      }
+        await onSave(quizDataForApi, nextAction);
+        if (nextAction === 'reset') {
+            resetForm();
+        }
     } catch (error) {
-      console.error('Error saving quiz:', error);
-      setErrors({ submit: error.message || 'Failed to save the quiz.' });
+        console.error('Error saving quiz:', error);
+        setErrors({ submit: error.message || 'Failed to save the quiz.' });
     }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    handleSave('close');
-  };
-
-  const handleSaveAndNew = (e) => {
-    e.preventDefault();
-    handleSave('reset');
   };
 
   if (!isOpen) return null;
 
   const isReadOnly = mode === 'view';
-  const modalTitle = mode === 'create' ? 'Create New Quiz' :
-                   mode === 'edit' ? 'Edit Quiz' : 'View Quiz';
+  const modalTitle = mode === 'create' ? 'Create New Quiz' : mode === 'edit' ? 'Edit Quiz' : 'View Quiz';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-800">{modalTitle}</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            disabled={isLoading}
-          >
-            <X className="w-6 h-6" />
+          <button onClick={onClose} disabled={isLoading}>
+            <X className="w-6 h-6 text-gray-400 hover:text-gray-600" />
           </button>
         </div>
 
-        {/* Form Content - Scrollable */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
+        {/* Form Content */}
+        <form onSubmit={(e) => { e.preventDefault(); handleSave('close'); }} className="flex-1 overflow-y-auto p-6">
           <div className="space-y-6">
 
-            {/* Quiz Title */}
+            {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Quiz Title *
-              </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => handleFieldChange('title', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  errors.title ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="Enter quiz title"
-                disabled={isReadOnly}
-              />
-              {errors.title && (
-                <p className="mt-1 text-sm text-red-600">{errors.title}</p>
-              )}
+              <label className="block text-sm font-medium text-gray-700 mb-2">Quiz Title *</label>
+              <input type="text" value={formData.title} onChange={(e) => handleFieldChange('title', e.target.value)} disabled={isReadOnly} className={`w-full input ${errors.title ? 'border-red-500' : 'border-gray-300'}`} />
+              {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
             </div>
 
-            {/* Categorization Section */}
+            {/* Course, Category, Difficulty */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-              {/* Course */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Course *
-                </label>
-                <select
-                  value={formData.courseId}
-                  onChange={(e) => handleFieldChange('courseId', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                    errors.courseId ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  disabled={isReadOnly}
-                >
+                <label className="block text-sm font-medium text-gray-700 mb-2">Course *</label>
+                <select value={formData.courseId} onChange={(e) => handleFieldChange('courseId', e.target.value)} disabled={isReadOnly} className={`w-full input ${errors.courseId ? 'border-red-500' : 'border-gray-300'}`}>
                   <option value="">Select Course</option>
-                  {availableCourses.map(course => (
-                    <option key={course.value} value={course.value}>
-                      {course.label}
-                    </option>
-                  ))}
+                  {availableCourses.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
-                {errors.courseId && (
-                  <p className="mt-1 text-sm text-red-600">{errors.courseId}</p>
-                )}
+                {errors.courseId && <p className="mt-1 text-sm text-red-600">{errors.courseId}</p>}
               </div>
-
-              {/* Category */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Category *
-                </label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => handleFieldChange('category', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                    errors.category ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  disabled={isReadOnly}
-                >
-                  <option value="">Select Category</option>
-                  {availableCategories.map(cat => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </option>
-                  ))}
-                </select>
-                {errors.category && (
-                  <p className="mt-1 text-sm text-red-600">{errors.category}</p>
-                )}
+                <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+                  <select
+                    value={formData.qe_category[0] || ''}
+                    onChange={(e) => handleCategoryChange(e.target.value)}
+                    disabled={isReadOnly}
+                    className={`w-full input ${errors.qe_category ? 'border-red-500' : 'border-gray-300'}`}
+                  >
+                    <option value="">Select Category</option>
+                    {availableCategories.map(cat => (
+                      <option key={cat.value} value={cat.value}>{cat.label}</option>
+                    ))}
+                  </select>
+                {errors.qe_category && <p className="mt-1 text-sm text-red-600">{errors.qe_category}</p>}
               </div>
-
-              {/* Difficulty */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Difficulty *
-                </label>
-                <select
-                  value={formData.difficulty}
-                  onChange={(e) => handleFieldChange('difficulty', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  disabled={isReadOnly}
-                >
-                  {difficultyLevels.map(level => (
-                    <option key={level.value} value={level.value}>
-                      {level.label}
-                    </option>
-                  ))}
+                <label className="block text-sm font-medium text-gray-700 mb-2">Difficulty</label>
+                <select value={formData.difficulty_level} onChange={(e) => handleFieldChange('difficulty_level', e.target.value)} disabled={isReadOnly} className="w-full input">
+                  {difficultyLevels.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                 </select>
               </div>
-            </div>
-
-            {/* Quiz Type */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Quiz Type
-              </label>
-              <select
-                value={formData.quizType}
-                onChange={(e) => handleFieldChange('quizType', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                disabled={isReadOnly}
-              >
-                {quizTypes.map(type => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
             </div>
 
             {/* Instructions */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Instructions
-              </label>
-              <ReactQuill
-                value={formData.instructions}
-                onChange={(content) => handleFieldChange('instructions', content)}
-                theme="snow"
-                readOnly={isReadOnly}
-                className={isReadOnly ? 'opacity-60' : ''}
-                modules={{
-                  toolbar: isReadOnly ? false : [
-                    [{ 'header': [1, 2, 3, false] }],
-                    ['bold', 'italic', 'underline'],
-                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                    ['link'],
-                    ['clean']
-                  ]
-                }}
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-2">Instructions</label>
+              <ReactQuill theme="snow" value={formData.content} onChange={(val) => handleFieldChange('content', val)} readOnly={isReadOnly} />
             </div>
 
-            {/* Quiz Settings */}
+            {/* Settings */}
             <div className="border-t pt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Quiz Settings
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Passing Score (%)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.passingScore}
-                    onChange={(e) => handleFieldChange('passingScore', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    disabled={isReadOnly}
-                  />
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Passing Score (%)</label>
+                        <input type="number" min="0" max="100" value={formData.passing_score} onChange={(e) => handleFieldChange('passing_score', e.target.value)} disabled={isReadOnly} className="w-full input"/>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Time Limit (mins)</label>
+                        <input type="number" min="0" value={formData.time_limit} onChange={(e) => handleFieldChange('time_limit', e.target.value)} disabled={isReadOnly} placeholder="Unlimited" className="w-full input"/>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Max Attempts</label>
+                        <input type="number" min="0" value={formData.max_attempts} onChange={(e) => handleFieldChange('max_attempts', e.target.value)} disabled={isReadOnly} placeholder="Unlimited" className="w-full input"/>
+                    </div>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Time Limit (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.timeLimit}
-                    onChange={(e) => handleFieldChange('timeLimit', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Leave empty for unlimited"
-                    disabled={isReadOnly}
-                  />
+                <div className="mt-4 space-y-3">
+                    <label className="flex items-center"><input type="checkbox" checked={formData.randomize_questions} onChange={(e) => handleFieldChange('randomize_questions', e.target.checked)} disabled={isReadOnly} className="h-4 w-4 rounded"/> <span className="ml-2 text-sm">Randomize Questions</span></label>
+                    <label className="flex items-center"><input type="checkbox" checked={formData.show_results} onChange={(e) => handleFieldChange('show_results', e.target.checked)} disabled={isReadOnly} className="h-4 w-4 rounded"/> <span className="ml-2 text-sm">Show Results After Completion</span></label>
+                    <label className="flex items-center"><input type="checkbox" checked={formData.enable_negative_scoring} onChange={(e) => handleFieldChange('enable_negative_scoring', e.target.checked)} disabled={isReadOnly} className="h-4 w-4 rounded"/> <span className="ml-2 text-sm">Enable Negative Scoring</span></label>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Max Attempts
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.maxAttempts}
-                    onChange={(e) => handleFieldChange('maxAttempts', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Leave empty for unlimited"
-                    disabled={isReadOnly}
-                  />
-                </div>
-              </div>
-
-              {/* Checkboxes */}
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="randomizeQuestions"
-                    checked={formData.randomizeQuestions}
-                    onChange={(e) => handleFieldChange('randomizeQuestions', e.target.checked)}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    disabled={isReadOnly}
-                  />
-                  <label htmlFor="randomizeQuestions" className="ml-2 block text-sm text-gray-700">
-                    Randomize Questions
-                  </label>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="showResults"
-                    checked={formData.showResults}
-                    onChange={(e) => handleFieldChange('showResults', e.target.checked)}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    disabled={isReadOnly}
-                  />
-                  <label htmlFor="showResults" className="ml-2 block text-sm text-gray-700">
-                    Show Results After Completion
-                  </label>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="enableNegativeScoring"
-                    checked={formData.enableNegativeScoring}
-                    onChange={(e) => handleFieldChange('enableNegativeScoring', e.target.checked)}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    disabled={isReadOnly}
-                  />
-                  <label htmlFor="enableNegativeScoring" className="ml-2 block text-sm text-gray-700">
-                    Enable Negative Scoring
-                  </label>
-                </div>
-              </div>
             </div>
 
-            {/* Question Association Section */}
-            {!isReadOnly && (
-              <div className="border-t pt-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Associated Questions
-                </h3>
-
-                {/* Search Questions */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Search and Add Questions
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearchQuestions())}
-                      placeholder="Search questions by title..."
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSearchQuestions}
-                      disabled={isSearching || !searchQuery.trim()}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
-                    >
-                      <Search className="w-4 h-4" />
-                      {isSearching ? 'Searching...' : 'Search'}
-                    </button>
-                  </div>
-                  {errors.search && (
-                    <p className="mt-1 text-sm text-red-600">{errors.search}</p>
-                  )}
-                </div>
-
-                {/* Search Results */}
-                {searchResults.length > 0 && (
-                  <div className="mb-4 border border-gray-200 rounded-md max-h-48 overflow-y-auto">
-                    {searchResults.map(question => (
-                      <div
-                        key={question.id}
-                        className="flex items-center justify-between p-3 hover:bg-gray-50 border-b last:border-b-0"
-                      >
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">
-                            {question.title?.rendered || question.title}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {question.meta?._question_type} • {question.meta?._difficulty_level}
-                          </p>
+            {/* Questions */}
+            <div className="border-t pt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Questions</h3>
+                {!isReadOnly && (
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Search & Add Questions</label>
+                        <div className="flex gap-2">
+                            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search questions..." className="flex-1 input"/>
+                            <Button onClick={handleSearchQuestions} isLoading={isSearching} iconLeft={Search}>Search</Button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => addQuestionToQuiz(question)}
-                          disabled={selectedQuestions.find(q => q.id === question.id)}
-                          className="ml-2 px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {selectedQuestions.find(q => q.id === question.id) ? 'Added' : 'Add'}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Selected Questions */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Selected Questions ({selectedQuestions.length})
-                  </label>
-                  {errors.questions && (
-                    <p className="mb-2 text-sm text-red-600">{errors.questions}</p>
-                  )}
-                  {selectedQuestions.length === 0 ? (
-                    <p className="text-sm text-gray-500 italic">
-                      No questions added yet. Use the search above to add questions.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {selectedQuestions.map((question, index) => (
-                        <div
-                          key={question.id}
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-medium text-gray-500">
-                              #{index + 1}
-                            </span>
-                            <div>
-                              <p className="text-sm text-gray-900">
-                                {question.title?.rendered || question.title}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {question.meta?._question_type} • {question.meta?._difficulty_level}
-                              </p>
+                        {searchError && <p className="mt-1 text-sm text-red-600">{searchError}</p>}
+                        {searchResults.length > 0 && (
+                            <div className="mt-2 border rounded-md max-h-48 overflow-y-auto bg-white">
+                                {searchResults.map(q => {
+                                    const questionTitle = q.title?.rendered || q.title || 'Untitled Question';
+                                    const questionType = q.meta?._question_type || 'N/A';
+                                    const difficulty = q.meta?._difficulty_level || 'N/A';
+                                    const isAlreadySelected = selectedQuestions.some(sq => sq.id === q.id);
+                                    
+                                    return (
+                                        <div key={q.id} className="flex justify-between items-center p-3 border-b hover:bg-gray-50 last:border-b-0">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium text-gray-900 truncate">{questionTitle}</p>
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    {questionType} • {difficulty}
+                                                </p>
+                                            </div>
+                                            <Button 
+                                                size="sm" 
+                                                onClick={() => addQuestionToQuiz(q)} 
+                                                disabled={isAlreadySelected}
+                                                variant={isAlreadySelected ? 'secondary' : 'primary'}
+                                            >
+                                                {isAlreadySelected ? 'Added' : 'Add'}
+                                            </Button>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeQuestionFromQuiz(question.id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
+                        )}
                     </div>
-                  )}
+                )}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Selected Questions ({selectedQuestions.length})</label>
+                    {errors.questions && <p className="text-sm text-red-600 mb-2">{errors.questions}</p>}
+                    {selectedQuestions.length > 0 ? (
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={selectedQuestions.map(q => q.id)} strategy={verticalListSortingStrategy}>
+                                <div className="space-y-2">
+                                    {selectedQuestions.map(q => (
+                                        <SortableQuestionItem key={q.id} question={q} onRemove={removeQuestionFromQuiz} isReadOnly={isReadOnly} />
+                                    ))}
+                                </div>
+                            </SortableContext>
+                        </DndContext>
+                    ) : <p className="text-sm text-gray-500">No questions added yet.</p>}
                 </div>
-              </div>
-            )}
+            </div>
 
-            {/* Read-only view of questions */}
-            {isReadOnly && selectedQuestions.length > 0 && (
-              <div className="border-t pt-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Questions ({selectedQuestions.length})
-                </h3>
-                <div className="space-y-2">
-                  {selectedQuestions.map((question, index) => (
-                    <div
-                      key={question.id}
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-md"
-                    >
-                      <span className="text-sm font-medium text-gray-500">
-                        #{index + 1}
-                      </span>
-                      <div>
-                        <p className="text-sm text-gray-900">
-                          {question.title?.rendered || question.title}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {question.meta?._question_type} • {question.meta?._difficulty_level}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Error Message */}
             {errors.submit && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-600">{errors.submit}</p>
-              </div>
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+                    <strong className="font-bold">Error: </strong>
+                    <span className="block sm:inline">{errors.submit}</span>
+                </div>
             )}
           </div>
         </form>
 
         {/* Footer */}
         {!isReadOnly && (
-          <div className="flex items-center justify-between p-6 border-t border-gray-200 flex-shrink-0 bg-gray-50">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium"
-              disabled={isLoading}
-            >
-              Cancel
-            </button>
+          <div className="flex justify-between items-center p-6 border-t bg-gray-50">
+            <Button variant="secondary" onClick={onClose} disabled={isLoading}>Cancel</Button>
             <div className="flex gap-2">
-              {mode === 'create' && (
-                <button
-                  type="button"
-                  onClick={handleSaveAndNew}
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  Save & Add New
-                </button>
-              )}
-              <button
-                type="submit"
-                onClick={handleSubmit}
-                disabled={isLoading}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    {mode === 'create' ? 'Create Quiz' : 'Save Changes'}
-                  </>
-                )}
-              </button>
+              {mode === 'create' && <Button variant="secondary" onClick={() => handleSave('reset')} isLoading={isLoading}>Save & Add New</Button>}
+              <Button type="submit" onClick={() => handleSave('close')} isLoading={isLoading} iconLeft={Save}>{mode === 'create' ? 'Create Quiz' : 'Save Changes'}</Button>
             </div>
           </div>
         )}

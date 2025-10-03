@@ -1,9 +1,9 @@
 /**
  * useQuizzes - Quiz Management Hook (Refactored)
- * 
+ *
  * Uses useResource for base functionality
  * Extended with quiz-specific features
- * 
+ *
  * @package QuizExtended
  * @subpackage Hooks
  * @version 2.0.0
@@ -15,7 +15,7 @@ import * as quizService from '../api/services/quizService';
 
 /**
  * Quiz management hook
- * 
+ *
  * @param {Object} options - Configuration options
  * @param {string} options.search - Search term
  * @param {number} options.courseId - Course ID filter
@@ -42,7 +42,7 @@ export const useQuizzes = (options = {}) => {
   // ============================================================
   // DATA PROCESSOR
   // ============================================================
-  
+
   /**
    * Process/enhance quiz data with computed values
    */
@@ -60,16 +60,16 @@ export const useQuizzes = (options = {}) => {
       randomize_questions: quiz.meta?._randomize_questions === 'yes',
       show_results: quiz.meta?._show_results === 'yes',
       enable_negative_scoring: quiz.meta?._enable_negative_scoring === 'yes',
-      question_ids: quiz.meta?._question_ids || [],
-      question_count: Array.isArray(quiz.meta?._question_ids) 
-        ? quiz.meta._question_ids.length 
+      question_ids: quiz.meta?._quiz_question_ids || [],
+      question_count: Array.isArray(quiz.meta?._quiz_question_ids)
+        ? quiz.meta._quiz_question_ids.length
         : 0,
       total_points: parseInt(quiz.meta?._total_points || '0'),
       instructions: quiz.meta?._quiz_instructions || '',
       // Computed flags
       has_time_limit: parseInt(quiz.meta?._time_limit || '0') > 0,
       has_attempt_limit: parseInt(quiz.meta?._max_attempts || '0') > 0,
-      has_questions: Array.isArray(quiz.meta?._question_ids) && quiz.meta._question_ids.length > 0,
+      has_questions: Array.isArray(quiz.meta?._quiz_question_ids) && quiz.meta._quiz_question_ids.length > 0,
       is_randomized: quiz.meta?._randomize_questions === 'yes'
     };
   }, []);
@@ -77,13 +77,13 @@ export const useQuizzes = (options = {}) => {
   // ============================================================
   // COMPUTED VALUES CALCULATOR
   // ============================================================
-  
+
   /**
    * Calculate quiz-specific computed values
    */
   const computedValuesCalculator = useMemo(() => (quizzes) => {
     const total = quizzes.length;
-    
+
     if (total === 0) {
       return {
         total: 0,
@@ -115,15 +115,15 @@ export const useQuizzes = (options = {}) => {
       // Questions and points
       totalQuestions += quiz.question_count || 0;
       totalPoints += quiz.total_points || 0;
-      
+
       // Type counts
       const type = quiz.quiz_type || 'standard';
       byType[type] = (byType[type] || 0) + 1;
-      
+
       // Difficulty counts
       const diff = quiz.difficulty || 'intermediate';
       byDifficulty[diff] = (byDifficulty[diff] || 0) + 1;
-      
+
       // Features
       if (quiz.has_time_limit) withTimeLimit++;
       if (quiz.has_attempt_limit) withAttemptLimit++;
@@ -150,7 +150,7 @@ export const useQuizzes = (options = {}) => {
   // ============================================================
   // USE BASE RESOURCE HOOK
   // ============================================================
-  
+
   const {
     items: quizzes,
     loading,
@@ -193,7 +193,7 @@ export const useQuizzes = (options = {}) => {
   // ============================================================
   // QUIZ-SPECIFIC METHODS
   // ============================================================
-  
+
   /**
    * Publish quiz (set status to 'publish')
    */
@@ -214,15 +214,15 @@ export const useQuizzes = (options = {}) => {
   const addQuestionToQuiz = async (quizId, questionId) => {
     const quiz = quizzes.find(q => q.id === quizId);
     if (!quiz) throw new Error('Quiz not found');
-    
+
     const currentQuestions = quiz.question_ids || [];
     if (currentQuestions.includes(questionId)) {
       console.log('⚠️ Question already in quiz');
       return quiz;
     }
-    
-    return updateQuiz(quizId, { 
-      questionIds: [...currentQuestions, questionId] 
+
+    return updateQuiz(quizId, {
+      questionIds: [...currentQuestions, questionId]
     });
   };
 
@@ -232,10 +232,10 @@ export const useQuizzes = (options = {}) => {
   const removeQuestionFromQuiz = async (quizId, questionId) => {
     const quiz = quizzes.find(q => q.id === quizId);
     if (!quiz) throw new Error('Quiz not found');
-    
+
     const currentQuestions = quiz.question_ids || [];
-    return updateQuiz(quizId, { 
-      questionIds: currentQuestions.filter(id => id !== questionId) 
+    return updateQuiz(quizId, {
+      questionIds: currentQuestions.filter(id => id !== questionId)
     });
   };
 
@@ -251,14 +251,14 @@ export const useQuizzes = (options = {}) => {
       'showResults',
       'enableNegativeScoring'
     ];
-    
+
     const filteredSettings = {};
     Object.keys(settings).forEach(key => {
       if (allowedSettings.includes(key)) {
         filteredSettings[key] = settings[key];
       }
     });
-    
+
     return updateQuiz(quizId, filteredSettings);
   };
 
@@ -272,7 +272,7 @@ export const useQuizzes = (options = {}) => {
   // ============================================================
   // RETURN
   // ============================================================
-  
+
   return {
     // Data
     quizzes,

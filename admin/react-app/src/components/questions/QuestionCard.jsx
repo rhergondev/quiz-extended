@@ -42,7 +42,8 @@ const QuestionCard = ({
     category: question.meta?._question_category,
     provider: question.meta?._question_provider || 'human',
     points: parseInt(question.meta?._points || '1', 10),
-    explanation: question.content?.rendered.replace(/<p>|<\/p>/g, '').trim(),
+    // 🔥 CORRECCIÓN: Manejo seguro del contenido de la explicación.
+    explanation: (question.content?.rendered || '').replace(/<p>|<\/p>/g, '').trim(),
     quizId: question.meta?._quiz_id,
     lessonId: question.meta?._question_lesson,
     modifiedDate: new Date(question.modified).toLocaleDateString('es-ES', {

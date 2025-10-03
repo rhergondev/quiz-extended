@@ -1,394 +1,315 @@
-// admin/react-app/src/components/quizzes/QuizzesManager.jsx
+// src/components/quizzes/QuizzesManager.jsx
 
 import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { BookOpen, Clock, Target, Users, TrendingUp, Award } from 'lucide-react';
+import {
+  HelpCircle,
+  Target,
+  Award,
+  BarChart,
+  BookOpen,
+  RefreshCw,
+  AlertCircle
+} from 'lucide-react';
 
-import { useQuizzes } from '../../hooks/useQuizzes.js';
+// Hooks
+import useQuizzes from '../../hooks/useQuizzes.js';
 import useCourses from '../../hooks/useCourses.js';
+import { useSearchInput, useFilterDebounce } from '../../api/utils/debounceUtils.js';
+import { useTranslation } from 'react-i18next';
+import { useTaxonomyOptions } from '../../hooks/useTaxonomyOptions.js';
 
-import ContentManager from '../common/ContentManager.jsx';
-import QuizCard from './QuizCard.jsx';
-import DeleteConfirmModal from '../common/DeleteConfirmModal.jsx';
-import QuizModal from './QuizModal.jsx';
+// Components
+import ContentManager from '../common/ContentManager';
+import QuizCard from './QuizCard';
+import QuizModal from './QuizModal';
+import DeleteModal from '../common/DeleteModal';
+import PageHeader from '../common/PageHeader.jsx';
+import FilterBar from '../common/FilterBar.jsx';
+import ResourceGrid from '../common/ResourceGrid.jsx';
 
 const QuizzesManager = () => {
-  // --- STATE MANAGEMENT ---
+  const { t } = useTranslation();
+
+  // ============================================================
+  // LOCAL STATE
+  // ============================================================
+
   const [viewMode, setViewMode] = useState('cards');
-  
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [quizToDelete, setQuizToDelete] = useState(null);
+
   // Modal States
   const [modalMode, setModalMode] = useState(null); // 'create', 'edit', 'view'
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // Delete Modal State
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [quizToDelete, setQuizToDelete] = useState(null);
 
-  // --- FILTERS ---
-  const [filters, setFilters] = useState({
-    search: '',
-    courseId: 'all',
-    difficulty: 'all',
-    category: 'all',
-    quizType: 'all'
-  });
+  // ============================================================
+  // SEARCH & FILTERS WITH DEBOUNCE
+  // ============================================================
 
-  // Función para actualizar cualquier filtro
-  const updateFilter = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
+  const { searchValue, isSearching, handleSearchChange, clearSearch } =
+    useSearchInput('', () => {}, 500);
 
-  // Función para limpiar los filtros
-  const resetFilters = () => {
-    setFilters({
-      search: '',
+  const { filters, isFiltering, updateFilter, resetFilters } = useFilterDebounce(
+    {
       courseId: 'all',
+      quizType: 'all',
       difficulty: 'all',
+      status: 'all',
       category: 'all',
-      quizType: 'all'
-    });
-  };
+    },
+    () => {},
+    300
+  );
 
-  // --- DATA FETCHING HOOKS ---
-  const { 
-    quizzes, 
-    loading, 
-    error, 
-    pagination, 
-    creating, 
+  // ============================================================
+  // DATA FETCHING HOOKS
+  // ============================================================
+
+  const {
+    quizzes,
+    loading,
+    error,
+    pagination,
+    computed,
+    creating,
     updating,
-    createQuiz, 
-    updateQuiz, 
-    deleteQuiz, 
-    duplicateQuiz, 
-    fetchQuizzes 
+    deleting,
+    createQuiz,
+    updateQuiz,
+    deleteQuiz,
+    duplicateQuiz,
+    fetchQuizzes
   } = useQuizzes({
-    search: filters.search,
-    courseId: filters.courseId !== 'all' ? filters.courseId : null,
+    search: searchValue,
+    courseId: filters.courseId !== 'all' ? parseInt(filters.courseId) : null,
+    quizType: filters.quizType !== 'all' ? filters.quizType : null,
     difficulty: filters.difficulty !== 'all' ? filters.difficulty : null,
     category: filters.category !== 'all' ? filters.category : null,
-    quizType: filters.quizType !== 'all' ? filters.quizType : null,
+    status: filters.status !== 'all' ? filters.status : null,
     autoFetch: true,
+    perPage: 20
   });
 
-  // Obtener cursos (puedes crear este hook o usar datos estáticos)
-  // const { courses } = useCourses({ autoFetch: true });
-  
-  // Por ahora, usamos opciones estáticas
-  const courseOptions = useMemo(() => [
-    { value: 'all', label: 'All Courses' },
-    { value: '1', label: 'Course 1' },
-    { value: '2', label: 'Course 2' },
-  ], []);
+  // 🔥 CORRECCIÓN: Usamos el alias 'availableCourses' para mantener la consistencia
+  const { courses: availableCourses, loading: coursesLoading } = useCourses({
+    status: 'publish,draft',
+    autoFetch: true,
+    perPage: 100
+  });
 
-  // --- INFINITE SCROLL LOGIC ---
+  const { options: taxonomyOptions, isLoading: isLoadingTaxonomies } = useTaxonomyOptions(['qe_category']);
+
+  // ============================================================
+  // INFINITE SCROLL
+  // ============================================================
+
   const observer = useRef();
   const hasMore = pagination.hasMore;
-  
+
   const lastQuizElementRef = useCallback(node => {
     if (loading) return;
     if (observer.current) observer.current.disconnect();
+
     observer.current = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && hasMore) {
-        fetchQuizzes(false); // false = no reset, continuar cargando
+        console.log('📄 Loading more quizzes...');
+        fetchQuizzes(false); // false means don't reset
       }
     });
+
     if (node) observer.current.observe(node);
   }, [loading, hasMore, fetchQuizzes]);
 
-  // --- MODAL HANDLERS ---
-  const openModal = (mode, quiz = null) => {
-    console.log('🔵 Opening modal:', mode, quiz);
+  // ============================================================
+  // MODAL HANDLERS
+  // ============================================================
+
+  const openModal = useCallback((mode, quiz = null) => {
     setModalMode(mode);
     setSelectedQuiz(quiz);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const closeModal = () => {
-    console.log('🔴 Closing modal');
+  const closeModal = useCallback(() => {
     setIsModalOpen(false);
     setTimeout(() => {
       setModalMode(null);
       setSelectedQuiz(null);
     }, 300);
-  };
+  }, []);
 
-  const handleSaveQuiz = async (quizData, nextAction) => {
-    console.log('💾 Saving quiz:', quizData, 'Next action:', nextAction);
+  const handleSaveQuiz = async (quizData, nextAction = 'close') => {
     try {
-      if (modalMode === 'edit') {
-        await updateQuiz(selectedQuiz.id, quizData);
-      } else {
-        await createQuiz(quizData);
+      let result;
+      if (modalMode === 'create') {
+        result = await createQuiz(quizData);
+      } else if (modalMode === 'edit') {
+        result = await updateQuiz(selectedQuiz.id, quizData);
       }
+
       if (nextAction === 'close') {
         closeModal();
+      } else if (nextAction === 'reset') {
+        // Reset form for new entry
+        setSelectedQuiz(null);
+        setModalMode('create'); // Keep modal open for a new one
       }
+
+      return result;
     } catch (err) {
-      console.error("Failed to save quiz:", err);
+      console.error('❌ Failed to save quiz:', err);
       throw err;
     }
   };
 
-  const handleDeleteClick = (quiz) => {
+  // ============================================================
+  // ACTION HANDLERS
+  // ============================================================
+
+  const handleRefresh = useCallback(() => {
+    fetchQuizzes(true); // true means reset
+  }, [fetchQuizzes]);
+
+  const handleDeleteClick = useCallback((quiz) => {
     setQuizToDelete(quiz);
     setShowDeleteModal(true);
-  };
+  }, []);
 
-  const handleDeleteConfirm = async () => {
+  const handleConfirmDelete = async () => {
     if (!quizToDelete) return;
-    await deleteQuiz(quizToDelete.id);
-    setShowDeleteModal(false);
-    setQuizToDelete(null);
+    try {
+      await deleteQuiz(quizToDelete.id);
+      setShowDeleteModal(false);
+      setQuizToDelete(null);
+    } catch (err) {
+      console.error('❌ Failed to delete quiz:', err);
+    }
   };
 
-  // --- COMPUTED VALUES ---
-  const statsCards = useMemo(() => {
-    const totalQuestions = quizzes.reduce((sum, quiz) => {
-      const questionCount = quiz.meta?._quiz_question_ids?.length || 0;
-      return sum + questionCount;
-    }, 0);
+  const handleDuplicate = useCallback(async (quiz) => {
+    try {
+      await duplicateQuiz(quiz.id);
+    } catch (error) {
+      console.error('Error duplicating quiz:', error);
+    }
+  }, [duplicateQuiz]);
 
-    const averageQuestions = quizzes.length > 0 
-      ? Math.round(totalQuestions / quizzes.length) 
-      : 0;
 
-    return [
-      { 
-        label: 'Total Quizzes', 
-        value: pagination.total || 0, 
-        icon: BookOpen, 
-        iconColor: 'text-blue-500' 
-      },
-      { 
-        label: 'Total Questions', 
-        value: totalQuestions, 
-        icon: Target, 
-        iconColor: 'text-green-500' 
-      },
-      { 
-        label: 'Avg. Questions', 
-        value: averageQuestions, 
-        icon: TrendingUp, 
-        iconColor: 'text-purple-500' 
-      },
-      { 
-        label: 'Active Students', 
-        value: Math.floor(Math.random() * 500) + 100, 
-        icon: Users, 
-        iconColor: 'text-indigo-500' 
-      },
-      { 
-        label: 'Avg. Pass Rate', 
-        value: `${Math.floor(Math.random() * 30) + 65}%`, 
-        icon: Award, 
-        iconColor: 'text-yellow-500' 
-      },
-      { 
-        label: 'Avg. Time Limit', 
-        value: `${Math.floor(Math.random() * 40) + 30} min`, 
-        icon: Clock, 
-        iconColor: 'text-red-500' 
-      },
-    ];
-  }, [quizzes, pagination.total]);
+  // ============================================================
+  // COMPUTED VALUES & CONFIGS
+  // ============================================================
 
-  const difficultyOptions = [
-    { value: 'all', label: 'All Difficulties' },
-    { value: 'easy', label: 'Easy' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'hard', label: 'Hard' }
+  const statsCards = useMemo(() => [
+    { label: 'Total Quizzes', value: computed?.total || 0, icon: HelpCircle, iconColor: 'text-blue-500' },
+    { label: 'Total Questions', value: computed?.totalQuestions || 0, icon: Target, iconColor: 'text-purple-500' },
+    { label: 'Total Points', value: computed?.totalPoints || 0, icon: Award, iconColor: 'text-green-500' },
+    { label: 'Avg. Questions', value: computed?.averageQuestions || 0, icon: BarChart, iconColor: 'text-orange-500' },
+  ], [computed]);
+
+  const searchConfig = {
+    value: searchValue,
+    onChange: (e) => handleSearchChange(e.target.value),
+    onClear: clearSearch,
+    placeholder: 'Search quizzes...',
+    isLoading: isSearching,
+  };
+
+  const courseOptions = useMemo(() => [
+    { value: 'all', label: 'All Courses' },
+    ...(availableCourses || []).map(c => ({ value: c.id.toString(), label: c.title?.rendered || c.title }))
+  ], [availableCourses]);
+
+  const filtersConfig = [
+    {
+      label: 'Course',
+      value: filters.courseId,
+      onChange: (value) => updateFilter('courseId', value),
+      options: courseOptions,
+      isLoading: coursesLoading,
+    },
+    {
+      label: 'Category',
+      value: filters.category,
+      onChange: (value) => updateFilter('category', value),
+      options: taxonomyOptions.qe_category || [],
+      isLoading: isLoadingTaxonomies,
+    },
+    // Add other filters like difficulty, type, status here if needed
   ];
 
-  const categoryOptions = [
-    { value: 'all', label: 'All Categories' },
-    { value: 'general', label: 'General' },
-    { value: 'assessment', label: 'Assessment' },
-    { value: 'practice', label: 'Practice' }
-  ];
 
-  const quizTypeOptions = [
-    { value: 'all', label: 'All Types' },
-    { value: 'assessment', label: 'Assessment' },
-    { value: 'practice', label: 'Practice' },
-    { value: 'exam', label: 'Exam' },
-    { value: 'survey', label: 'Survey' }
-  ];
+  // ============================================================
+  // RENDER
+  // ============================================================
 
-  // --- RENDER ---
   return (
     <div className="space-y-6 p-6">
-      {/* Header with Stats */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Quiz Management</h1>
-            <p className="text-gray-600 mt-1">Manage and organize all quizzes for your courses.</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            {loading && (
-              <div className="flex items-center text-sm text-gray-500">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-                <span>Updating...</span>
-              </div>
-            )}
-            <button 
-              onClick={() => fetchQuizzes(true)} 
-              disabled={loading} 
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              Refresh
-            </button>
-            <button 
-              onClick={() => {
-                console.log('🟢 Create button clicked');
-                openModal('create');
-              }}
-              disabled={creating} 
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              {creating ? 'Creating...' : 'Create Quiz'}
-            </button>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {statsCards.map((stat, index) => {
-            const Icon = stat.icon;
-            return (
-              <div key={index} className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center">
-                  <div className={`flex-shrink-0 ${stat.iconColor}`}>
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">{stat.label}</p>
-                    <p className="text-lg font-semibold text-gray-900">{stat.value}</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Filters and Search */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <input 
-            type="text" 
-            placeholder="Search quizzes..." 
-            value={filters.search} 
-            onChange={e => updateFilter('search', e.target.value)} 
-            className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 md:col-span-2 lg:col-span-1" 
-          />
-          <select 
-            value={filters.courseId} 
-            onChange={e => updateFilter('courseId', e.target.value)} 
-            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {courseOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <select 
-            value={filters.difficulty} 
-            onChange={e => updateFilter('difficulty', e.target.value)} 
-            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {difficultyOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <select 
-            value={filters.category} 
-            onChange={e => updateFilter('category', e.target.value)} 
-            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {categoryOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <select 
-            value={filters.quizType} 
-            onChange={e => updateFilter('quizType', e.target.value)} 
-            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {quizTypeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </div>
-        <div className="mt-4 flex justify-end">
-          <button 
-            onClick={resetFilters} 
-            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
-          >
-            Clear All Filters
-          </button>
-        </div>
-      </div>
-
-      {/* Content Manager with Infinite Scroll */}
-      <ContentManager
-        title="Quizzes" // Cambié a plural para que sea más claro
-        description="Manage and organize all your quizzes"
-        createButtonText="Create Quiz"
-        onCreateClick={() => {
-          console.log('🟡 ContentManager Create button clicked');
-          openModal('create');
+      <PageHeader
+        title="Quizzes"
+        description="Create and manage quizzes to assess student learning."
+        stats={statsCards}
+        primaryAction={{
+          text: "Create Quiz",
+          onClick: () => openModal('create'),
+          isLoading: creating,
+          icon: BookOpen
         }}
+        isLoading={isFiltering || isSearching}
+      />
+
+      <FilterBar
+        searchConfig={searchConfig}
+        filtersConfig={filtersConfig}
+        onRefresh={handleRefresh}
+        onResetFilters={resetFilters}
+        isLoading={loading && quizzes.length === 0}
+      />
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-start">
+          <AlertCircle className="h-5 w-5 text-red-400 mr-2 flex-shrink-0" />
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
+
+
+      <ContentManager
         items={quizzes}
         loading={loading && quizzes.length === 0}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        showCreateButton={true} // Asegúrate de que esto esté en true
-        showItemCount={true}
-        showViewToggle={true}
-        emptyState={{ 
-          icon: BookOpen, 
-          title: 'No quizzes found',
-          description: 'Create your first quiz to get started',
-          actionText: 'Create Quiz',
-          onAction: () => {
-            console.log('🟡 EmptyState Create button clicked');
-            openModal('create');
-          }
-        }}
+        emptyState={{ icon: HelpCircle, title: 'No Quizzes Found', onAction: () => openModal('create'), actionText: 'Create First Quiz' }}
       >
-        {quizzes.map((quiz, index) => {
-          // Ref para el último elemento (infinite scroll)
-          if (index === quizzes.length - 1) {
-            return (
-              <div key={quiz.id} ref={lastQuizElementRef}>
-                <QuizCard
-                  quiz={quiz}
-                  onEdit={() => openModal('edit', quiz)}
-                  onDelete={() => handleDeleteClick(quiz)}
-                  onDuplicate={() => duplicateQuiz(quiz.id)}
-                  onClick={() => openModal('view', quiz)}
-                />
-              </div>
-            );
-          }
-          
-          return (
-            <QuizCard
-              key={quiz.id}
-              quiz={quiz}
-              onEdit={() => openModal('edit', quiz)}
-              onDelete={() => handleDeleteClick(quiz)}
-              onDuplicate={() => duplicateQuiz(quiz.id)}
-              onClick={() => openModal('view', quiz)}
-            />
-          );
-        })}
-        
-        {/* Loading and End State */}
-        <div className="text-center py-6 col-span-full">
-          {loading && quizzes.length > 0 && (
-            <div className="flex justify-center items-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            </div>
-          )}
-          {!hasMore && !loading && quizzes.length > 0 && (
-            <p className="text-gray-500">You've reached the end of the list.</p>
-          )}
-        </div>
+        <ResourceGrid
+          items={quizzes}
+          ItemComponent={QuizCard}
+          lastItemRef={lastQuizElementRef}
+          itemProps={{
+            resourceName: 'quiz',
+            onEdit: (quiz) => openModal('edit', quiz),
+            onDelete: handleDeleteClick,
+            onDuplicate: handleDuplicate,
+            onView: (quiz) => openModal('view', quiz),
+          }}
+        />
       </ContentManager>
 
-      {/* Quiz Modal */}
+      {loading && quizzes.length > 0 && (
+        <div className="col-span-full text-center py-8">
+          <div className="flex items-center text-sm text-gray-500">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-2"></div>
+            <span>{t('lessons.loadingMoreLessons')}</span>
+          </div>
+        </div>
+      )}
+      {!loading && !hasMore && quizzes.length > 0 && (
+        <div className="col-span-full text-center py-8">
+          <p className="text-sm text-gray-500">{t('common.endOfList')}</p>
+        </div>
+      )}
+
+
       {isModalOpen && (
         <QuizModal
           isOpen={isModalOpen}
@@ -396,20 +317,20 @@ const QuizzesManager = () => {
           onSave={handleSaveQuiz}
           quiz={selectedQuiz}
           mode={modalMode}
-          availableCourses={courseOptions.filter(c => c.value !== 'all')}
-          availableCategories={categoryOptions.filter(c => c.value !== 'all')}
+          availableCourses={courseOptions.filter(opt => opt.value !== 'all')}
+          availableCategories={taxonomyOptions.qe_category?.filter(opt => opt.value !== 'all') || []}
           isLoading={creating || updating}
         />
       )}
 
-      {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <DeleteConfirmModal
+        <DeleteModal
           isOpen={showDeleteModal}
           onClose={() => setShowDeleteModal(false)}
-          onConfirm={handleDeleteConfirm}
+          onConfirm={handleConfirmDelete}
           title="Delete Quiz"
-          message={`Are you sure you want to delete "${quizToDelete?.title?.rendered || ''}"? This can't be undone.`}
+          message={`Are you sure you want to delete "${quizToDelete?.title?.rendered || ''}"? This cannot be undone.`}
+          isLoading={deleting}
         />
       )}
     </div>

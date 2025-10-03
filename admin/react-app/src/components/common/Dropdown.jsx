@@ -1,43 +1,81 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ChevronDown } from 'lucide-react';
 import Button from './Button';
-import Dropdown from './Dropdown';
 
 /**
- * Una barra de acciones genérica para gestionar recursos (Cursos, Quizzes, etc.).
+ * Un componente de menú desplegable genérico.
  *
  * @param {object} props
- * @param {string} props.title - El título de la página (ej. "Courses").
- * @param {string} props.buttonText - El texto para el botón de acción principal (ej. "New Course").
- * @param {function(): void} props.onButtonClick - Callback para el clic del botón principal.
- * @param {Array<object>} [props.batchActions=[]] - Opciones para el dropdown de acciones en lote.
- * @param {function(string): void} [props.onBatchAction=() => {}] - Callback para la selección de una acción en lote.
+ * @param {string} props.buttonText - El texto a mostrar en el botón principal.
+ * @param {Array<object>} [props.options=[]] - Las opciones para el menú. Cada objeto debe tener 'value' y 'label'.
+ * @param {function(string): void} props.onSelect - Callback que se ejecuta al seleccionar una opción, pasando el 'value'.
  */
-const ResourceActionBar = ({
-  title,
-  buttonText,
-  onButtonClick,
-  batchActions = [],
-  onBatchAction = () => {},
-}) => {
+const Dropdown = ({ buttonText, options = [], onSelect }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Cierra el dropdown si se hace clic fuera de él
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleSelect = (option) => {
+    if (onSelect) {
+      onSelect(option.value);
+    }
+    setIsOpen(false);
+  };
+
   return (
-    <div className="flex justify-between items-center p-4 bg-gray-50 border-b border-gray-200">
-      <div className="flex items-center space-x-4">
-        <h2 className="text-xl font-semibold text-gray-800">{title}</h2>
-        {batchActions.length > 0 && (
-          <Dropdown
-            buttonText="Batch Actions"
-            options={batchActions}
-            onSelect={onBatchAction}
-          />
-        )}
-      </div>
+    <div className="relative inline-block text-left" ref={dropdownRef}>
       <div>
-        <Button onClick={onButtonClick} variant="primary">
+        <Button
+          variant="secondary"
+          onClick={() => setIsOpen(!isOpen)}
+          className="inline-flex justify-center w-full"
+        >
           {buttonText}
+          <ChevronDown className="-mr-1 ml-2 h-5 w-5" />
         </Button>
       </div>
+
+      {isOpen && (
+        <div
+          className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20"
+        >
+          <div className="py-1">
+            {options.length > 0 ? (
+              options.map((option) => (
+                <a
+                  key={option.value}
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleSelect(option);
+                  }}
+                  className="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100"
+                >
+                  {option.label}
+                </a>
+              ))
+            ) : (
+              <span className="text-gray-500 block px-4 py-2 text-sm">
+                No options available
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default ResourceActionBar;
+export default Dropdown;

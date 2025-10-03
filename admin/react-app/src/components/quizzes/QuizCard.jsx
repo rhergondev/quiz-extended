@@ -1,221 +1,195 @@
-import React, { useState, useEffect } from 'react';
-import { Edit, Trash2, Copy, Eye, Clock, Target, BookOpen, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
+// admin/react-app/src/components/quizzes/QuizCard.jsx
 
-const QuizCard = ({ quiz, onEdit, onDelete, onDuplicate, onClick }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [questions, setQuestions] = useState([]);
-  const [loadingQuestions, setLoadingQuestions] = useState(false);
+import React from 'react';
+import { 
+  Eye, 
+  Edit, 
+  Copy, 
+  Trash2,
+  Clock,
+  Target,
+  HelpCircle,
+  Award,
+  BarChart
+} from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
-  const title = quiz.title?.rendered || quiz.title || 'Untitled Quiz';
-  const difficulty = quiz.meta?._difficulty_level || 'medium';
-  const category = quiz.meta?._quiz_category || 'Uncategorized';
-  const questionCount = quiz.meta?._quiz_question_ids?.length || 0;
-  const timeLimit = quiz.meta?._time_limit || 'No limit';
-  const passingScore = quiz.meta?._passing_score || '50';
-  const quizType = quiz.meta?._quiz_type || 'assessment';
+const QuizCard = ({ 
+  quiz, 
+  onView, 
+  onEdit, 
+  onDuplicate, 
+  onDelete 
+}) => {
+  const { t } = useTranslation();
 
+  // Extract quiz data with fallbacks
+  const title = quiz.title?.rendered || quiz.title || t('quizzes.untitled');
+  const instructions = quiz.instructions || '';
+  const questionsCount = quiz.questions_count || 0;
+  const totalPoints = quiz.total_points || 0;
+  const passingScore = quiz.passing_score || 70;
+  const timeLimit = quiz.time_limit || 0;
+  const maxAttempts = quiz.max_attempts || 0;
+  const quizType = quiz.quiz_type || 'standard';
+  const difficulty = quiz.difficulty_level || 'intermediate';
+  const status = quiz.status || 'draft';
+
+  // Status badge colors
+  const statusColors = {
+    publish: 'bg-green-100 text-green-800',
+    draft: 'bg-gray-100 text-gray-800',
+    private: 'bg-blue-100 text-blue-800'
+  };
+
+  // Difficulty badge colors
   const difficultyColors = {
-    easy: 'bg-green-100 text-green-800',
-    medium: 'bg-yellow-100 text-yellow-800',
-    hard: 'bg-red-100 text-red-800'
+    easy: 'bg-green-100 text-green-700',
+    medium: 'bg-yellow-100 text-yellow-700',
+    hard: 'bg-red-100 text-red-700',
+    beginner: 'bg-green-100 text-green-700',
+    intermediate: 'bg-yellow-100 text-yellow-700',
+    advanced: 'bg-orange-100 text-orange-700',
+    expert: 'bg-red-100 text-red-700'
   };
 
+  // Quiz type badge colors
   const typeColors = {
-    assessment: 'bg-blue-100 text-blue-800',
-    practice: 'bg-purple-100 text-purple-800',
-    exam: 'bg-red-100 text-red-800',
-    survey: 'bg-gray-100 text-gray-800'
-  };
-
-  // Cargar preguntas cuando se expande por primera vez
-  const loadQuestions = async () => {
-    if (questions.length > 0) return; // Ya están cargadas
-    
-    const questionIds = quiz.meta?._quiz_question_ids || [];
-    if (questionIds.length === 0) return;
-
-    setLoadingQuestions(true);
-    try {
-      // Simular carga de preguntas - aquí harías la llamada real a la API
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simular delay
-      
-      // Mock data - reemplaza con llamada real a la API
-      const mockQuestions = questionIds.map((id, index) => ({
-        id: id,
-        title: `Question ${index + 1}`,
-        content: `This is the content of question ${index + 1}...`,
-        difficulty: ['easy', 'medium', 'hard'][Math.floor(Math.random() * 3)]
-      }));
-      
-      setQuestions(mockQuestions);
-    } catch (error) {
-      console.error('Error loading questions:', error);
-    } finally {
-      setLoadingQuestions(false);
-    }
-  };
-
-  const handleToggleExpand = async (e) => {
-    e.stopPropagation();
-    
-    if (!isExpanded) {
-      await loadQuestions();
-    }
-    
-    setIsExpanded(!isExpanded);
+    standard: 'bg-blue-100 text-blue-700',
+    graded: 'bg-purple-100 text-purple-700',
+    practice: 'bg-green-100 text-green-700',
+    survey: 'bg-cyan-100 text-cyan-700',
+    assessment: 'bg-indigo-100 text-indigo-700',
+    certification: 'bg-amber-100 text-amber-700'
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200">
-      {/* Header */}
+    <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 border border-gray-200 overflow-hidden">
+      {/* Header with badges */}
       <div className="p-4 border-b border-gray-100">
-        <div className="flex items-start justify-between">
-          <div className="flex-1 cursor-pointer" onClick={onClick}>
-            <h3 className="text-lg font-semibold text-gray-900 hover:text-indigo-600 transition-colors line-clamp-2">
-              {title}
-            </h3>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <span className={`px-2 py-1 text-xs font-medium rounded-full ${difficultyColors[difficulty]}`}>
-                {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
-              </span>
-              <span className={`px-2 py-1 text-xs font-medium rounded-full ${typeColors[quizType]}`}>
-                {quizType.charAt(0).toUpperCase() + quizType.slice(1)}
-              </span>
-              <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                {category}
-              </span>
-            </div>
-          </div>
+        <div className="flex items-start justify-between mb-3">
+          <h3 className="text-lg font-semibold text-gray-900 flex-1 line-clamp-2">
+            {title}
+          </h3>
+          <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusColors[status] || statusColors.draft}`}>
+            {t(`common.status.${status}`)}
+          </span>
+        </div>
+
+        {/* Badges row */}
+        <div className="flex flex-wrap gap-2">
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${typeColors[quizType] || typeColors.standard}`}>
+            {t(`quizzes.types.${quizType}`)}
+          </span>
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${difficultyColors[difficulty] || difficultyColors.medium}`}>
+            {t(`common.difficulty.${difficulty}`)}
+          </span>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="p-4 bg-gray-50">
-        <div className="grid grid-cols-3 gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-700">{questionCount} questions</span>
+      {/* Instructions preview */}
+      {instructions && (
+        <div className="px-4 py-3 bg-gray-50">
+          <p className="text-sm text-gray-600 line-clamp-2">
+            {instructions}
+          </p>
+        </div>
+      )}
+
+      {/* Stats Grid */}
+      <div className="p-4 grid grid-cols-2 gap-3">
+        {/* Questions count */}
+        <div className="flex items-center space-x-2">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <HelpCircle className="w-4 h-4 text-blue-600" />
           </div>
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-700">{timeLimit === '' ? 'No limit' : `${timeLimit} min`}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-700">{passingScore}% to pass</span>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-500">{t('quizzes.stats.questions')}</p>
+            <p className="text-sm font-semibold text-gray-900">{questionsCount}</p>
           </div>
         </div>
 
-        {/* Questions Preview Toggle */}
-        {questionCount > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-200">
-            <button
-              onClick={handleToggleExpand}
-              className="flex items-center justify-between w-full text-sm text-gray-600 hover:text-indigo-600 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <HelpCircle className="w-4 h-4" />
-                <span>Preview Questions</span>
-              </div>
-              {isExpanded ? (
-                <ChevronUp className="w-4 h-4" />
-              ) : (
-                <ChevronDown className="w-4 h-4" />
-              )}
-            </button>
+        {/* Total points */}
+        <div className="flex items-center space-x-2">
+          <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+            <Award className="w-4 h-4 text-purple-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-500">{t('quizzes.stats.points')}</p>
+            <p className="text-sm font-semibold text-gray-900">{totalPoints}</p>
+          </div>
+        </div>
+
+        {/* Passing score */}
+        <div className="flex items-center space-x-2">
+          <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+            <Target className="w-4 h-4 text-green-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-500">{t('quizzes.stats.passingScore')}</p>
+            <p className="text-sm font-semibold text-gray-900">{passingScore}%</p>
+          </div>
+        </div>
+
+        {/* Time limit */}
+        {timeLimit > 0 && (
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
+              <Clock className="w-4 h-4 text-orange-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500">{t('quizzes.stats.timeLimit')}</p>
+              <p className="text-sm font-semibold text-gray-900">
+                {timeLimit} {t('common.units.minutes')}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Max attempts */}
+        {maxAttempts > 0 && (
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
+              <BarChart className="w-4 h-4 text-indigo-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500">{t('quizzes.stats.maxAttempts')}</p>
+              <p className="text-sm font-semibold text-gray-900">{maxAttempts}</p>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Expandable Questions Section */}
-      {isExpanded && (
-        <div className="border-t border-gray-200 bg-white">
-          <div className="p-4">
-            <h4 className="text-sm font-medium text-gray-900 mb-3">
-              Questions ({questionCount})
-            </h4>
-            
-            {loadingQuestions ? (
-              <div className="flex items-center justify-center py-4">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div>
-                <span className="ml-2 text-sm text-gray-500">Loading questions...</span>
-              </div>
-            ) : questions.length > 0 ? (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {questions.map((question, index) => (
-                  <div
-                    key={question.id}
-                    className="p-3 bg-gray-50 rounded-md border border-gray-100"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h5 className="text-sm font-medium text-gray-800">
-                          {index + 1}. {question.title}
-                        </h5>
-                        <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                          {question.content?.replace(/<[^>]*>/g, '') || 'No content'}
-                        </p>
-                      </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ml-2 ${
-                        question.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
-                        question.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {question.difficulty}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-4 text-gray-500">
-                <HelpCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                <p className="text-sm">No questions available</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="p-3 border-t border-gray-100 flex items-center justify-end gap-2">
+      {/* Action Buttons */}
+      <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-end space-x-2">
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick();
-          }}
-          className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-          title="View"
+          onClick={() => onView(quiz)}
+          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-md transition-colors"
+          title={t('common.actions.view')}
         >
           <Eye className="w-4 h-4" />
         </button>
+        
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
-          className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-          title="Edit"
+          onClick={() => onEdit(quiz)}
+          className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+          title={t('common.actions.edit')}
         >
           <Edit className="w-4 h-4" />
         </button>
+        
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDuplicate();
-          }}
-          className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-          title="Duplicate"
+          onClick={() => onDuplicate(quiz)}
+          className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors"
+          title={t('common.actions.duplicate')}
         >
           <Copy className="w-4 h-4" />
         </button>
+        
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-          title="Delete"
+          onClick={() => onDelete(quiz)}
+          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+          title={t('common.actions.delete')}
         >
           <Trash2 className="w-4 h-4" />
         </button>

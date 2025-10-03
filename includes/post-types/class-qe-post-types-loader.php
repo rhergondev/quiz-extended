@@ -133,8 +133,8 @@ class QE_Post_Types_Loader
         // Register REST API enhancements
         $this->register_rest_enhancements();
 
-        // Add custom capabilities
-        add_action('admin_init', [$this, 'add_custom_capabilities']);
+        // 🔥 CORRECCIÓN: Cambiado de 'admin_init' a 'init' para que los permisos se apliquen en la API REST.
+        add_action('init', [$this, 'add_custom_capabilities']);
 
         // Display any loading errors
         if (!empty($this->loading_errors)) {
