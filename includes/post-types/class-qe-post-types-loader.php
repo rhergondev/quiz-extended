@@ -117,8 +117,6 @@ class QE_Post_Types_Loader
         // Load base classes
         $this->load_base_classes();
 
-        $this->load_rest_controllers();
-
         // Load validators (need to be loaded before registration)
         $this->load_validators();
 
@@ -351,24 +349,6 @@ class QE_Post_Types_Loader
     // REST API ENHANCEMENTS
     // ============================================================
 
-    /**
-     * Load REST controllers
-     *
-     * @return void
-     */
-    private function load_rest_controllers()
-    {
-        $controller_file = $this->post_types_dir . 'controllers/class-qe-quiz-rest-controller.php';
-
-        if (file_exists($controller_file)) {
-            require_once $controller_file;
-            $this->log_info('Quiz REST controller loaded');
-        } else {
-            $this->log_error('Quiz REST controller file not found', [
-                'file' => $controller_file
-            ]);
-        }
-    }
 
     /**
      * Register REST API enhancements
@@ -391,6 +371,50 @@ class QE_Post_Types_Loader
 
         // REST API authentication
         add_filter('rest_pre_dispatch', [$this, 'handle_rest_authentication'], 10, 3);
+
+        add_filter('map_meta_cap', [$this, 'map_custom_capabilities'], 10, 4);
+
+    }
+
+    /**
+     * Map custom capabilities for our post types
+     *
+     * @param array  $caps    Required capabilities
+     * @param string $cap     Capability being checked
+     * @param int    $user_id User ID
+     * @param array  $args    Additional arguments
+     * @return array Modified capabilities
+     */
+    public function map_custom_capabilities($caps, $cap, $user_id, $args)
+    {
+        // Map create_posts capability for our custom post types
+        $post_types_map = [
+            'create_courses' => 'course',
+            'create_lessons' => 'lesson',
+            'create_quizzes' => 'quiz',
+            'create_questions' => 'question',
+        ];
+
+        // Check if this is a create_posts capability check
+        foreach ($post_types_map as $custom_cap => $post_type) {
+            if ($cap === 'create_posts' && !empty($args[0])) {
+                $post_type_obj = get_post_type_object($args[0]);
+
+                if ($post_type_obj && $post_type_obj->name === $post_type) {
+                    // If user has the custom capability, grant access
+                    if (user_can($user_id, $custom_cap)) {
+                        return ['exist']; // Grant permission
+                    }
+
+                    // If user is administrator, always grant
+                    if (user_can($user_id, 'administrator')) {
+                        return ['exist']; // Grant permission
+                    }
+                }
+            }
+        }
+
+        return $caps;
     }
 
     /**
@@ -560,7 +584,7 @@ class QE_Post_Types_Loader
             'delete_private_quizzes',
             'edit_private_quizzes',
             'edit_published_quizzes',
-            'create_quizzes', // ⚠️ CRÍTICO
+            'create_quizzes',
 
             // Question capabilities
             'edit_question',

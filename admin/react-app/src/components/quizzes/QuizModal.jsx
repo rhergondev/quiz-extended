@@ -231,22 +231,21 @@ const QuizModal = ({
     if (!validateForm()) return;
 
     // This object structure matches what `transformQuizDataForApi` expects
-    const quizDataForApi = {
+        const quizDataForApi = {
         title: formData.title,
         content: formData.content,
         status: formData.status,
-        meta: {
-            _course_id: formData.courseId,
-            _difficulty_level: formData.difficulty_level,
-            _quiz_type: formData.quiz_type,
-            _passing_score: formData.passing_score,
-            _time_limit: formData.time_limit,
-            _max_attempts: formData.max_attempts,
-            _randomize_questions: formData.randomize_questions,
-            _show_results: formData.show_results,
-            _enable_negative_scoring: formData.enable_negative_scoring,
-            _quiz_question_ids: formData.questionIds,
-        },
+        courseId: formData.courseId,
+        difficulty: formData.difficulty_level,
+        quizType: formData.quiz_type,
+        passingScore: formData.passing_score,
+        // 🔥 SOLUCIÓN: Convertir strings vacíos a 0
+        timeLimit: formData.time_limit === '' ? 0 : parseInt(formData.time_limit),
+        maxAttempts: formData.max_attempts === '' ? 0 : parseInt(formData.max_attempts),
+        randomizeQuestions: formData.randomize_questions,
+        showResults: formData.show_results,
+        enableNegativeScoring: formData.enable_negative_scoring,
+        questionIds: formData.questionIds,
         qe_category: formData.qe_category,
     };
 
