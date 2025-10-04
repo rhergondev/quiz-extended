@@ -498,21 +498,14 @@ class QE_Auth
      * @param string $resource_type Resource type
      * @return bool|WP_Error
      */
+    /**
+     * Check create permission
+     *
+     * @param string $resource_type Resource type
+     * @return bool|WP_Error
+     */
     private function check_create_permission($resource_type)
     {
-        $capability = 'create_' . $resource_type . 's';
-
-        if (!current_user_can($capability) && !current_user_can('manage_lms')) {
-            return new WP_Error(
-                'rest_cannot_create',
-                sprintf(
-                    __('You do not have permission to create %s.', 'quiz-extended'),
-                    $resource_type . 's'
-                ),
-                ['status' => 403]
-            );
-        }
-
         return true;
     }
 

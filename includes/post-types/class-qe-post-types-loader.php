@@ -507,6 +507,7 @@ class QE_Post_Types_Loader
             'delete_private_courses',
             'edit_private_courses',
             'edit_published_courses',
+            'create_courses', // <-- AÑADIR ESTA LÍNEA
 
             // Lesson capabilities
             'edit_lesson',
@@ -522,6 +523,7 @@ class QE_Post_Types_Loader
             'delete_private_lessons',
             'edit_private_lessons',
             'edit_published_lessons',
+            'create_lessons', // <-- AÑADIR ESTA LÍNEA
 
             // Quiz capabilities
             'edit_quiz',
@@ -537,6 +539,7 @@ class QE_Post_Types_Loader
             'delete_private_quizzes',
             'edit_private_quizzes',
             'edit_published_quizzes',
+            'create_quizzes', // <-- AÑADIR ESTA LÍNEA (LA MÁS IMPORTANTE PARA TU ERROR)
 
             // Question capabilities
             'edit_question',
@@ -552,6 +555,7 @@ class QE_Post_Types_Loader
             'delete_private_questions',
             'edit_private_questions',
             'edit_published_questions',
+            'create_questions', // <-- AÑADIR ESTA LÍNEA
         ];
 
         foreach ($capabilities as $cap) {
