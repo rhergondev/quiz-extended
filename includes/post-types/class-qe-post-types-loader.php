@@ -115,6 +115,8 @@ class QE_Post_Types_Loader
         // Load base classes
         $this->load_base_classes();
 
+        $this->load_rest_controllers();
+
         // Load validators (need to be loaded before registration)
         $this->load_validators();
 
@@ -349,6 +351,25 @@ class QE_Post_Types_Loader
     // ============================================================
     // REST API ENHANCEMENTS
     // ============================================================
+
+    /**
+     * Load REST controllers
+     *
+     * @return void
+     */
+    private function load_rest_controllers()
+    {
+        $controller_file = $this->post_types_dir . 'controllers/class-qe-quiz-rest-controller.php';
+
+        if (file_exists($controller_file)) {
+            require_once $controller_file;
+            $this->log_info('Quiz REST controller loaded');
+        } else {
+            $this->log_error('Quiz REST controller file not found', [
+                'file' => $controller_file
+            ]);
+        }
+    }
 
     /**
      * Register REST API enhancements

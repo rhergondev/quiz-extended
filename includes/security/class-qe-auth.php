@@ -506,7 +506,25 @@ class QE_Auth
      */
     private function check_create_permission($resource_type)
     {
-        return true;
+        // Admins can create everything
+        if (current_user_can('manage_lms')) {
+            return true;
+        }
+
+        // Check if user has create capability for this resource type
+        $capability = 'create_' . $resource_type . 's';
+        if (current_user_can($capability)) {
+            return true;
+        }
+
+        return new WP_Error(
+            'rest_cannot_create',
+            sprintf(
+                __('You do not have permission to create %s.', 'quiz-extended'),
+                $resource_type . 's'
+            ),
+            ['status' => 403]
+        );
     }
 
     /**

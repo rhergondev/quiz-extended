@@ -90,11 +90,6 @@ abstract class QE_Post_Types_Base
         ];
     }
 
-    /**
-     * Get default capability settings
-     *
-     * @return array Default capability args
-     */
     protected function get_default_capability_args()
     {
         $singular = $this->post_type;
@@ -102,6 +97,7 @@ abstract class QE_Post_Types_Base
 
         return [
             'capability_type' => [$singular, $plural],
+            'map_meta_cap' => true, // ⚠️ IMPORTANTE: Asegúrate que esto esté presente
             'capabilities' => [
                 'edit_post' => 'edit_' . $singular,
                 'read_post' => 'read_' . $singular,
@@ -118,7 +114,6 @@ abstract class QE_Post_Types_Base
                 'edit_published_posts' => 'edit_published_' . $plural,
                 'create_posts' => 'create_' . $plural,
             ],
-            'map_meta_cap' => true,
         ];
     }
 
