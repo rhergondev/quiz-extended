@@ -64,18 +64,15 @@ class QE_Quiz_Type extends QE_Post_Types_Base
                 'editor',
                 'author',
                 'custom-fields',
-                'excerpt'
+                'excerpt',
+                'thumbnail'
             ],
             'rewrite' => ['slug' => 'quizzes'],
-            // 🔥 USAR CONTROLADOR REST PERSONALIZADO
-            'show_in_rest' => true,
-            'rest_base' => 'quiz',
-            'rest_controller_class' => 'QE_Quiz_REST_Controller',
         ];
 
-        // Solo merge capabilities, NO el get_default_rest_args() porque ya lo definimos arriba
         return array_merge(
             $args,
+            $this->get_default_rest_args(),
             $this->get_default_capability_args()
         );
     }

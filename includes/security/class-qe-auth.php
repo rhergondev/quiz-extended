@@ -101,7 +101,7 @@ class QE_Auth
         add_action('init', [$this, 'register_custom_roles']);
 
         // Add custom capabilities
-        add_action('init', [$this, 'add_custom_capabilities']);
+        // add_action('init', [$this, 'add_custom_capabilities']);
 
         // REST API authentication
         add_filter('rest_authentication_errors', [$this, 'rest_authentication_check'], 10, 1);

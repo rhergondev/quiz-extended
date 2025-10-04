@@ -112,6 +112,8 @@ class QE_Post_Types_Loader
     {
         $this->log_info('Starting Post Types system initialization...');
 
+        add_action('init', [$this, 'add_custom_capabilities'], 5);
+
         // Load base classes
         $this->load_base_classes();
 
@@ -134,9 +136,6 @@ class QE_Post_Types_Loader
 
         // Register REST API enhancements
         $this->register_rest_enhancements();
-
-        // 🔥 CORRECCIÓN: Cambiado de 'admin_init' a 'init' para que los permisos se apliquen en la API REST.
-        add_action('init', [$this, 'add_custom_capabilities']);
 
         // Display any loading errors
         if (!empty($this->loading_errors)) {
@@ -510,6 +509,7 @@ class QE_Post_Types_Loader
         $role = get_role('administrator');
 
         if (!$role) {
+            $this->log_error('Administrator role not found');
             return;
         }
 
@@ -528,7 +528,7 @@ class QE_Post_Types_Loader
             'delete_private_courses',
             'edit_private_courses',
             'edit_published_courses',
-            'create_courses', // <-- AÑADIR ESTA LÍNEA
+            'create_courses',
 
             // Lesson capabilities
             'edit_lesson',
@@ -544,7 +544,7 @@ class QE_Post_Types_Loader
             'delete_private_lessons',
             'edit_private_lessons',
             'edit_published_lessons',
-            'create_lessons', // <-- AÑADIR ESTA LÍNEA
+            'create_lessons',
 
             // Quiz capabilities
             'edit_quiz',
@@ -560,7 +560,7 @@ class QE_Post_Types_Loader
             'delete_private_quizzes',
             'edit_private_quizzes',
             'edit_published_quizzes',
-            'create_quizzes', // <-- AÑADIR ESTA LÍNEA (LA MÁS IMPORTANTE PARA TU ERROR)
+            'create_quizzes', // ⚠️ CRÍTICO
 
             // Question capabilities
             'edit_question',
@@ -576,14 +576,18 @@ class QE_Post_Types_Loader
             'delete_private_questions',
             'edit_private_questions',
             'edit_published_questions',
-            'create_questions', // <-- AÑADIR ESTA LÍNEA
+            'create_questions',
         ];
 
         foreach ($capabilities as $cap) {
-            $role->add_cap($cap);
+            if (!$role->has_cap($cap)) {
+                $role->add_cap($cap);
+            }
         }
 
-        $this->log_info('Custom capabilities added successfully');
+        $this->log_info('Custom capabilities added successfully', [
+            'count' => count($capabilities)
+        ]);
     }
 
     // ============================================================
