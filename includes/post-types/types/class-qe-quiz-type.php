@@ -57,6 +57,7 @@ class QE_Quiz_Type extends QE_Post_Types_Base
             'description' => __('Assessment quizzes', 'quiz-extended'),
             'public' => true,
             'publicly_queryable' => true,
+            'hierarchical' => true,
             'show_ui' => true,
             'show_in_menu' => 'edit.php?post_type=course',
             'supports' => [

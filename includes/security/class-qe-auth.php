@@ -107,7 +107,7 @@ class QE_Auth
         add_filter('rest_authentication_errors', [$this, 'rest_authentication_check'], 10, 1);
 
         // Permission callbacks for REST API
-        add_filter('rest_pre_dispatch', [$this, 'check_rest_permissions'], 10, 3);
+        // add_filter('rest_pre_dispatch', [$this, 'check_rest_permissions'], 10, 3);
     }
 
     // ============================================================
@@ -507,13 +507,24 @@ class QE_Auth
     private function check_create_permission($resource_type)
     {
         // Admins can create everything
-        if (current_user_can('manage_lms')) {
+        if (current_user_can('manage_lms') || current_user_can('administrator')) {
             return true;
         }
 
-        // Check if user has create capability for this resource type
+        // Check specific create capability
         $capability = 'create_' . $resource_type . 's';
         if (current_user_can($capability)) {
+            return true;
+        }
+
+        // Check generic edit capability (WordPress fallback)
+        $capability = 'edit_' . $resource_type . 's';
+        if (current_user_can($capability)) {
+            return true;
+        }
+
+        // Si es quiz, verificar permisos de publish también
+        if ($resource_type === 'quiz' && current_user_can('publish_quizzes')) {
             return true;
         }
 

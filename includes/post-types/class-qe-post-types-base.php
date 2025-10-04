@@ -90,14 +90,19 @@ abstract class QE_Post_Types_Base
         ];
     }
 
+    /**
+     * Get default capability settings
+     *
+     * @return array Default capability args
+     */
     protected function get_default_capability_args()
     {
         $singular = $this->post_type;
-        $plural = $this->post_type . 's';
+        $plural = $singular === 'quiz' ? 'quizzes' : $singular . 's';
 
         return [
             'capability_type' => [$singular, $plural],
-            'map_meta_cap' => true, // ⚠️ IMPORTANTE: Asegúrate que esto esté presente
+            'map_meta_cap' => true,
             'capabilities' => [
                 'edit_post' => 'edit_' . $singular,
                 'read_post' => 'read_' . $singular,
@@ -112,7 +117,7 @@ abstract class QE_Post_Types_Base
                 'delete_others_posts' => 'delete_others_' . $plural,
                 'edit_private_posts' => 'edit_private_' . $plural,
                 'edit_published_posts' => 'edit_published_' . $plural,
-                'create_posts' => 'create_' . $plural,
+                'create_posts' => 'create_' . $plural, // 🔥 CRÍTICO: Necesario para crear posts
             ],
         ];
     }
