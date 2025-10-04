@@ -23,7 +23,17 @@
     "endOfList": "Has llegado al final de la lista.",
     "updating": "Actualizando...",
     "searching": "Buscando...",
-    "filtering": "Filtrando..."
+    "filtering": "Filtrando...",
+    "processing": "Procesando...",
+    "optional": "Opcional",
+    "required": "Obligatorio",
+    "all": "Todos",
+    "yes": "Sí",
+    "no": "No",
+    "back": "Volver",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "close": "Cerrar"
   },
   "courses": {
     "title": "Cursos",
@@ -390,17 +400,254 @@
   "quizzes": {
     "title": "Cuestionarios",
     "description": "Crea y gestiona cuestionarios para evaluar el aprendizaje",
-    "addNew": "Añadir Nuevo Cuestionario"
+    "addNew": "Añadir Nuevo Cuestionario",
+    "createQuiz": "Crear Cuestionario",
+    "editQuiz": "Editar Cuestionario",
+    "viewQuiz": "Ver Cuestionario",
+    "deleteQuiz": "Eliminar Cuestionario",
+    "duplicateQuiz": "Duplicar Cuestionario",
+    "untitled": "Cuestionario Sin Título",
+    "noQuizzes": "No se encontraron cuestionarios",
+    "noQuizzesDescription": "Aún no has creado ningún cuestionario.",
+    "searchPlaceholder": "Buscar cuestionarios...",
+    "loadingQuizzes": "Cargando cuestionarios...",
+    "fields": {
+      "title": "Título del Cuestionario",
+      "instructions": "Instrucciones",
+      "course": "Curso",
+      "category": "Categoría",
+      "difficulty": "Dificultad",
+      "quizType": "Tipo de Cuestionario",
+      "passingScore": "Puntuación Mínima",
+      "timeLimit": "Límite de Tiempo",
+      "maxAttempts": "Intentos Máximos",
+      "questions": "Preguntas",
+      "totalPoints": "Puntos Totales",
+      "randomizeQuestions": "Aleatorizar Preguntas",
+      "showResults": "Mostrar Resultados",
+      "enableNegativeScoring": "Habilitar Puntuación Negativa"
+    },
+    "stats": {
+      "totalQuizzes": "Total de Cuestionarios",
+      "totalQuestions": "Total de Preguntas",
+      "totalPoints": "Total de Puntos",
+      "averageQuestions": "Promedio de Preguntas"
+    },
+    "messages": {
+      "titleRequired": "El título del cuestionario es obligatorio",
+      "courseRequired": "Por favor selecciona un curso",
+      "questionsRequired": "Por favor añade al menos una pregunta",
+      "noQuestionsAdded": "Aún no se han añadido preguntas.",
+      "createSuccess": "Cuestionario creado exitosamente",
+      "updateSuccess": "Cuestionario actualizado exitosamente",
+      "deleteSuccess": "Cuestionario eliminado exitosamente",
+      "duplicateSuccess": "Cuestionario duplicado exitosamente",
+      "deleteConfirmTitle": "Eliminar Cuestionario",
+      "deleteConfirmMessage": "¿Estás seguro de que quieres eliminar \"{{title}}\"? Esta acción no se puede deshacer.",
+      "found": "{{count}} cuestionario encontrado",
+      "found_plural": "{{count}} cuestionarios encontrados"
+    },
+    "actions": {
+      "createNewQuiz": "Crear Nuevo Cuestionario",
+      "saveAndAddNew": "Guardar y Añadir Nuevo",
+      "saveChanges": "Guardar Cambios",
+      "addQuestion": "Añadir Pregunta",
+      "searchQuestions": "Buscar Preguntas",
+      "createFirstQuiz": "Crear Primer Cuestionario"
+    },
+    "labels": {
+      "allCourses": "Todos los Cursos",
+      "selectCourse": "Seleccionar curso...",
+      "minutes": "minutos",
+      "unlimited": "Ilimitado",
+      "attempts": "intentos"
+    }
   },
   "questions": {
     "title": "Preguntas",
     "description": "Crea y gestiona preguntas para cuestionarios",
-    "addNew": "Añadir Nueva Pregunta"
+    "addNew": "Añadir Nueva Pregunta",
+    "createQuestion": "Crear Pregunta",
+    "editQuestion": "Editar Pregunta",
+    "viewQuestion": "Ver Pregunta",
+    "deleteQuestion": "Eliminar Pregunta",
+    "duplicateQuestion": "Duplicar Pregunta",
+    "untitled": "Pregunta Sin Título",
+    "noQuestions": "No se encontraron preguntas",
+    "noQuestionsDescription": "Aún no has creado ninguna pregunta.",
+    "searchPlaceholder": "Buscar preguntas...",
+    "loadingQuestions": "Cargando preguntas...",
+    "fields": {
+      "title": "Título de la Pregunta",
+      "type": "Tipo de Pregunta",
+      "difficulty": "Dificultad",
+      "category": "Categoría",
+      "points": "Puntos",
+      "explanation": "Explicación",
+      "options": "Opciones",
+      "correctAnswer": "Respuesta Correcta",
+      "provider": "Proveedor"
+    },
+    "types": {
+      "multipleChoice": "Opción Múltiple",
+      "trueFalse": "Verdadero/Falso",
+      "shortAnswer": "Respuesta Corta",
+      "essay": "Ensayo",
+      "matching": "Emparejamiento",
+      "fillBlank": "Completar Espacios"
+    },
+    "stats": {
+      "totalQuestions": "Total de Preguntas",
+      "byDifficulty": "Por Dificultad",
+      "byType": "Por Tipo",
+      "averagePoints": "Promedio de Puntos"
+    },
+    "messages": {
+      "titleRequired": "El título de la pregunta es obligatorio",
+      "typeRequired": "El tipo de pregunta es obligatorio",
+      "optionsRequired": "Se requieren al menos dos opciones",
+      "correctAnswerRequired": "Debes marcar al menos una respuesta correcta",
+      "createSuccess": "Pregunta creada exitosamente",
+      "updateSuccess": "Pregunta actualizada exitosamente",
+      "deleteSuccess": "Pregunta eliminada exitosamente",
+      "duplicateSuccess": "Pregunta duplicada exitosamente",
+      "deleteConfirmTitle": "Eliminar Pregunta",
+      "deleteConfirmMessage": "¿Estás seguro de que quieres eliminar \"{{title}}\"? Esta acción no se puede deshacer.",
+      "found": "{{count}} pregunta encontrada",
+      "found_plural": "{{count}} preguntas encontradas"
+    },
+    "actions": {
+      "addOption": "Añadir Opción",
+      "removeOption": "Eliminar Opción",
+      "createFirstQuestion": "Crear Primera Pregunta"
+    },
+    "placeholders": {
+      "option": "Opción {{number}}",
+      "searchQuestions": "Buscar preguntas por título..."
+    },
+    "providers": {
+      "human": "Humano",
+      "ai": "IA",
+      "imported": "Importado"
+    }
+  },
+  "students": {
+    "title": "Estudiantes",
+    "description": "Gestiona estudiantes e inscripciones",
+    "noStudents": "No se encontraron estudiantes",
+    "noStudentsDescription": "No hay estudiantes que coincidan con los filtros actuales.",
+    "searchPlaceholder": "Buscar estudiantes...",
+    "stats": {
+      "totalUsers": "Total de Usuarios",
+      "enrolledUsers": "Usuarios Inscritos",
+      "activeUsers": "Usuarios Activos",
+      "averageProgress": "Progreso Promedio",
+      "recentRegistrations": "Registros Recientes"
+    },
+    "filters": {
+      "allRoles": "Todos los Roles",
+      "allCourses": "Todos los Cursos",
+      "allStatuses": "Todos los Estados",
+      "enrolled": "Inscritos",
+      "notEnrolled": "No Inscritos"
+    },
+    "roles": {
+      "administrator": "Administrador",
+      "editor": "Editor",
+      "author": "Autor",
+      "contributor": "Colaborador",
+      "subscriber": "Suscriptor"
+    },
+    "actions": {
+      "enroll": "Inscribir",
+      "unenroll": "Desinscribir",
+      "updateRole": "Actualizar Rol",
+      "bulkEnroll": "Inscripción Masiva",
+      "bulkUnenroll": "Desinscripción Masiva",
+      "viewProfile": "Ver Perfil"
+    },
+    "messages": {
+      "courseManagementMode": "Modo de Gestión de Curso",
+      "viewingInContext": "Estás viendo usuarios en el contexto de: {{courseName}}",
+      "noUsersFound": "No se encontraron usuarios",
+      "noUsersMatch": "Ningún usuario coincide con tus filtros actuales. Intenta ajustar tu búsqueda o criterios de filtro.",
+      "clearSearch": "Limpiar búsqueda"
+    }
+  },
+  "users": {
+    "title": "Usuarios",
+    "description": "Gestiona usuarios del sistema",
+    "stats": {
+      "totalUsers": "Total de Usuarios",
+      "enrolledUsers": "Usuarios Inscritos",
+      "activeUsers": "Usuarios Activos",
+      "averageProgress": "Progreso Promedio"
+    }
+  },
+  "modals": {
+    "delete": {
+      "confirmTitle": "Confirmar Eliminación",
+      "confirmMessage": "¿Estás seguro de que quieres eliminar este elemento? Esta acción no se puede deshacer.",
+      "confirmButton": "Eliminar",
+      "cancelButton": "Cancelar",
+      "typeToConfirm": "Escribe <strong>DELETE</strong> para confirmar:",
+      "typeHere": "Escribe DELETE aquí",
+      "itemToDelete": "Elemento a eliminar:",
+      "processing": "Procesando..."
+    },
+    "close": "Cerrar",
+    "save": "Guardar",
+    "cancel": "Cancelar"
   },
   "notifications": {
     "createSuccess": "{{resource}} creado exitosamente",
     "updateSuccess": "{{resource}} actualizado exitosamente",
     "deleteSuccess": "{{resource}} eliminado exitosamente",
-    "error": "Ocurrió un error"
+    "duplicateSuccess": "{{resource}} duplicado exitosamente",
+    "error": "Ocurrió un error",
+    "savingChanges": "Guardando cambios...",
+    "operationFailed": "La operación falló"
+  },
+  "viewMode": {
+    "cards": "Tarjetas",
+    "list": "Lista",
+    "grid": "Cuadrícula",
+    "switchTo": "Cambiar a vista {{mode}}"
+  },
+  "emptyStates": {
+    "noItemsFound": "No se encontraron elementos",
+    "noItemsDescription": "No hay elementos que coincidan con tus criterios de búsqueda.",
+    "createFirst": "Crear Primero",
+    "getStarted": "Empezar"
+  },
+  "filters": {
+    "filterBy": "Filtrar por",
+    "clearAll": "Limpiar Todo",
+    "apply": "Aplicar",
+    "reset": "Reiniciar",
+    "course": "Curso",
+    "category": "Categoría",
+    "difficulty": "Dificultad",
+    "status": "Estado",
+    "type": "Tipo"
+  },
+  "pagination": {
+    "showing": "Mostrando",
+    "of": "de",
+    "results": "resultados",
+    "page": "Página",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "first": "Primera",
+    "last": "Última"
+  },
+  "validation": {
+    "required": "Este campo es obligatorio",
+    "invalidEmail": "Email inválido",
+    "invalidUrl": "URL inválida",
+    "minLength": "Debe tener al menos {{length}} caracteres",
+    "maxLength": "No debe exceder {{length}} caracteres",
+    "mustBeNumber": "Debe ser un número",
+    "mustBePositive": "Debe ser un número positivo"
   }
 }

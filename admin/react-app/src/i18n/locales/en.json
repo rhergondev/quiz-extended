@@ -23,7 +23,17 @@
     "endOfList": "You've reached the end of the list.",
     "updating": "Updating...",
     "searching": "Searching...",
-    "filtering": "Filtering..."
+    "filtering": "Filtering...",
+    "processing": "Processing...",
+    "optional": "Optional",
+    "required": "Required",
+    "all": "All",
+    "yes": "Yes",
+    "no": "No",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "close": "Close"
   },
   "courses": {
     "title": "Courses",
@@ -390,17 +400,254 @@
   "quizzes": {
     "title": "Quizzes",
     "description": "Create and manage quizzes to assess student learning",
-    "addNew": "Add New Quiz"
+    "addNew": "Add New Quiz",
+    "createQuiz": "Create Quiz",
+    "editQuiz": "Edit Quiz",
+    "viewQuiz": "View Quiz",
+    "deleteQuiz": "Delete Quiz",
+    "duplicateQuiz": "Duplicate Quiz",
+    "untitled": "Untitled Quiz",
+    "noQuizzes": "No quizzes found",
+    "noQuizzesDescription": "You haven't created any quizzes yet.",
+    "searchPlaceholder": "Search quizzes...",
+    "loadingQuizzes": "Loading quizzes...",
+    "fields": {
+      "title": "Quiz Title",
+      "instructions": "Instructions",
+      "course": "Course",
+      "category": "Category",
+      "difficulty": "Difficulty",
+      "quizType": "Quiz Type",
+      "passingScore": "Passing Score",
+      "timeLimit": "Time Limit",
+      "maxAttempts": "Max Attempts",
+      "questions": "Questions",
+      "totalPoints": "Total Points",
+      "randomizeQuestions": "Randomize Questions",
+      "showResults": "Show Results",
+      "enableNegativeScoring": "Enable Negative Scoring"
+    },
+    "stats": {
+      "totalQuizzes": "Total Quizzes",
+      "totalQuestions": "Total Questions",
+      "totalPoints": "Total Points",
+      "averageQuestions": "Avg. Questions"
+    },
+    "messages": {
+      "titleRequired": "Quiz title is required",
+      "courseRequired": "Please select a course",
+      "questionsRequired": "Please add at least one question",
+      "noQuestionsAdded": "No questions added yet.",
+      "createSuccess": "Quiz created successfully",
+      "updateSuccess": "Quiz updated successfully",
+      "deleteSuccess": "Quiz deleted successfully",
+      "duplicateSuccess": "Quiz duplicated successfully",
+      "deleteConfirmTitle": "Delete Quiz",
+      "deleteConfirmMessage": "Are you sure you want to delete \"{{title}}\"? This action cannot be undone.",
+      "found": "{{count}} quiz found",
+      "found_plural": "{{count}} quizzes found"
+    },
+    "actions": {
+      "createNewQuiz": "Create New Quiz",
+      "saveAndAddNew": "Save & Add New",
+      "saveChanges": "Save Changes",
+      "addQuestion": "Add Question",
+      "searchQuestions": "Search Questions",
+      "createFirstQuiz": "Create First Quiz"
+    },
+    "labels": {
+      "allCourses": "All Courses",
+      "selectCourse": "Select a course...",
+      "minutes": "minutes",
+      "unlimited": "Unlimited",
+      "attempts": "attempts"
+    }
   },
   "questions": {
     "title": "Questions",
     "description": "Create and manage questions for quizzes",
-    "addNew": "Add New Question"
+    "addNew": "Add New Question",
+    "createQuestion": "Create Question",
+    "editQuestion": "Edit Question",
+    "viewQuestion": "View Question",
+    "deleteQuestion": "Delete Question",
+    "duplicateQuestion": "Duplicate Question",
+    "untitled": "Untitled Question",
+    "noQuestions": "No questions found",
+    "noQuestionsDescription": "You haven't created any questions yet.",
+    "searchPlaceholder": "Search questions...",
+    "loadingQuestions": "Loading questions...",
+    "fields": {
+      "title": "Question Title",
+      "type": "Question Type",
+      "difficulty": "Difficulty",
+      "category": "Category",
+      "points": "Points",
+      "explanation": "Explanation",
+      "options": "Options",
+      "correctAnswer": "Correct Answer",
+      "provider": "Provider"
+    },
+    "types": {
+      "multipleChoice": "Multiple Choice",
+      "trueFalse": "True/False",
+      "shortAnswer": "Short Answer",
+      "essay": "Essay",
+      "matching": "Matching",
+      "fillBlank": "Fill in the Blank"
+    },
+    "stats": {
+      "totalQuestions": "Total Questions",
+      "byDifficulty": "By Difficulty",
+      "byType": "By Type",
+      "averagePoints": "Avg. Points"
+    },
+    "messages": {
+      "titleRequired": "Question title is required",
+      "typeRequired": "Question type is required",
+      "optionsRequired": "At least two options are required",
+      "correctAnswerRequired": "You must mark at least one correct answer",
+      "createSuccess": "Question created successfully",
+      "updateSuccess": "Question updated successfully",
+      "deleteSuccess": "Question deleted successfully",
+      "duplicateSuccess": "Question duplicated successfully",
+      "deleteConfirmTitle": "Delete Question",
+      "deleteConfirmMessage": "Are you sure you want to delete \"{{title}}\"? This action cannot be undone.",
+      "found": "{{count}} question found",
+      "found_plural": "{{count}} questions found"
+    },
+    "actions": {
+      "addOption": "Add Option",
+      "removeOption": "Remove Option",
+      "createFirstQuestion": "Create First Question"
+    },
+    "placeholders": {
+      "option": "Option {{number}}",
+      "searchQuestions": "Search questions by title..."
+    },
+    "providers": {
+      "human": "Human",
+      "ai": "AI",
+      "imported": "Imported"
+    }
+  },
+  "students": {
+    "title": "Students",
+    "description": "Manage students and enrollments",
+    "noStudents": "No students found",
+    "noStudentsDescription": "No students match your current filters.",
+    "searchPlaceholder": "Search students...",
+    "stats": {
+      "totalUsers": "Total Users",
+      "enrolledUsers": "Enrolled Users",
+      "activeUsers": "Active Users",
+      "averageProgress": "Avg. Progress",
+      "recentRegistrations": "Recent Registrations"
+    },
+    "filters": {
+      "allRoles": "All Roles",
+      "allCourses": "All Courses",
+      "allStatuses": "All Statuses",
+      "enrolled": "Enrolled",
+      "notEnrolled": "Not Enrolled"
+    },
+    "roles": {
+      "administrator": "Administrator",
+      "editor": "Editor",
+      "author": "Author",
+      "contributor": "Contributor",
+      "subscriber": "Subscriber"
+    },
+    "actions": {
+      "enroll": "Enroll",
+      "unenroll": "Unenroll",
+      "updateRole": "Update Role",
+      "bulkEnroll": "Bulk Enroll",
+      "bulkUnenroll": "Bulk Unenroll",
+      "viewProfile": "View Profile"
+    },
+    "messages": {
+      "courseManagementMode": "Course Management Mode",
+      "viewingInContext": "You're viewing users in the context of: {{courseName}}",
+      "noUsersFound": "No users found",
+      "noUsersMatch": "No users match your current filters. Try adjusting your search or filter criteria.",
+      "clearSearch": "Clear search"
+    }
+  },
+  "users": {
+    "title": "Users",
+    "description": "Manage system users",
+    "stats": {
+      "totalUsers": "Total Users",
+      "enrolledUsers": "Enrolled Users",
+      "activeUsers": "Active Users",
+      "averageProgress": "Avg. Progress"
+    }
+  },
+  "modals": {
+    "delete": {
+      "confirmTitle": "Confirm Delete",
+      "confirmMessage": "Are you sure you want to delete this item? This action cannot be undone.",
+      "confirmButton": "Delete",
+      "cancelButton": "Cancel",
+      "typeToConfirm": "Type <strong>DELETE</strong> to confirm:",
+      "typeHere": "Type DELETE here",
+      "itemToDelete": "Item to delete:",
+      "processing": "Processing..."
+    },
+    "close": "Close",
+    "save": "Save",
+    "cancel": "Cancel"
   },
   "notifications": {
     "createSuccess": "{{resource}} created successfully",
     "updateSuccess": "{{resource}} updated successfully",
     "deleteSuccess": "{{resource}} deleted successfully",
-    "error": "An error occurred"
+    "duplicateSuccess": "{{resource}} duplicated successfully",
+    "error": "An error occurred",
+    "savingChanges": "Saving changes...",
+    "operationFailed": "Operation failed"
+  },
+  "viewMode": {
+    "cards": "Cards",
+    "list": "List",
+    "grid": "Grid",
+    "switchTo": "Switch to {{mode}} view"
+  },
+  "emptyStates": {
+    "noItemsFound": "No items found",
+    "noItemsDescription": "There are no items matching your search criteria.",
+    "createFirst": "Create First",
+    "getStarted": "Get Started"
+  },
+  "filters": {
+    "filterBy": "Filter by",
+    "clearAll": "Clear All",
+    "apply": "Apply",
+    "reset": "Reset",
+    "course": "Course",
+    "category": "Category",
+    "difficulty": "Difficulty",
+    "status": "Status",
+    "type": "Type"
+  },
+  "pagination": {
+    "showing": "Showing",
+    "of": "of",
+    "results": "results",
+    "page": "Page",
+    "previous": "Previous",
+    "next": "Next",
+    "first": "First",
+    "last": "Last"
+  },
+  "validation": {
+    "required": "This field is required",
+    "invalidEmail": "Invalid email",
+    "invalidUrl": "Invalid URL",
+    "minLength": "Must be at least {{length}} characters",
+    "maxLength": "Must not exceed {{length}} characters",
+    "mustBeNumber": "Must be a number",
+    "mustBePositive": "Must be a positive number"
   }
 }
