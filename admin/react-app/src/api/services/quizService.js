@@ -74,9 +74,7 @@ const buildQuizQueryParams = (options = {}) => {
 
   // Filter by category
   if (category) {
-    params.append('meta_query[3][key]', '_quiz_category');
-    params.append('meta_query[3][value]', category);
-    params.append('meta_query[3][compare]', '=');
+    params.append('qe_category', category.toString());
   }
 
   return params;

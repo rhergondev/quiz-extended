@@ -14,6 +14,8 @@ import {
 // Hooks
 import useQuizzes from '../../hooks/useQuizzes.js';
 import useCourses from '../../hooks/useCourses.js';
+import useQuestions from '../../hooks/useQuestions.js';
+import useLessons from '../../hooks/useLessons.js';
 import { useSearchInput, useFilterDebounce } from '../../api/utils/debounceUtils.js';
 import { useTranslation } from 'react-i18next';
 import { useTaxonomyOptions } from '../../hooks/useTaxonomyOptions.js';
@@ -49,6 +51,16 @@ const QuizzesManager = () => {
 
   const { searchValue, isSearching, handleSearchChange, clearSearch } =
     useSearchInput('', () => {}, 500);
+
+  const { questions, loading: questionsLoading } = useQuestions({
+    autoFetch: true,
+    perPage: 100
+  });
+
+  const { lessons, loading: lessonsLoading } = useLessons({
+    autoFetch: true,
+    perPage: 100
+  });
 
   const { filters, isFiltering, updateFilter, resetFilters } = useFilterDebounce(
     {
@@ -113,8 +125,7 @@ const QuizzesManager = () => {
 
     observer.current = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && hasMore) {
-        console.log('📄 Loading more quizzes...');
-        fetchQuizzes(false); // false means don't reset
+        fetchQuizzes(false);
       }
     });
 
@@ -288,6 +299,10 @@ const QuizzesManager = () => {
           itemProps={{
             resourceName: 'quiz',
             onEdit: (quiz) => openModal('edit', quiz),
+            viewMode: viewMode,
+            questions: questions,
+            availableCourses: availableCourses,
+            availableCategories: taxonomyOptions.qe_category?.filter(opt => opt.value !== 'all') || [],
             onDelete: handleDeleteClick,
             onDuplicate: handleDuplicate,
             onView: (quiz) => openModal('view', quiz),

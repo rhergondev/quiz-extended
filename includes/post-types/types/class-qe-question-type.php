@@ -23,6 +23,82 @@ class QE_Question_Type extends QE_Post_Types_Base
     public function __construct()
     {
         parent::__construct('question');
+        add_action('rest_after_insert_question', [$this, 'sync_question_with_quizzes'], 10, 3);
+        add_action('before_delete_post', [$this, 'clear_quiz_associations_on_delete'], 10, 1);
+
+    }
+
+    /**
+     * Syncs the question with its associated quizzes after saving.
+     *
+     * @param WP_Post         $post_inserted  The post of the question being saved.
+     * @param WP_REST_Request $request        The REST API request.
+     * @param bool            $creating       True if creating, false if updating.
+     */
+    public function sync_question_with_quizzes($post_inserted, $request, $creating)
+    {
+        $question_id = $post_inserted->ID;
+
+        // Obtener los IDs de los cuestionarios nuevos desde la solicitud de la API
+        $new_quiz_ids = $request->get_param('meta')['_quiz_ids'] ?? [];
+        $new_quiz_ids = array_map('absint', $new_quiz_ids);
+
+        // Obtener los IDs de los cuestionarios antiguos (antes de guardar)
+        $old_quiz_ids = get_post_meta($question_id, '_quiz_ids_before_save', true);
+        if (!is_array($old_quiz_ids)) {
+            $old_quiz_ids = [];
+        }
+
+        $quizzes_to_add_to = array_diff($new_quiz_ids, $old_quiz_ids);
+        $quizzes_to_remove_from = array_diff($old_quiz_ids, $new_quiz_ids);
+
+        // Añadir la pregunta a los nuevos cuestionarios
+        foreach ($quizzes_to_add_to as $quiz_id) {
+            $question_ids = get_post_meta($quiz_id, '_quiz_question_ids', true);
+            if (!is_array($question_ids)) {
+                $question_ids = [];
+            }
+            if (!in_array($question_id, $question_ids)) {
+                $question_ids[] = $question_id;
+                update_post_meta($quiz_id, '_quiz_question_ids', $question_ids);
+            }
+        }
+
+        // Eliminar la pregunta de los cuestionarios antiguos
+        foreach ($quizzes_to_remove_from as $quiz_id) {
+            $question_ids = get_post_meta($quiz_id, '_quiz_question_ids', true);
+            if (is_array($question_ids)) {
+                $updated_ids = array_diff($question_ids, [$question_id]);
+                update_post_meta($quiz_id, '_quiz_question_ids', array_values($updated_ids));
+            }
+        }
+
+        // Guardar el estado actual para la próxima actualización
+        update_post_meta($question_id, '_quiz_ids_before_save', $new_quiz_ids);
+    }
+
+    /**
+     * Cleans the associations when a question is permanently deleted.
+     *
+     * @param int $post_id The ID of the post being deleted.
+     */
+    public function clear_quiz_associations_on_delete($post_id)
+    {
+        if (get_post_type($post_id) !== 'question') {
+            return;
+        }
+
+        $quiz_ids = get_post_meta($post_id, '_quiz_ids_before_save', true);
+        if (!is_array($quiz_ids))
+            return;
+
+        foreach ($quiz_ids as $quiz_id) {
+            $question_ids = get_post_meta($quiz_id, '_quiz_question_ids', true);
+            if (is_array($question_ids)) {
+                $updated_ids = array_diff($question_ids, [$post_id]);
+                update_post_meta($quiz_id, '_quiz_question_ids', array_values($updated_ids));
+            }
+        }
     }
 
     /**

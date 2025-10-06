@@ -455,6 +455,17 @@
       "searchQuestions": "Buscar Preguntas",
       "createFirstQuiz": "Crear Primer Cuestionario"
     },
+    "card": {
+      "questions_one": "{{count}} Pregunta",
+      "questions_other": "{{count}} Preguntas",
+      "points_one": "{{count}} Punto",
+      "points_other": "{{count}} Puntos",
+      "attempts_one": "{{count}} Intento",
+      "attempts_other": "{{count}} Intentos",
+      "avgScore": "{{count}}% Nota Media",
+      "noCourse": "Sin curso asociado",
+      "viewQuestions": "Ver Preguntas ({{count}})"
+    },
     "labels": {
       "allCourses": "Todos los Cursos",
       "selectCourse": "Seleccionar curso...",
@@ -524,6 +535,25 @@
     "placeholders": {
       "option": "Opción {{number}}",
       "searchQuestions": "Buscar preguntas por título..."
+    },
+    "card": {
+      "points": "{{count}} Puntos",
+      "noLesson": "Sin lección asociada",
+      "viewQuizzes": "Ver Cuestionarios Asociados ({{count}})",
+      "difficulty": "Dificultad",
+      "provider": "Proveedor",
+      "difficulties": {
+        "easy": "Fácil",
+        "medium": "Media",
+        "hard": "Difícil"
+      },
+      "types": {
+        "multiple_choice": "Opción Múltiple",
+        "true_false": "Verdadero / Falso",
+        "fill_in_the_blanks": "Rellenar Huecos",
+        "short_answer": "Respuesta Corta",
+        "essay": "Ensayo"
+      }
     },
     "providers": {
       "human": "Humano",

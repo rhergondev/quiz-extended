@@ -223,6 +223,14 @@ class QE_Quiz_Meta
                 'type' => 'integer',
             ],
         ]);
+
+        register_rest_field($this->post_type, 'average_score', [
+            'get_callback' => [$this, 'get_average_score'],
+            'schema' => [
+                'description' => __('Average score across all attempts for this quiz', 'quiz-extended'),
+                'type' => 'number',
+            ],
+        ]);
     }
 
     // ============================================================
@@ -364,6 +372,33 @@ class QE_Quiz_Meta
         ));
 
         return absint($count);
+    }
+
+    /**
+     * Get average score for a quiz
+     *
+     * @param array $quiz Quiz data
+     * @return float Average score
+     */
+    public function get_average_score($quiz)
+    {
+        global $wpdb;
+        $quiz_id = $quiz['id'] ?? 0;
+        if (!$quiz_id) {
+            return 0;
+        }
+
+        $table_name = $wpdb->prefix . 'qe_quiz_attempts';
+        if ($wpdb->get_var("SHOW TABLES LIKE '{$table_name}'") !== $table_name) {
+            return 0;
+        }
+
+        $average = $wpdb->get_var($wpdb->prepare(
+            "SELECT AVG(score) FROM {$table_name} WHERE quiz_id = %d AND status = 'completed'",
+            $quiz_id
+        ));
+
+        return $average ? round(floatval($average), 2) : 0;
     }
 
     /**

@@ -455,6 +455,17 @@
       "searchQuestions": "Search Questions",
       "createFirstQuiz": "Create First Quiz"
     },
+    "card": {
+      "questions_one": "{{count}} Question",
+      "questions_other": "{{count}} Questions",
+      "points_one": "{{count}} Point",
+      "points_other": "{{count}} Points",
+      "attempts_one": "{{count}} Attempt",
+      "attempts_other": "{{count}} Attempts",
+      "avgScore": "{{count}}% Avg. Score",
+      "noCourse": "No course associated",
+      "viewQuestions": "View Questions ({{count}})"
+    },
     "labels": {
       "allCourses": "All Courses",
       "selectCourse": "Select a course...",
@@ -525,6 +536,24 @@
       "option": "Option {{number}}",
       "searchQuestions": "Search questions by title..."
     },
+    "card": {
+      "points": "{{count}} Points",
+      "noLesson": "No lesson associated",
+      "viewQuizzes": "View Associated Quizzes ({{count}})",
+      "difficulty": "Difficulty",
+      "provider": "Provider",
+      "difficulties": {
+        "easy": "Easy",
+        "medium": "Medium",
+        "hard": "Hard",
+      "types": {
+        "multiple_choice": "Multiple Choice",
+        "true_false": "True / False",
+        "fill_in_the_blanks": "Fill in the Blanks",
+        "short_answer": "Short Answer",
+        "essay": "Essay"
+        }
+    },  
     "providers": {
       "human": "Human",
       "ai": "AI",
@@ -650,4 +679,5 @@
     "mustBeNumber": "Must be a number",
     "mustBePositive": "Must be a positive number"
   }
+}
 }

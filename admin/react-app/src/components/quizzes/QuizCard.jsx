@@ -1,200 +1,190 @@
-// admin/react-app/src/components/quizzes/QuizCard.jsx
+// src/components/quizzes/QuizCard.jsx (Refactorizado)
 
-import React from 'react';
-import { 
-  Eye, 
-  Edit, 
-  Copy, 
-  Trash2,
-  Clock,
-  Target,
-  HelpCircle,
-  Award,
-  BarChart
+import React, { useState, useMemo } from 'react';
+import {
+  Edit, Trash2, Copy, ChevronDown, ChevronUp, HelpCircle,
+  Award, BarChart, CheckCircle, Users, BookOpen, Star, Tag
 } from 'lucide-react';
+import BaseCard from '../common/BaseCard';
 import { useTranslation } from 'react-i18next';
 
-const QuizCard = ({ 
-  quiz, 
-  onView, 
-  onEdit, 
-  onDuplicate, 
-  onDelete 
+const QuizCard = ({
+  quiz,
+  questions = [],
+  availableCourses = [],
+  availableCategories = [],
+  viewMode,
+  onClick,
+  onEdit,
+  onDuplicate,
+  onDelete
 }) => {
   const { t } = useTranslation();
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  // Extract quiz data with fallbacks
-  const title = quiz.title?.rendered || quiz.title || t('quizzes.untitled');
-  const instructions = quiz.instructions || '';
-  const questionsCount = quiz.questions_count || 0;
-  const totalPoints = quiz.total_points || 0;
-  const passingScore = quiz.passing_score || 70;
-  const timeLimit = quiz.time_limit || 0;
-  const maxAttempts = quiz.max_attempts || 0;
-  const quizType = quiz.quiz_type || 'standard';
-  const difficulty = quiz.difficulty_level || 'intermediate';
-  const status = quiz.status || 'draft';
+  // --- Extracción de datos y valores computados ---
+  const quizData = useMemo(() => ({
+    title: quiz.title?.rendered || quiz.title || t('quizzes.untitled'),
+    courseId: quiz.meta?._course_id || null,
+    status: quiz.status || 'draft',
+    type: quiz.quiz_type || 'standard',
+    difficulty: quiz.difficulty || 'medium',
+    questionCount: quiz.question_count || 0,
+    totalPoints: quiz.total_points || 0,
+    passingScore: quiz.passing_score || 70,
+    totalAttempts: quiz.total_attempts || 0,
+    averageScore: quiz.average_score || 0,
+  }), [quiz, t]);
+  
+  const associatedQuestions = useMemo(() => {
+    if (!quiz.question_ids || questions.length === 0) return [];
+    return quiz.question_ids.map(id => 
+      questions.find(q => q.id === id)
+    ).filter(Boolean);
+  }, [quiz.question_ids, questions]);
 
-  // Status badge colors
-  const statusColors = {
-    publish: 'bg-green-100 text-green-800',
-    draft: 'bg-gray-100 text-gray-800',
-    private: 'bg-blue-100 text-blue-800'
+  const associatedCategory = useMemo(() => {
+
+    const terms = quiz._embedded?.['wp:term'] || [];
+    const categoryTerm = terms.flat().find(term => term.taxonomy === 'qe_category');
+    
+    if (categoryTerm) {
+      return categoryTerm.name;
+    }
+    
+    return null;
+  }, [quiz, availableCategories]);
+
+  const associatedCourse = useMemo(() => {
+    if (!quizData.courseId || availableCourses.length === 0) return null;
+    return availableCourses.find(c => c.id === quizData.courseId);
+  }, [quizData.courseId, availableCourses]);
+
+  const getBadgeColor = (key, value) => {
+    const colors = {
+      status: { publish: 'bg-green-100 text-green-700', draft: 'bg-yellow-100 text-yellow-700' },
+      difficulty: { easy: 'bg-green-100 text-green-700', medium: 'bg-yellow-100 text-yellow-700', hard: 'bg-red-100 text-red-700' },
+      type: { assessment: 'bg-indigo-100 text-indigo-700', practice: 'bg-blue-100 text-blue-700', exam: 'bg-red-100 text-red-700' }
+    };
+    return colors[key]?.[value] || 'bg-gray-100 text-gray-700';
   };
 
-  // Difficulty badge colors
-  const difficultyColors = {
-    easy: 'bg-green-100 text-green-700',
-    medium: 'bg-yellow-100 text-yellow-700',
-    hard: 'bg-red-100 text-red-700',
-    beginner: 'bg-green-100 text-green-700',
-    intermediate: 'bg-yellow-100 text-yellow-700',
-    advanced: 'bg-orange-100 text-orange-700',
-    expert: 'bg-red-100 text-red-700'
-  };
-
-  // Quiz type badge colors
-  const typeColors = {
-    standard: 'bg-blue-100 text-blue-700',
-    graded: 'bg-purple-100 text-purple-700',
-    practice: 'bg-green-100 text-green-700',
-    survey: 'bg-cyan-100 text-cyan-700',
-    assessment: 'bg-indigo-100 text-indigo-700',
-    certification: 'bg-amber-100 text-amber-700'
-  };
-
-  return (
-    <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 border border-gray-200 overflow-hidden">
-      {/* Header with badges */}
-      <div className="p-4 border-b border-gray-100">
-        <div className="flex items-start justify-between mb-3">
-          <h3 className="text-lg font-semibold text-gray-900 flex-1 line-clamp-2">
-            {title}
-          </h3>
-          <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusColors[status] || statusColors.draft}`}>
-            {t(`common.status.${status}`)}
-          </span>
-        </div>
-
-        {/* Badges row */}
+  const headerContent = (
+    <>
+      <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 pr-10 mb-3">
+        {quizData.title}
+      </h3>
         <div className="flex flex-wrap gap-2">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${typeColors[quizType] || typeColors.standard}`}>
-            {t(`quizzes.types.${quizType}`)}
+        {associatedCourse && (
+          <span className="px-3 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-700 flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            {associatedCourse.title?.rendered || associatedCourse.title}
           </span>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${difficultyColors[difficulty] || difficultyColors.medium}`}>
-            {t(`common.difficulty.${difficulty}`)}
+        )}
+        {associatedCategory && (
+          <span className="px-3 py-1 text-xs font-medium rounded-full bg-pink-100 text-pink-700 flex items-center gap-2">
+            <Tag className="h-4 w-4" />
+            {associatedCategory}
           </span>
-        </div>
-      </div>
-
-      {/* Instructions preview */}
-      {instructions && (
-        <div className="px-4 py-3 bg-gray-50">
-          <p className="text-sm text-gray-600 line-clamp-2">
-            {instructions}
-          </p>
-        </div>
-      )}
-
-      {/* Stats Grid */}
-      <div className="p-4 grid grid-cols-2 gap-3">
-        {/* Questions count */}
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-            <HelpCircle className="w-4 h-4 text-blue-600" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-gray-500">{t('quizzes.stats.questions')}</p>
-            <p className="text-sm font-semibold text-gray-900">{questionsCount}</p>
-          </div>
-        </div>
-
-        {/* Total points */}
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
-            <Award className="w-4 h-4 text-purple-600" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-gray-500">{t('quizzes.stats.points')}</p>
-            <p className="text-sm font-semibold text-gray-900">{totalPoints}</p>
-          </div>
-        </div>
-
-        {/* Passing score */}
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
-            <Target className="w-4 h-4 text-green-600" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-gray-500">{t('quizzes.stats.passingScore')}</p>
-            <p className="text-sm font-semibold text-gray-900">{passingScore}%</p>
-          </div>
-        </div>
-
-        {/* Time limit */}
-        {timeLimit > 0 && (
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
-              <Clock className="w-4 h-4 text-orange-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-gray-500">{t('quizzes.stats.timeLimit')}</p>
-              <p className="text-sm font-semibold text-gray-900">
-                {timeLimit} {t('common.units.minutes')}
-              </p>
-            </div>
-          </div>
         )}
+        </div>
+    </>
+  );
 
-        {/* Max attempts */}
-        {maxAttempts > 0 && (
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
-              <BarChart className="w-4 h-4 text-indigo-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-gray-500">{t('quizzes.stats.maxAttempts')}</p>
-              <p className="text-sm font-semibold text-gray-900">{maxAttempts}</p>
-            </div>
-          </div>
-        )}
+  const statsContent = (
+    <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+      <div className="flex items-center gap-2 text-gray-600" title={t('quizzes.card.questions', { count: quizData.questionCount })}>
+        <HelpCircle className="w-4 h-4" />
+        <span>{t('quizzes.card.questions', { count: quizData.questionCount })}</span>
       </div>
-
-      {/* Action Buttons */}
-      <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-end space-x-2">
-        <button
-          onClick={() => onView(quiz)}
-          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-md transition-colors"
-          title={t('common.actions.view')}
-        >
-          <Eye className="w-4 h-4" />
-        </button>
-        
-        <button
-          onClick={() => onEdit(quiz)}
-          className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
-          title={t('common.actions.edit')}
-        >
-          <Edit className="w-4 h-4" />
-        </button>
-        
-        <button
-          onClick={() => onDuplicate(quiz)}
-          className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors"
-          title={t('common.actions.duplicate')}
-        >
-          <Copy className="w-4 h-4" />
-        </button>
-        
-        <button
-          onClick={() => onDelete(quiz)}
-          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
-          title={t('common.actions.delete')}
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+      <div className="flex items-center gap-2 text-gray-600" title={t('quizzes.card.points', { count: quizData.totalPoints })}>
+        <Star className="w-4 h-4" />
+        <span>{t('quizzes.card.points', { count: quizData.totalPoints })}</span>
+      </div>
+      <div className="flex items-center gap-2 text-gray-600" title={t('quizzes.card.attempts', { count: quizData.totalAttempts })}>
+        <Users className="w-4 h-4" />
+        <span>{t('quizzes.card.attempts', { count: quizData.totalAttempts })}</span>
+      </div>
+      <div className="flex items-center gap-2 text-gray-600" title={t('quizzes.card.avgScore', { count: quizData.averageScore })}>
+        <BarChart className="w-4 h-4" />
+        <span>{t('quizzes.card.avgScore', { count: quizData.averageScore })}</span>
       </div>
     </div>
+  );
+
+  const footerContent = (
+    associatedQuestions.length > 0 && (
+      <div className="border-t border-gray-100">
+        <button
+          onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+          className="flex items-center justify-between w-full text-sm text-gray-600 hover:text-indigo-600 p-4 transition-colors"
+        >
+          <span className="font-medium">{t('quizzes.card.viewQuestions', { count: associatedQuestions.length })}</span>
+          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        {isExpanded && (
+          <div className="px-4 pb-4 space-y-2 max-h-48 overflow-y-auto">
+            {associatedQuestions.map((q) => (
+              <div key={q.id} className="flex items-center gap-3 text-sm p-2 bg-white rounded">
+                <div className="flex-shrink-0 text-gray-400">
+                  <CheckCircle className="w-4 h-4" />
+                </div>
+                <div className="flex-1 truncate" title={q.title}>{q.title}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  );
+  
+  const listContent = (
+    <div className="flex items-center w-full gap-4">
+      <div className="flex-shrink-0 w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+        <HelpCircle className="w-5 h-5 text-purple-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-gray-900 truncate" title={quizData.title}>
+          {quizData.title}
+        </p>
+        <p className="text-sm text-gray-500 truncate mt-1">
+          {associatedCourse ? (associatedCourse.title?.rendered || associatedCourse.title) : t('quizzes.card.noCourse')}
+        </p>
+      </div>
+      <div className="hidden md:flex items-center gap-6 text-sm flex-shrink-0">
+         <div className="flex items-center gap-2 text-gray-600" title={t('quizzes.card.questions', { count: quizData.questionCount })}>
+            <HelpCircle className="w-4 h-4" />
+            <span>{quizData.questionCount}</span>
+        </div>
+        <div className="flex items-center gap-2 text-gray-600" title={t('quizzes.card.attempts', { count: quizData.totalAttempts })}>
+            <Users className="w-4 h-4" />
+            <span>{quizData.totalAttempts}</span>
+        </div>
+        <div className="flex items-center gap-2 text-gray-600" title={t('quizzes.card.avgScore', { count: quizData.averageScore })}>
+            <BarChart className="w-4 h-4" />
+            <span>{quizData.averageScore}%</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const cardActions = [
+    { label: t('common.edit'), icon: Edit, onClick: () => onEdit(quiz) },
+    { label: t('common.duplicate'), icon: Copy, onClick: () => onDuplicate(quiz) },
+    { label: t('common.delete'), icon: Trash2, onClick: () => onDelete(quiz), color: 'text-red-500' },
+  ];
+
+  return (
+    <BaseCard
+      viewMode={viewMode}
+      actions={cardActions}
+      onClick={() => onClick(quiz)}
+      header={headerContent}
+      stats={statsContent}
+      footer={footerContent}
+      listContent={listContent}
+    >
+    </BaseCard>
   );
 };
 

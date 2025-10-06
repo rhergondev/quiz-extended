@@ -92,9 +92,12 @@ export const transformQuestionDataForApi = (questionData) => {
 
 export const sanitizeQuestionData = (questionData) => {
     if (!questionData) return null;
+
+    const title = sanitizeRenderedContent(questionData.title);
+
     return {
         id: questionData.id || 0,
-        title: sanitizeRenderedContent(questionData.title),
+        title: title,
         content: sanitizeRenderedContent(questionData.content), // Explanation
         status: sanitizePostStatus(questionData.status, 'draft'),
         date: questionData.date || '',

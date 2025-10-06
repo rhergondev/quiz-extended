@@ -29,7 +29,6 @@ const ContentManager = ({
   className = '',
   showStatistics = true,
   showViewToggle = true,
-  showCreateButton = true,
   showItemCount = true
 }) => {
   // 🔧 FIX: Asegurar que title sea una string válida
@@ -54,18 +53,6 @@ const ContentManager = ({
             <p className="text-gray-600 mt-1">{description}</p>
           )}
         </div>
-        {showCreateButton && (
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={onCreateClick}
-              disabled={loading}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {createButtonText || `Create ${safeTitle}`}
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Filtros personalizados */}

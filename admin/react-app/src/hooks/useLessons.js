@@ -174,11 +174,9 @@ export const useLessons = (options = {}) => {
       lessonType,
       status: status || 'publish,draft,private'
     },
-    debounceMs: 500,
-    autoFetch,
-    perPage,
     dataProcessor,
-    computedValuesCalculator
+    computedValuesCalculator,
+    ...options
   });
 
   // ============================================================

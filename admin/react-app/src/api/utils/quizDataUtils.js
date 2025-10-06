@@ -125,6 +125,25 @@ export const transformQuizDataForApi = (quizData) => {
   };
 
   // ============================================================
+  // TAXONOMIES (Root level in WordPress REST API)
+  // ============================================================
+  
+  // Category taxonomy (qe_category)
+  if (quizData.qe_category !== undefined) {
+    // WordPress expects taxonomy as array of term IDs
+    if (Array.isArray(quizData.qe_category)) {
+      transformed.qe_category = quizData.qe_category
+        .map(id => parseInt(id, 10))
+        .filter(id => !isNaN(id) && id > 0);
+    } else if (quizData.qe_category) {
+      const categoryId = parseInt(quizData.qe_category, 10);
+      if (!isNaN(categoryId) && categoryId > 0) {
+        transformed.qe_category = [categoryId];
+      }
+    }
+  }
+
+  // ============================================================
   // META FIELDS (Custom fields with _ prefix)
   // ============================================================
   
@@ -288,6 +307,7 @@ export const transformQuizDataForApi = (quizData) => {
   };
 
   console.log('🔄 transformQuizDataForApi - Output:', transformed);
+  console.log('📌 Category in transformed:', transformed.qe_category);
   return transformed;
 };
 

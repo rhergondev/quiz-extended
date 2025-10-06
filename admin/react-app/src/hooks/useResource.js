@@ -97,15 +97,17 @@ export const useResource = ({
   // FETCH ITEMS
   // ============================================================
   
-  const fetchItems = useCallback(async (reset = false) => {
+  const fetchItems = useCallback(async (reset = false, options = {}) => {
     try {
       if (!service || !service.getAll) {
         console.error(`❌ ${resourceName}: Invalid service provided`);
         return;
       }
 
+      const activeFilters = { ...filters, ...options };
+
       // Prevent duplicate fetches
-      const currentParams = JSON.stringify({ reset, filters, page: pagination.currentPage });
+      const currentParams = JSON.stringify({ reset, filters: activeFilters, page: pagination.currentPage });
       if (currentParams === lastFetchParamsRef.current && !reset) {
         console.log(`⏭️ ${resourceName}: Skipping duplicate fetch`);
         return;
@@ -121,8 +123,8 @@ export const useResource = ({
       
       // Build filter options (remove 'all' values and empty strings)
       const filterOptions = {};
-      Object.keys(filters).forEach(key => {
-        const value = filters[key];
+      Object.keys(activeFilters).forEach(key => {
+        const value = activeFilters[key];
         if (value && value !== 'all' && value !== '') {
           filterOptions[key] = value;
         }

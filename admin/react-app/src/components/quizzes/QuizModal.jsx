@@ -117,12 +117,21 @@ const QuizModal = ({
   useEffect(() => {
     if (quiz && mode !== 'create') {
       const meta = quiz.meta || {};
+      
+      // Extract category from quiz object
+      let categoryValue = [];
+      if (Array.isArray(quiz.qe_category) && quiz.qe_category.length > 0) {
+        categoryValue = quiz.qe_category;
+      } else if (quiz.qe_category) {
+        categoryValue = [quiz.qe_category];
+      }
+          
       setFormData({
         title: quiz.title?.rendered || quiz.title || '',
         content: quiz.content?.rendered || quiz.content || meta._quiz_instructions || '',
         status: quiz.status || 'publish',
         courseId: meta._course_id?.toString() || '',
-        qe_category: quiz.qe_category || [],
+        qe_category: categoryValue,
         difficulty_level: meta._difficulty_level || 'medium',
         quiz_type: meta._quiz_type || 'assessment',
         passing_score: meta._passing_score?.toString() || '70',
@@ -231,7 +240,7 @@ const QuizModal = ({
     if (!validateForm()) return;
 
     // This object structure matches what `transformQuizDataForApi` expects
-        const quizDataForApi = {
+    const quizDataForApi = {
         title: formData.title,
         content: formData.content,
         status: formData.status,
@@ -246,9 +255,10 @@ const QuizModal = ({
         showResults: formData.show_results,
         enableNegativeScoring: formData.enable_negative_scoring,
         questionIds: formData.questionIds,
-        qe_category: formData.qe_category,
+        // 🔥 Asegurar que qe_category sea un array de números
+        qe_category: formData.qe_category.map(id => parseInt(id, 10)).filter(id => !isNaN(id) && id > 0),
     };
-
+    
     try {
         await onSave(quizDataForApi, nextAction);
         if (nextAction === 'reset') {

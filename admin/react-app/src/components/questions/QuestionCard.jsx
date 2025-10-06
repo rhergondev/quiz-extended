@@ -1,290 +1,155 @@
-import React, { useMemo } from 'react';
-import {
-  Edit, Trash2, Copy, CheckCircle, Target, BookOpen, Hash, HelpCircle,
-  Eye, EyeOff, Zap, User, BrainCircuit, Upload, Info, Calendar, FileText
-} from 'lucide-react';
-import Card from '../common/Card.jsx';
+// src/components/questions/QuestionCard.jsx (Refactorizado y Finalizado)
 
-/**
- * Componente de tarjeta refactorizado para mostrar información de una pregunta.
- * Muestra datos reales como el proveedor y la lección asociada, eliminando estadísticas simuladas.
- * * @param {Object} props
- * @param {Object} props.question - Datos de la pregunta desde la API.
- * @param {string} [props.viewMode='cards'] - Modo de vista ('cards' o 'list').
- * @param {Function} [props.onEdit] - Callback para editar.
- * @param {Function} [props.onDelete] - Callback para eliminar.
- * @param {Function} [props.onDuplicate] - Callback para duplicar.
- * @param {Function} [props.onClick] - Callback para click en la tarjeta.
- * @param {Array} [props.quizzes=[]] - Lista de quizzes disponibles.
- * @param {Array} [props.availableLessons=[]] - Lista de lecciones disponibles.
- * @param {boolean} [props.showQuiz=true] - Si mostrar info del quiz/lección.
- * @param {string} [props.className] - Clases CSS adicionales.
- */
+import React, { useState, useMemo } from 'react';
+import {
+  Edit, Trash2, Copy, ChevronDown, ChevronUp, HelpCircle,
+  Star, CheckCircle, Type, BarChart, FileText // 🔥 Iconos actualizados
+} from 'lucide-react';
+import BaseCard from '../common/BaseCard';
+import { useTranslation } from 'react-i18next';
+
 const QuestionCard = ({
   question,
-  viewMode = 'cards',
-  onEdit,
-  onDelete,
-  onDuplicate,
-  onClick,
   quizzes = [],
-  availableLessons = [],
-  showQuiz = true,
-  className = ''
+  viewMode,
+  onClick,
+  onEdit,
+  onDuplicate,
+  onDelete
 }) => {
-  // --- VALORES EXTRAÍDOS DE LA API ---
+  const { t } = useTranslation();
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // --- Extracción de datos ---
   const questionData = useMemo(() => ({
-    id: question.id,
-    title: question.title?.rendered || 'Untitled Question',
-    status: question.status || 'draft',
-    type: question.meta?._question_type || 'multiple_choice',
-    difficulty: question.meta?._difficulty_level || 'medium',
-    category: question.meta?._question_category,
-    provider: question.meta?._question_provider || 'human',
-    points: parseInt(question.meta?._points || '1', 10),
-    // 🔥 CORRECCIÓN: Manejo seguro del contenido de la explicación.
-    explanation: (question.content?.rendered || '').replace(/<p>|<\/p>/g, '').trim(),
-    quizId: question.meta?._quiz_id,
-    lessonId: question.meta?._question_lesson,
-    modifiedDate: new Date(question.modified).toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    }),
-  }), [question]);
+    // El título ahora viene correctamente desde el `sanitize`
+    title: question.title || t('questions.untitled'),
+    questionType: question.question_type || 'multiple_choice',
+    points: question.points || 0,
+    difficulty: question.difficulty || 'medium',
+  }), [question, t]);
 
-  // --- BÚSQUEDA DE ENTIDADES ASOCIADAS ---
-  const associatedQuiz = useMemo(() => {
-    if (!questionData.quizId || !quizzes.length) return null;
-    return quizzes.find(q => q.id.toString() === questionData.quizId.toString());
-  }, [questionData.quizId, quizzes]);
+  // --- Lógica para extraer datos embebidos (como el Proveedor) ---
+  const questionProvider = useMemo(() => {
+    const terms = question._embedded?.['wp:term'] || [];
+    const providerTerm = terms.flat().find(term => term.taxonomy === 'qe_provider');
+    return providerTerm ? providerTerm.name : t('questions.card.manualProvider', 'Manual');
+  }, [question._embedded, t]);
 
-  const associatedLesson = useMemo(() => {
-    if (!questionData.lessonId || !availableLessons.length) return null;
-    return availableLessons.find(l => l.id.toString() === questionData.lessonId.toString());
-  }, [questionData.lessonId, availableLessons]);
+  const associatedQuizzes = useMemo(() => {
+    if (!question.quiz_ids || quizzes.length === 0) return [];
+    return question.quiz_ids.map(id => 
+      quizzes.find(q => q.id === id)
+    ).filter(Boolean);
+  }, [question.quiz_ids, quizzes]);
 
-  // --- FUNCIONES DE AYUDA VISUAL ---
-  const getProviderInfo = (provider) => {
-    switch (provider) {
-      case 'human': return { label: 'Manual', icon: User };
-      case 'ai_gpt4': return { label: 'AI (GPT-4)', icon: BrainCircuit };
-      case 'ai_gemini': return { label: 'AI (Gemini)', icon: BrainCircuit };
-      case 'imported': return { label: 'Imported', icon: Upload };
-      default: return { label: 'Unknown', icon: Info };
-    }
-  };
-
-  const getTypeInfo = (type) => {
-    const types = {
-      multiple_choice: { label: 'Multiple Choice', icon: CheckCircle },
-      true_false: { label: 'True/False', icon: Target },
-      short_answer: { label: 'Short Answer', icon: Edit },
-      essay: { label: 'Essay', icon: FileText },
-      fill_blank: { label: 'Fill in Blank', icon: Hash },
-    };
-    return types[type] || { label: 'Question', icon: HelpCircle };
-  };
-  
-  const getBadgeColor = (key, value) => {
+  // --- Función para colores de badges ---
+  const getBadgeColor = (difficulty) => {
     const colors = {
-      status: { publish: 'bg-green-100 text-green-700', draft: 'bg-yellow-100 text-yellow-700', private: 'bg-gray-100 text-gray-700' },
-      difficulty: { easy: 'bg-green-100 text-green-700', medium: 'bg-yellow-100 text-yellow-700', hard: 'bg-red-100 text-red-700' },
+      easy: 'bg-green-100 text-green-700',
+      medium: 'bg-yellow-100 text-yellow-700',
+      hard: 'bg-red-100 text-red-700'
     };
-    return colors[key]?.[value] || 'bg-gray-100 text-gray-700';
+    return colors[difficulty] || 'bg-gray-100 text-gray-700';
   };
 
-  // --- RENDERIZADO DE COMPONENTES ---
-  const TypeInfo = getTypeInfo(questionData.type);
-  const ProviderInfo = getProviderInfo(questionData.provider);
+  // --- Definición de los "Slots" para BaseCard ---
 
-  const renderCardContent = () => (
+  const headerContent = (
     <>
-      {/* Header with actions - altura fija */}
-      <div className="flex items-start justify-between mb-3 min-h-[32px]">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="flex items-center space-x-1.5 text-sm font-medium text-blue-600">
-            <TypeInfo.icon className="h-4 w-4" />
-            <span>{TypeInfo.label}</span>
-          </span>
-          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('difficulty', questionData.difficulty)}`}>{questionData.difficulty}</span>
-          {questionData.category && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-100 text-indigo-700">{questionData.category}</span>}
-        </div>
-        <div className="flex items-center gap-2 ml-2">
-          <span className={`flex items-center space-x-1.5 px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('status', questionData.status)}`}>
-            {questionData.status === 'publish' ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-            <span>{questionData.status}</span>
-          </span>
-          {/* Botones de acción directos */}
-          <div className="flex items-center gap-1">
-            {onEdit && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onEdit(question); }}
-                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                title="Edit"
-              >
-                <Edit className="h-4 w-4" />
-              </button>
-            )}
-            {onDuplicate && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onDuplicate(question); }}
-                className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-colors"
-                title="Duplicate"
-              >
-                <Copy className="h-4 w-4" />
-              </button>
-            )}
-            {onDelete && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(question); }}
-                className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                title="Delete"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Título - altura fija con truncate */}
-      <h3 className="text-lg font-semibold text-gray-800 mb-3 h-[28px] line-clamp-1 truncate" title={questionData.title}>
-        {questionData.title}
-      </h3>
-
-      {/* Explicación - altura fija independientemente de si hay contenido */}
-      <div className="mb-4 h-[40px]">
-        {questionData.explanation ? (
-          <p 
-            className="text-sm text-gray-600 line-clamp-2 truncate" 
-            dangerouslySetInnerHTML={{ __html: questionData.explanation }}
-            title={questionData.explanation}
-          />
-        ) : (
-          <div className="h-full" />
-        )}
-      </div>
-
-      {/* Información adicional - altura fija */}
-      <div className="space-y-3 pt-3 border-t border-gray-100 min-h-[80px]">
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <div className="flex items-center space-x-1.5" title="Source">
-            <ProviderInfo.icon className="h-4 w-4" />
-            <span>{ProviderInfo.label}</span>
-          </div>
-          <div className="flex items-center space-x-1.5" title="Points">
-            <Zap className="h-4 w-4 text-purple-500" />
-            <span>{questionData.points} point{questionData.points !== 1 ? 's' : ''}</span>
-          </div>
-        </div>
-        
-        <div className="h-[20px]">
-          {showQuiz && (associatedLesson || associatedQuiz) && (
-            <div className="flex items-center space-x-1.5 text-sm text-gray-600">
-              <BookOpen className="h-4 w-4" />
-              <span className="truncate" title={associatedLesson?.title?.rendered || associatedQuiz?.title?.rendered}>
-                {associatedLesson?.title?.rendered || associatedQuiz?.title?.rendered || 'Associated'}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Footer - altura fija */}
-      <div className="flex items-center justify-between text-xs text-gray-400 mt-4 h-[16px]">
-        <div className="flex items-center space-x-1">
-          <Calendar className="h-3 w-3" />
-          <span>{questionData.modifiedDate}</span>
-        </div>
-        <span>ID: {questionData.id}</span>
+      <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 pr-10 mb-3" dangerouslySetInnerHTML={{ __html: questionData.title }}></h3>
+      <div className="flex flex-wrap gap-2">
+        <span className={`px-3 py-1 text-xs font-medium rounded-full ${getBadgeColor(questionData.difficulty)} capitalize flex items-center gap-2`}>
+          <BarChart className="h-4 w-4" />
+          {t(`questions.card.difficulties.${questionData.difficulty}`, questionData.difficulty)}
+        </span>
+        <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700 flex items-center gap-2">
+          <FileText className="h-4 w-4" />
+          {questionProvider}
+        </span>
       </div>
     </>
   );
 
-  const renderListContent = () => (
-    <div className="flex items-center w-full gap-4">
-      <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-        <TypeInfo.icon className="h-5 w-5 text-blue-600" />
+  const statsContent = (
+    <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+      <div className="flex items-center gap-2 text-gray-600" title={t('questions.card.points', { count: questionData.points })}>
+        <Star className="w-4 h-4" />
+        <span>{t('questions.card.points', { count: questionData.points })}</span>
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-gray-900 truncate" title={questionData.title}>
-            {questionData.title}
-          </h3>
-          <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
-            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('difficulty', questionData.difficulty)}`}>
-              {questionData.difficulty}
-            </span>
-            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getBadgeColor('status', questionData.status)}`}>
-              {questionData.status}
-            </span>
-            {/* Botones de acción en lista */}
-            <div className="flex items-center gap-1">
-              {onEdit && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onEdit(question); }}
-                  className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                  title="Edit"
-                >
-                  <Edit className="h-3 w-3" />
-                </button>
-              )}
-              {onDuplicate && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDuplicate(question); }}
-                  className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
-                  title="Duplicate"
-                >
-                  <Copy className="h-3 w-3" />
-                </button>
-              )}
-              {onDelete && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDelete(question); }}
-                  className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center space-x-3 mt-1 text-sm text-gray-500 truncate">
-          <div className="flex items-center space-x-1" title={ProviderInfo.label}>
-            <ProviderInfo.icon className="h-4 w-4" />
-          </div>
-          <span className="text-gray-300">|</span>
-          <div className="flex items-center space-x-1" title={`${questionData.points} points`}>
-            <Zap className="h-4 w-4" />
-            <span>{questionData.points}pt</span>
-          </div>
-          <span className="text-gray-300">|</span>
-          {showQuiz && (associatedLesson || associatedQuiz) && (
-            <div className="flex items-center space-x-1 truncate">
-              <BookOpen className="h-4 w-4" />
-              <span className="truncate" title={associatedLesson?.title?.rendered || associatedQuiz?.title?.rendered}>
-                {associatedLesson?.title?.rendered || associatedQuiz?.title?.rendered}
-              </span>
-            </div>
-          )}
-        </div>
+      <div className="flex items-center gap-2 text-gray-600" title={t('questions.card.type')}>
+        <Type className="w-4 h-4" />
+        <span>{t(`questions.card.types.${questionData.questionType}`, questionData.questionType)}</span>
       </div>
     </div>
   );
 
+  const footerContent = (
+    associatedQuizzes.length > 0 && (
+      <div className="border-t border-gray-100">
+        <button
+          onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+          className="flex items-center justify-between w-full text-sm text-gray-600 hover:text-indigo-600 p-4 transition-colors"
+        >
+          <span className="font-medium">{t('questions.card.viewQuizzes', { count: associatedQuizzes.length })}</span>
+          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        {isExpanded && (
+          <div className="px-4 pb-4 space-y-2 max-h-48 overflow-y-auto">
+            {associatedQuizzes.map((q) => (
+              <div key={q.id} className="flex items-center gap-3 text-sm p-2 bg-white rounded">
+                <div className="flex-shrink-0 text-gray-400">
+                  <CheckCircle className="w-4 h-4" />
+                </div>
+                <div className="flex-1 truncate" title={q.title?.rendered || q.title}>{q.title?.rendered || q.title}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  );
+  
+  const listContent = (
+     <div className="flex items-center w-full gap-4">
+      <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+        <HelpCircle className="w-5 h-5 text-blue-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-gray-900 truncate" dangerouslySetInnerHTML={{ __html: questionData.title }}></p>
+        <p className="text-sm text-gray-500 truncate mt-1">
+          {t(`questions.card.types.${questionData.questionType}`, questionData.questionType)} • {t('questions.card.points', { count: questionData.points })}
+        </p>
+      </div>
+      <div className="hidden md:flex items-center gap-3 text-sm flex-shrink-0">
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBadgeColor(questionData.difficulty)} capitalize`}>
+          {t(`questions.card.difficulties.${questionData.difficulty}`, questionData.difficulty)}
+        </span>
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+          {questionProvider}
+        </span>
+      </div>
+    </div>
+  );
+  
+  // 🔥 CORRECCIÓN: Se definen las acciones para el menú de 3 puntos
+  const cardActions = [
+    { label: t('common.edit'), icon: Edit, onClick: () => onEdit(question) },
+    { label: t('common.duplicate'), icon: Copy, onClick: () => onDuplicate(question) },
+    { label: t('common.delete'), icon: Trash2, onClick: () => onDelete(question), color: 'text-red-500' },
+  ];
+
   return (
-    <Card 
-      item={question} 
-      viewMode={viewMode} 
-      actions={[]} 
-      className={className} 
-      clickable={!!onClick} 
-      onClick={onClick}
+    <BaseCard
+      viewMode={viewMode}
+      actions={cardActions} // Se pasan las acciones al BaseCard
+      onClick={() => onClick(question)}
+      header={headerContent}
+      stats={statsContent}
+      footer={footerContent}
+      listContent={listContent}
     >
-      {viewMode === 'cards' ? renderCardContent() : renderListContent()}
-    </Card>
+    </BaseCard>
   );
 };
 
