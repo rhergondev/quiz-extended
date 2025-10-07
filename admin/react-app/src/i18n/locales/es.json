@@ -35,6 +35,17 @@
     "previous": "Anterior",
     "close": "Cerrar"
   },
+  "sidebar": {
+  "dashboard": "Dashboard",
+  "courses": "Cursos",
+  "books": "Libros",
+  "profile": "Mi Perfil",
+  "logout": "Cerrar Sesión",
+  "expand": "Expandir",
+  "collapse": "Colapsar",
+  "logoAlt": "Logo de la empresa",
+  "logoText": "Tu Logo"
+},
   "courses": {
     "title": "Cursos",
     "description": "Crea y gestiona cursos con lecciones, precios e inscripciones",

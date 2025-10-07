@@ -1,17 +1,34 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
-import './styles/index.css'; // Si usas un archivo CSS principal para Tailwind
+import { I18nextProvider } from 'react-i18next';
+import i18n from './i18n/config';
 
-// 1. Busca el div con el id 'root' en el DOM.
-const rootElement = document.getElementById('root');
+import './styles/index.css';
 
-// 2. Crea el punto de montaje de React en ese elemento.
-const root = ReactDOM.createRoot(rootElement);
+import AdminApp from './AdminApp';
+import FrontendApp from './FrontendApp';
 
-// 3. Renderiza tu componente principal <App />.
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+const adminRootElement = document.getElementById('root');
+const frontendRootElement = document.getElementById('qe-frontend-root');
+
+if (adminRootElement) {
+  const root = ReactDOM.createRoot(adminRootElement);
+  root.render(
+    <React.StrictMode>
+      <I18nextProvider i18n={i18n}>
+        <AdminApp />
+      </I18nextProvider>
+    </React.StrictMode>
+  );
+}
+
+if (frontendRootElement) {
+  const root = ReactDOM.createRoot(frontendRootElement);
+  root.render(
+    <React.StrictMode>
+      <I18nextProvider i18n={i18n}>
+        <FrontendApp />
+      </I18nextProvider>
+    </React.StrictMode>
+  );
+}

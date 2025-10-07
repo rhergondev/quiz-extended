@@ -24,6 +24,7 @@ define('QUIZ_EXTENDED_BASENAME', plugin_basename(__FILE__));
 
 require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-loader.php';
 require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-database.php';
+require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-frontend.php';
 register_activation_hook(__FILE__, ['QE_Database', 'create_tables']);
 
 // Carga TGMPA

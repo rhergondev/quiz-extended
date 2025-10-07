@@ -1,0 +1,48 @@
+import React from 'react';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+// Importa tus componentes de página de admin
+import CoursesManager from './components/courses/CoursesManager';
+import LessonsManager from './components/lessons/LessonsManager';
+import QuizzesManager from './components/quizzes/QuizzesManager';
+import UsersPage from './pages/UsersPage';
+import QuestionsManager from './components/questions/QuestionsManager';
+
+/**
+ * Root component for the admin panel.
+ * Contains the router and routes for the wp-admin panel.
+ */
+function AdminApp() {
+  return (
+    <Router>
+      <div className="qe-lms-admin-app">
+        <Routes>
+          {/* Admin specific routes */}
+          <Route path="/courses" element={<CoursesManager />} />
+          <Route path="/lessons" element={<LessonsManager />} />
+          <Route path="/quizzes" element={<QuizzesManager />} />
+          <Route path="/questions" element={<QuestionsManager />} />
+          <Route path="/students" element={<UsersPage />} />
+          <Route path="/settings" element={<h1>Settings Page (Coming Soon)</h1>} />
+
+          {/* Default redirect for admin */}
+          <Route path="*" element={<Navigate to="/courses" replace />} />
+        </Routes>
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
+      </div>
+    </Router>
+  );
+}
+
+export default AdminApp;

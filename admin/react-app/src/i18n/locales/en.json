@@ -35,6 +35,17 @@
     "previous": "Previous",
     "close": "Close"
   },
+  "sidebar": {
+  "dashboard": "Dashboard",
+  "courses": "Courses",
+  "books": "Books",
+  "profile": "My Profile",
+  "logout": "Log Out",
+  "expand": "Expand",
+  "collapse": "Collapse",
+  "logoAlt": "Company Logo",
+  "logoText": "Your Logo"
+},
   "courses": {
     "title": "Courses",
     "description": "Create and manage courses with lessons, pricing, and enrollments",
