@@ -36,7 +36,7 @@ class QE_Rate_Limiter
             'action' => 'throttle'
         ],
         'api_quiz_start' => [
-            'limit' => 10,
+            'limit' => 50,
             'window' => 300,        // 5 minutes
             'action' => 'block'
         ],

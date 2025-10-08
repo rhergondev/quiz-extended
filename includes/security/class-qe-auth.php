@@ -231,6 +231,10 @@ class QE_Auth
             return false;
         }
 
+        if (current_user_can('manage_lms') || current_user_can('edit_courses')) {
+            return true;
+        }
+
         // Get course from quiz
         $course_id = get_post_meta($quiz_id, '_course_id', true);
 
@@ -270,7 +274,7 @@ class QE_Auth
         }
 
         $enrolled = get_user_meta($user_id, '_enrolled_course_' . $course_id, true);
-        return $enrolled === 'yes';
+        return !empty($enrolled) && ($enrolled === 'yes' || $enrolled == 1);
     }
 
     /**

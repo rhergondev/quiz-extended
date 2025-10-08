@@ -49,7 +49,7 @@ class QE_Frontend
 
         add_action('init', [$this, 'register_shortcode']);
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
-        add_filter('login_redirect', [$this, 'custom_login_redirect'], 10, 3);
+        add_filter('login_redirect', [$this, 'custom_login_redirect'], 99, 3);
 
         register_activation_hook(QUIZ_EXTENDED_BASENAME, [$this, 'create_lms_page']);
     }
@@ -190,15 +190,14 @@ class QE_Frontend
      */
     public function custom_login_redirect($redirect_to, $request, $user)
     {
-        if (isset($user->roles) && is_array($user->roles)) {
-            if (!in_array('administrator', $user->roles)) {
-                $lms_page_url = get_permalink($this->lms_page_id);
-                if ($lms_page_url) {
-                    return $lms_page_url;
-                }
-            }
+        if (is_wp_error($user)) {
+            return $redirect_to;
         }
-        return $redirect_to;
+
+        $lms_page_url = get_permalink(get_option('quiz_extended_lms_page_id'));
+
+        return $lms_page_url;
+
     }
 }
 

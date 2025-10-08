@@ -1,7 +1,18 @@
-import React from 'react';
-import { BookOpen, PlayCircle, FileText, CheckSquare } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BookOpen, PlayCircle, FileText, CheckSquare, ChevronDown, ChevronUp } from 'lucide-react';
 
-const CourseLessonList = ({ lessons, isLoading }) => {
+const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep, quizzes }) => {
+  const [expandedLessonId, setExpandedLessonId] = useState(null);
+
+  useEffect(() => {
+    if (selectedStepId && !expandedLessonId) {
+      const lessonWithStep = lessons.find(l => l.meta?._lesson_steps?.some(s => s.id === selectedStepId));
+      if (lessonWithStep) {
+        setExpandedLessonId(lessonWithStep.id);
+      }
+    }
+  }, [selectedStepId, expandedLessonId, lessons]);
+  
   const getStepIcon = (stepType) => {
     switch(stepType) {
       case 'video': return <PlayCircle className="w-4 h-4 text-gray-500" />;
@@ -10,53 +21,84 @@ const CourseLessonList = ({ lessons, isLoading }) => {
     }
   };
 
+  const handleLessonClick = (lessonId) => {
+    setExpandedLessonId(prevId => (prevId === lessonId ? null : lessonId));
+  };
+  
+  // 🔥 CORRECCIÓN: Se extrae el título correctamente del objeto 'rendered'.
+  const getQuizTitle = (quizId) => {
+    const quiz = quizzes.find(q => q.id === quizId);
+    return quiz ? (quiz.title.rendered || quiz.title) : 'Cuestionario';
+  };
+
   const loadingSkeleton = (
-    <div className="p-4">
-      <div className="animate-pulse">
-        <div className="h-8 bg-gray-200 rounded w-3/4 mb-6"></div>
-        <div className="space-y-4">
-          <div className="h-6 bg-gray-200 rounded w-full"></div>
-          <div className="h-6 bg-gray-200 rounded w-5/6"></div>
-          <div className="h-6 bg-gray-200 rounded w-full"></div>
-        </div>
+    <div className="p-4 animate-pulse">
+      <div className="h-6 bg-gray-300 rounded w-3/4 mb-6"></div>
+      <div className="space-y-4">
+        <div className="h-5 bg-gray-300 rounded w-full"></div>
+        <div className="h-5 bg-gray-300 rounded w-5/6"></div>
+        <div className="h-5 bg-gray-300 rounded w-full"></div>
       </div>
     </div>
   );
 
   return (
-    <aside className="lg:w-1/3 w-full">
-      {/* 🔥 CORRECCIÓN: Contenedor "sticky" para que la lista se quede fija al hacer scroll */}
-      <div className="sticky top-8">
-        <div className="bg-white rounded-lg shadow-md max-h-[calc(100vh-4rem)] overflow-y-auto">
-          <h2 className="text-xl font-semibold text-gray-800 p-4 border-b sticky top-0 bg-white z-10">
-            Lecciones del Curso
+    <aside className="lg:w-96 w-full flex-shrink-0">
+      <div className="sticky top-0 h-screen">
+        <div className="bg-gray-100 h-full flex flex-col">
+          <h2 className="text-xl font-semibold text-gray-800 p-4 border-b border-gray-200 flex-shrink-0">
+            Contenido del Curso
           </h2>
-          {isLoading ? (
-            loadingSkeleton
-          ) : lessons && lessons.length > 0 ? (
-            <ul className="divide-y divide-gray-200">
-              {lessons.map((lesson) => (
-                <li key={lesson.id} className="p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <BookOpen className="w-5 h-5 text-indigo-600 flex-shrink-0" />
-                    <h3 className="font-semibold text-gray-700">{lesson.title}</h3>
-                  </div>
-                  {lesson.meta?._lesson_steps && lesson.meta._lesson_steps.length > 0 && (
-                    <ul className="pl-8 space-y-2 text-sm border-l-2 border-gray-200 ml-2.5">
-                      {lesson.meta._lesson_steps.map((step, index) => (
-                        <li key={index} className="flex items-center space-x-2 text-gray-600">
-                          {getStepIcon(step.type)}
-                          <span>{step.title}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="p-4 text-gray-500">Este curso aún no tiene lecciones.</p>
-          )}
+          <div className="overflow-y-auto">
+            {isLoading ? (
+              loadingSkeleton
+            ) : lessons && lessons.length > 0 ? (
+              <ul>
+                {lessons.map((lesson) => {
+                  const isExpanded = expandedLessonId === lesson.id;
+                  const steps = lesson.meta?._lesson_steps || [];
+                  return (
+                    <li key={lesson.id} className="border-b border-gray-200">
+                      <div
+                        onClick={() => handleLessonClick(lesson.id)}
+                        className={`p-4 cursor-pointer flex justify-between items-center ${isExpanded ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <BookOpen className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+                          <h3 className="font-semibold text-gray-700">{lesson.title}</h3>
+                        </div>
+                        {steps.length > 0 && (
+                           isExpanded ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />
+                        )}
+                      </div>
+                      
+                      {isExpanded && steps.length > 0 && (
+                        <ul className="bg-white">
+                          {steps.map((step) => {
+                            const isSelected = step.id === selectedStepId;
+                            const title = step.type === 'quiz' ? getQuizTitle(step.data.quiz_id) : step.title;
+                            return (
+                              <li 
+                                key={step.id}
+                                onClick={() => onSelectStep(step, lesson)}
+                                className={`flex items-center space-x-2 py-3 px-4 border-l-4 transition-colors cursor-pointer ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-transparent hover:bg-gray-50'}`}
+                                style={{ paddingLeft: '2rem' }}
+                              >
+                                {getStepIcon(step.type)}
+                                <span className={`text-sm ${isSelected ? 'font-semibold text-blue-800' : 'text-gray-600'}`}>{title}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="p-4 text-gray-500">Este curso aún no tiene lecciones.</p>
+            )}
+          </div>
         </div>
       </div>
     </aside>

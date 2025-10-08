@@ -366,7 +366,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
     {
         $max_attempts = get_post_meta($quiz_id, '_max_attempts', true);
 
-        if (empty($max_attempts) || !is_numeric($max_attempts)) {
+        if ($max_attempts === '' || !is_numeric($max_attempts) || absint($max_attempts) === 0) {
             return true; // No limit
         }
 
@@ -519,32 +519,47 @@ class QE_Quiz_Attempts_API extends QE_API_Base
      */
     private function grade_attempt($attempt, $answers)
     {
-        $total_questions = count($answers);
+        $total_questions = 0;
         $correct_answers = 0;
         $correct_with_risk = 0;
         $incorrect_with_risk = 0;
         $total_points = 0;
         $earned_points = 0;
 
+        $question_ids_in_quiz = get_post_meta($attempt->quiz_id, '_quiz_question_ids', true);
+        if (!is_array($question_ids_in_quiz)) {
+            $question_ids_in_quiz = [];
+        }
+
+        $total_questions = count($question_ids_in_quiz);
+
+        // 1. Calcular el total de puntos de TODAS las preguntas del cuestionario (Este es el único lugar donde debe calcularse)
+        foreach ($question_ids_in_quiz as $question_id) {
+            $points = absint(get_post_meta($question_id, '_points', true) ?: 1);
+            $total_points += $points;
+        }
+
         $enable_negative_scoring = get_post_meta($attempt->quiz_id, '_enable_negative_scoring', true);
 
+        // 2. Iterar sobre las respuestas ENVIADAS para calcular los puntos ganados
         foreach ($answers as $answer) {
             // Validate answer structure
-            if (!isset($answer['question_id']) || !isset($answer['answer_given'])) {
+            if (!isset($answer['question_id'])) {
                 continue;
             }
 
             $question_id = absint($answer['question_id']);
-            $answer_given = $this->security->validate_string($answer['answer_given'], 255);
+            // Permitir respuesta vacía (null), pero validarla si existe
+            $answer_given = isset($answer['answer_given']) ? $this->security->validate_string($answer['answer_given'], 255) : null;
             $is_risked = isset($answer['is_risked']) && $answer['is_risked'] === true;
 
             // Get correct answer
             $options = get_post_meta($question_id, '_question_options', true);
             $is_correct = false;
 
-            if (is_array($options)) {
-                foreach ($options as $key => $option) {
-                    if ($key == $answer_given && isset($option['isCorrect']) && $option['isCorrect']) {
+            if (is_array($options) && $answer_given !== null) {
+                foreach ($options as $option) {
+                    if (isset($option['id']) && $option['id'] == $answer_given && isset($option['isCorrect']) && $option['isCorrect']) {
                         $is_correct = true;
                         break;
                     }
@@ -555,7 +570,8 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             $points = absint(get_post_meta($question_id, '_points', true) ?: 1);
             $points_incorrect = absint(get_post_meta($question_id, '_points_incorrect', true) ?: 0);
 
-            $total_points += $points;
+            // 🔥 CORRECCIÓN: Se elimina la línea que sumaba puntos de nuevo al total
+            // $total_points += $points; 
 
             if ($is_correct) {
                 $earned_points += $points;
@@ -586,6 +602,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
 
         // Calculate final scores
         $score = $total_points > 0 ? round(($earned_points / $total_points) * 100, 2) : 0;
+        $score = max(0, $score); // Asegurar que el score no sea negativo
 
         // Calculate risk-adjusted score
         $risk_bonus = ($correct_with_risk * 5) - ($incorrect_with_risk * 10);

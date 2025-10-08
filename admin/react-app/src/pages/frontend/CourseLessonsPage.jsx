@@ -2,7 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { getCourse } from '../../api/services/courseService';
 import useLessons from '../../hooks/useLessons';
+import useQuizzes from '../../hooks/useQuizzes'; // <-- 1. Importamos el hook de quizzes
 import CourseLessonList from '../../components/frontend/CourseLessonList';
+import StepContent from '../../components/frontend/StepContent';
 
 const CourseLessonsPage = () => {
   const { courseId } = useParams();
@@ -10,6 +12,8 @@ const CourseLessonsPage = () => {
   const [course, setCourse] = useState(null);
   const [courseLoading, setCourseLoading] = useState(true);
   const [courseError, setCourseError] = useState(null);
+  
+  const [activeContent, setActiveContent] = useState({ lesson: null, step: null });
 
   const { lessons, loading: lessonsLoading, error: lessonsError } = useLessons({ 
     courseId: courseId, 
@@ -17,9 +21,11 @@ const CourseLessonsPage = () => {
     perPage: 100
   });
 
+  // 2. Obtenemos todos los quizzes para tener sus títulos
+  const { quizzes, loading: quizzesLoading } = useQuizzes({ perPage: 100, autoFetch: true });
+
   const fetchCourse = useCallback(async () => {
     if (!courseId) return;
-
     setCourseLoading(true);
     setCourseError(null);
     try {
@@ -36,7 +42,21 @@ const CourseLessonsPage = () => {
     fetchCourse();
   }, [fetchCourse]);
 
-  if (courseLoading) {
+  useEffect(() => {
+    if (!lessonsLoading && lessons && lessons.length > 0 && !activeContent.step) {
+      const firstLesson = lessons[0];
+      const firstStep = firstLesson.meta?._lesson_steps?.[0];
+      if (firstLesson && firstStep) {
+        setActiveContent({ lesson: firstLesson, step: firstStep });
+      }
+    }
+  }, [lessons, lessonsLoading, activeContent.step]);
+
+  const handleSelectStep = (step, lesson) => {
+    setActiveContent({ step, lesson });
+  };
+
+  if (courseLoading || quizzesLoading) {
     return <div>Cargando contenido del curso...</div>;
   }
 
@@ -49,19 +69,21 @@ const CourseLessonsPage = () => {
   }
 
   return (
-    // 🔥 CORRECCIÓN: Añadido "items-start" para alinear las columnas en la parte superior.
     <div className="flex flex-col lg:flex-row gap-6 items-start">
-      {/* Columna principal del contenido */}
-      <div className="flex-grow lg:w-2/3">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">{course.title}</h1>
-        <div 
-          className="prose max-w-none" 
-          dangerouslySetInnerHTML={{ __html: course.content }} 
-        />
-      </div>
 
-      {/* Columna lateral para lecciones */}
-      <CourseLessonList lessons={lessons} isLoading={lessonsLoading} />
+      
+      <StepContent 
+        lesson={activeContent.lesson} 
+        step={activeContent.step} 
+        quizzes={quizzes} // <-- 4. Pasamos los quizzes al contenido
+      />
+            <CourseLessonList 
+        lessons={lessons} 
+        isLoading={lessonsLoading}
+        selectedStepId={activeContent.step?.id}
+        onSelectStep={handleSelectStep}
+        quizzes={quizzes} // <-- 3. Pasamos los quizzes a la lista
+      />
     </div>
   );
 };

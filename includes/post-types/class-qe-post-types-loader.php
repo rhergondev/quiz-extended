@@ -426,10 +426,9 @@ class QE_Post_Types_Loader
      */
     public function filter_by_meta($args, $request)
     {
-        // Check for meta query parameters
-        $meta_query = [];
+        $meta_query = $args['meta_query'] ?? [];
 
-        // Example: filter by course_id
+        // Filter by course_id
         if ($request->get_param('course_id')) {
             $meta_query[] = [
                 'key' => '_course_id',
@@ -438,7 +437,16 @@ class QE_Post_Types_Loader
             ];
         }
 
-        // Example: filter by difficulty
+        // Filter by quiz_id
+        if ($request->get_param('quiz_id')) {
+            $meta_query[] = [
+                'key' => '_quiz_ids',
+                'value' => '"' . absint($request->get_param('quiz_id')) . '"',
+                'compare' => 'LIKE'
+            ];
+        }
+
+        // Filter by difficulty
         if ($request->get_param('difficulty')) {
             $meta_query[] = [
                 'key' => '_difficulty_level',
@@ -464,6 +472,12 @@ class QE_Post_Types_Loader
     {
         $params['course_id'] = [
             'description' => __('Filter by course ID', 'quiz-extended'),
+            'type' => 'integer',
+            'sanitize_callback' => 'absint',
+        ];
+
+        $params['quiz_id'] = [
+            'description' => __('Filter by quiz ID', 'quiz-extended'),
             'type' => 'integer',
             'sanitize_callback' => 'absint',
         ];

@@ -8,19 +8,33 @@
  * @version 2.0.0
  */
 
-import { createResourceService } from './baseService.js';
+import { createResourceService, buildQueryParams } from './baseService.js';
 import { 
   sanitizeQuestionData,           // ← IMPORTADO desde questionDataUtils
   validateQuestionData,           // ← IMPORTADO desde questionDataUtils
   transformQuestionDataForApi     // ← IMPORTADO desde questionDataUtils
 } from '../utils/questionDataUtils.js';
 
+// 🔥 AÑADIDO: Constructor de parámetros personalizado para preguntas
+const buildQuestionQueryParams = (options = {}) => {
+  const params = buildQueryParams(options); // Llama al constructor base
+
+  // Añade el filtro específico de quiz si existe
+  if (options.quizId) {
+    params.append('quiz_id', options.quizId.toString());
+  }
+
+  return params;
+};
+
 // Create base question service with custom handlers
 const baseQuestionService = createResourceService('question', 'questions', {
   sanitizer: sanitizeQuestionData,       // ← Usa questionDataUtils
   validator: validateQuestionData,       // ← Usa questionDataUtils
-  transformer: transformQuestionDataForApi // ← Usa questionDataUtils
+  transformer: transformQuestionDataForApi, // ← Usa questionDataUtils
+  buildParams: buildQuestionQueryParams // 🔥 AÑADIDO: Pasa el constructor personalizado
 });
+
 
 // ============================================================
 // EXPORT COMPATIBLE WITH useResource
