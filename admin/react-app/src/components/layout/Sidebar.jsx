@@ -22,6 +22,7 @@ const Sidebar = () => {
   const navItems = [
     { to: '/', text: t('sidebar.dashboard'), icon: LayoutDashboard },
     { to: '/courses', text: t('sidebar.courses'), icon: BookOpen },
+    { to: '/quiz-generator', text: t('sidebar.quizGenerator'), icon: BookOpen },
     { to: '/books', text: t('sidebar.books'), icon: Book },
   ];
 

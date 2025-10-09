@@ -61,3 +61,32 @@ export const submitQuizAttempt = async (attemptId, answers) => {
     throw error;
   }
 };
+
+/**
+ * 🔥 NUEVA FUNCIÓN: Calcula el resultado para un cuestionario personalizado sin guardarlo.
+ * @param {Array<number>} questionIds - Array de IDs de las preguntas del cuestionario.
+ * @param {Array<Object>} answers - Las respuestas del usuario.
+ * @returns {Promise<Object>} El resultado de la evaluación.
+ */
+export const calculateCustomQuizResult = async (questionIds, answers) => {
+  try {
+    const { endpoints } = getApiConfig();
+    const url = `${endpoints.custom_api}/quiz-generator/calculate-results`;
+    console.log(`🧮 Calculating custom quiz result...`);
+
+    const response = await makeApiRequest(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        question_ids: questionIds,
+        answers: answers,
+      }),
+    });
+
+    console.log('✅ Custom quiz result calculated:', response.data);
+    return response.data.data;
+
+  } catch (error) {
+    console.error('❌ Error calculating custom quiz result:', error);
+    throw error;
+  }
+};

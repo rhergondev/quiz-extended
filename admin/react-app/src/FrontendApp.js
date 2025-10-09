@@ -10,6 +10,7 @@ import CoursesPage from './pages/frontend/CoursesPage';
 import BooksPage from './pages/frontend/BooksPage';
 import ProfilePage from './pages/frontend/ProfilePage';
 import CourseLessonsPage from './pages/frontend/CourseLessonsPage';
+import QuizGeneratorPage from './pages/frontend/QuizGeneratorPage';
 
 function FrontendApp() {
   return (
@@ -19,6 +20,7 @@ function FrontendApp() {
           <Route index element={<DashboardPage />} />
           <Route path="courses" element={<CoursesPage />} />
           <Route path="courses/:courseId" element={<CourseLessonsPage />} /> {/* <-- AÑADIDO */}
+          <Route path="quiz-generator" element={<QuizGeneratorPage />} /> {/* <-- 2. Añadir la nueva ruta */}
           <Route path="books" element={<BooksPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>

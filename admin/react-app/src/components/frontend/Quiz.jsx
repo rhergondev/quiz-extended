@@ -1,22 +1,23 @@
-// src/components/frontend/Quiz.jsx
 import React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { useQuestions } from '../../hooks/useQuestions';
 import { getQuiz } from '../../api/services/quizService';
-import { startQuizAttempt, submitQuizAttempt } from '../../api/services/quizAttemptService';
+// 🔥 IMPORTAMOS LA NUEVA FUNCIÓN
+import { startQuizAttempt, submitQuizAttempt, calculateCustomQuizResult } from '../../api/services/quizAttemptService';
 import Question from './Question';
 import QuizSidebar from './QuizSidebar';
 import Timer from './Timer';
-import QuizResults from './QuizResults'; // Importado
+import QuizResults from './QuizResults';
 
-const Quiz = ({ quizId }) => {
+const Quiz = ({ quizId, customQuiz = null }) => {
   const [quizInfo, setQuizInfo] = useState(null);
   const [questionIds, setQuestionIds] = useState([]);
   const [userAnswers, setUserAnswers] = useState({});
   const [riskedAnswers, setRiskedAnswers] = useState([]);
   const [quizState, setQuizState] = useState('loading');
   const [attemptId, setAttemptId] = useState(null);
-  const [quizResult, setQuizResult] = useState(null); // <-- NUEVO: Estado para el resultado
+  const [quizResult, setQuizResult] = useState(null);
+  const [startTime, setStartTime] = useState(null); // Para calcular la duración
 
   const {
     questions: allQuestions,
@@ -26,7 +27,16 @@ const Quiz = ({ quizId }) => {
 
   useEffect(() => {
     const fetchAndStartQuiz = async () => {
+      setStartTime(Date.now()); // Iniciar cronómetro al cargar
+      if (customQuiz) {
+        setQuizInfo(customQuiz);
+        setQuestionIds(customQuiz.meta?._quiz_question_ids || []);
+        setAttemptId('custom-attempt'); // ID de intento simulado
+        return;
+      }
+      
       if (!quizId) return;
+
       try {
         const quizData = await getQuiz(quizId);
         setQuizInfo(quizData);
@@ -44,7 +54,7 @@ const Quiz = ({ quizId }) => {
       }
     };
     fetchAndStartQuiz();
-  }, [quizId]);
+  }, [quizId, customQuiz]);
 
   const quizQuestions = useMemo(() => {
     if (questionsLoading || questionIds.length === 0) return [];
@@ -93,16 +103,26 @@ const Quiz = ({ quizId }) => {
       }));
 
       try {
-          const result = await submitQuizAttempt(attemptId, formattedAnswers);
-          setQuizResult(result); // <-- NUEVO: Guardar el resultado
+          let result;
+          // 🔥 CORRECCIÓN: Se reemplaza la simulación por la llamada real a la API.
+          if (attemptId === 'custom-attempt' && customQuiz) {
+              const questionIds = customQuiz.meta._quiz_question_ids;
+              const endTime = Date.now();
+              const durationInSeconds = Math.round((endTime - startTime) / 1000);
+              
+              result = await calculateCustomQuizResult(questionIds, formattedAnswers);
+              result.duration_seconds = durationInSeconds; // Añadimos la duración calculada
+          } else {
+              result = await submitQuizAttempt(attemptId, formattedAnswers);
+          }
+          
+          setQuizResult(result);
           setQuizState('submitted');
       } catch (error) {
           console.error("Error al enviar el cuestionario:", error);
           setQuizState('error');
       }
   };
-
-  // --- LÓGICA DE RENDERIZADO (ACTUALIZADA) ---
 
   if (quizState === 'loading' || (questionIds.length > 0 && questionsLoading)) {
     return <div className="text-center p-8">Cargando cuestionario...</div>;
@@ -113,9 +133,8 @@ const Quiz = ({ quizId }) => {
   if (quizState === 'submitting') {
       return <div className="text-center p-8">Enviando respuestas...</div>
   }
-  // --- NUEVA VISTA DE RESULTADOS ---
   if (quizState === 'submitted') {
-      return <QuizResults result={quizResult} quizTitle={quizInfo?.title?.rendered} />;
+      return <QuizResults result={quizResult} quizTitle={quizInfo?.title?.rendered} questions={quizQuestions} />;
   }
   if (quizQuestions.length === 0 && !questionsLoading) {
       return <div className="text-center p-8 text-gray-600">Este cuestionario no tiene preguntas.</div>
@@ -124,9 +143,9 @@ const Quiz = ({ quizId }) => {
   const timeLimit = quizInfo?.meta?._time_limit || 0;
 
   return (
-    <div className="w-full max-w-screen-2xl mx-auto p-4 flex flex-col lg:flex-row gap-8">
-      {/* Columna de Preguntas */}
-      <div className="w-full lg:w-2/3">
+    <div className="w-full max-w-screen-2xl mx-auto p-4 flex flex-col lg:flex-row gap-8 h-[100%]">
+      {/* Columna de Preguntas (con scroll interno) */}
+      <main className="w-full lg:w-2/3 lg:overflow-y-auto lg:pr-4">
         {quizQuestions.map((question, index) => (
           <Question
             key={question.id}
@@ -140,10 +159,10 @@ const Quiz = ({ quizId }) => {
             isSubmitted={quizState === 'submitted' || quizState === 'submitting'}
           />
         ))}
-      </div>
+      </main>
 
       {/* Columna de la Barra Lateral y Reloj */}
-      <div className="w-full lg:w-1/3">
+      <aside className="w-full lg:w-1/3">
         <div className="sticky top-4 space-y-4">
             <QuizSidebar
               questions={quizQuestions}
@@ -157,7 +176,7 @@ const Quiz = ({ quizId }) => {
                 isPaused={quizState === 'submitted' || quizState === 'submitting'}
             />
         </div>
-      </div>
+      </aside>
     </div>
   );
 };

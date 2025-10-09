@@ -44,7 +44,8 @@
   "expand": "Expandir",
   "collapse": "Colapsar",
   "logoAlt": "Logo de la empresa",
-  "logoText": "Tu Logo"
+  "logoText": "Tu Logo",
+  "quizGenerator": "Generador de Cuestionarios"
 },
   "courses": {
     "title": "Cursos",

@@ -68,21 +68,19 @@ const CourseLessonsPage = () => {
     return <div>Curso no encontrado.</div>;
   }
 
-  return (
-    <div className="flex flex-col lg:flex-row gap-6 items-start">
-
-      
+ return (
+    <div className="flex flex-col lg:flex-row h-screen overflow-hidden">
       <StepContent 
         lesson={activeContent.lesson} 
         step={activeContent.step} 
-        quizzes={quizzes} // <-- 4. Pasamos los quizzes al contenido
+        quizzes={quizzes}
       />
-            <CourseLessonList 
+      <CourseLessonList 
         lessons={lessons} 
         isLoading={lessonsLoading}
         selectedStepId={activeContent.step?.id}
         onSelectStep={handleSelectStep}
-        quizzes={quizzes} // <-- 3. Pasamos los quizzes a la lista
+        quizzes={quizzes}
       />
     </div>
   );

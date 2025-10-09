@@ -44,7 +44,8 @@
   "expand": "Expand",
   "collapse": "Collapse",
   "logoAlt": "Company Logo",
-  "logoText": "Your Logo"
+  "logoText": "Your Logo",
+  "quizGenerator": "Quiz Generator"
 },
   "courses": {
     "title": "Courses",

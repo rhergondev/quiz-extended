@@ -44,12 +44,12 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep, qu
 
   return (
     <aside className="lg:w-96 w-full flex-shrink-0">
-      <div className="sticky top-0 h-screen">
+      <div className="h-screen">
         <div className="bg-gray-100 h-full flex flex-col">
           <h2 className="text-xl font-semibold text-gray-800 p-4 border-b border-gray-200 flex-shrink-0">
             Contenido del Curso
           </h2>
-          <div className="overflow-y-auto">
+          <div className="flex-1 overflow-y-auto">
             {isLoading ? (
               loadingSkeleton
             ) : lessons && lessons.length > 0 ? (

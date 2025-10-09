@@ -68,6 +68,28 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 ]
             ]
         );
+
+        $this->register_secure_route(
+            '/quiz-generator/calculate-results',
+            WP_REST_Server::CREATABLE,
+            'calculate_generated_quiz',
+            [
+                'validation_schema' => [
+                    'answers' => [
+                        'required' => true,
+                        'type' => 'array',
+                        'description' => 'Array of answers from the user.',
+                        'items' => ['type' => 'object']
+                    ],
+                    'question_ids' => [
+                        'required' => true,
+                        'type' => 'array',
+                        'description' => 'Array of question IDs included in the quiz.',
+                        'items' => ['type' => 'integer']
+                    ]
+                ]
+            ]
+        );
     }
 
     // ============================================================
@@ -258,6 +280,12 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 );
             }
 
+            // 🔥 CORRECCIÓN: Usar 'mysql', true para obtener el tiempo en UTC y asegurar un cálculo correcto.
+            $start_time = new DateTime($attempt->start_time, new DateTimeZone('UTC'));
+            $end_time = new DateTime(current_time('mysql', true), new DateTimeZone('UTC'));
+            $duration_seconds = $end_time->getTimestamp() - $start_time->getTimestamp();
+
+
             // Update rankings
             $this->update_rankings($attempt->user_id, $attempt->course_id, $grading_result);
 
@@ -281,7 +309,9 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 'correct_answers' => $grading_result['correct_answers'],
                 'total_points' => $grading_result['total_points'],
                 'earned_points' => $grading_result['earned_points'],
-                'passed' => $grading_result['passed']
+                'passed' => $grading_result['passed'],
+                'detailed_results' => $grading_result['detailed_results'],
+                'duration_seconds' => $duration_seconds
             ]);
 
         } catch (Exception $e) {
@@ -519,78 +549,76 @@ class QE_Quiz_Attempts_API extends QE_API_Base
      */
     private function grade_attempt($attempt, $answers)
     {
-        $total_questions = 0;
+        // Contadores
         $correct_answers = 0;
-        $correct_with_risk = 0;
-        $incorrect_with_risk = 0;
-        $total_points = 0;
-        $earned_points = 0;
+        $total_questions = 0;
+        $detailed_results = [];
+
+        // Puntuaciones
+        $earned_points_actual = 0;  // Para score_with_risk (puntuación real)
+        $earned_points_hypothetical = 0; // Para score (puntuación sin riesgo hipotética)
 
         $question_ids_in_quiz = get_post_meta($attempt->quiz_id, '_quiz_question_ids', true);
         if (!is_array($question_ids_in_quiz)) {
             $question_ids_in_quiz = [];
         }
-
         $total_questions = count($question_ids_in_quiz);
 
-        // 1. Calcular el total de puntos de TODAS las preguntas del cuestionario (Este es el único lugar donde debe calcularse)
-        foreach ($question_ids_in_quiz as $question_id) {
-            $points = absint(get_post_meta($question_id, '_points', true) ?: 1);
-            $total_points += $points;
+        // Crear un mapa de respuestas para un acceso más rápido
+        $answers_map = [];
+        foreach ($answers as $answer) {
+            if (isset($answer['question_id'])) {
+                $answers_map[$answer['question_id']] = $answer;
+            }
         }
 
-        $enable_negative_scoring = get_post_meta($attempt->quiz_id, '_enable_negative_scoring', true);
+        // Iterar sobre TODAS las preguntas del cuestionario
+        foreach ($question_ids_in_quiz as $question_id) {
+            $answer = $answers_map[$question_id] ?? ['question_id' => $question_id];
 
-        // 2. Iterar sobre las respuestas ENVIADAS para calcular los puntos ganados
-        foreach ($answers as $answer) {
-            // Validate answer structure
-            if (!isset($answer['question_id'])) {
-                continue;
-            }
-
-            $question_id = absint($answer['question_id']);
-            // Permitir respuesta vacía (null), pero validarla si existe
             $answer_given = isset($answer['answer_given']) ? $this->security->validate_string($answer['answer_given'], 255) : null;
             $is_risked = isset($answer['is_risked']) && $answer['is_risked'] === true;
 
-            // Get correct answer
             $options = get_post_meta($question_id, '_question_options', true);
             $is_correct = false;
+            $correct_answer_id = null;
+            $number_of_options = is_array($options) ? count($options) : 1;
+            $penalty = ($number_of_options > 0) ? (1 / $number_of_options) : 0;
 
-            if (is_array($options) && $answer_given !== null) {
+            if (is_array($options)) {
                 foreach ($options as $option) {
-                    if (isset($option['id']) && $option['id'] == $answer_given && isset($option['isCorrect']) && $option['isCorrect']) {
-                        $is_correct = true;
+                    if (isset($option['isCorrect']) && $option['isCorrect']) {
+                        $correct_answer_id = isset($option['id']) ? $option['id'] : null;
+                        if ($answer_given !== null && isset($option['id']) && $option['id'] == $answer_given) {
+                            $is_correct = true;
+                        }
                         break;
                     }
                 }
             }
 
-            // Calculate points
-            $points = absint(get_post_meta($question_id, '_points', true) ?: 1);
-            $points_incorrect = absint(get_post_meta($question_id, '_points_incorrect', true) ?: 0);
-
-            // 🔥 CORRECCIÓN: Se elimina la línea que sumaba puntos de nuevo al total
-            // $total_points += $points; 
-
             if ($is_correct) {
-                $earned_points += $points;
                 $correct_answers++;
-
-                if ($is_risked) {
-                    $correct_with_risk++;
-                }
+                $earned_points_actual += 1;
+                $earned_points_hypothetical += 1;
             } else {
-                if ($enable_negative_scoring && $points_incorrect > 0) {
-                    $earned_points -= $points_incorrect;
-                }
+                // Penalización siempre para el score hipotético
+                $earned_points_hypothetical -= $penalty;
 
-                if ($is_risked) {
-                    $incorrect_with_risk++;
+                // Penalización para el score real solo si NO tiene riesgo
+                if (!$is_risked) {
+                    $earned_points_actual -= $penalty;
                 }
             }
 
-            // Store answer
+            $detailed_results[] = [
+                'question_id' => $question_id,
+                'answer_given' => $answer_given,
+                'correct_answer' => $correct_answer_id,
+                'is_correct' => $is_correct,
+                'is_risked' => $is_risked,
+            ];
+
             $this->db_insert('attempt_answers', [
                 'attempt_id' => $attempt->attempt_id,
                 'question_id' => $question_id,
@@ -600,28 +628,31 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             ], ['%d', '%d', '%s', '%d', '%d']);
         }
 
-        // Calculate final scores
-        $score = $total_points > 0 ? round(($earned_points / $total_points) * 100, 2) : 0;
-        $score = max(0, $score); // Asegurar que el score no sea negativo
+        // Calcular puntuaciones finales como porcentajes
+        $total_possible_points = $total_questions > 0 ? $total_questions : 1;
 
-        // Calculate risk-adjusted score
-        $risk_bonus = ($correct_with_risk * 5) - ($incorrect_with_risk * 10);
-        $score_with_risk = max(0, min(100, $score + $risk_bonus));
+        $score = round(($earned_points_hypothetical / $total_possible_points) * 100, 2);
+        $score = max(0, $score);
 
-        // Check if passed
+        $score_with_risk = round(($earned_points_actual / $total_possible_points) * 100, 2);
+        $score_with_risk = max(0, $score_with_risk);
+
         $passing_score = absint(get_post_meta($attempt->quiz_id, '_passing_score', true) ?: 50);
-        $passed = $score >= $passing_score;
+        // La aprobación se basa en la puntuación real (score_with_risk)
+        $passed = $score_with_risk >= $passing_score;
 
         return [
             'score' => $score,
             'score_with_risk' => $score_with_risk,
             'total_questions' => $total_questions,
             'correct_answers' => $correct_answers,
-            'total_points' => $total_points,
-            'earned_points' => max(0, $earned_points),
-            'passed' => $passed
+            'total_points' => $total_possible_points,
+            'earned_points' => $earned_points_actual,
+            'passed' => $passed,
+            'detailed_results' => $detailed_results
         ];
     }
+
 
     /**
      * Complete the attempt
@@ -730,6 +761,134 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 'course_id' => $course_id
             ]);
         }
+    }
+
+    /**
+     * 🔥 NUEVO MÉTODO: Calcula los resultados para un cuestionario generado dinámicamente.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response|WP_Error
+     */
+    public function calculate_generated_quiz(WP_REST_Request $request)
+    {
+        try {
+            $answers = $request->get_param('answers');
+            $question_ids = $request->get_param('question_ids');
+            $user_id = get_current_user_id();
+
+            $this->log_api_call('/quiz-generator/calculate-results', [
+                'user_id' => $user_id,
+                'question_count' => count($question_ids)
+            ]);
+
+            // Reutilizamos la lógica de grade_attempt pero sin el objeto $attempt
+            // y sin guardar en la base de datos.
+            $grading_result = $this->grade_soft_attempt($question_ids, $answers);
+
+            if (is_wp_error($grading_result)) {
+                return $grading_result;
+            }
+
+            // No guardamos nada, solo devolvemos el resultado.
+            return $this->success_response([
+                'score' => $grading_result['score'],
+                'score_with_risk' => $grading_result['score_with_risk'],
+                'total_questions' => $grading_result['total_questions'],
+                'correct_answers' => $grading_result['correct_answers'],
+                'passed' => $grading_result['passed'],
+                'detailed_results' => $grading_result['detailed_results'],
+                'duration_seconds' => $request->get_param('duration') ?: 0
+            ]);
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in calculate_generated_quiz', [
+                'message' => $e->getMessage()
+            ]);
+            return $this->error_response('internal_error', 'An unexpected error occurred.', 500);
+        }
+    }
+
+    /**
+     * 🔥 NUEVO MÉTODO AUXILIAR: Versión "soft" de grade_attempt que no interactúa con la BD.
+     *
+     * @param array $question_ids_in_quiz
+     * @param array $answers
+     * @return array|WP_Error
+     */
+    private function grade_soft_attempt($question_ids_in_quiz, $answers)
+    {
+        $correct_answers = 0;
+        $detailed_results = [];
+        $earned_points_actual = 0;
+        $earned_points_hypothetical = 0;
+        $total_questions = count($question_ids_in_quiz);
+
+        $answers_map = [];
+        foreach ($answers as $answer) {
+            if (isset($answer['question_id'])) {
+                $answers_map[$answer['question_id']] = $answer;
+            }
+        }
+
+        foreach ($question_ids_in_quiz as $question_id) {
+            $answer = $answers_map[$question_id] ?? ['question_id' => $question_id];
+            $answer_given = isset($answer['answer_given']) ? $this->security->validate_string($answer['answer_given'], 255) : null;
+            $is_risked = isset($answer['is_risked']) && $answer['is_risked'] === true;
+
+            $options = get_post_meta($question_id, '_question_options', true);
+            $is_correct = false;
+            $correct_answer_id = null;
+            $number_of_options = is_array($options) ? count($options) : 1;
+            $penalty = ($number_of_options > 0) ? (1 / $number_of_options) : 0;
+
+            if (is_array($options)) {
+                foreach ($options as $option) {
+                    if (isset($option['isCorrect']) && $option['isCorrect']) {
+                        $correct_answer_id = isset($option['id']) ? $option['id'] : null;
+                        if ($answer_given !== null && isset($option['id']) && $option['id'] == $answer_given) {
+                            $is_correct = true;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if ($is_correct) {
+                $correct_answers++;
+                $earned_points_actual += 1;
+                $earned_points_hypothetical += 1;
+            } else {
+                $earned_points_hypothetical -= $penalty;
+                if (!$is_risked) {
+                    $earned_points_actual -= $penalty;
+                }
+            }
+
+            $detailed_results[] = [
+                'question_id' => intval($question_id),
+                'answer_given' => $answer_given,
+                'correct_answer' => $correct_answer_id,
+                'is_correct' => $is_correct,
+                'is_risked' => $is_risked,
+            ];
+        }
+
+        $total_possible_points = $total_questions > 0 ? $total_questions : 1;
+        $score = max(0, round(($earned_points_hypothetical / $total_possible_points) * 100, 2));
+        $score_with_risk = max(0, round(($earned_points_actual / $total_possible_points) * 100, 2));
+
+        // Para cuestionarios "soft", asumimos un 70% para aprobar por defecto
+        $passing_score = 70;
+        $passed = $score_with_risk >= $passing_score;
+
+        return [
+            'score' => $score,
+            'score_with_risk' => $score_with_risk,
+            'total_questions' => $total_questions,
+            'correct_answers' => $correct_answers,
+            'passed' => $passed,
+            'detailed_results' => $detailed_results
+        ];
     }
 }
 
