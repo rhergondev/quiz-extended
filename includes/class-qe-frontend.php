@@ -49,7 +49,9 @@ class QE_Frontend
 
         add_action('init', [$this, 'register_shortcode']);
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
-        add_filter('login_redirect', [$this, 'custom_login_redirect'], 99, 3);
+        add_filter('woocommerce_login_redirect', [$this, 'custom_login_redirect'], 99, 2);
+        add_filter('logout_redirect', [$this, 'custom_logout_redirect'], 99, 3);
+
 
         register_activation_hook(QUIZ_EXTENDED_BASENAME, [$this, 'create_lms_page']);
     }
@@ -188,7 +190,7 @@ class QE_Frontend
     /**
      * Redirect user to LMS page after login.
      */
-    public function custom_login_redirect($redirect_to, $request, $user)
+    public function custom_login_redirect($redirect_to, $user)
     {
         if (is_wp_error($user)) {
             return $redirect_to;
@@ -196,8 +198,20 @@ class QE_Frontend
 
         $lms_page_url = get_permalink(get_option('quiz_extended_lms_page_id'));
 
-        return $lms_page_url;
+        if (!empty($lms_page_url)) {
+            return $lms_page_url;
+        }
 
+        return $redirect_to;
+
+    }
+
+    /**
+     * Redirect user to home page after logout.
+     */
+    public function custom_logout_redirect($logout_url, $redirect_to, $user)
+    {
+        return home_url();
     }
 }
 
