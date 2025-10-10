@@ -74,7 +74,7 @@ const StepContent = ({ step, lesson, quizzes }) => {
 
   if (!step || !lesson) {
     return (
-      <div className="flex-grow lg:w-2/3 p-8 flex flex-col items-center justify-center text-center bg-white rounded-lg shadow-md lg:h-[97vh]">
+      <div className="flex-grow lg:w-2/3 p-8 flex flex-col items-center justify-center text-center bg-white rounded-lg shadow-md">
         <BookOpen className="w-16 h-16 text-gray-300 mb-4" />
         <h2 className="text-2xl font-semibold text-gray-700">Selecciona un paso</h2>
         <p className="text-gray-500 mt-2">Elige un paso de la lista de lecciones para ver su contenido.</p>
@@ -91,7 +91,7 @@ const StepContent = ({ step, lesson, quizzes }) => {
   const stepTitle = step.type === 'quiz' ? getQuizTitle(step.data.quiz_id) : step.title;
 
  return (
-    <div className="flex-grow lg:w-2/3 bg-white h-screen overflow-y-auto">
+    <div className="flex-grow lg:w-full bg-gray-100 h-[100%] overflow-y-auto">
       <div className="mb-6 px-6 pt-6">
         <p className="text-sm text-indigo-600 font-semibold">{lesson.title}</p>
         <h1 className="text-3xl font-bold text-gray-800 mt-1">{stepTitle}</h1>

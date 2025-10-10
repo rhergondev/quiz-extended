@@ -7,7 +7,7 @@
  *
  * @package    QuizExtended
  * @subpackage QuizExtended/includes
- * @version    1.0.2
+ * @version    1.0.6
  */
 
 // Exit if accessed directly.
@@ -28,6 +28,12 @@ class QE_Frontend
      * @var int
      */
     private $lms_page_id = 0;
+
+    /**
+     * Flag to ensure the menu item is added only once.
+     * @var bool
+     */
+    private $menu_item_added = false;
 
     /**
      * Main QE_Frontend Instance.
@@ -51,9 +57,61 @@ class QE_Frontend
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
         add_filter('woocommerce_login_redirect', [$this, 'custom_login_redirect'], 99, 2);
         add_filter('logout_redirect', [$this, 'custom_logout_redirect'], 99, 3);
+        add_filter('wp_nav_menu_items', [$this, 'add_academy_menu_item'], 20, 2);
+
+        // Hook to override the page template
+        add_filter('template_include', [$this, 'override_lms_page_template']);
 
 
         register_activation_hook(QUIZ_EXTENDED_BASENAME, [$this, 'create_lms_page']);
+    }
+
+    /**
+     * Overrides the page template for the LMS page to provide a full-screen experience.
+     *
+     * @param string $template The path of the template to include.
+     * @return string The path of the new template.
+     */
+    public function override_lms_page_template($template)
+    {
+        if (is_admin()) {
+            return $template;
+        }
+        // Check if we are on the specific LMS page
+        if (is_page($this->lms_page_id) && $this->lms_page_id > 0) {
+            $new_template = QUIZ_EXTENDED_PLUGIN_DIR . 'includes/templates/lms-template.php';
+            if (file_exists($new_template)) {
+                return $new_template; // Use our custom template
+            }
+        }
+        return $template; // Otherwise, use the default theme template
+    }
+
+    /**
+     * Adds "Academia" link to the main navigation menu.
+     * Updated to be more compatible with page builders like Elementor.
+     *
+     * @param string $items The HTML list content for the menu items.
+     * @param stdClass $args An object containing wp_nav_menu() arguments.
+     * @return string Modified HTML for the menu items.
+     */
+    public function add_academy_menu_item($items, $args)
+    {
+        if ($this->menu_item_added) {
+            return $items;
+        }
+
+        $lms_page_url = get_permalink($this->lms_page_id);
+
+        if ($lms_page_url && $this->lms_page_id > 0) {
+            if (strpos($items, 'href="' . esc_url($lms_page_url) . '"') === false) {
+                $academy_item = '<li class="menu-item menu-item-type-post_type menu-item-object-page qe-academy-link"><a href="' . esc_url($lms_page_url) . '">' . __('Academia', 'quiz-extended') . '</a></li>';
+                $items .= $academy_item;
+                $this->menu_item_added = true;
+            }
+        }
+
+        return $items;
     }
 
     /**
@@ -92,14 +150,104 @@ class QE_Frontend
     }
 
     /**
-     * Render the root div for the React application.
+     * Render the React app if the user is logged in,
+     * otherwise, show the WordPress login form.
      */
     public function render_react_app($atts)
     {
-        if (!is_user_logged_in()) {
-            return '<p>' . __('Please log in to access the LMS.', 'quiz-extended') . '</p>';
+        if (is_user_logged_in()) {
+            return '<div id="qe-frontend-root" class="qe-lms-app"></div>';
         }
-        return '<div id="qe-frontend-root"></div>';
+
+        // User is not logged in, show a styled login form.
+        $lms_page_url = get_permalink($this->lms_page_id);
+
+        $login_form_args = array(
+            'echo' => false,
+            'redirect' => $lms_page_url,
+            'form_id' => 'qe-lms-login-form',
+            'label_username' => __('Correo electrónico o nombre de usuario', 'quiz-extended'),
+            'label_password' => __('Contraseña', 'quiz-extended'),
+            'label_remember' => __('Recuérdame', 'quiz-extended'),
+            'label_log_in' => __('Acceder', 'quiz-extended'),
+            'id_username' => 'user_login',
+            'id_password' => 'user_pass',
+            'id_remember' => 'rememberme',
+            'id_submit' => 'wp-submit',
+            'remember' => true,
+            'value_username' => NULL,
+            'value_remember' => false,
+        );
+
+        $login_form = wp_login_form($login_form_args);
+
+        // Add some basic styling to center the form.
+        $styles = "
+            <style>
+                .qe-login-container {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 60vh;
+                    padding: 2rem 1rem;
+                }
+                #qe-lms-login-form {
+                    width: 100%;
+                    max-width: 380px;
+                    padding: 2rem;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 0.5rem;
+                    background-color: #ffffff;
+                    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+                }
+                #qe-lms-login-form p { margin-bottom: 1rem; }
+                #qe-lms-login-form label {
+                    display: block;
+                    font-weight: 600;
+                    margin-bottom: 0.5rem;
+                }
+                #qe-lms-login-form input[type='text'],
+                #qe-lms-login-form input[type='password'] {
+                    width: 100%;
+                    padding: 0.75rem;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 0.375rem;
+                }
+                #qe-lms-login-form .login-remember {
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: 1rem;
+                }
+                #qe-lms-login-form .login-remember label {
+                    margin-bottom: 0;
+                    font-weight: normal;
+                }
+                #qe-lms-login-form .login-remember input {
+                    margin-right: 0.5rem;
+                }
+                #qe-lms-login-form .login-submit input {
+                    width: 100%;
+                    padding: 0.75rem;
+                    border-radius: 0.375rem;
+                    background-color: #24375A; /* Color primario */
+                    color: white;
+                    font-weight: 600;
+                    border: none;
+                    cursor: pointer;
+                    transition: background-color 0.2s;
+                }
+                #qe-lms-login-form .login-submit input:hover {
+                    background-color: #1a2841; /* Un poco más oscuro */
+                }
+                .login-lost-password {
+                    margin-top: 1rem;
+                    text-align: center;
+                }
+            </style>
+        ";
+
+        return $styles . '<div class="qe-login-container">' . $login_form . '</div>';
     }
 
     /**
@@ -107,7 +255,7 @@ class QE_Frontend
      */
     public function enqueue_assets()
     {
-        if (!is_page($this->lms_page_id)) {
+        if (!is_page($this->lms_page_id) && get_the_ID() != $this->lms_page_id) {
             return;
         }
 
@@ -133,6 +281,9 @@ class QE_Frontend
             [],
             $script_asset['version']
         );
+
+        $custom_css = "footer.elementor-location-footer { display: none !important; }";
+        wp_add_inline_style('quiz-extended-frontend-app', $custom_css);
 
         $this->localize_scripts();
     }
@@ -168,7 +319,7 @@ class QE_Frontend
                 'user' => $user_data,
                 'logout_url' => wp_logout_url(home_url()),
                 'logoUrl' => $logo_url,
-                // ✅ CORRECCIÓN: Añadida la lista de endpoints que faltaba
+                'locale' => get_locale(),
                 'endpoints' => [
                     'courses' => $api_url_base . '/wp/v2/course',
                     'lessons' => $api_url_base . '/wp/v2/lesson',

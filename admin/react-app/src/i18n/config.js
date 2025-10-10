@@ -3,6 +3,9 @@ import { initReactI18next } from 'react-i18next';
 import en from './locales/en.json';
 import es from './locales/es.json';
 
+const wordpressLocale = window.qe_data?.locale?.substring(0, 2) || 'en';
+
+
 const resources = {
   en: { translation: en },
   es: { translation: es }
@@ -12,7 +15,7 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: window.qe_data?.locale?.split('_')[0] || 'en',
+    lng: wordpressLocale,
     fallbackLng: 'en',
     interpolation: {
       escapeValue: false

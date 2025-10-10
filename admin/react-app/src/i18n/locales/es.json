@@ -61,6 +61,7 @@
     "searchPlaceholder": "Buscar cursos...",
     "loadingCourses": "Cargando cursos...",
     "loadingMoreCourses": "Cargando más cursos...",
+    "courseContent": "Contenido del Curso",
     "fields": {
       "title": "Título del Curso",
       "description": "Descripción",

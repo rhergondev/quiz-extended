@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -6,19 +6,14 @@ import {
 } from 'lucide-react';
 
 const Sidebar = () => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { t } = useTranslation(); // <-- Hook de i18next
-
-  const [hoveredPath, setHoveredPath] = useState(null);
-  const [isLogoutHovered, setIsLogoutHovered] = useState(false);
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const { t } = useTranslation();
 
   const userName = window.qe_data?.user?.name;
   const userEmail = window.qe_data?.user?.email;
   const logoutUrl = window.qe_data?.logout_url;
-  const logoUrl = window.qe_data?.logoUrl;
 
-  // Los textos ahora vienen directamente de los archivos de localización
   const navItems = [
     { to: '/', text: t('sidebar.dashboard'), icon: LayoutDashboard },
     { to: '/courses', text: t('sidebar.courses'), icon: BookOpen },
@@ -26,59 +21,36 @@ const Sidebar = () => {
     { to: '/books', text: t('sidebar.books'), icon: Book },
   ];
 
-  const colors = {
-    primary: '#24375A',
-    grayLight: '#F3F3F3',
-    accent: '#D4AF37',
-  };
+  // ✅ Función de clases actualizada para el efecto de barra vertical
+  const getLinkClassName = ({ isActive }) => {
+    // Clases base: reservamos espacio para ambas barras (vertical y horizontal)
+    const baseClasses = `h-20 flex items-center p-3 transition-colors duration-200 border-l-4 border-b-4`;
+    const collapsedClasses = isCollapsed ? 'justify-center' : '';
 
-  const getLinkStyle = (isActive, isHovered) => {
-    const style = {
-      transition: 'background-color 0.2s, color 0.2s, border-color 0.2s',
-      color: colors.primary,
-      backgroundColor: 'transparent',
-      border: '2px solid transparent',
-    };
-
-    if (isHovered) {
-      style.backgroundColor = colors.primary;
-      style.color = colors.grayLight;
-    }
-    
     if (isActive) {
-      style.backgroundColor = colors.primary;
-      style.color = colors.grayLight;
-      style.borderColor = colors.accent;
+      // Estado activo: Barra vertical azul, texto primario. La barra inferior es transparente.
+      return `${baseClasses} ${collapsedClasses} border-l-primary border-b-transparent text-primary`;
     }
     
-    return style;
+    // Estado normal: Barra vertical transparente, barra inferior transparente, y al pasar el ratón, la barra inferior se vuelve dorada.
+    return `${baseClasses} ${collapsedClasses} border-l-transparent border-b-transparent text-primary hover:border-b-accent`;
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-gray-light">
-      
+    <div className="bg-white text-text-main flex flex-col h-full">
       <div className={`p-4 transition-all duration-300`}>
         <div className="flex items-center justify-end h-16">
-
-          
-          <button
+          <div
             onClick={() => setIsCollapsed(!isCollapsed)}
+            role="button"
+            tabIndex="0"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsCollapsed(!isCollapsed); }}
             title={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
-            className="!text-primary hover:!text-[--color-accent] transition-colors !bg-transparent"
-            style={{ '--color-accent': colors.accent }}
+            className="text-primary hover:text-accent transition-colors cursor-pointer"
           >
             {isCollapsed ? <ChevronRight size={32}/> : <ChevronLeft size={32} />}
-          </button>
-        </div>
-        <div className={`mr-auto mt-2 transition-opacity duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
-            {logoUrl ? (
-              // CAMBIO: Texto 'alt' localizado
-              <img src={logoUrl} alt={t('sidebar.logoAlt')} className="h-12 w-auto" />
-            ) : (
-              // CAMBIO: Texto de fallback localizado
-              <span className="font-semibold text-primary">{t('sidebar.logoText')}</span>
-            )}
           </div>
+        </div>
       </div>
       
       <nav className="flex-1 px-2 space-y-2">
@@ -87,10 +59,7 @@ const Sidebar = () => {
             key={item.to}
             to={item.to}
             end
-            className={`flex items-center p-3 rounded-lg ${isCollapsed ? 'justify-center' : ''}`}
-            onMouseEnter={() => setHoveredPath(item.to)}
-            onMouseLeave={() => setHoveredPath(null)}
-            style={({ isActive }) => getLinkStyle(isActive, hoveredPath === item.to)}
+            className={getLinkClassName}
             title={isCollapsed ? item.text : ''}
             onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
           >
@@ -104,10 +73,8 @@ const Sidebar = () => {
         {logoutUrl && (
           <a
             href={logoutUrl}
-            className={`flex items-center p-3 text-lg rounded-lg transition-colors mb-4 ${isCollapsed ? 'justify-center' : ''}`}
-            onMouseEnter={() => setIsLogoutHovered(true)}
-            onMouseLeave={() => setIsLogoutHovered(false)}
-            style={getLinkStyle(false, isLogoutHovered)}
+            // Mantenemos la consistencia del efecto hover
+            className={`flex items-center p-3 text-lg transition-colors mb-4 border-l-4 border-b-4 border-transparent text-primary hover:border-b-accent ${isCollapsed ? 'justify-center' : ''}`}
             title={isCollapsed ? t('sidebar.logout') : ''}
           >
             <LogOut className="w-6 h-6" />
@@ -116,10 +83,9 @@ const Sidebar = () => {
         )}
 
         <div 
-          className={`flex items-center pt-4 border-t-2 ${isCollapsed ? 'justify-center' : ''}`}
-          style={{ borderColor: colors.primary }}
+          className={`flex items-center pt-4 border-t-2 border-primary ${isCollapsed ? 'justify-center' : ''}`}
         >
-          <User className="w-8 h-8 text-gray-400 flex-shrink-0" />
+          <User className="w-8 h-8 text-secondary flex-shrink-0" />
           {!isCollapsed && (
             <div className="flex flex-col flex-1 min-w-0 ml-3 justify-center pt-0.5">
               <p className="m-0 text-base font-semibold text-primary truncate leading-tight" title={userName}>{userName}</p>
@@ -132,9 +98,10 @@ const Sidebar = () => {
   );
 
   return (
+    // ... el resto del componente no cambia ...
     <>
       <button
-        className="md:hidden absolute top-4 left-4 z-20 p-2 text-gray-600 bg-white rounded-full shadow"
+        className="md:hidden absolute top-4 left-4 z-20 p-2 text-secondary bg-white rounded-full shadow"
         onClick={() => setIsMobileMenuOpen(true)}
       >
         <Menu />
@@ -152,7 +119,7 @@ const Sidebar = () => {
             className="fixed inset-0 bg-black opacity-50"
             onClick={() => setIsMobileMenuOpen(false)}
           ></div>
-          <aside className="relative z-50 w-64 bg-gray-light flex flex-col">
+          <aside className="relative z-50 w-64 bg-white flex flex-col">
             <button
               onClick={() => setIsMobileMenuOpen(false)}
               className="absolute top-4 right-4 text-primary"

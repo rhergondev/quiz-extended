@@ -70,7 +70,7 @@ class QE_Admin_Menu
     public function render_react_app()
     {
         // Este div es el punto de montaje para toda nuestra aplicación de React.
-        echo '<div id="root"></div>';
+        echo '<div id="root" class="qe-lms-app"></div>';
     }
 
     /**
