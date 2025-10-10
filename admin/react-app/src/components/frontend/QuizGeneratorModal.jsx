@@ -33,6 +33,28 @@ const QuizGeneratorModal = ({
     onGenerate(filters);
   };
 
+  const renderSelect = (label, name, value, onChange, options, disabled = false) => (
+    <div>
+      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-2">
+        {label}
+      </label>
+      <select
+        id={name}
+        name={name}
+        value={value}
+        onChange={(e) => onChange(name, e.target.value)}
+        disabled={disabled}
+        className="w-full h-10 pl-3 pr-6 text-base placeholder-gray-600 border rounded-lg appearance-none focus:shadow-outline-blue focus:border-blue-300"
+      >
+        {options.map(option => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
   if (!isOpen) return null;
 
   return (
@@ -50,34 +72,11 @@ const QuizGeneratorModal = ({
         </div>
 
         <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-          <FilterDropdown
-            label="Filtrar por Curso"
-            value={filters.course}
-            onChange={(value) => handleFilterChange('course', value)}
-            options={courseOptions}
-            isLoading={isLoading}
-          />
-          <FilterDropdown
-            label="Filtrar por Lección"
-            value={filters.lesson}
-            onChange={(value) => handleFilterChange('lesson', value)}
-            options={lessonOptions}
-            isLoading={isLoading}
-          />
-          <FilterDropdown
-            label="Filtrar por Categoría"
-            value={filters.category}
-            onChange={(value) => handleFilterChange('category', value)}
-            options={categories}
-            isLoading={isLoading}
-          />
-          <FilterDropdown
-            label="Filtrar por Dificultad"
-            value={filters.difficulty}
-            onChange={(value) => handleFilterChange('difficulty', value)}
-            options={difficulties}
-            isLoading={isLoading}
-          />
+          {/* Usamos el nuevo renderSelect para cada dropdown */}
+          {renderSelect('Filtrar por Curso', 'course', filters.course, handleFilterChange, courseOptions, isLoading)}
+          {renderSelect('Filtrar por Lección', 'lesson', filters.lesson, handleFilterChange, lessonOptions, isLoading)}
+          {renderSelect('Filtrar por Categoría', 'category', filters.category, handleFilterChange, categories, isLoading)}
+          {renderSelect('Filtrar por Dificultad', 'difficulty', filters.difficulty, handleFilterChange, difficulties, isLoading)}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -90,7 +89,7 @@ const QuizGeneratorModal = ({
                 max="50"
                 value={filters.numQuestions}
                 onChange={(e) => handleFilterChange('numQuestions', parseInt(e.target.value, 10))}
-                className="w-full input"
+                className="w-full h-10 px-3 text-base placeholder-gray-600 border rounded-lg focus:shadow-outline-blue focus:border-blue-300"
               />
             </div>
             <div>
@@ -102,7 +101,7 @@ const QuizGeneratorModal = ({
                 min="0"
                 value={filters.timeLimit}
                 onChange={(e) => handleFilterChange('timeLimit', parseInt(e.target.value, 10))}
-                className="w-full input"
+                className="w-full h-10 px-3 text-base placeholder-gray-600 border rounded-lg focus:shadow-outline-blue focus:border-blue-300"
                 placeholder="0 para ilimitado"
               />
             </div>
@@ -118,5 +117,6 @@ const QuizGeneratorModal = ({
     </div>
   );
 };
+
 
 export default QuizGeneratorModal;

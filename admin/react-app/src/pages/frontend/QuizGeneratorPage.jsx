@@ -24,7 +24,7 @@ const QuizGeneratorPage = () => {
   const { courses, loading: coursesLoading } = useCourses({ perPage: 100 });
   const { lessons, loading: lessonsLoading } = useLessons({ perPage: 100 });
   const { options: taxonomyOptions, isLoading: taxonomiesLoading } = useTaxonomyOptions(['qe_category', 'qe_difficulty']);
-  
+
   // Hook for fetching questions, but with autoFetch disabled
   const { questions, loading: questionsLoading, fetchQuestions } = useQuestions({ autoFetch: false });
 
@@ -36,7 +36,7 @@ const QuizGeneratorPage = () => {
       category: filters.category !== 'all' ? filters.category : null,
       difficulty: filters.difficulty !== 'all' ? filters.difficulty : null,
       lesson: filters.lesson !== 'all' ? filters.lesson : null,
-      // courseId needed if filtering by lesson from a specific course
+      perPage: filters.numQuestions, // <-- AQUÍ ESTÁ LA CORRECCIÓN
     });
   }, [fetchQuestions]);
 
@@ -89,7 +89,7 @@ const QuizGeneratorPage = () => {
     },
     question_count: questions.length
   };
-  
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">

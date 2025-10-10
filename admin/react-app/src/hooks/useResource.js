@@ -104,6 +104,7 @@ export const useResource = ({
         return;
       }
 
+      const itemsPerPage = options.perPage || pagination.perPage;
       const activeFilters = { ...filters, ...options };
 
       // Prevent duplicate fetches
@@ -135,7 +136,7 @@ export const useResource = ({
       const result = await service.getAll({
         ...filterOptions,
         page,
-        perPage: pagination.perPage
+        perPage: itemsPerPage 
       });
 
       if (!mountedRef.current) return;
