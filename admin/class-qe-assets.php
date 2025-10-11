@@ -15,6 +15,8 @@ class QE_Assets
             return;
         }
 
+        wp_enqueue_media();
+
         $build_path = 'admin/react-app/build/';
         $script_asset_path = QUIZ_EXTENDED_PLUGIN_DIR . $build_path . 'index.asset.php';
 

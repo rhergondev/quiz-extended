@@ -490,6 +490,20 @@
       "attempts": "attempts"
     }
   },
+   "dashboard": {
+    "title": "LMS Dashboard",
+    "recentResults": "Recent Results",
+    "noAttempts": "You haven't completed any quizzes yet.",
+    "stats": {
+      "totalAttempts": "Total Attempts",
+      "passed": "Passed",
+      "failed": "Failed",
+      "averageScore": "Average Score"
+    },
+    "errors": {
+      "loadAttempts": "Error loading quiz results."
+    }
+  },
   "questions": {
     "title": "Questions",
     "description": "Create and manage questions for quizzes",

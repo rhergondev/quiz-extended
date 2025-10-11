@@ -1,7 +1,8 @@
 // src/components/lessons/LessonModal.jsx (Modificado para incluir subida de PDFs)
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { uploadMedia, validateFile } from '../../api/services/mediaService';
+import { openMediaSelector } from '../../api/utils/mediaUtils';
 import {
   X, Plus, Trash2, GripVertical, Video, FileText, Download,
   HelpCircle, FileImage, Volume2, Save, AlertCircle, ChevronDown, ChevronUp, UploadCloud, CheckCircle
@@ -313,42 +314,20 @@ const SortableStepItem = ({ step, onUpdate, onRemove, isViewMode, stepTypes, t }
 
   const quillRef = useRef(null);
 
-  const imageHandler = () => {
-    const input = document.createElement('input');
-    input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'image/*');
-    input.click();
-
-    input.onchange = async () => {
-      const file = input.files[0];
-      if (file) {
-        try {
-          // Muestra un placeholder o mensaje de carga
-          const quillEditor = quillRef.current.getEditor();
-          const range = quillEditor.getSelection(true);
-          quillEditor.insertText(range.index, "\n[Subiendo imagen...]\n");
-
-          // Sube la imagen usando el servicio existente
-          const uploadedMedia = await uploadMedia(file);
-
-          // Elimina el placeholder
-          quillEditor.deleteText(range.index, "\n[Subiendo imagen...]\n".length);
-          
-          // Inserta la imagen en el editor
-          quillEditor.insertEmbed(range.index, 'image', uploadedMedia.url);
-          quillEditor.setSelection(range.index + 1);
-
-        } catch (error) {
-          console.error('Error al subir la imagen:', error);
-          alert('No se pudo subir la imagen. Por favor, inténtalo de nuevo.');
-          // Considera eliminar el placeholder si la subida falla
-          const quillEditor = quillRef.current.getEditor();
-          const range = quillEditor.getSelection(true);
-          quillEditor.deleteText(range.index, "\n[Subiendo imagen...]\n".length);
-        }
+  const imageHandler = useCallback(async () => {
+    try {
+      const imageUrl = await openMediaSelector();
+      if (imageUrl && quillRef.current) {
+        const quillEditor = quillRef.current.getEditor();
+        const range = quillEditor.getSelection(true);
+        quillEditor.insertEmbed(range.index, 'image', imageUrl);
+        quillEditor.setSelection(range.index + 1);
       }
-    };
-  };
+    } catch (error) {
+      console.error("Error al abrir el selector de medios:", error);
+      alert("No se pudo abrir la librería de medios de WordPress.");
+    }
+  }, []);
 
   const quillModules = useMemo(() => ({
     toolbar: {

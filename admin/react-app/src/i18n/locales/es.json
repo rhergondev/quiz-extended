@@ -47,6 +47,20 @@
   "logoText": "Tu Logo",
   "quizGenerator": "Generador de Cuestionarios"
 },
+ "dashboard": {
+    "title": "Panel del LMS",
+    "recentResults": "Resultados Recientes",
+    "noAttempts": "Aún no has completado ningún cuestionario.",
+    "stats": {
+      "totalAttempts": "Intentos Totales",
+      "passed": "Aprobados",
+      "failed": "Suspendidos",
+      "averageScore": "Puntuación Media"
+    },
+    "errors": {
+      "loadAttempts": "Error al cargar los resultados de los cuestionarios."
+    }
+  },
   "courses": {
     "title": "Cursos",
     "description": "Crea y gestiona cursos con lecciones, precios e inscripciones",

@@ -5,6 +5,7 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { uploadMedia } from '../../api/services/mediaService';
+import { openMediaSelector } from '../../api/utils/mediaUtils';
 import {
   arrayMove,
   SortableContext,
@@ -348,37 +349,19 @@ const QuestionModal = ({
     }));
   };
 
-  const imageHandler = useCallback(() => {
-    const input = document.createElement('input');
-    input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'image/*');
-    input.click();
-
-    input.onchange = async () => {
-      if (!input.files) return;
-      const file = input.files[0];
-      if (file) {
-        // Asegúrate que quillRef.current exista
-        if (!quillRef.current) {
-            console.error("Referencia del editor no encontrada.");
-            return;
-        }
+  const imageHandler = useCallback(async () => {
+    try {
+      const imageUrl = await openMediaSelector();
+      if (imageUrl && quillRef.current) {
         const quillEditor = quillRef.current.getEditor();
         const range = quillEditor.getSelection(true);
-
-        try {
-          quillEditor.insertText(range.index, "\n[Subiendo imagen...]\n");
-          const uploadedMedia = await uploadMedia(file);
-          quillEditor.deleteText(range.index, "\n[Subiendo imagen...]\n".length);
-          quillEditor.insertEmbed(range.index, 'image', uploadedMedia.url);
-          quillEditor.setSelection(range.index + 1);
-        } catch (error) {
-          console.error('Error al subir la imagen:', error);
-          alert('No se pudo subir la imagen.');
-          quillEditor.deleteText(range.index, "\n[Subiendo imagen...]\n".length);
-        }
+        quillEditor.insertEmbed(range.index, 'image', imageUrl);
+        quillEditor.setSelection(range.index + 1);
       }
-    };
+    } catch (error) {
+      console.error("Error al abrir el selector de medios:", error);
+      alert("No se pudo abrir la librería de medios de WordPress.");
+    }
   }, []);
 
   const quillModules = useMemo(() => ({
