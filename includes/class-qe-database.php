@@ -129,6 +129,7 @@ class QE_Database
                 score DECIMAL(5,2) DEFAULT 0.00,
                 score_with_risk DECIMAL(5,2) DEFAULT 0.00,
                 status VARCHAR(20) NOT NULL DEFAULT 'in-progress',
+                time_taken_seconds INT(10) UNSIGNED DEFAULT NULL,
                 PRIMARY KEY (attempt_id),
                 KEY user_id (user_id),
                 KEY quiz_id (quiz_id),

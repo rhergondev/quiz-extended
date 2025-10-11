@@ -90,7 +90,192 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 ]
             ]
         );
+
+        $this->register_secure_route(
+            '/my-quiz-attempts',
+            WP_REST_Server::READABLE, // Método GET
+            'get_my_quiz_attempts',
+            [
+                'validation_schema' => [
+                    'per_page' => [
+                        'type' => 'integer',
+                        'default' => 10,
+                        'minimum' => 1,
+                        'maximum' => 100,
+                    ],
+                    'page' => [
+                        'type' => 'integer',
+                        'default' => 1,
+                        'minimum' => 1,
+                    ],
+                ]
+            ]
+        );
+
+        $this->register_secure_route(
+            '/quiz-attempts/(?P<id>\d+)',
+            WP_REST_Server::READABLE,
+            'get_quiz_attempt_details',
+            [
+                'permission_callback' => [$this, 'check_get_details_permission']
+            ]
+        );
     }
+
+    // ============================================================
+    // 🔥 NUEVO: OBTENER DETALLES DE UN INTENTO
+    // ============================================================
+
+    public function get_quiz_attempt_details(WP_REST_Request $request)
+    {
+        $attempt_id = (int) $request['id'];
+
+        global $wpdb;
+        $attempts_table = $this->get_table('quiz_attempts');
+        $answers_table = $this->get_table('attempt_answers');
+
+        // 1. Obtener la información principal del intento
+        $attempt = $wpdb->get_row($wpdb->prepare(
+            "SELECT att.*, quiz.post_title as quizTitle 
+             FROM {$attempts_table} AS att
+             LEFT JOIN {$wpdb->posts} AS quiz ON att.quiz_id = quiz.ID
+             WHERE att.attempt_id = %d",
+            $attempt_id
+        ));
+
+        if (!$attempt) {
+            return $this->error_response('not_found', 'Intento no encontrado.', 404);
+        }
+
+        // 2. Obtener las respuestas dadas por el usuario en este intento
+        $user_answers = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$answers_table} WHERE attempt_id = %d",
+            $attempt_id
+        ));
+
+        // 3. Obtener los detalles de todas las preguntas involucradas
+        $question_ids = array_map(function ($answer) {
+            return $answer->question_id; }, $user_answers);
+        $questions_data = [];
+
+        if (!empty($question_ids)) {
+            $posts = get_posts([
+                'post__in' => $question_ids,
+                'post_type' => 'question',
+                'posts_per_page' => -1,
+                'orderby' => 'post__in', // Mantener el orden original
+            ]);
+
+            foreach ($posts as $post) {
+                $questions_data[$post->ID] = [
+                    'id' => $post->ID,
+                    'title' => $post->post_title,
+                    'options' => get_post_meta($post->ID, '_question_options', true)
+                ];
+            }
+        }
+
+        // 4. 🔥 CORRECCIÓN FINAL: Unir toda la información
+        $detailed_results = [];
+        foreach ($user_answers as $user_answer) {
+            $question_id = $user_answer->question_id;
+            $question_details = $questions_data[$question_id] ?? null;
+
+            if (!$question_details)
+                continue;
+
+            // Encontrar el ID de la respuesta correcta iterando las opciones
+            $correct_answer_id = null;
+            if (is_array($question_details['options'])) {
+                foreach ($question_details['options'] as $option_id => $option_data) {
+                    if (isset($option_data['isCorrect']) && $option_data['isCorrect']) {
+                        $correct_answer_id = $option_id;
+                        break;
+                    }
+                }
+            }
+
+            // Construir el objeto final para esta pregunta
+            $detailed_results[] = [
+                'question_id' => (int) $question_id,
+                'answer_given' => $user_answer->answer_given, // La respuesta del usuario
+                'correct_answer_id' => $correct_answer_id,      // La respuesta correcta
+                'is_correct' => (bool) $user_answer->is_correct,
+            ];
+        }
+
+        // 5. Construir la respuesta final de la API
+        $response_data = [
+            'attempt' => $attempt,
+            'questions' => array_values($questions_data),
+            'detailed_results' => $detailed_results
+        ];
+
+        return $this->success_response($response_data);
+    }
+
+    /**
+     * Get quiz attempts for the current logged-in user.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response|WP_Error
+     */
+    public function get_my_quiz_attempts(WP_REST_Request $request)
+    {
+        $user_id = get_current_user_id();
+        if (empty($user_id)) {
+            return $this->error_response('not_logged_in', __('You must be logged in to view your attempts.', 'quiz-extended'), 401);
+        }
+
+        $page = $request->get_param('page');
+        $per_page = $request->get_param('per_page');
+        $offset = ($page - 1) * $per_page;
+
+        global $wpdb;
+        $attempts_table = $this->get_table('quiz_attempts');
+
+        // Query para obtener el total de intentos para la paginación
+        $total_items = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$attempts_table} WHERE user_id = %d AND status = 'completed'",
+            $user_id
+        ));
+
+        // Query para obtener los intentos con los títulos del quiz y del curso
+        $query = $wpdb->prepare(
+            "SELECT 
+                att.*, 
+                quiz.post_title AS quizTitle,
+                course.post_title AS courseTitle,
+                (SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = att.quiz_id AND meta_key = '_passing_score') as passing_score
+             FROM {$attempts_table} AS att
+             LEFT JOIN {$wpdb->posts} AS quiz ON att.quiz_id = quiz.ID
+             LEFT JOIN {$wpdb->posts} AS course ON att.course_id = course.ID
+             WHERE att.user_id = %d AND att.status = 'completed'
+             ORDER BY att.end_time DESC
+             LIMIT %d OFFSET %d",
+            $user_id,
+            $per_page,
+            $offset
+        );
+
+        $results = $wpdb->get_results($query);
+
+        // Añadir el campo "passed" a cada intento
+        foreach ($results as $result) {
+            $passing_score = isset($result->passing_score) ? (int) $result->passing_score : 70;
+            $result->passed = (float) $result->score >= $passing_score;
+        }
+
+        $response = new WP_REST_Response($results, 200);
+
+        // Añadir cabeceras de paginación
+        $total_pages = ceil($total_items / $per_page);
+        $response->header('X-WP-Total', $total_items);
+        $response->header('X-WP-TotalPages', $total_pages);
+
+        return $response;
+    }
+
 
     // ============================================================
     // START QUIZ ATTEMPT
@@ -331,6 +516,40 @@ class QE_Quiz_Attempts_API extends QE_API_Base
     // ============================================================
     // PERMISSION CALLBACKS
     // ============================================================
+
+    /**
+     * 🔥 NUEVO: Check if user can view details for this attempt
+     *
+     * @param WP_REST_Request $request
+     * @return bool|WP_Error
+     */
+    public function check_get_details_permission(WP_REST_Request $request)
+    {
+        $attempt_id = (int) $request['id'];
+        $user_id = get_current_user_id();
+
+        if (empty($user_id)) {
+            return new WP_Error('not_logged_in', 'Usuario no autenticado.', ['status' => 401]);
+        }
+
+        // El administrador puede ver cualquier intento
+        if (current_user_can('manage_options')) {
+            return true;
+        }
+
+        // El usuario solo puede ver sus propios intentos
+        global $wpdb;
+        $attempt_owner_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT user_id FROM {$this->get_table('quiz_attempts')} WHERE attempt_id = %d",
+            $attempt_id
+        ));
+
+        if ((int) $attempt_owner_id === $user_id) {
+            return true;
+        }
+
+        return new WP_Error('rest_forbidden', 'No tienes permiso para ver este resultado.', ['status' => 403]);
+    }
 
     /**
      * Check if user can submit this quiz attempt
@@ -661,18 +880,24 @@ class QE_Quiz_Attempts_API extends QE_API_Base
      * @param array $grading_result Grading results
      * @return bool Success
      */
-    private function complete_attempt($attempt_id, $grading_result)
+    private function complete_attempt($attempt_id, $grading_result, $attempt)
     {
+        // 🔥 NUEVO: Calcular la duración
+        $start_time = strtotime($attempt->start_time);
+        $end_time = time();
+        $time_taken_seconds = $end_time - $start_time;
+
         return $this->db_update(
             'quiz_attempts',
             [
-                'end_time' => $this->get_mysql_timestamp(),
+                'end_time' => date('Y-m-d H:i:s', $end_time),
                 'score' => $grading_result['score'],
                 'score_with_risk' => $grading_result['score_with_risk'],
-                'status' => 'completed'
+                'status' => 'completed',
+                'time_taken_seconds' => $time_taken_seconds // 🔥 NUEVO: Guardar duración
             ],
             ['attempt_id' => $attempt_id],
-            ['%s', '%f', '%f', '%s'],
+            ['%s', '%f', '%f', '%s', '%d'],
             ['%d']
         );
     }
