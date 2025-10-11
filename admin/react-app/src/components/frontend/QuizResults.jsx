@@ -2,11 +2,14 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import ReviewedQuestion from './ReviewedQuestion';
 import ResultsSidebar from './ResultsSidebar';
+import { useTranslation } from 'react-i18next';
 
 const QuizResults = ({ result, quizTitle, questions }) => {
   if (!result) {
-    return <div className="text-center p-8">Cargando resultados...</div>;
+    return <div className="text-center p-8">{t('quizzes.loadingResults')}</div>;
   }
+
+  const { t } = useTranslation();
 
   const { detailed_results } = result;
 
@@ -19,8 +22,7 @@ const QuizResults = ({ result, quizTitle, questions }) => {
       {/* --- COLUMNA IZQUIERDA: REVISIÓN DETALLADA (con scroll interno) --- */}
       <main className="flex-grow w-full lg:overflow-y-auto lg:pr-4">
         <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-gray-800">Revisión del Cuestionario</h2>
-            <p className="text-gray-600 mt-1">Resultados para: <strong>{quizTitle}</strong></p>
+            <h2 className="text-2xl font-bold text-gray-800">{t('quizzes.quizResults')}</h2>
         </div>
 
         {detailed_results && questions ? (
@@ -34,7 +36,7 @@ const QuizResults = ({ result, quizTitle, questions }) => {
             ))}
           </div>
         ) : (
-            <p>No hay resultados detallados para mostrar.</p>
+            <p>{t('quizzes.noDetailedResults')}</p>
         )}
 
         <div className="mt-8 text-center pb-4">

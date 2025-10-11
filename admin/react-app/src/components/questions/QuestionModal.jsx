@@ -1,9 +1,10 @@
 // admin/react-app/src/components/modals/QuestionModal.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X, Plus, Trash2, Save, Eye, AlertCircle } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { uploadMedia } from '../../api/services/mediaService';
 import {
   arrayMove,
   SortableContext,
@@ -58,6 +59,8 @@ const QuestionModal = ({
   const [showNewCategoryForm, setShowNewCategoryForm] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [creatingCategory, setCreatingCategory] = useState(false);
+
+  const quillRef = useRef(null);
 
   const questionTypes = [
     { value: 'multiple_choice', label: 'Multiple Choice' },
@@ -345,6 +348,55 @@ const QuestionModal = ({
     }));
   };
 
+  const imageHandler = useCallback(() => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    input.onchange = async () => {
+      if (!input.files) return;
+      const file = input.files[0];
+      if (file) {
+        // Asegúrate que quillRef.current exista
+        if (!quillRef.current) {
+            console.error("Referencia del editor no encontrada.");
+            return;
+        }
+        const quillEditor = quillRef.current.getEditor();
+        const range = quillEditor.getSelection(true);
+
+        try {
+          quillEditor.insertText(range.index, "\n[Subiendo imagen...]\n");
+          const uploadedMedia = await uploadMedia(file);
+          quillEditor.deleteText(range.index, "\n[Subiendo imagen...]\n".length);
+          quillEditor.insertEmbed(range.index, 'image', uploadedMedia.url);
+          quillEditor.setSelection(range.index + 1);
+        } catch (error) {
+          console.error('Error al subir la imagen:', error);
+          alert('No se pudo subir la imagen.');
+          quillEditor.deleteText(range.index, "\n[Subiendo imagen...]\n".length);
+        }
+      }
+    };
+  }, []);
+
+  const quillModules = useMemo(() => ({
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline'],
+        [{'list': 'ordered'}, {'list': 'bullet'}],
+        ['link', 'image'],
+        ['clean']
+      ],
+      handlers: {
+        'image': imageHandler,
+      },
+    },
+  }), [imageHandler]);
+
+
   if (!isOpen) return null;
 
   const isReadOnly = mode === 'view';
@@ -573,7 +625,13 @@ const QuestionModal = ({
             {/* Explanation */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Explanation (Optional)</label>
-              <ReactQuill theme="snow" value={formData.explanation} onChange={(value) => handleFieldChange('explanation', value)} readOnly={isReadOnly} />
+              <ReactQuill
+                ref={quillRef}
+                theme="snow"
+                value={formData.explanation}
+                onChange={(value) => handleFieldChange('explanation', value)}
+                modules={quillModules}
+              />
             </div>
             
         </form>

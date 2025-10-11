@@ -423,7 +423,10 @@
     "noQuizzes": "No se encontraron cuestionarios",
     "noQuizzesDescription": "Aún no has creado ningún cuestionario.",
     "searchPlaceholder": "Buscar cuestionarios...",
+    "noDetailedResults": "No hay resultados detallados para mostrar.",
     "loadingQuizzes": "Cargando cuestionarios...",
+    "loadingResults": "Cargando resultados del cuestionario...",
+    "quizResults": "Resultados del Cuestionario",
     "fields": {
       "title": "Título del Cuestionario",
       "instructions": "Instrucciones",

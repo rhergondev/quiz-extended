@@ -1,13 +1,15 @@
-// src/components/frontend/StepContent.jsx
 import React, { useState, useEffect } from 'react';
-import { BookOpen, PlayCircle, FileText, CheckSquare } from 'lucide-react';
+import { BookOpen, PlayCircle, FileText, CheckSquare, File } from 'lucide-react'; // Importa el icono de File
 import Quiz from './Quiz';
-import QuizStartConfirmation from './QuizStartConfirmation'; // Importado
+import QuizStartConfirmation from './QuizStartConfirmation';
+import PdfStep from './PdfStep';
+import { getEmbedUrl } from '../../api/utils/videoUtils';
 
 const stepIcons = {
   video: <PlayCircle className="w-5 h-5 text-blue-500" />,
   text: <FileText className="w-5 h-5 text-green-500" />,
   quiz: <CheckSquare className="w-5 h-5 text-purple-500" />,
+  pdf: <File className="w-5 h-5 text-red-500" />, // Añade el icono para PDF
   default: <BookOpen className="w-5 h-5 text-gray-500" />,
 };
 
@@ -15,7 +17,6 @@ const StepContent = ({ step, lesson, quizzes }) => {
   const [quizStarted, setQuizStarted] = useState(false);
 
   useEffect(() => {
-    // Reiniciar el estado del quiz si el paso cambia
     setQuizStarted(false);
   }, [step]);
 
@@ -28,14 +29,15 @@ const StepContent = ({ step, lesson, quizzes }) => {
 
     switch (step.type) {
       case 'video':
-        const videoUrl = stepData.video_url ? stepData.video_url.replace("watch?v=", "embed/") : '';
+        // 🔥 2. Usa la nueva utilidad para obtener una URL de embed robusta
+        const embedUrl = getEmbedUrl(stepData.video_url);
         return (
           <div>
-            {videoUrl ? (
+            {embedUrl ? (
               <div className="aspect-video">
                 <iframe
                   className="w-full h-full rounded-lg"
-                  src={videoUrl}
+                  src={embedUrl}
                   title={step.title}
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -43,7 +45,7 @@ const StepContent = ({ step, lesson, quizzes }) => {
                 ></iframe>
               </div>
             ) : (
-              <p>URL del video no encontrada.</p>
+              <p>La URL del video no es válida o no es compatible.</p>
             )}
           </div>
         );
@@ -65,6 +67,11 @@ const StepContent = ({ step, lesson, quizzes }) => {
           return <QuizStartConfirmation quiz={quiz} onStartQuiz={() => setQuizStarted(true)} />;
         }
         return <Quiz quizId={quizId} />;
+      
+      // 🔥 2. Añade el 'case' para el tipo 'pdf'
+      case 'pdf':
+        return <PdfStep step={step} />;
+        
       default:
         return (
           <p>Tipo de paso no soportado: {step.type}</p>
@@ -93,7 +100,7 @@ const StepContent = ({ step, lesson, quizzes }) => {
  return (
     <div className="flex-grow lg:w-full bg-gray-100 h-[100%] overflow-y-auto">
       <div className="mb-6 px-6 pt-6">
-        <p className="text-sm text-indigo-600 font-semibold">{lesson.title}</p>
+        <p className="text-sm text-indigo-600 font-semibold">{lesson.title.rendered}</p>
         <h1 className="text-3xl font-bold text-gray-800 mt-1">{stepTitle}</h1>
       </div>
 

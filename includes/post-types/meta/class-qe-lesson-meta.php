@@ -204,6 +204,7 @@ class QE_Lesson_Meta
                                 'properties' => [
                                     'quiz_id' => ['type' => 'integer'],
                                     'url' => ['type' => 'string'],
+                                    'video_url' => ['type' => 'string'],
                                     'video_id' => ['type' => 'integer'],
                                     'file_id' => ['type' => 'integer'],
                                     'image_id' => ['type' => 'integer'],
@@ -344,6 +345,9 @@ class QE_Lesson_Meta
             case 'video':
                 if (isset($data['url'])) {
                     $sanitized['url'] = esc_url_raw($data['url']);
+                }
+                if (isset($data['video_url'])) {
+                    $sanitized['video_url'] = esc_url_raw($data['video_url']);
                 }
                 if (isset($data['video_id'])) {
                     $sanitized['video_id'] = absint($data['video_id']);

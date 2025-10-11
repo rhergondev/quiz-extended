@@ -68,8 +68,8 @@ class QE_Step_Sanitizer
         $sanitized = [];
 
         // URL
-        if (isset($data['url'])) {
-            $sanitized['url'] = esc_url_raw($data['url']);
+        if (isset($data['video_url'])) {
+            $sanitized['video_url'] = esc_url_raw($data['video_url']);
         }
 
         // Video ID (attachment ID)

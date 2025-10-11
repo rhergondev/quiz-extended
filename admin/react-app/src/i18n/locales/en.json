@@ -423,7 +423,10 @@
     "noQuizzes": "No quizzes found",
     "noQuizzesDescription": "You haven't created any quizzes yet.",
     "searchPlaceholder": "Search quizzes...",
+    "noDetailedResults": "No detailed results to show.",
     "loadingQuizzes": "Loading quizzes...",
+    "loadingResults": "Loading quiz results...",
+    "quizResults": "Quiz Results",
     "fields": {
       "title": "Quiz Title",
       "instructions": "Instructions",

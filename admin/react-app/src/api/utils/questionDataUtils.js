@@ -1,9 +1,9 @@
 /**
  * Question Data Validation and Transformation Utilities
  * Handles data formatting for WordPress REST API
- * * @package QuizExtended
+ * @package QuizExtended
  * @subpackage API/Utils
- * @version 2.1.0
+ * @version 2.2.0
  */
 
 import {
@@ -92,12 +92,9 @@ export const transformQuestionDataForApi = (questionData) => {
 
 export const sanitizeQuestionData = (questionData) => {
     if (!questionData) return null;
-
-    const title = sanitizeRenderedContent(questionData.title);
-
     return {
         id: questionData.id || 0,
-        title: title,
+        title: sanitizeRenderedContent(questionData.title),
         content: sanitizeRenderedContent(questionData.content), // Explanation
         status: sanitizePostStatus(questionData.status, 'draft'),
         date: questionData.date || '',
@@ -159,13 +156,17 @@ export const formatQuestionForDisplay = (question) => {
     return null;
   }
 
+  // 🔥 CORRECCIÓN: Nos aseguramos de capturar la explicación desde `content`.
+  const fullExplanation = (sanitized.content || sanitized.meta?._explanation || '').replace(/<p>|<\/p>/g, '').trim();
+
   return {
     ...sanitized,
     // Formatted values for UI
     formattedType: capitalize(sanitized.meta._question_type.replace('_', ' ')),
     formattedDifficulty: capitalize(sanitized.meta._difficulty_level),
     formattedDate: formatDate(sanitized.date),
-    shortExplanation: truncateText(sanitized.content.replace(/<[^>]*>/g, ''), 100),
+    shortExplanation: truncateText(fullExplanation, 100),
+    fullExplanation: fullExplanation, // Exponemos la explicación completa
     isPublished: sanitized.status === 'publish',
   };
 };

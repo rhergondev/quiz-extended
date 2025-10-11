@@ -1,17 +1,28 @@
-import React from 'react';
-import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { formatQuestionForDisplay } from '../../api/utils/questionDataUtils';
+import { useTranslation } from 'react-i18next';
 
 const ReviewedQuestion = ({ question, result }) => {
-  if (!question || !result) {
-    return null;
+  const [isExpanded, setIsExpanded] = useState(false);
+  const { t } = useTranslation();
+
+  const formattedQuestion = formatQuestionForDisplay(question);
+
+  if (!formattedQuestion || !result) {
+    return (
+      <div className="p-4 border border-red-200 bg-red-50 rounded-lg flex items-center">
+        <AlertTriangle className="h-5 w-5 text-red-500 mr-3" />
+        <p className="text-sm text-red-700">Error: Invalid question data or result provided.</p>
+      </div>
+    );
   }
 
-  const { title, meta } = question;
+  const { title, meta, fullExplanation } = formattedQuestion;
   const options = meta?._question_options || [];
   const { answer_given, correct_answer, is_correct, is_risked } = result;
 
   const getOptionStyle = (optionId) => {
-    // Usamos '==' para manejar la posible diferencia de tipos (ej: número vs. string)
     const isSelected = optionId == answer_given;
     const isCorrect = optionId == correct_answer;
 
@@ -22,6 +33,14 @@ const ReviewedQuestion = ({ question, result }) => {
       return 'border-red-500 bg-red-50 text-red-800 font-semibold';
     }
     return 'border-gray-200 bg-white';
+  };
+
+  // Función para manejar el toggle con teclado para accesibilidad
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setIsExpanded(!isExpanded);
+    }
   };
 
   return (
@@ -60,6 +79,40 @@ const ReviewedQuestion = ({ question, result }) => {
           ))}
         </div>
       </div>
+
+      {/* 🔥 CAMBIO: Se usa un DIV en lugar de un BUTTON */}
+      {fullExplanation && (
+        <div className="border-t border-gray-200">
+          {/* Botón para expandir/contraer ahora es un div */}
+          <div
+            onClick={() => setIsExpanded(!isExpanded)}
+            onKeyDown={handleKeyDown}
+            role="button" // Atributo de accesibilidad
+            tabIndex="0"   // Hace que el div sea enfocable
+            aria-expanded={isExpanded}
+            className="flex justify-between items-center w-full px-7 pt-4 pb-2 text-left cursor-pointer"
+          >
+            <p className="font-semibold text-gray-700">{t('questions.fields.explanation')}</p>
+            {isExpanded ? (
+              <ChevronUp className="h-5 w-5 text-gray-500" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-gray-500" />
+            )}
+          </div>
+
+          {/* Contenido de la explicación (condicional) */}
+          {isExpanded && (
+            <div className="px-8 pb-4">
+              <div className="bg-gray-50 rounded-md p-4">
+                <p
+                  className="text-sm text-gray-600"
+                  dangerouslySetInnerHTML={{ __html: fullExplanation }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

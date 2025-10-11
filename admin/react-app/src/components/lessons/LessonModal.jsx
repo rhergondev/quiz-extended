@@ -1,9 +1,10 @@
-// src/components/lessons/LessonModal.jsx (Refactorizado)
+// src/components/lessons/LessonModal.jsx (Modificado para incluir subida de PDFs)
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { uploadMedia, validateFile } from '../../api/services/mediaService';
 import {
   X, Plus, Trash2, GripVertical, Video, FileText, Download,
-  HelpCircle, FileImage, Volume2, Save, AlertCircle, ChevronDown, ChevronUp
+  HelpCircle, FileImage, Volume2, Save, AlertCircle, ChevronDown, ChevronUp, UploadCloud, CheckCircle
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -24,6 +25,11 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import QuizSingleSelector from '../common/QuizSingleSelector';
 
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+
+
+// ... (El resto del componente LessonModal se mantiene igual hasta SortableStepItem)
 const LessonModal = ({
   isOpen,
   onClose,
@@ -297,12 +303,67 @@ const LessonModal = ({
 };
 
 
+
 const SortableStepItem = ({ step, onUpdate, onRemove, isViewMode, stepTypes, t }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: step.id });
   const [isExpanded, setIsExpanded] = useState(false);
   const Icon = stepTypes[step.type]?.icon || FileText;
   const config = stepTypes[step.type] || stepTypes.text;
   const style = { transform: CSS.Transform.toString(transform), transition };
+
+  const quillRef = useRef(null);
+
+  const imageHandler = () => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    input.onchange = async () => {
+      const file = input.files[0];
+      if (file) {
+        try {
+          // Muestra un placeholder o mensaje de carga
+          const quillEditor = quillRef.current.getEditor();
+          const range = quillEditor.getSelection(true);
+          quillEditor.insertText(range.index, "\n[Subiendo imagen...]\n");
+
+          // Sube la imagen usando el servicio existente
+          const uploadedMedia = await uploadMedia(file);
+
+          // Elimina el placeholder
+          quillEditor.deleteText(range.index, "\n[Subiendo imagen...]\n".length);
+          
+          // Inserta la imagen en el editor
+          quillEditor.insertEmbed(range.index, 'image', uploadedMedia.url);
+          quillEditor.setSelection(range.index + 1);
+
+        } catch (error) {
+          console.error('Error al subir la imagen:', error);
+          alert('No se pudo subir la imagen. Por favor, inténtalo de nuevo.');
+          // Considera eliminar el placeholder si la subida falla
+          const quillEditor = quillRef.current.getEditor();
+          const range = quillEditor.getSelection(true);
+          quillEditor.deleteText(range.index, "\n[Subiendo imagen...]\n".length);
+        }
+      }
+    };
+  };
+
+  const quillModules = useMemo(() => ({
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{'list': 'ordered'}, {'list': 'bullet'}],
+        ['link', 'image'], // Añade 'image' a la barra de herramientas
+        ['clean']
+      ],
+      handlers: {
+        'image': imageHandler, // Asigna el manejador personalizado
+      },
+    },
+  }), []);
 
   return (
     <div ref={setNodeRef} style={style} className="bg-white border border-gray-200 rounded-lg">
@@ -371,12 +432,13 @@ const SortableStepItem = ({ step, onUpdate, onRemove, isViewMode, stepTypes, t }
           {step.type === 'text' && (
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">{t('lessons.stepTypes.text.content')}</label>
-              <textarea
+              <ReactQuill
+                ref={quillRef}
+                theme="snow"
                 value={step.data?.content || ''}
-                onChange={(e) => onUpdate(step.id, { data: { ...step.data, content: e.target.value } })}
-                rows={4}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-                disabled={isViewMode}
+                onChange={(content) => onUpdate(step.id, { data: { ...step.data, content } })}
+                readOnly={isViewMode}
+                modules={quillModules}
               />
             </div>
           )}
@@ -391,8 +453,122 @@ const SortableStepItem = ({ step, onUpdate, onRemove, isViewMode, stepTypes, t }
               />
             </div>
           )}
+
+          {/* 🔥 NUEVO: Interfaz para el paso de tipo PDF */}
+          {step.type === 'pdf' && (
+            <PdfStepEditor
+              step={step}
+              onUpdate={onUpdate}
+              isViewMode={isViewMode}
+              t={t}
+            />
+          )}
         </div>
       )}
+    </div>
+  );
+};
+
+// 🔥 NUEVO: Componente para gestionar la subida y visualización de PDFs
+const PdfStepEditor = ({ step, onUpdate, isViewMode, t }) => {
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState(null);
+  const fileInputRef = React.useRef(null);
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validation = validateFile(file, {
+      maxSize: 10 * 1024 * 1024, // 10MB
+      allowedTypes: ['application/pdf']
+    });
+
+    if (!validation.isValid) {
+      setError(validation.error);
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+    setProgress(0);
+
+    try {
+      const uploadedMedia = await uploadMedia(file, { onProgress: setProgress });
+      onUpdate(step.id, {
+        data: {
+          ...step.data,
+          file_id: uploadedMedia.id,
+          filename: file.name,
+          url: uploadedMedia.url
+        }
+      });
+    } catch (err) {
+      setError(err.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+  
+  const removePdf = () => {
+      onUpdate(step.id, {
+          data: {
+              ...step.data,
+              file_id: null,
+              filename: null,
+              url: null
+          }
+      })
+  }
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-xs font-medium text-gray-700">{t('lessons.stepTypes.pdf.label')}</label>
+      
+      {step.data?.file_id ? (
+        <div className="flex items-center justify-between p-2 bg-gray-100 border border-gray-200 rounded-md">
+            <div className='flex items-center space-x-2'>
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <a href={step.data.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline truncate" title={step.data.filename}>
+                {step.data.filename}
+              </a>
+            </div>
+          {!isViewMode && (
+            <button type="button" onClick={removePdf} className="p-1 text-red-500 hover:text-red-700">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      ) : (
+        <div>
+          <input
+            type="file"
+            accept="application/pdf"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            disabled={uploading || isViewMode}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading || isViewMode}
+            className="w-full flex items-center justify-center px-3 py-2 border-2 border-dashed border-gray-300 rounded-md text-sm text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed"
+          >
+            <UploadCloud className="h-4 w-4 mr-2" />
+            {uploading ? `Uploading... ${progress}%` : 'Select a PDF file'}
+          </button>
+        </div>
+      )}
+      
+      {uploading && (
+        <div className="w-full bg-gray-200 rounded-full h-1.5">
+          <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${progress}%` }}></div>
+        </div>
+      )}
+
+      {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
     </div>
   );
 };
