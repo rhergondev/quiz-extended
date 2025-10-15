@@ -53,9 +53,16 @@ class QE_Feedback_Rankings_API extends QE_API_Base
 
         // Get course rankings
         $this->register_secure_route(
-            '/rankings/(?P<course_id>\d+)',
+            '/rankings/course/(?P<course_id>\d+)',
             WP_REST_Server::READABLE,
             'get_course_rankings'
+        );
+
+        // Get quiz rankings
+        $this->register_secure_route(
+            '/rankings/quiz/(?P<quiz_id>\d+)',
+            WP_REST_Server::READABLE,
+            'get_quiz_ranking'
         );
     }
 
@@ -136,6 +143,100 @@ class QE_Feedback_Rankings_API extends QE_API_Base
     // ============================================================
     // RANKINGS
     // ============================================================
+
+    /**
+     * Get quiz rankings
+     *
+     * @param WP_REST_Request $request Request object
+     * @return WP_REST_Response|WP_Error Response
+     */
+    public function get_quiz_ranking(WP_REST_Request $request)
+    {
+        $quiz_id = (int) $request['quiz_id'];
+        $current_user_id = get_current_user_id();
+
+        // Validate quiz
+        $quiz = get_post($quiz_id);
+        if (!$quiz || $quiz->post_type !== 'quiz') {
+            return $this->error_response('not_found', 'Quiz no encontrado.', 404);
+        }
+
+        global $wpdb;
+        $attempts_table = $this->get_table('quiz_attempts');
+
+        // 1. Get all users ranked by their highest score for this quiz
+        $all_rankings = $wpdb->get_results($wpdb->prepare(
+            "SELECT a.user_id, MAX(a.score_with_risk) as score, u.display_name, u.user_email
+            FROM {$attempts_table} a
+            INNER JOIN {$wpdb->users} u ON a.user_id = u.ID
+            WHERE a.quiz_id = %d AND a.status = 'completed'
+            GROUP BY a.user_id
+            ORDER BY score DESC, MAX(a.end_time) ASC", // Tie-break with earlier completion
+            $quiz_id
+        ));
+
+        if (empty($all_rankings)) {
+            return $this->success_response(['top' => [], 'relative' => [], 'currentUser' => null]);
+        }
+
+        // 2. Find current user's position
+        $current_user_position = -1;
+        foreach ($all_rankings as $index => $rank) {
+            if ((int) $rank->user_id === $current_user_id) {
+                $current_user_position = $index;
+                break;
+            }
+        }
+
+        // 3. Prepare Top 3
+        $top_3 = array_slice($all_rankings, 0, 3);
+        $top_3_processed = [];
+        foreach ($top_3 as $index => $rank) {
+            $top_3_processed[] = [
+                'position' => $index + 1,
+                'user_id' => (int) $rank->user_id,
+                'display_name' => $rank->display_name,
+                'avatar_url' => get_avatar_url($rank->user_id),
+                'score' => (float) $rank->score,
+            ];
+        }
+
+        // 4. Prepare Relative Ranking
+        $relative_ranking_processed = [];
+        if ($current_user_position !== -1) {
+            $start = max(0, $current_user_position - 3);
+            $length = min(count($all_rankings) - $start, 7);
+            $relative_slice = array_slice($all_rankings, $start, $length);
+
+            foreach ($relative_slice as $rank) {
+                $user_global_pos = -1;
+                foreach ($all_rankings as $i => $global_rank) {
+                    if ($global_rank->user_id == $rank->user_id) {
+                        $user_global_pos = $i + 1;
+                        break;
+                    }
+                }
+
+                $relative_ranking_processed[] = [
+                    'position' => $user_global_pos,
+                    'user_id' => (int) $rank->user_id,
+                    'display_name' => $rank->display_name,
+                    'avatar_url' => get_avatar_url($rank->user_id),
+                    'score' => (float) $rank->score,
+                ];
+            }
+        }
+
+        return $this->success_response([
+            'top' => $top_3_processed,
+            'relative' => $relative_ranking_processed,
+            'currentUser' => [
+                'id' => $current_user_id,
+                'position' => $current_user_position !== -1 ? $current_user_position + 1 : null,
+            ]
+        ]);
+    }
+
 
     /**
      * Get course rankings

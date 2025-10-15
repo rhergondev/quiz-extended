@@ -1,10 +1,8 @@
 /**
  * Main API Entry Point - CONSOLIDATED
- * 
- * Exports all API functions with backward compatibility
+ * * Exports all API functions with backward compatibility
  * Now using baseService foundation
- * 
- * @package QuizExtended
+ * * @package QuizExtended
  * @subpackage API
  * @version 2.0.0
  */
@@ -92,6 +90,10 @@ export {
   getQuestionStatistics,
   bulkCreateQuestions
 } from './services/questionService.js';
+
+// Ranking Operations
+export { getQuizRanking } from './services/rankingService.js';
+
 
 // ============================================================
 // BATCH OPERATIONS

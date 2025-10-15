@@ -3,21 +3,29 @@ import { Link } from 'react-router-dom';
 import ReviewedQuestion from './ReviewedQuestion';
 import ResultsSidebar from './ResultsSidebar';
 import { useTranslation } from 'react-i18next';
+import QuizRanking from './QuizRanking';
 
 const QuizResults = ({ result, quizTitle, questions }) => {
   if (!result) {
     return <div className="text-center p-8">{t('quizzes.loadingResults')}</div>;
   }
+  
 
   const { t } = useTranslation();
 
-  const { detailed_results } = result;
+  const { detailed_results, quiz_id } = result;
 
   return (
     <div className="flex flex-col lg:flex-row-reverse gap-8 items-start p-4 max-w-screen-2xl mx-auto lg:h-[calc(100vh-100px)]">
 
       {/* --- COLUMNA DERECHA: SIDEBAR DE RESULTADOS --- */}
-      <ResultsSidebar result={result} />
+      <aside className="lg:w-80 w-full flex-shrink-0">
+        <div className="sticky top-4">
+          <ResultsSidebar result={result} />
+          {/* 3. Renderizar el componente de Ranking, pasando el quiz_id */}
+          {quiz_id && <QuizRanking quizId={quiz_id} />}
+        </div>
+      </aside>
 
       {/* --- COLUMNA IZQUIERDA: REVISIÓN DETALLADA (con scroll interno) --- */}
       <main className="flex-grow w-full lg:overflow-y-auto lg:pr-4">

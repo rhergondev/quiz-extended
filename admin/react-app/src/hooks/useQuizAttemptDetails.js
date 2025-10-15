@@ -1,5 +1,4 @@
 // src/hooks/useQuizAttemptDetails.js
-
 import { useState, useEffect, useCallback } from 'react';
 import { getApiConfig } from '../api/config/apiConfig';
 import { makeApiRequest } from '../api/services/baseService';
@@ -10,26 +9,37 @@ export const useQuizAttemptDetails = (attemptId) => {
   const [error, setError] = useState(null);
 
   const fetchDetails = useCallback(async () => {
-    if (!attemptId) return;
+    // Verificación inicial para evitar llamadas innecesarias
+    if (!attemptId) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     setError(null);
     try {
       const config = getApiConfig();
+      
+      // ▼▼▼ ¡ESTE ES EL CAMBIO CLAVE! ▼▼▼
+      // Usamos config.apiUrl en lugar del incorrecto config.rest_url
       const url = `${config.apiUrl}/quiz-extended/v1/quiz-attempts/${attemptId}`;
+      
+      console.log(`🚀 Fetching attempt details from: ${url}`);
+
+      // Reutilizamos la función 'makeApiRequest' que ya funciona en el resto de tu app
       const response = await makeApiRequest(url);
 
-      // 🔥 CORRECCIÓN: Accedemos a la propiedad "data" anidada en la respuesta.
-      // La API devuelve { success: true, data: { ... } }, nosotros necesitamos el contenido de "data".
       if (response && response.data && response.data.success) {
         setDetails(response.data.data);
+        console.log('✅ Attempt details loaded successfully:', response.data.data);
       } else {
-        throw new Error("La respuesta de la API no tuvo el formato esperado.");
+        const errorMessage = response?.data?.data?.message || "La respuesta de la API no tuvo el formato esperado o falló.";
+        throw new Error(errorMessage);
       }
-      
+
     } catch (err) {
-      setError('No se pudieron cargar los detalles del intento.');
-      console.error('Error fetching attempt details:', err);
+      console.error('❌ Error fetching attempt details:', err);
+      setError(err.message || 'No se pudieron cargar los detalles del intento.');
     } finally {
       setLoading(false);
     }

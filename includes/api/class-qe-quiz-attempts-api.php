@@ -120,12 +120,27 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 'permission_callback' => [$this, 'check_get_details_permission']
             ]
         );
+
+        $this->register_secure_route(
+            '/quiz-attempts/(?P<id>\d+)',
+            WP_REST_Server::READABLE,
+            'get_quiz_attempt_details',
+            [
+                'permission_callback' => [$this, 'check_get_details_permission']
+            ]
+        );
     }
 
     // ============================================================
     // 🔥 NUEVO: OBTENER DETALLES DE UN INTENTO
     // ============================================================
 
+    /**
+     * Devuelve los detalles completos de un intento de cuestionario.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response|WP_Error
+     */
     public function get_quiz_attempt_details(WP_REST_Request $request)
     {
         $attempt_id = (int) $request['id'];
@@ -134,12 +149,12 @@ class QE_Quiz_Attempts_API extends QE_API_Base
         $attempts_table = $this->get_table('quiz_attempts');
         $answers_table = $this->get_table('attempt_answers');
 
-        // 1. Obtener la información principal del intento
+        // 1. Obtener la información principal del intento y el título del cuestionario.
         $attempt = $wpdb->get_row($wpdb->prepare(
-            "SELECT att.*, quiz.post_title as quizTitle 
-             FROM {$attempts_table} AS att
-             LEFT JOIN {$wpdb->posts} AS quiz ON att.quiz_id = quiz.ID
-             WHERE att.attempt_id = %d",
+            "SELECT att.*, att.time_taken_seconds as duration_seconds, quiz.post_title as quizTitle 
+         FROM {$attempts_table} AS att
+         LEFT JOIN {$wpdb->posts} AS quiz ON att.quiz_id = quiz.ID
+         WHERE att.attempt_id = %d",
             $attempt_id
         ));
 
@@ -147,68 +162,82 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             return $this->error_response('not_found', 'Intento no encontrado.', 404);
         }
 
-        // 2. Obtener las respuestas dadas por el usuario en este intento
+        // 2. Obtener las respuestas dadas por el usuario en este intento.
         $user_answers = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$answers_table} WHERE attempt_id = %d",
             $attempt_id
         ));
 
-        // 3. Obtener los detalles de todas las preguntas involucradas
-        $question_ids = array_map(function ($answer) {
-            return $answer->question_id;
+        // 3. Obtener los IDs de todas las preguntas involucradas.
+        $question_ids_from_answers = array_map(function ($answer) {
+            return (int) $answer->question_id;
         }, $user_answers);
-        $questions_data = [];
 
-        if (!empty($question_ids)) {
+        // Obtener TODOS los IDs de las preguntas del quiz original para incluir las no contestadas.
+        $all_question_ids_in_quiz = get_post_meta($attempt->quiz_id, '_quiz_question_ids', true);
+        if (!is_array($all_question_ids_in_quiz))
+            $all_question_ids_in_quiz = [];
+
+        $all_question_ids = array_unique(array_merge($question_ids_from_answers, $all_question_ids_in_quiz));
+
+        $questions_data = [];
+        if (!empty($all_question_ids)) {
             $posts = get_posts([
-                'post__in' => $question_ids,
+                'post__in' => $all_question_ids,
                 'post_type' => 'question',
                 'posts_per_page' => -1,
-                'orderby' => 'post__in', // Mantener el orden original
+                'orderby' => 'post__in',
             ]);
 
             foreach ($posts as $post) {
                 $questions_data[$post->ID] = [
                     'id' => $post->ID,
-                    'title' => $post->post_title,
-                    'options' => get_post_meta($post->ID, '_question_options', true)
+                    'title' => get_the_title($post->ID),
+                    'meta' => [ // Replicamos la estructura que el frontend espera
+                        '_question_options' => get_post_meta($post->ID, '_question_options', true),
+                    ],
                 ];
             }
         }
 
-        // 4. 🔥 CORRECCIÓN FINAL: Unir toda la información
+        // 4. Unir toda la información para el `detailed_results`.
         $detailed_results = [];
-        foreach ($user_answers as $user_answer) {
-            $question_id = $user_answer->question_id;
+        foreach ($all_question_ids as $question_id) {
             $question_details = $questions_data[$question_id] ?? null;
-
             if (!$question_details)
                 continue;
 
-            // Encontrar el ID de la respuesta correcta iterando las opciones
+            // Buscar la respuesta del usuario para esta pregunta
+            $user_answer_obj = array_values(array_filter($user_answers, function ($ua) use ($question_id) {
+                return (int) $ua->question_id === (int) $question_id;
+            }));
+            $user_answer = $user_answer_obj[0] ?? null;
+
+            // Encontrar la respuesta correcta en las opciones.
             $correct_answer_id = null;
-            if (is_array($question_details['options'])) {
-                foreach ($question_details['options'] as $option_id => $option_data) {
-                    if (isset($option_data['isCorrect']) && $option_data['isCorrect']) {
-                        $correct_answer_id = $option_id;
+            $options = $question_details['meta']['_question_options'];
+            if (is_array($options)) {
+                foreach ($options as $option) {
+                    if (!empty($option['isCorrect'])) {
+                        $correct_answer_id = $option['id'];
                         break;
                     }
                 }
             }
 
-            // Construir el objeto final para esta pregunta
             $detailed_results[] = [
                 'question_id' => (int) $question_id,
-                'answer_given' => $user_answer->answer_given, // La respuesta del usuario
-                'correct_answer_id' => $correct_answer_id,      // La respuesta correcta
-                'is_correct' => (bool) $user_answer->is_correct,
+                'answer_given' => $user_answer ? $user_answer->answer_given : null,
+                'correct_answer' => $correct_answer_id, // Cambiado para consistencia
+                'is_correct' => $user_answer ? (bool) $user_answer->is_correct : false,
+                'is_risked' => $user_answer ? (bool) $user_answer->is_risked : false,
             ];
         }
 
-        // 5. Construir la respuesta final de la API
+        // 5. Construir la respuesta final de la API.
         $response_data = [
             'attempt' => $attempt,
-            'questions' => array_values($questions_data),
+            'questions' => array_values($questions_data), // Devolvemos un array de preguntas
             'detailed_results' => $detailed_results
         ];
 
@@ -245,6 +274,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
         $query = $wpdb->prepare(
             "SELECT 
                 att.*, 
+                att.time_taken_seconds AS duration_seconds,
                 quiz.post_title AS quizTitle,
                 course.post_title AS courseTitle,
                 (SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = att.quiz_id AND meta_key = '_passing_score') as passing_score
@@ -488,6 +518,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             ]);
 
             return $this->success_response([
+                'quiz_id' => (int) $attempt->quiz_id,
                 'attempt_id' => $attempt_id,
                 'score' => $grading_result['score'],
                 'score_with_risk' => $grading_result['score_with_risk'],
@@ -519,7 +550,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
     // ============================================================
 
     /**
-     * 🔥 NUEVO: Check if user can view details for this attempt
+     * Permission Callback: Verifica si un usuario puede ver los detalles de un intento.
      *
      * @param WP_REST_Request $request
      * @return bool|WP_Error
@@ -533,12 +564,12 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             return new WP_Error('not_logged_in', 'Usuario no autenticado.', ['status' => 401]);
         }
 
-        // El administrador puede ver cualquier intento
+        // Un administrador puede ver cualquier intento.
         if (current_user_can('manage_options')) {
             return true;
         }
 
-        // El usuario solo puede ver sus propios intentos
+        // Un usuario solo puede ver sus propios intentos.
         global $wpdb;
         $attempt_owner_id = $wpdb->get_var($wpdb->prepare(
             "SELECT user_id FROM {$this->get_table('quiz_attempts')} WHERE attempt_id = %d",
