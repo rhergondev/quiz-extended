@@ -155,7 +155,8 @@ class QE_Quiz_Attempts_API extends QE_API_Base
 
         // 3. Obtener los detalles de todas las preguntas involucradas
         $question_ids = array_map(function ($answer) {
-            return $answer->question_id; }, $user_answers);
+            return $answer->question_id;
+        }, $user_answers);
         $questions_data = [];
 
         if (!empty($question_ids)) {
@@ -440,7 +441,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 }
 
                 // Update attempt record
-                $update_result = $this->complete_attempt($attempt_id, $grading_result);
+                $update_result = $this->complete_attempt($attempt_id, $grading_result, $attempt);
                 if (!$update_result) {
                     $this->get_db()->query('ROLLBACK');
                     return $this->error_response(
