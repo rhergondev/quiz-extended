@@ -70,11 +70,19 @@ class QE_Messages_API extends QE_API_Base
         // MARK AS READ - Student marks message as read
         // ============================================================
 
-        $this->register_secure_route(
-            '/messages/(?P<id>\d+)/read',
-            WP_REST_Server::EDITABLE,
-            'mark_message_as_read'
-        );
+        register_rest_route($this->namespace, '/messages/(?P<id>\d+)/read', [
+            'methods' => WP_REST_Server::EDITABLE, // PUT, POST, PATCH
+            'callback' => [$this, 'mark_message_as_read'],
+            'permission_callback' => [$this, 'check_permissions'],
+            'args' => [
+                'id' => [
+                    'required' => true,
+                    'validate_callback' => function ($param) {
+                        return is_numeric($param);
+                    }
+                ]
+            ]
+        ]);
 
         // ============================================================
         // ADMIN MANAGEMENT - Get all messages
@@ -89,39 +97,57 @@ class QE_Messages_API extends QE_API_Base
             ]
         );
 
-        // Get single message (admin)
-        $this->register_secure_route(
-            '/messages/(?P<id>\d+)',
-            WP_REST_Server::READABLE,
-            'get_message',
-            [
-                'permission_callback' => [$this, 'check_admin_permission']
-            ]
-        );
-
         // Update message (admin)
-        $this->register_secure_route(
-            '/messages/(?P<id>\d+)',
-            WP_REST_Server::EDITABLE,
-            'update_message',
+        register_rest_route($this->namespace, '/messages/(?P<id>\d+)', [
             [
+                'methods' => WP_REST_Server::EDITABLE, // PUT, POST, PATCH
+                'callback' => [$this, 'update_message'],
                 'permission_callback' => [$this, 'check_admin_permission'],
-                'validation_schema' => [
-                    'status' => ['required' => false, 'type' => 'string', 'enum' => ['unread', 'read', 'resolved', 'archived']],
-                    'admin_response' => ['required' => false, 'type' => 'string', 'maxLength' => 5000]
+                'args' => [
+                    'id' => [
+                        'required' => true,
+                        'validate_callback' => function ($param) {
+                            return is_numeric($param);
+                        }
+                    ],
+                    'status' => [
+                        'required' => false,
+                        'type' => 'string',
+                        'enum' => ['unread', 'read', 'resolved', 'archived']
+                    ],
+                    'admin_response' => [
+                        'required' => false,
+                        'type' => 'string'
+                    ]
+                ]
+            ],
+            [
+                'methods' => WP_REST_Server::READABLE, // GET
+                'callback' => [$this, 'get_message'],
+                'permission_callback' => [$this, 'check_admin_permission'],
+                'args' => [
+                    'id' => [
+                        'required' => true,
+                        'validate_callback' => function ($param) {
+                            return is_numeric($param);
+                        }
+                    ]
+                ]
+            ],
+            [
+                'methods' => WP_REST_Server::DELETABLE, // DELETE
+                'callback' => [$this, 'delete_message'],
+                'permission_callback' => [$this, 'check_admin_permission'],
+                'args' => [
+                    'id' => [
+                        'required' => true,
+                        'validate_callback' => function ($param) {
+                            return is_numeric($param);
+                        }
+                    ]
                 ]
             ]
-        );
-
-        // Delete message (admin)
-        $this->register_secure_route(
-            '/messages/(?P<id>\d+)',
-            WP_REST_Server::DELETABLE,
-            'delete_message',
-            [
-                'permission_callback' => [$this, 'check_admin_permission']
-            ]
-        );
+        ]);
     }
 
     /**
@@ -175,7 +201,7 @@ class QE_Messages_API extends QE_API_Base
                 'subject' => $subject,
                 'message' => $message,
                 'status' => 'unread',
-                'created_at' => $this->get_mysql_timestamp(),
+                'created_at' => current_time('mysql'),
             ], ['%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s']);
 
             if (!$message_id) {
@@ -225,7 +251,7 @@ class QE_Messages_API extends QE_API_Base
             }
 
             $message_ids = [];
-            $timestamp = $this->get_mysql_timestamp();
+            $timestamp = current_time('mysql');
 
             // Insert message for each recipient
             foreach ($recipient_ids as $recipient_id) {
@@ -370,7 +396,7 @@ class QE_Messages_API extends QE_API_Base
                 $table_name,
                 [
                     'status' => 'read',
-                    'updated_at' => $this->get_mysql_timestamp()
+                    'updated_at' => current_time('mysql')
                 ],
                 ['id' => $message_id],
                 ['%s', '%s'],
@@ -546,8 +572,19 @@ class QE_Messages_API extends QE_API_Base
                 $update_format[] = '%s';
             }
 
-            $update_data['updated_at'] = $this->get_mysql_timestamp();
+            if (empty($update_data)) {
+                return $this->error_response('no_data', 'No hay datos para actualizar.', 400);
+            }
+
+            $update_data['updated_at'] = current_time('mysql');
             $update_format[] = '%s';
+
+            // Log for debugging
+            $this->log_info('Attempting to update message', [
+                'message_id' => $message_id,
+                'update_data' => $update_data,
+                'table' => $table_name
+            ]);
 
             // Update message
             $result = $wpdb->update(
@@ -558,9 +595,18 @@ class QE_Messages_API extends QE_API_Base
                 ['%d']
             );
 
+            // Check for errors
             if ($result === false) {
-                return $this->error_response('db_error', 'No se pudo actualizar el mensaje.', 500);
+                $this->log_error('Failed to update message', [
+                    'message_id' => $message_id,
+                    'wpdb_error' => $wpdb->last_error,
+                    'update_data' => $update_data
+                ]);
+                return $this->error_response('db_error', 'No se pudo actualizar el mensaje: ' . $wpdb->last_error, 500);
             }
+
+            // $result can be 0 if no rows were affected (data was the same)
+            // This is not an error
 
             // Clear badge cache
             delete_transient('qe_unread_messages_count');
@@ -574,8 +620,9 @@ class QE_Messages_API extends QE_API_Base
                 $message_id
             ), ARRAY_A);
 
-            $this->log_info('Message updated', [
+            $this->log_info('Message updated successfully', [
                 'message_id' => $message_id,
+                'rows_affected' => $result,
                 'updates' => array_keys($update_data)
             ]);
 
@@ -583,7 +630,7 @@ class QE_Messages_API extends QE_API_Base
 
         } catch (Exception $e) {
             $this->log_error('Exception in update_message', ['message' => $e->getMessage()]);
-            return $this->error_response('internal_error', 'Error al actualizar el mensaje.', 500);
+            return $this->error_response('internal_error', 'Error al actualizar el mensaje: ' . $e->getMessage(), 500);
         }
     }
 
