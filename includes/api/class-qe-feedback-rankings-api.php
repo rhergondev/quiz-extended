@@ -64,6 +64,12 @@ class QE_Feedback_Rankings_API extends QE_API_Base
             WP_REST_Server::READABLE,
             'get_quiz_ranking'
         );
+
+        $this->register_secure_route(
+            '/rankings/quiz/(?P<quiz_id>\d+)/populate',
+            WP_REST_Server::CREATABLE,
+            'populate_quiz_ranking'
+        );
     }
 
     // ============================================================
@@ -166,12 +172,25 @@ class QE_Feedback_Rankings_API extends QE_API_Base
 
         // 1. Get all users ranked by their highest score for this quiz
         $all_rankings = $wpdb->get_results($wpdb->prepare(
-            "SELECT a.user_id, MAX(a.score_with_risk) as score, u.display_name, u.user_email
+            "SELECT 
+                a.user_id, 
+                a.score as score,
+                a.score_with_risk as score_with_risk,
+                a.end_time as attempt_date, 
+                u.display_name, 
+                u.user_email
             FROM {$attempts_table} a
+            INNER JOIN (
+                SELECT user_id, MAX(score_with_risk) as max_score
+                FROM {$attempts_table}
+                WHERE quiz_id = %d AND status = 'completed'
+                GROUP BY user_id
+            ) as max_scores ON a.user_id = max_scores.user_id AND a.score_with_risk = max_scores.max_score
             INNER JOIN {$wpdb->users} u ON a.user_id = u.ID
             WHERE a.quiz_id = %d AND a.status = 'completed'
             GROUP BY a.user_id
-            ORDER BY score DESC, MAX(a.end_time) ASC", // Tie-break with earlier completion
+            ORDER BY score_with_risk DESC, a.end_time ASC", // Tie-break with earlier completion
+            $quiz_id,
             $quiz_id
         ));
 
@@ -198,6 +217,8 @@ class QE_Feedback_Rankings_API extends QE_API_Base
                 'display_name' => $rank->display_name,
                 'avatar_url' => get_avatar_url($rank->user_id),
                 'score' => (float) $rank->score,
+                'score_with_risk' => (float) $rank->score_with_risk,
+                'attempt_date' => $rank->attempt_date,
             ];
         }
 
@@ -223,6 +244,8 @@ class QE_Feedback_Rankings_API extends QE_API_Base
                     'display_name' => $rank->display_name,
                     'avatar_url' => get_avatar_url($rank->user_id),
                     'score' => (float) $rank->score,
+                    'score_with_risk' => (float) $rank->score_with_risk,
+                    'attempt_date' => $rank->attempt_date,
                 ];
             }
         }
@@ -235,6 +258,55 @@ class QE_Feedback_Rankings_API extends QE_API_Base
                 'position' => $current_user_position !== -1 ? $current_user_position + 1 : null,
             ]
         ]);
+    }
+
+    public function populate_quiz_ranking(WP_REST_Request $request)
+    {
+        $quiz_id = (int) $request['quiz_id'];
+        $users = $request->get_param('users');
+        $min_score = (int) $request->get_param('min_score') ?: 70;
+        $max_score = (int) $request->get_param('max_score') ?: 100;
+
+        if (empty($users) || !is_array($users)) {
+            return $this->error_response('bad_request', 'La lista de usuarios es inválida.', 400);
+        }
+
+        global $wpdb;
+        $rankings_table = $this->get_table('rankings');
+        $inserted_count = 0;
+
+        foreach ($users as $user_data) {
+            if (empty($user_data['display_name']))
+                continue;
+
+            // Crear un usuario ficticio en WordPress para obtener un ID
+            $fake_email = sanitize_title($user_data['display_name']) . '@example.com';
+            if (email_exists($fake_email)) {
+                $user = get_user_by('email', $fake_email);
+                $user_id = $user->ID;
+            } else {
+                $user_id = wp_create_user(sanitize_title($user_data['display_name']), wp_generate_password(), $fake_email);
+                if (is_wp_error($user_id))
+                    continue;
+                wp_update_user(['ID' => $user_id, 'display_name' => $user_data['display_name']]);
+            }
+
+            $score = rand($min_score, $max_score);
+
+            $wpdb->replace(
+                $rankings_table,
+                [
+                    'user_id' => $user_id,
+                    'quiz_id' => $quiz_id,
+                    'score' => $score,
+                    'is_fake_user' => 1,
+                ],
+                ['%d', '%d', '%d', '%d']
+            );
+            $inserted_count++;
+        }
+
+        return $this->success_response(['message' => "$inserted_count usuarios ficticios añadidos al ranking."]);
     }
 
 

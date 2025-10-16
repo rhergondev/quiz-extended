@@ -61,7 +61,7 @@ class QE_Database
             $results['rankings'] = self::create_rankings_table($prefix, $charset_collate);
             $results['student_progress'] = self::create_student_progress_table($prefix, $charset_collate);
             $results['favorite_questions'] = self::create_favorite_questions_table($prefix, $charset_collate);
-            $results['question_feedback'] = self::create_question_feedback_table($prefix, $charset_collate);
+            $results['messages'] = self::create_comm_messages_table($prefix, $charset_collate);
 
             // Check if all tables were created successfully
             $all_success = !in_array(false, $results, true);
@@ -156,6 +156,7 @@ class QE_Database
             return false;
         }
     }
+
 
     /**
      * Create attempt answers table
@@ -356,39 +357,39 @@ class QE_Database
     }
 
     /**
-     * Create question feedback table
+     * Create attempt answers table
      *
-     * Stores student feedback, doubts, and challenges on questions.
+     * Stores individual answer selections for each quiz attempt.
      *
      * @param string $prefix Table prefix
      * @param string $charset_collate Charset collation
      * @return bool True if successful
      * @since 2.0.0
      */
-    private static function create_question_feedback_table($prefix, $charset_collate)
+    private static function create_comm_messages_table($prefix, $charset_collate)
     {
         try {
             global $wpdb;
 
-            $table_name = $prefix . 'question_feedback';
+            $table_name = $prefix . 'messages';
 
-            $sql = "CREATE TABLE {$table_name} (
-                feedback_id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-                question_id BIGINT(20) UNSIGNED NOT NULL,
-                user_id BIGINT(20) UNSIGNED NOT NULL,
-                feedback_type VARCHAR(20) NOT NULL,
+            $sql = "CREATE TABLE $table_name (
+                id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+                sender_id BIGINT(20) UNSIGNED NOT NULL,
+                recipient_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0, -- 0 para todos los usuarios (broadcast)
+                parent_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0, -- Para agrupar mensajes en hilos
+                related_object_id BIGINT(20) UNSIGNED DEFAULT NULL, -- ID de la pregunta, curso, etc.
+                type VARCHAR(50) NOT NULL, -- 'broadcast', 'direct_message', 'question_feedback', 'question_challenge'
+                subject VARCHAR(255) NOT NULL,
                 message TEXT NOT NULL,
-                status VARCHAR(20) NOT NULL DEFAULT 'unresolved',
-                date_submitted DATETIME NOT NULL,
-                date_resolved DATETIME DEFAULT NULL,
-                PRIMARY KEY (feedback_id),
-                KEY question_id (question_id),
-                KEY user_id (user_id),
-                KEY feedback_type (feedback_type),
-                KEY status (status),
-                KEY date_submitted (date_submitted)
-            ) {$charset_collate};";
-
+                status VARCHAR(20) NOT NULL DEFAULT 'unread', -- 'unread', 'read', 'resolved'
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY sender_id (sender_id),
+                KEY recipient_id (recipient_id),
+                KEY parent_id (parent_id),
+                KEY related_object_id (related_object_id)
+                ) $charset_collate;";
             dbDelta($sql);
 
             if (self::table_exists($table_name)) {
@@ -400,7 +401,7 @@ class QE_Database
             }
 
         } catch (Exception $e) {
-            self::log_error('Failed to create question_feedback table', [
+            self::log_error('Failed to create attempt_answers table', [
                 'error' => $e->getMessage()
             ]);
             return false;

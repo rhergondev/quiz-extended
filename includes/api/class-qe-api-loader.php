@@ -90,7 +90,8 @@ class QE_API_Loader
         $modules = [
             'quiz-attempts' => 'class-qe-quiz-attempts-api.php',
             'student-progress' => 'class-qe-student-progress-api.php',
-            'feedback-rankings' => 'class-qe-feedback-rankings-api.php'
+            'feedback-rankings' => 'class-qe-feedback-rankings-api.php',
+            'messages' => 'class-qe-messages-api.php'
         ];
 
         foreach ($modules as $name => $file) {

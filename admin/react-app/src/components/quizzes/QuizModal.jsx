@@ -7,6 +7,7 @@ import 'react-quill/dist/quill.snow.css';
 import { getApiConfig, getDefaultHeaders } from '../../api/config/apiConfig';
 import { useQuestions } from '../../hooks/useQuestions'; // To get existing questions
 import Button from '../common/Button';
+import PopulateRankingModal from './PopulateRankingModal';
 
 // A simple DND setup for reordering questions
 import {
@@ -89,6 +90,7 @@ const QuizModal = ({
     enable_negative_scoring: false,
     questionIds: [],
   });
+  const [isPopulateModalOpen, setIsPopulateModalOpen] = useState(false);
 
   const [errors, setErrors] = useState({});
   const [selectedQuestions, setSelectedQuestions] = useState([]);
@@ -112,7 +114,15 @@ const QuizModal = ({
   
   const { questions: allQuestions, loading: questionsLoading } = useQuestions({ perPage: 100 });
 
-
+  const handlePopulateRanking = async (quizId, users, minScore, maxScore) => {
+    const config = getApiConfig();
+    await makeApiRequest(`${config.endpoints.custom_api}/rankings/quiz/${quizId}/populate`, {
+        method: 'POST',
+        body: JSON.stringify({ users, min_score: minScore, max_score: maxScore }),
+    });
+    setIsPopulateModalOpen(false);
+  };
+  
   // Effect to populate form on edit/view mode
   useEffect(() => {
     if (quiz && mode !== 'create') {
@@ -281,9 +291,13 @@ const QuizModal = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-800">{modalTitle}</h2>
-          <button onClick={onClose} disabled={isLoading}>
-            <X className="w-6 h-6 text-gray-400 hover:text-gray-600" />
-          </button>
+         <div>
+            {mode === 'edit' && (
+              <Button variant="secondary" onClick={() => setIsPopulateModalOpen(true)} iconLeft={Users}>
+                Poblar Ranking
+              </Button>
+            )}
+            <button onClick={onClose} disabled={isLoading} className="ml-4"><X className="w-6 h-6" /></button>
         </div>
 
         {/* Form Content */}
@@ -428,6 +442,8 @@ const QuizModal = ({
           </div>
         </form>
 
+        
+
         {/* Footer */}
         {!isReadOnly && (
           <div className="flex justify-between items-center p-6 border-t bg-gray-50">
@@ -439,6 +455,13 @@ const QuizModal = ({
           </div>
         )}
       </div>
+      <PopulateRankingModal
+        isOpen={isPopulateModalOpen}
+        onClose={() => setIsPopulateModalOpen(false)}
+        onPopulate={handlePopulateRanking}
+        quizId={quiz?.id}
+      />    </div>
+  );
     </div>
   );
 };
