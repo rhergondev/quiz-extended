@@ -1,21 +1,28 @@
-// src/pages/DashboardPage.jsx
+// admin/react-app/src/pages/frontend/DashboardPage.jsx
 
 import React from 'react';
 import QuizResultsSummary from '../../components/frontend/dashboard/QuizResultsSummary';
+import UserInbox from '../../components/frontend/dashboard/UserInbox';
 
 const DashboardPage = () => {
-  // Aquí podrías obtener el nombre del usuario, etc.
-  const userName = "Estudiante"; 
+  const userName = window.qe_data?.user?.name || "Estudiante";
 
   return (
     <div className="container mx-auto p-6 space-y-8">
       <header>
-        <h1 className="text-3xl font-bold text-gray-900">¡Bienvenido de nuevo, {userName}!</h1>
-        <p className="mt-2 text-lg text-gray-600">Aquí tienes un resumen de tu progreso.</p>
+        <h1 className="text-3xl font-bold text-gray-900">
+          ¡Bienvenido de nuevo, {userName}!
+        </h1>
+        <p className="mt-2 text-lg text-gray-600">
+          Aquí tienes un resumen de tu progreso y mensajes.
+        </p>
       </header>
 
-      <main>
-        {/* Aquí es donde mostramos los resultados de los cuestionarios */}
+      <main className="space-y-8">
+        {/* User Messages Inbox */}
+        <UserInbox />
+
+        {/* Quiz Results Summary */}
         <QuizResultsSummary />
         
         {/* En el futuro, podrías añadir más componentes aquí */}

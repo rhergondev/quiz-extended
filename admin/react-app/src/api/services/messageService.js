@@ -1,9 +1,5 @@
-import api from '../index';
-import { errorHandler } from '../utils/errorHandler';
-
-const ENDPOINTS = {
-  submitFeedback: '/messages/feedback',
-};
+import { makeApiRequest } from './baseService';
+import { getApiConfig } from '../config/apiConfig';
 
 /**
  * Envía un comentario o impugnación sobre una pregunta.
@@ -15,10 +11,24 @@ const ENDPOINTS = {
  */
 const submitFeedback = async (data) => {
   try {
-    const response = await api.post(ENDPOINTS.submitFeedback, data);
-    return response.data;
+    const { endpoints } = getApiConfig();
+    const url = `${endpoints.custom_api}/feedback/question`;
+    
+    console.log('📤 Enviando feedback de pregunta:', data);
+    
+    const response = await makeApiRequest(url, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    
+    console.log('✅ Feedback enviado exitosamente:', response.data);
+    
+    // Retornar los datos anidados
+    return response.data.data;
+    
   } catch (error) {
-    throw errorHandler(error, 'Error al enviar el mensaje de feedback.');
+    console.error('❌ Error al enviar el mensaje de feedback:', error);
+    throw error;
   }
 };
 

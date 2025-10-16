@@ -53,13 +53,71 @@ class QE_Admin_Menu
             25
         );
 
-        add_submenu_page('quiz-extended-lms', __('Dashboard', 'quiz-extended'), __('Dashboard', 'quiz-extended'), 'manage_options', 'quiz-extended-lms');
-        add_submenu_page('quiz-extended-lms', __('Courses', 'quiz-extended'), __('Courses', 'quiz-extended'), 'manage_options', 'admin.php?page=quiz-extended-lms#/courses');
-        add_submenu_page('quiz-extended-lms', __('Lessons', 'quiz-extended'), __('Lessons', 'quiz-extended'), 'manage_options', 'admin.php?page=quiz-extended-lms#/lessons');
-        add_submenu_page('quiz-extended-lms', __('Quizzes', 'quiz-extended'), __('Quizzes', 'quiz-extended'), 'manage_options', 'admin.php?page=quiz-extended-lms#/quizzes');
-        add_submenu_page('quiz-extended-lms', __('Questions', 'quiz-extended'), __('Questions', 'quiz-extended'), 'manage_options', 'admin.php?page=quiz-extended-lms#/questions');
-        add_submenu_page('quiz-extended-lms', __('Students', 'quiz-extended'), __('Students', 'quiz-extended'), 'manage_options', 'admin.php?page=quiz-extended-lms#/students');
-        add_submenu_page('quiz-extended-lms', __('Settings', 'quiz-extended'), __('Settings', 'quiz-extended'), 'manage_options', 'admin.php?page=quiz-extended-lms#/settings');
+        // Submenús
+        add_submenu_page(
+            'quiz-extended-lms',
+            __('Dashboard', 'quiz-extended'),
+            __('Dashboard', 'quiz-extended'),
+            'manage_options',
+            'quiz-extended-lms'
+        );
+
+        add_submenu_page(
+            'quiz-extended-lms',
+            __('Courses', 'quiz-extended'),
+            __('Courses', 'quiz-extended'),
+            'manage_options',
+            'admin.php?page=quiz-extended-lms#/courses'
+        );
+
+        add_submenu_page(
+            'quiz-extended-lms',
+            __('Lessons', 'quiz-extended'),
+            __('Lessons', 'quiz-extended'),
+            'manage_options',
+            'admin.php?page=quiz-extended-lms#/lessons'
+        );
+
+        add_submenu_page(
+            'quiz-extended-lms',
+            __('Quizzes', 'quiz-extended'),
+            __('Quizzes', 'quiz-extended'),
+            'manage_options',
+            'admin.php?page=quiz-extended-lms#/quizzes'
+        );
+
+        add_submenu_page(
+            'quiz-extended-lms',
+            __('Questions', 'quiz-extended'),
+            __('Questions', 'quiz-extended'),
+            'manage_options',
+            'admin.php?page=quiz-extended-lms#/questions'
+        );
+
+        add_submenu_page(
+            'quiz-extended-lms',
+            __('Students', 'quiz-extended'),
+            __('Students', 'quiz-extended'),
+            'manage_options',
+            'admin.php?page=quiz-extended-lms#/students'
+        );
+
+        // ✨ NUEVO: Messages
+        add_submenu_page(
+            'quiz-extended-lms',
+            __('Messages', 'quiz-extended'),
+            __('Messages', 'quiz-extended'),
+            'manage_options',
+            'admin.php?page=quiz-extended-lms#/messages'
+        );
+
+        add_submenu_page(
+            'quiz-extended-lms',
+            __('Settings', 'quiz-extended'),
+            __('Settings', 'quiz-extended'),
+            'manage_options',
+            'admin.php?page=quiz-extended-lms#/settings'
+        );
     }
 
     /**
