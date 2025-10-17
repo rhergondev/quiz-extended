@@ -244,57 +244,171 @@ class QE_Messages_API extends QE_API_Base
             $message = $request->get_param('message');
             $type = $request->get_param('type') ?: 'announcement';
 
-            // If 'all' is specified, get all users
-            if (in_array('all', $recipient_ids)) {
-                $users = get_users(['fields' => 'ID']);
-                $recipient_ids = wp_list_pluck($users, 'ID');
+            // Detailed log to see what we receive
+            $this->log_info('=== SEND ADMIN MESSAGE - START ===', [
+                'sender_id' => $sender_id,
+                'recipient_ids_raw' => print_r($recipient_ids, true),
+                'recipient_ids_type' => gettype($recipient_ids),
+                'is_array' => is_array($recipient_ids),
+                'count' => is_array($recipient_ids) ? count($recipient_ids) : 'N/A',
+                'first_element' => is_array($recipient_ids) && !empty($recipient_ids) ? $recipient_ids[0] : 'EMPTY',
+                'subject' => $subject,
+                'type' => $type
+            ]);
+
+            // Validate that recipient_ids is an array
+            if (!is_array($recipient_ids)) {
+                $this->log_error('recipient_ids is not an array', ['type' => gettype($recipient_ids)]);
+                return $this->error_response('invalid_recipients', 'Los destinatarios deben ser un array.', 400);
             }
 
+            // Detect if the message should be sent to all users
+            $send_to_all = false;
+
+            if (!empty($recipient_ids)) {
+                $first = $recipient_ids[0];
+
+                if ($first === 'all' || $first === 'ALL' || $first === 'All') {
+                    $send_to_all = true;
+                } elseif (in_array('all', $recipient_ids, true) || in_array('ALL', $recipient_ids, true)) {
+                    $send_to_all = true;
+                }
+            }
+
+            $this->log_info('Send to all detection', ['send_to_all' => $send_to_all]);
+
+            if ($send_to_all) {
+                // Get ALL users
+                $all_users = get_users([
+                    'fields' => 'ID',
+                    'number' => -1  // No limit
+                ]);
+
+                // *** FIX STARTS HERE ***
+                $recipient_ids = $all_users;
+                // *** FIX ENDS HERE ***
+
+                $this->log_info('Fetched all users', [
+                    'total_users' => count($all_users),
+                    'users_sample' => array_slice($all_users, 0, 5)
+                ]);
+
+                if (empty($all_users)) {
+                    $this->log_error('No users found in database!');
+                    return $this->error_response('no_users', 'No se encontraron usuarios en la base de datos.', 500);
+                }
+
+
+                $this->log_info('Converted to IDs', [
+                    'recipient_ids_count' => count($recipient_ids),
+                    'recipient_ids_sample' => array_slice($recipient_ids, 0, 10)
+                ]);
+            } else {
+                // Sanitize and validate specific IDs
+                $recipient_ids = array_filter(array_map('absint', $recipient_ids));
+
+                $this->log_info('Using specific recipients', [
+                    'count' => count($recipient_ids),
+                    'ids' => $recipient_ids
+                ]);
+            }
+
+            // Final validation
+            if (empty($recipient_ids)) {
+                $this->log_error('No valid recipients after processing', [
+                    'original_input' => $request->get_param('recipient_ids'),
+                    'send_to_all' => $send_to_all
+                ]);
+                return $this->error_response('no_recipients', 'No hay destinatarios válidos después del procesamiento.', 400);
+            }
+
+            $this->log_info('Starting message insertion', [
+                'total_recipients' => count($recipient_ids)
+            ]);
+
             $message_ids = [];
+            $errors = [];
             $timestamp = current_time('mysql');
 
             // Insert message for each recipient
-            foreach ($recipient_ids as $recipient_id) {
+            foreach ($recipient_ids as $index => $recipient_id) {
                 $recipient_id = absint($recipient_id);
 
                 if ($recipient_id === 0) {
+                    $errors[] = ['index' => $index, 'error' => 'Invalid ID (0)'];
                     continue;
                 }
 
-                $message_id = $this->db_insert('messages', [
+                $data = [
                     'sender_id' => $sender_id,
                     'recipient_id' => $recipient_id,
+                    'parent_id' => 0,
                     'related_object_id' => 0,
                     'type' => 'admin_' . $type,
                     'subject' => $subject,
                     'message' => $message,
                     'status' => 'unread',
                     'created_at' => $timestamp,
-                ], ['%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s']);
+                ];
+
+                $format = ['%d', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s'];
+
+                $message_id = $this->db_insert('messages', $data, $format);
 
                 if ($message_id) {
                     $message_ids[] = $message_id;
+                } else {
+                    $db_error = $wpdb->last_error ?: 'Unknown database error';
+                    $errors[] = [
+                        'recipient_id' => $recipient_id,
+                        'error' => $db_error
+                    ];
+
+                    $this->log_error('Failed to insert message', [
+                        'recipient_id' => $recipient_id,
+                        'db_error' => $db_error
+                    ]);
                 }
             }
 
+            $this->log_info('=== SEND ADMIN MESSAGE - COMPLETE ===', [
+                'successful' => count($message_ids),
+                'failed' => count($errors),
+                'total_attempted' => count($recipient_ids),
+                'error_details' => !empty($errors) ? array_slice($errors, 0, 5) : []
+            ]);
+
             if (empty($message_ids)) {
-                return $this->error_response('db_error', 'No se pudo enviar ningún mensaje.', 500);
+                $error_msg = 'No se pudo enviar ningún mensaje.';
+                if (!empty($errors)) {
+                    $error_msg .= ' Errores: ' . json_encode(array_slice($errors, 0, 3));
+                }
+                return $this->error_response('db_error', $error_msg, 500);
             }
 
-            $this->log_info('Admin messages sent', [
-                'sender_id' => $sender_id,
-                'recipient_count' => count($message_ids),
-                'type' => $type
-            ]);
+            delete_transient('qe_unread_messages_count');
 
             return $this->success_response([
                 'sent_count' => count($message_ids),
-                'message_ids' => $message_ids
+                'failed_count' => count($errors),
+                'total_recipients' => count($recipient_ids),
+                'message_ids' => array_slice($message_ids, 0, 10),
+                'message' => sprintf(
+                    'Enviado a %d de %d usuarios%s',
+                    count($message_ids),
+                    count($recipient_ids),
+                    !empty($errors) ? ' (con algunos errores)' : ''
+                )
             ]);
 
         } catch (Exception $e) {
-            $this->log_error('Exception in send_admin_message', ['message' => $e->getMessage()]);
-            return $this->error_response('internal_error', 'Error al enviar los mensajes.', 500);
+            $this->log_error('=== EXCEPTION IN send_admin_message ===', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return $this->error_response('internal_error', 'Error al enviar los mensajes: ' . $e->getMessage(), 500);
         }
     }
 
@@ -377,8 +491,13 @@ class QE_Messages_API extends QE_API_Base
         try {
             global $wpdb;
             $table_name = $this->get_table('messages');
-            $message_id = $request['id'];
+            $message_id = absint($request['id']);
             $user_id = get_current_user_id();
+
+            $this->log_info('Marking message as read', [
+                'message_id' => $message_id,
+                'user_id' => $user_id
+            ]);
 
             // Verify message belongs to user
             $message = $wpdb->get_row($wpdb->prepare(
@@ -388,7 +507,18 @@ class QE_Messages_API extends QE_API_Base
             ), ARRAY_A);
 
             if (!$message) {
+                $this->log_error('Message not found or unauthorized', [
+                    'message_id' => $message_id,
+                    'user_id' => $user_id
+                ]);
                 return $this->error_response('not_found', 'Mensaje no encontrado.', 404);
+            }
+
+            if ($message['status'] === 'read') {
+                return $this->success_response([
+                    'updated' => true,
+                    'already_read' => true
+                ]);
             }
 
             // Update status
@@ -404,8 +534,20 @@ class QE_Messages_API extends QE_API_Base
             );
 
             if ($result === false) {
+                $this->log_error('Failed to update message', [
+                    'message_id' => $message_id,
+                    'wpdb_error' => $wpdb->last_error
+                ]);
                 return $this->error_response('db_error', 'No se pudo actualizar el mensaje.', 500);
             }
+
+            delete_transient('qe_unread_messages_count');
+            delete_transient('qe_unread_messages_user_' . $user_id);
+
+            $this->log_info('Message marked as read successfully', [
+                'message_id' => $message_id,
+                'user_id' => $user_id
+            ]);
 
             return $this->success_response(['updated' => true]);
 

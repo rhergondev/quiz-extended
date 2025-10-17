@@ -376,20 +376,24 @@ class QE_Database
             $sql = "CREATE TABLE $table_name (
                 id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
                 sender_id BIGINT(20) UNSIGNED NOT NULL,
-                recipient_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0, -- 0 para todos los usuarios (broadcast)
-                parent_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0, -- Para agrupar mensajes en hilos
-                related_object_id BIGINT(20) UNSIGNED DEFAULT NULL, -- ID de la pregunta, curso, etc.
-                type VARCHAR(50) NOT NULL, -- 'broadcast', 'direct_message', 'question_feedback', 'question_challenge'
+                recipient_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+                parent_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+                related_object_id BIGINT(20) UNSIGNED DEFAULT NULL,
+                type VARCHAR(50) NOT NULL,
                 subject VARCHAR(255) NOT NULL,
                 message TEXT NOT NULL,
-                status VARCHAR(20) NOT NULL DEFAULT 'unread', -- 'unread', 'read', 'resolved'
+                admin_response TEXT DEFAULT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'unread',
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT NULL,
                 PRIMARY KEY (id),
                 KEY sender_id (sender_id),
                 KEY recipient_id (recipient_id),
                 KEY parent_id (parent_id),
-                KEY related_object_id (related_object_id)
-                ) $charset_collate;";
+                KEY related_object_id (related_object_id),
+                KEY status (status),
+                KEY created_at (created_at)
+            ) $charset_collate;";
             dbDelta($sql);
 
             if (self::table_exists($table_name)) {

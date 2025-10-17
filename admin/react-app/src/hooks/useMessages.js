@@ -4,18 +4,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getApiConfig } from '../api/config/apiConfig';
 import { makeApiRequest } from '../api/services/baseService';
 
-/**
- * Custom hook for managing messages with intelligent polling
- * @param {Object} options - Configuration options
- * @param {string} options.search - Search term
- * @param {string} options.status - Filter by status
- * @param {string} options.type - Filter by message type
- * @param {boolean} options.autoFetch - Auto-fetch on mount
- * @param {boolean} options.enablePolling - Enable automatic polling
- * @param {number} options.pollingInterval - Polling interval in milliseconds (default: 30000)
- * @returns {Object} Messages state and operations
- */
 const useMessages = (options = {}) => {
+  // ... (todo tu código existente hasta la función de actualizar)
   const {
     search = '',
     status = null,
@@ -253,15 +243,17 @@ const useMessages = (options = {}) => {
       }
     }
   }, [pagination]);
+  
 
-  // --- UPDATE MESSAGE ---
-  const updateMessage = useCallback(async (messageId, updates) => {
+  // --- *** CORRECCIÓN 1: Renombrar función *** ---
+  const updateMessageStatus = useCallback(async (messageId, status) => {
     if (!mountedRef.current) return;
 
     setUpdating(true);
     try {
       const config = getApiConfig();
       const url = `${config.endpoints.custom_api}/messages/${messageId}`;
+      const updates = { status }; // El componente solo manda el status
 
       console.log(`📝 Updating message ${messageId}:`, updates);
 
@@ -272,7 +264,7 @@ const useMessages = (options = {}) => {
 
       if (!mountedRef.current) return;
 
-      const updatedMessage = response.data?.data;
+      const updatedMessage = response.data; // La API devuelve el objeto actualizado
 
       // Update local state
       setMessages(prev =>
@@ -298,7 +290,38 @@ const useMessages = (options = {}) => {
     }
   }, []);
 
-  // --- REQUEST NOTIFICATION PERMISSION ---
+  // --- *** CORRECCIÓN 2: Añadir función deleteMessage *** ---
+  const deleteMessage = useCallback(async (messageId) => {
+    if (!mountedRef.current) return;
+
+    setUpdating(true); // Puedes usar el mismo estado de 'updating'
+    try {
+      const config = getApiConfig();
+      const url = `${config.endpoints.custom_api}/messages/${messageId}`;
+
+      console.log(`🗑️ Deleting message ${messageId}`);
+
+      await makeApiRequest(url, { method: 'DELETE' });
+
+      if (!mountedRef.current) return;
+
+      // Update local state
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      setPagination(prev => ({ ...prev, total: prev.total - 1 }));
+
+      console.log('✅ Message deleted successfully');
+
+    } catch (err) {
+      console.error('❌ Error deleting message:', err);
+      throw err;
+    } finally {
+      if (mountedRef.current) {
+        setUpdating(false);
+      }
+    }
+  }, []);
+    
+  // --- *** El resto de tu código sigue igual *** ---
   const requestNotificationPermission = useCallback(async () => {
     if ('Notification' in window && Notification.permission === 'default') {
       const permission = await Notification.requestPermission();
@@ -308,7 +331,6 @@ const useMessages = (options = {}) => {
     return Notification.permission === 'granted';
   }, []);
 
-  // --- COMPUTED STATS ---
   const computed = useMemo(() => {
     return {
       totalMessages: pagination.total,
@@ -318,40 +340,40 @@ const useMessages = (options = {}) => {
     };
   }, [messages, pagination.total]);
 
-  // Auto-fetch on mount and filter changes
   useEffect(() => {
     if (autoFetch) {
       fetchMessages(true);
     }
   }, [search, status, type]);
 
-  // Start/stop polling based on enablePolling
   useEffect(() => {
     if (enablePolling) {
       startPolling();
     } else {
       stopPolling();
     }
-
-    return () => {
-      stopPolling();
-    };
+    return () => stopPolling();
   }, [enablePolling, startPolling, stopPolling]);
 
+
+  // --- *** CORRECCIÓN 3: Ajustar el objeto de retorno *** ---
   return {
     messages,
     loading,
     error,
-    pagination,
+    pagination: { ...pagination, total: pagination.total }, // Pasamos el total aquí
     computed,
     updating,
     hasNewMessages,
     fetchMessages,
-    updateMessage,
+    updateMessageStatus, // Usamos el nuevo nombre
+    deleteMessage,       // Añadimos la nueva función
     checkForNewMessages,
     startPolling,
     stopPolling,
-    requestNotificationPermission
+    requestNotificationPermission,
+    // Dejo sendMessage por si lo añades en el futuro y para compatibilidad
+    sendMessage: async () => console.log('sendMessage not implemented in this hook yet'),
   };
 };
 

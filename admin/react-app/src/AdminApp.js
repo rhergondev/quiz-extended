@@ -6,6 +6,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Importa tus componentes de página de admin
+import DashboardPage from './pages/DashboardPage';
 import CoursesManager from './components/courses/CoursesManager';
 import LessonsManager from './components/lessons/LessonsManager';
 import QuizzesManager from './components/quizzes/QuizzesManager';
@@ -32,7 +33,7 @@ function AdminApp() {
           <Route path="/settings" element={<h1>Settings Page (Coming Soon)</h1>} />
 
           {/* Default redirect for admin */}
-          <Route path="*" element={<Navigate to="/courses" replace />} />
+          <Route path="*" element={<DashboardPage />} />
         </Routes>
         <ToastContainer
           position="top-right"

@@ -35,7 +35,7 @@ export const useUsers = (options = {}) => {
     role: role,
     courseId: courseId,
     enrollmentStatus: enrollmentStatus,
-    orderBy: 'registered',
+    orderby: 'registered_date',
     order: 'desc',
     ...initialFilters
   });
