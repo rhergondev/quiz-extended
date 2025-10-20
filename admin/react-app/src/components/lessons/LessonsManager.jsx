@@ -1,498 +1,196 @@
-// admin/react-app/src/components/lessons/LessonsManager.jsx
-
-import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { 
-  BookOpen, 
-  Play, 
-  FileText, 
-  HelpCircle,
-  Users,
-  Clock,
-  Target,
-  TrendingUp,
-  CheckCircle,
-  AlertCircle,
-  Search,
-  RefreshCw,
-  Video,
-  FileImage,
-  Download
-} from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import clsx from 'clsx'; // Utility for conditional classes
 
 // Hooks
 import useLessons from '../../hooks/useLessons.js';
 import useCourses from '../../hooks/useCourses.js';
-import { useSearchInput, useFilterDebounce } from '../../api/utils/debounceUtils.js';
-import { useTranslation } from 'react-i18next';
+import useQuizzes from '../../hooks/useQuizzes.js';
 
-// Components
-import ContentManager from '../common/ContentManager';
-import LessonCard from './LessonCard';
-import LessonModal from './LessonModal';
-import DeleteModal from '../common/DeleteModal';
-import PageHeader from '../common/PageHeader.jsx';
-import FilterBar from '../common/FilterBar.jsx';
+// Componentes comunes y de layout
+import ListPanel from '../common/layout/ListPanel';
+import FilterBar from '../common/FilterBar'; // CORREGIDO: Ruta de importación.
+
+// Componentes específicos
+import LessonListItem from './LessonListItem';
+import LessonEditorPanel from './LessonEditorPanel';
+import QuizEditorPanel from '../quizzes/QuizEditorPanel';
 
 const LessonsManager = () => {
   const { t } = useTranslation();
 
-  // ============================================================
-  // LOCAL STATE
-  // ============================================================
+  // --- GESTIÓN DE ESTADO PRINCIPAL---
+  const [selectedLessonId, setSelectedLessonId] = useState(null);
+  const [mode, setMode] = useState('view');
   
-  const [viewMode, setViewMode] = useState('cards');
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [lessonToDelete, setLessonToDelete] = useState(null);
-  
-  // Modal States
-  const [modalMode, setModalMode] = useState(null); // 'create', 'edit', 'view'
-  const [selectedLesson, setSelectedLesson] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // ============================================================
-  // SEARCH & FILTERS WITH DEBOUNCE
-  // ============================================================
-  
-  const { searchValue, isSearching, handleSearchChange, clearSearch } = 
-    useSearchInput('', () => {}, 500);
-  
-  const { filters, isFiltering, updateFilter, resetFilters } = useFilterDebounce(
-    { 
-      courseId: 'all', 
-    },
-    () => {}, 
-    300
-  );
-
-  // ============================================================
-  // DATA FETCHING HOOKS
-  // ============================================================
-  
-  // Fetch lessons
-  const { 
-    lessons, 
-    loading, 
-    error, 
-    pagination,
-    computed,
-    creating, 
-    updating,
-    deleting,
-    createLesson, 
-    updateLesson, 
-    deleteLesson, 
-    duplicateLesson, 
-    fetchLessons
-  } = useLessons({
-    search: searchValue,
-    courseId: filters.courseId !== 'all' ? parseInt(filters.courseId) : null,
-    lessonType: filters.lessonType !== 'all' ? filters.lessonType : null,
-    status: filters.status !== 'all' ? filters.status : null,
-    autoFetch: true,
-    perPage: 20
+  // --- ESTADO PARA LA CREACIÓN EN CONTEXTO ---
+  const [creationContext, setCreationContext] = useState({
+    isActive: false,
+    childType: null,
+    onCreated: null,
   });
 
-  // Fetch courses for dropdown
-  const { 
-    courses, 
-    loading: coursesLoading 
-  } = useCourses({
-    status: 'publish,draft',
-    autoFetch: true,
-    perPage: 100
-  });
+  // --- OBTENCIÓN DE DATOS ---
+  const lessonsHook = useLessons({ autoFetch: true, perPage: 50 });
+  const coursesHook = useCourses({ autoFetch: true, perPage: 100 });
+  const quizzesHook = useQuizzes({ autoFetch: true, perPage: 100 });
 
-  // ============================================================
-  // COMPUTED VALUES
-  // ============================================================
-  
-  // Transform courses into options for dropdown
-  const courseOptions = useMemo(() => {
-    if (!courses) return [{ value: 'all', label: t('lessons.course.all') }];
-    
-    return [
-      { value: 'all', label: t('lessons.course.all') },
-      ...courses.map(course => ({
-        value: course.id.toString(),
-        label: course.title?.rendered || course.title || `Course #${course.id}`
-      }))
-    ];
-  }, [courses, t]);
+  // --- MANEJADORES DE LA UI ---
+  const handleSelectLesson = (lesson) => {
+    setSelectedLessonId(lesson.id);
+    setMode('edit');
+  };
 
-  // Lesson type options
-  const lessonTypeOptions = useMemo(() => [
-    { value: 'all', label: t('lessons.lessonType.all') },
-    { value: 'video', label: t('lessons.lessonType.video') },
-    { value: 'text', label: t('lessons.lessonType.text') },
-    { value: 'mixed', label: t('lessons.lessonType.mixed') },
-    { value: 'quiz', label: t('lessons.lessonType.quiz') },
-    { value: 'interactive', label: t('lessons.lessonType.interactive') }
-  ], [t]);
+  const handleCreateNew = () => {
+    setSelectedLessonId(null);
+    setMode('create');
+  };
 
-
-  // Statistics cards
-  const statsCards = useMemo(() => {
-    // Count lessons by type
-    const videoLessons = lessons.filter(l => l.lesson_type === 'video').length;
-    const textLessons = lessons.filter(l => l.lesson_type === 'text').length;
-    const mixedLessons = lessons.filter(l => l.lesson_type === 'mixed').length;
-    
-    // Calculate total steps
-    const totalSteps = lessons.reduce((sum, lesson) => 
-      sum + (lesson.steps_count || 0), 0
-    );
-    
-    // Average steps per lesson
-    const averageSteps = lessons.length > 0 
-      ? Math.round(totalSteps / lessons.length) 
-      : 0;
-
-    return [
-      { 
-        label: t('lessons.stats.totalLessons'), 
-        value: pagination.total || lessons.length || 0, 
-        icon: BookOpen, 
-        iconColor: 'text-blue-500' 
-      },
-      { 
-        label: t('lessons.stats.videoLessons'), 
-        value: videoLessons, 
-        icon: Video, 
-        iconColor: 'text-purple-500' 
-      },
-      { 
-        label: t('lessons.stats.textLessons'), 
-        value: textLessons, 
-        icon: FileText, 
-        iconColor: 'text-green-500' 
-      },
-      { 
-        label: t('lessons.stats.mixedLessons'), 
-        value: mixedLessons, 
-        icon: FileImage, 
-        iconColor: 'text-orange-500' 
-      },
-      { 
-        label: t('lessons.stats.totalSteps'), 
-        value: totalSteps, 
-        icon: Target, 
-        iconColor: 'text-indigo-500' 
-      },
-      { 
-        label: t('lessons.stats.averageSteps'), 
-        value: averageSteps, 
-        icon: TrendingUp, 
-        iconColor: 'text-teal-500' 
-      }
-    ];
-  }, [lessons, pagination, t]);
-
-  // ============================================================
-  // INFINITE SCROLL
-  // ============================================================
-  
-  const observer = useRef();
-  const hasMore = pagination.hasMore;
-  
-  const lastLessonElementRef = useCallback(node => {
-    if (loading) return;
-    if (observer.current) observer.current.disconnect();
-    
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        console.log('📄 Loading more lessons...');
-        fetchLessons(false);
-      }
+  // --- MANEJADORES PARA CREACIÓN EN CONTEXTO ---
+  const handleTriggerCreation = (childType, onCreatedCallback) => {
+    setCreationContext({
+      isActive: true,
+      childType: childType,
+      onCreated: onCreatedCallback,
     });
-    
-    if (node) observer.current.observe(node);
-  }, [loading, hasMore, fetchLessons]);
+  };
 
-  // ============================================================
-  // EVENT HANDLERS
-  // ============================================================
-  
-  const handleSearchChangeWrapper = useCallback((event) => {
-    const value = event.target.value;
-    handleSearchChange(value);
-  }, [handleSearchChange]);
+  const handleCancelCreation = () => {
+    setCreationContext({ isActive: false, childType: null, onCreated: null });
+  };
 
-  const handleCourseChange = useCallback((courseId) => {
-    console.log('📚 Course filter changed:', courseId);
-    updateFilter('courseId', courseId);
-  }, [updateFilter]);
-
-  const handleLessonTypeChange = useCallback((lessonType) => {
-    console.log('🎬 Lesson type filter changed:', lessonType);
-    updateFilter('lessonType', lessonType);
-  }, [updateFilter]);
-
-  const handleStatusChange = useCallback((status) => {
-    console.log('📝 Status filter changed:', status);
-    updateFilter('status', status);
-  }, [updateFilter]);
-
-  const handleRefresh = useCallback(() => {
-    console.log('🔄 Refreshing lessons...');
-    fetchLessons(true);
-  }, [fetchLessons]);
-
-  // ============================================================
-  // MODAL HANDLERS
-  // ============================================================
-  
-  const openModal = useCallback((mode, lesson = null) => {
-    console.log('🔵 Opening modal:', mode, lesson);
-    setModalMode(mode);
-    setSelectedLesson(lesson);
-    setIsModalOpen(true);
-  }, []);
-
-  const closeModal = useCallback(() => {
-    console.log('🔴 Closing modal');
-    setIsModalOpen(false);
-    setTimeout(() => {
-      setModalMode(null);
-      setSelectedLesson(null);
-    }, 300);
-  }, []);
-
-  const handleSaveLesson = async (lessonData, nextAction) => {
-    try {
-      console.log('💾 Saving lesson:', lessonData, 'Next action:', nextAction);
-      
-      let result;
-      if (modalMode === 'create') {
-        result = await createLesson(lessonData);
-        console.log('✅ Lesson created:', result);
-      } else if (modalMode === 'edit') {
-        result = await updateLesson(selectedLesson.id, lessonData);
-        console.log('✅ Lesson updated:', result);
+  const handleSaveAndSelectChild = async (childData) => {
+    if (creationContext.childType === 'quiz') {
+      try {
+        const newQuiz = await quizzesHook.createQuiz(childData);
+        if (creationContext.onCreated) {
+          creationContext.onCreated(newQuiz.id);
+        }
+        handleCancelCreation();
+      } catch (error) {
+        console.error("Failed to create quiz in context:", error);
       }
-
-      // Handle next action
-      if (nextAction === 'close') {
-        closeModal();
-      } else if (nextAction === 'reset') {
-        setSelectedLesson(null);
-        setModalMode('create');
-      }
-
-      return result;
-
-    } catch (error) {
-      console.error('❌ Error saving lesson:', error);
-      throw error;
     }
   };
 
-  // ============================================================
-  // DELETE HANDLERS
-  // ============================================================
-  
-  const handleDeleteClick = useCallback((lesson) => {
-    console.log('🗑️ Delete clicked for lesson:', lesson);
-    setLessonToDelete(lesson);
-    setShowDeleteModal(true);
-  }, []);
 
-  const handleDeleteConfirm = async () => {
-    if (!lessonToDelete) return;
-    
-    try {
-      console.log('🗑️ Deleting lesson:', lessonToDelete.id);
-      await deleteLesson(lessonToDelete.id);
-      console.log('✅ Lesson deleted successfully');
-      
-      setShowDeleteModal(false);
-      setLessonToDelete(null);
-    } catch (error) {
-      console.error('❌ Error deleting lesson:', error);
+  // --- CONFIGURACIONES PARA COMPONENTES HIJO ---
+  const courseOptions = useMemo(() => [
+    { value: 'all', label: t('courses.category.all') },
+    ...(coursesHook.courses || []).map(c => ({ value: c.id.toString(), label: c.title?.rendered || c.title }))
+  ], [coursesHook.courses, t]);
+  
+  const filtersConfig = useMemo(() => {
+    if (!lessonsHook.filters || !lessonsHook.updateFilter) return [];
+    return [
+      {
+        label: 'Curso',
+        value: lessonsHook.filters.courseId || 'all',
+        onChange: (value) => lessonsHook.updateFilter('courseId', value),
+        options: courseOptions,
+        isLoading: coursesHook.loading,
+      },
+    ];
+  }, [lessonsHook.filters, lessonsHook.updateFilter, courseOptions, coursesHook.loading, t]);
+
+  const searchConfig = useMemo(() => {
+    if (!lessonsHook.filters || !lessonsHook.updateFilter) {
+      return {
+        value: '',
+        onChange: () => {},
+        placeholder: t('lessons.searchPlaceholder', 'Buscar lecciones...'),
+        isLoading: false,
+      };
     }
-  };
+    return {
+      value: lessonsHook.filters.search || '',
+      onChange: (e) => lessonsHook.updateFilter('search', e.target.value),
+      placeholder: t('lessons.searchPlaceholder', 'Buscar lecciones...'),
+      isLoading: lessonsHook.loading,
+    };
+  }, [lessonsHook.filters, lessonsHook.updateFilter, lessonsHook.loading, t]);
 
-  const handleDuplicate = async (lesson) => {
-    try {
-      console.log('📋 Duplicating lesson:', lesson.id);
-      await duplicateLesson(lesson.id);
-      console.log('✅ Lesson duplicated successfully');
-    } catch (error) {
-      console.error('❌ Error duplicating lesson:', error);
-    }
-  };
+  // --- RENDERIZADO ---
+  const isInitialLoading = !lessonsHook.filters || !lessonsHook.computed || !coursesHook.courses;
 
-  const handleLessonClick = useCallback((lesson) => {
-    console.log('👁️ View lesson:', lesson);
-    openModal('view', lesson);
-  }, [openModal]);
-
-  // ============================================================
-  // FILTER CONFIGURATION
-  // ============================================================
+  if (isInitialLoading) {
+    return <div className="flex items-center justify-center h-full"><p>{t('common.loading')}</p></div>;
+  }
   
-  const searchConfig = {
-    placeholder: t('lessons.searchPlaceholder'),
-    value: searchValue,
-    onChange: handleSearchChangeWrapper,
-    onClear: clearSearch,
-    isSearching: isSearching
-  };
+  const isContextualCreationActive = creationContext.isActive && creationContext.childType === 'quiz';
 
-  const filtersConfig = [
-    {
-      label: t('lessons.course.label'),
-      value: filters.courseId,
-      options: courseOptions,
-      onChange: handleCourseChange,
-      loading: coursesLoading
-    },
-  ];
-
-  // ============================================================
-  // RENDER
-  // ============================================================
-  
   return (
-    <div className="space-y-6 p-6">
-      
-      {/* Page Header with Stats */}
-      <PageHeader
-        title={t('lessons.title')}
-        description={t('lessons.description')}
-        stats={statsCards}
-        isLoading={loading && lessons.length === 0}
-        primaryAction={{
-          text: t('lessons.addNew'),
-          onClick: () => openModal('create'),
-          isLoading: creating,
-          icon: BookOpen
-        }}
-        secondaryAction={{
-          text: t('common.refresh'),
-          onClick: handleRefresh,
-          isLoading: loading,
-          icon: RefreshCw
-        }}
-      />
+    // CORREGIDO: Añadido padding horizontal (px-6) y vertical (py-6) para espaciado simétrico.
+    <div className="qe-lms-admin-app h-full flex overflow-hidden px-6">
+      {/* Panel 1: Lista de Lecciones */}
+      <div className={clsx(
+        "transition-all duration-500 ease-in-out h-full flex-shrink-0",
+        {
+          "w-full lg:w-[20%]": !isContextualCreationActive,
+          "w-[20%] opacity-60 pointer-events-none": isContextualCreationActive
+        }
+      )}>
+        <ListPanel
+          title="Lecciones"
+          itemCount={lessonsHook.computed.total || 0}
+          createButtonText="Crear Lección"
+          onCreate={handleCreateNew}
+          isCreating={lessonsHook.creating}
+          filters={<FilterBar searchConfig={searchConfig} filtersConfig={filtersConfig} />}
+        >
+          {(lessonsHook.lessons || []).map(lesson => (
+            <LessonListItem
+              key={lesson.id}
+              lesson={lesson}
+              isSelected={selectedLessonId === lesson.id}
+              onClick={handleSelectLesson}
+            />
+          ))}
+        </ListPanel>
+      </div>
 
-      {/* Filters and Search */}
-      <FilterBar
-        searchConfig={searchConfig}
-        filtersConfig={filtersConfig}
-        onResetFilters={resetFilters}
-      />
+      {/* Panel 2: Editor de Lección (Panel Principal o Colapsado) */}
+      <div className={clsx(
+        "transition-all duration-500 ease-in-out h-full flex-shrink-0",
+        {
+          "flex-1": !isContextualCreationActive && (selectedLessonId || mode === 'create'),
+          "w-0": !selectedLessonId && !isContextualCreationActive && mode !== 'create',
+          "w-[7%]": isContextualCreationActive,
+        }
+      )}>
+        {(mode === 'edit' || mode === 'create') && (
+          <LessonEditorPanel
+            key={selectedLessonId || 'new'}
+            lessonId={selectedLessonId}
+            mode={mode}
+            onSave={mode === 'create' ? lessonsHook.createLesson : (data) => lessonsHook.updateLesson(selectedLessonId, data)}
+            onCancel={() => setMode('view')}
+            availableCourses={courseOptions.filter(opt => opt.value !== 'all')}
+            onTriggerCreation={handleTriggerCreation}
+            isCollapsed={isContextualCreationActive}
+          />
+        )}
+      </div>
 
-      {/* Error Display */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <div className="flex">
-            <AlertCircle className="h-5 w-5 text-red-400 mr-2 flex-shrink-0" />
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Content Manager with Cards */}
-      <ContentManager
-        title={t('lessons.title')}
-        description={t('lessons.description')}
-        createButtonText={t('lessons.addNew')}
-        onCreateClick={() => openModal('create')}
-        items={lessons}
-        loading={loading && lessons.length === 0}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        showCreateButton={false}
-        showItemCount={true}
-        showViewToggle={true}
-        showStatistics={false}
-        emptyState={{ 
-          icon: BookOpen, 
-          title: t('lessons.noLessons'),
-          description: lessons.length === 0 && !loading
-            ? t('lessons.noLessonsDescription')
-            : t('common.noResults'),
-          actionText: t('lessons.addNew'),
-          onAction: () => openModal('create')
-        }}
-      >
-        {lessons.map((lesson, index) => {
-          const cardProps = {
-            lesson,
-            courses,
-            onEdit: () => openModal('edit', lesson),
-            onDelete: () => handleDeleteClick(lesson),
-            onDuplicate: () => handleDuplicate(lesson),
-            onClick: () => handleLessonClick(lesson),
-            viewMode: viewMode
-          };
-
-          if (index === lessons.length - 1) {
-            return (
-              <div key={lesson.id} ref={lastLessonElementRef}>
-                <LessonCard {...cardProps} />
-              </div>
-            );
+      {/* Panel 3: Creador de Cuestionarios (Contextual) */}
+      <div className={clsx(
+          "transition-all duration-500 ease-in-out h-full",
+          {
+              "flex-1": isContextualCreationActive,
+              "w-0": !isContextualCreationActive,
           }
-          
-          return (
-            <div key={lesson.id}>
-              <LessonCard {...cardProps} />
-            </div>
-          );
-        })}
-
-        {/* Loading state */}
-        {loading && lessons.length > 0 && (
-          <div className="flex justify-center py-8 col-span-full">
-            <div className="flex items-center text-sm text-gray-500">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-2"></div>
-              <span>{t('lessons.loadingMoreLessons')}</span>
-            </div>
-          </div>
+      )}>
+        {isContextualCreationActive && (
+            <QuizEditorPanel
+                mode="create"
+                onSave={handleSaveAndSelectChild}
+                onCancel={handleCancelCreation}
+                availableCourses={courseOptions.filter(opt => opt.value !== 'all')}
+                availableCategories={[]}
+                isContextual
+            />
         )}
-
-        {/* End of list */}
-        {!loading && !hasMore && lessons.length > 0 && (
-          <div className="text-center py-6 col-span-full">
-            <p className="text-gray-500">{t('common.endOfList')}</p>
-          </div>
-        )}
-      </ContentManager>
-
-      {/* ============================================================
-          MODALS
-          ============================================================ */}
-      
-      {/* Lesson Modal */}
-      {isModalOpen && (
-        <LessonModal
-          isOpen={isModalOpen}
-          onClose={closeModal}
-          onSave={handleSaveLesson}
-          lesson={selectedLesson}
-          mode={modalMode}
-          availableCourses={courseOptions.filter(c => c.value !== 'all')}
-          isLoading={creating || updating}
-        />
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <DeleteModal
-          isOpen={showDeleteModal}
-          onClose={() => {
-            setShowDeleteModal(false);
-            setLessonToDelete(null);
-          }}
-          onConfirm={handleDeleteConfirm}
-          title={t('lessons.messages.deleteConfirmTitle')}
-          message={t('lessons.messages.deleteConfirmMessage', { 
-            title: lessonToDelete?.title?.rendered || lessonToDelete?.title || ''
-          })}
-          isLoading={deleting}
-        />
-      )}
+      </div>
     </div>
   );
 };

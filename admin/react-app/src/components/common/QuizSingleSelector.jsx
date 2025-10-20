@@ -1,136 +1,121 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Search, HelpCircle, ChevronDown, AlertCircle, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Search, X, Plus } from 'lucide-react';
 import useQuizzes from '../../hooks/useQuizzes';
 
-const QuizSingleSelector = ({
-  value = '',
-  onChange,
-  courseId = null,
-  placeholder = 'Select a quiz...',
-  disabled = false,
-  error = null,
-  required = false,
-  className = '',
-  showSearch = true
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+const QuizSingleSelector = ({ value, onChange, disabled = false, onCreateNew }) => {
+  const { t } = useTranslation();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const { quizzes: searchResults, loading, fetchQuizzes } = useQuizzes({ autoFetch: false });
+  const [selectedQuiz, setSelectedQuiz] = useState(null);
+  const containerRef = useRef(null);
+  const debounceTimeoutRef = useRef(null);
 
-  // ✅ CORRECCIÓN: Se llama al hook con un objeto de opciones válido.
-  const { 
-    quizzes = [], 
-    loading, 
-    error: fetchError,
-    fetchQuizzes,
-    hasMore,
-    loadMoreQuizzes
-  } = useQuizzes({
-    search: searchTerm,
-    courseId: courseId,
-    autoFetch: true, // Carga inicial
-    perPage: 50 // Cargar un número razonable para el selector
-  });
+  const { quizzes: allQuizzes } = useQuizzes({ autoFetch: true, perPage: 100 });
 
-  // Manejador para el cambio en la búsqueda
   useEffect(() => {
-    const handler = setTimeout(() => {
-      fetchQuizzes(true); // `true` para resetear y aplicar nuevo término de búsqueda
-    }, 500); // Debounce de 500ms
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [searchTerm, courseId, fetchQuizzes]);
-
-  // Obtener detalles del quiz seleccionado
-  const selectedQuiz = useMemo(() => {
-    if (!Array.isArray(quizzes) || !value) return null;
-    return quizzes.find(quiz => quiz?.id?.toString() === value?.toString());
-  }, [quizzes, value]);
-
-  const handleSelect = (quiz) => {
-    if (quiz?.id && onChange) {
-      onChange(quiz.id);
-      setIsOpen(false);
+    if (value && allQuizzes.length > 0) {
+      const found = allQuizzes.find(q => q.id === value);
+      setSelectedQuiz(found || null);
+    } else if (!value) {
+      setSelectedQuiz(null);
     }
+  }, [value, allQuizzes]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+    if (searchQuery.trim()) {
+      setIsDropdownOpen(true);
+      debounceTimeoutRef.current = setTimeout(() => {
+        fetchQuizzes(true, { search: searchQuery });
+      }, 300);
+    } else {
+      setIsDropdownOpen(false);
+    }
+    return () => clearTimeout(debounceTimeoutRef.current);
+  }, [searchQuery, fetchQuizzes]);
+
+  const handleSelectQuiz = (quiz) => {
+    setSelectedQuiz(quiz);
+    onChange(quiz.id);
+    setIsDropdownOpen(false);
+    setSearchQuery('');
   };
 
+  const handleClear = () => {
+    setSelectedQuiz(null);
+    onChange(null);
+  };
+  
+  const getQuizTitle = (quiz) => quiz?.title?.rendered || quiz?.title || 'Cuestionario sin título';
+
+  if (selectedQuiz) {
+    return (
+      <div className="flex items-center justify-between p-2 bg-gray-100 border rounded-md">
+        <p className="text-sm font-medium text-gray-800">{getQuizTitle(selectedQuiz)}</p>
+        {!disabled && (
+          <button onClick={handleClear} className="text-red-500 hover:text-red-700">
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className={`relative ${className}`}>
-      {/* Botón del selector */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        disabled={disabled || loading}
-        className={`relative w-full px-3 py-2 text-left border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-          error ? 'border-red-500' : 'border-gray-300'
-        } ${
-          disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white hover:bg-gray-50'
-        }`}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 flex-1 min-w-0">
-            {selectedQuiz ? (
-              <>
-                <HelpCircle className="h-4 w-4 text-purple-500 flex-shrink-0" />
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {selectedQuiz.title?.rendered || selectedQuiz.title || 'Untitled Quiz'}
-                </p>
-              </>
-            ) : (
-              <span className="text-gray-500 text-sm">{placeholder}</span>
-            )}
+    <div className="relative" ref={containerRef}>
+      <div className="flex gap-2">
+        <div className="relative flex-grow">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400" />
           </div>
-          
-          <div className="flex items-center space-x-1">
-            {loading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>}
-            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => setIsDropdownOpen(true)}
+            placeholder="Buscar o crear cuestionario..."
+            disabled={disabled}
+            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md"
+          />
         </div>
-      </button>
-
-      {/* Mensaje de Error */}
-      {(error || fetchError) && (
-        <p className="mt-1 text-sm text-red-600">{error || fetchError}</p>
-      )}
-
-      {/* Menú desplegable */}
-      {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-          {showSearch && (
-            <div className="p-2 border-b">
-              <input
-                type="text"
-                placeholder="Search quizzes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-2 py-1.5 text-sm border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
-              />
+        {onCreateNew && (
+            <button onClick={onCreateNew} disabled={disabled} className="flex-shrink-0 flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                <Plus className="w-4 h-4" />
+                Crear Nuevo
+            </button>
+        )}
+      </div>
+      {isDropdownOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+          {loading && <p className="p-2 text-sm text-gray-500">Buscando...</p>}
+          {!loading && searchResults.length > 0 && searchResults.map(quiz => (
+            <div
+              key={quiz.id}
+              onClick={() => handleSelectQuiz(quiz)}
+              className="p-2 text-sm cursor-pointer hover:bg-gray-100"
+            >
+              {getQuizTitle(quiz)}
             </div>
-          )}
-          
-          {loading && quizzes.length === 0 ? (
-            <div className="p-4 text-sm text-gray-500 text-center">Loading...</div>
-          ) : (
-            <ul>
-              {quizzes.length > 0 ? quizzes.map(quiz => (
-                <li
-                  key={quiz.id}
-                  onClick={() => handleSelect(quiz)}
-                  className="px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 cursor-pointer"
-                >
-                  {quiz.title?.rendered || quiz.title}
-                </li>
-              )) : (
-                <li className="px-4 py-2 text-sm text-gray-500">No quizzes found.</li>
-              )}
-            </ul>
+          ))}
+          {!loading && searchResults.length === 0 && searchQuery && (
+            <p className="p-2 text-sm text-gray-500">No se encontraron resultados.</p>
           )}
         </div>
       )}
-
-      {/* Backdrop */}
-      {isOpen && <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />}
     </div>
   );
 };

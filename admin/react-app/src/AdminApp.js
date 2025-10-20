@@ -1,5 +1,3 @@
-// admin/react-app/src/AdminApp.js
-
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
@@ -21,7 +19,8 @@ import MessagesManager from './components/messages/MessagesManager';
 function AdminApp() {
   return (
     <Router>
-      <div className="qe-lms-admin-app">
+      {/* CORRECCIÓN: Añadido 'h-screen' para que la app ocupe toda la altura de la ventana */}
+      <div className="qe-lms-admin-app h-screen flex flex-col">
         <Routes>
           {/* Admin specific routes */}
           <Route path="/courses" element={<CoursesManager />} />

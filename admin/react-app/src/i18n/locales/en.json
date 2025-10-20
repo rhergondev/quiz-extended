@@ -8,7 +8,7 @@
     "view": "View",
     "loading": "Loading...",
     "uploading": "Uploading...",
-    "search": "Search...",
+    "search": "Search",
     "filter": "Filter",
     "reset": "Reset",
     "refresh": "Refresh",
@@ -33,20 +33,36 @@
     "back": "Back",
     "next": "Next",
     "previous": "Previous",
-    "close": "Close"
+    "close": "Close",
+    "settings": "Settings",
+    "questions": "Questions",
+    "select": "Select...",
+    "unlimited": "Unlimited",
+    "saving": "Saving...",
+    "add": "Add",
+    "added": "Added",
+    "createNew": "Create New",
+    "easy": "Easy",
+    "medium": "Medium",
+    "hard": "Hard",
+    "featureComingSoon": "Feature coming soon!"
+  },
+  "errors": {
+    "fetchQuiz": "Failed to load quiz data.",
+    "saveQuiz": "Failed to save the quiz."
   },
   "sidebar": {
-  "dashboard": "Dashboard",
-  "courses": "Courses",
-  "books": "Books",
-  "profile": "My Profile",
-  "logout": "Log Out",
-  "expand": "Expand",
-  "collapse": "Collapse",
-  "logoAlt": "Company Logo",
-  "logoText": "Your Logo",
-  "quizGenerator": "Quiz Generator"
-},
+    "dashboard": "Dashboard",
+    "courses": "Courses",
+    "books": "Books",
+    "profile": "My Profile",
+    "logout": "Log Out",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "logoAlt": "Company Logo",
+    "logoText": "Your Logo",
+    "quizGenerator": "Quiz Generator"
+  },
   "courses": {
     "title": "Courses",
     "description": "Create and manage courses with lessons, pricing, and enrollments",
@@ -427,6 +443,25 @@
     "loadingQuizzes": "Loading quizzes...",
     "loadingResults": "Loading quiz results...",
     "quizResults": "Quiz Results",
+    "createNew": "Create New Quiz",
+    "editTitle": "Editing: {{title}}",
+    "form": {
+      "title": "Quiz Title",
+      "course": "Course",
+      "category": "Category",
+      "difficulty": "Difficulty",
+      "instructions": "Instructions",
+      "passingScore": "Passing Score (%)",
+      "timeLimit": "Time Limit (mins)",
+      "maxAttempts": "Max Attempts",
+      "randomize": "Randomize Questions",
+      "showResults": "Show Results After Completion",
+      "negativeScoring": "Enable Negative Scoring",
+      "addQuestions": "Add Questions from Bank",
+      "searchPlaceholder": "Search questions by title...",
+      "selectedQuestions": "Selected Questions",
+      "noQuestions": "No questions have been added yet."
+    },
     "fields": {
       "title": "Quiz Title",
       "instructions": "Instructions",
@@ -490,7 +525,7 @@
       "attempts": "attempts"
     }
   },
-   "dashboard": {
+  "dashboard": {
     "title": "LMS Dashboard",
     "recentResults": "Recent Results",
     "noAttempts": "You haven't completed any quizzes yet.",
@@ -575,15 +610,16 @@
       "difficulties": {
         "easy": "Easy",
         "medium": "Medium",
-        "hard": "Hard",
+        "hard": "Hard"
+      },
       "types": {
         "multiple_choice": "Multiple Choice",
         "true_false": "True / False",
         "fill_in_the_blanks": "Fill in the Blanks",
         "short_answer": "Short Answer",
         "essay": "Essay"
-        }
-    },  
+      }
+    },
     "providers": {
       "human": "Human",
       "ai": "AI",
@@ -709,5 +745,4 @@
     "mustBeNumber": "Must be a number",
     "mustBePositive": "Must be a positive number"
   }
-}
 }
