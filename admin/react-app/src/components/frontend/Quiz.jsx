@@ -58,7 +58,11 @@ const Quiz = ({ quizId, customQuiz = null }) => {
 
   const quizQuestions = useMemo(() => {
     if (questionsLoading || questionIds.length === 0) return [];
-    return questionIds.map(id => allQuestions.find(q => q.id === id)).filter(Boolean);
+    const orderedQuestions = questionIds.map(id => allQuestions.find(q => q.id === id)).filter(Boolean);
+    
+    // Shuffle questions randomly for display only
+    const shuffled = [...orderedQuestions].sort(() => Math.random() - 0.5);
+    return shuffled;
   }, [questionIds, allQuestions, questionsLoading]);
 
   useEffect(() => {

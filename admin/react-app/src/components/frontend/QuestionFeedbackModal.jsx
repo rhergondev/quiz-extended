@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { X, Send, Loader, MessageSquareWarning, CheckCircle } from 'lucide-react';
 import { messageService } from '../../api/services/messageService';
 
-const QuestionFeedbackModal = ({ question, onClose }) => {
-  const [feedbackType, setFeedbackType] = useState('feedback');
+const QuestionFeedbackModal = ({ question, initialFeedbackType = 'feedback', onClose }) => {
+  const [feedbackType, setFeedbackType] = useState(initialFeedbackType);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -59,7 +59,7 @@ const QuestionFeedbackModal = ({ question, onClose }) => {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-gray-800 flex items-center">
                 <MessageSquareWarning className="mr-2 text-indigo-500"/>
-                Reportar Incidencia
+                {feedbackType === 'challenge' ? 'Impugnar Pregunta' : 'Comentario o Sugerencia'}
               </h2>
               <button onClick={onClose} className="text-gray-400 hover:text-gray-700">
                 <X size={24} />
@@ -71,7 +71,7 @@ const QuestionFeedbackModal = ({ question, onClose }) => {
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
                 <label htmlFor="feedbackType" className="block text-sm font-medium text-gray-700 mb-1">
-                  Tipo de Incidencia
+                  Tipo de Mensaje
                 </label>
                 <select
                   id="feedbackType"
@@ -79,8 +79,8 @@ const QuestionFeedbackModal = ({ question, onClose }) => {
                   onChange={(e) => setFeedbackType(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
-                  <option value="feedback">Sugerencia o comentario</option>
-                  <option value="challenge">Impugnar pregunta</option>
+                  <option value="feedback">💬 Comentario o Sugerencia</option>
+                  <option value="challenge">⚠️ Impugnación</option>
                 </select>
               </div>
               <div className="mb-4">

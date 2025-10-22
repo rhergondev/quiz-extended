@@ -1,7 +1,6 @@
-import React, { useState } from 'react'; // Importamos useState
-import { Bookmark, AlertCircle, Trash2 } from 'lucide-react';
-
-// Importamos el modal que creamos en el paso anterior
+import React, { useState } from 'react';
+import { Bookmark, MessageSquare, AlertTriangle, Trash2 } from 'lucide-react';
+import { toggleFavoriteQuestion } from '../../api/services/favoriteService';
 import QuestionFeedbackModal from './QuestionFeedbackModal';
 
 const Question = ({ 
@@ -14,46 +13,89 @@ const Question = ({
   onClearAnswer,
   isSubmitted 
 }) => {
-  // --- AÑADIDO: Estado para controlar la visibilidad del modal ---
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [feedbackType, setFeedbackType] = useState('feedback');
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+
+  const handleToggleFavorite = async () => {
+    if (isTogglingFavorite) return;
+    
+    setIsTogglingFavorite(true);
+    try {
+      const response = await toggleFavoriteQuestion(question.id);
+      setIsFavorite(response.is_favorited);
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    } finally {
+      setIsTogglingFavorite(false);
+    }
+  };
+
+  const handleOpenModal = (type) => {
+    setFeedbackType(type);
+    setIsFeedbackModalOpen(true);
+  };
 
   if (!question) {
     return null;
   }
 
-  // Desestructuramos title de 'question' para el modal
   const { id, title, meta } = question; 
   const options = meta?._question_options || [];
 
   return (
-    <> {/* Usamos un fragmento para envolver el componente y el modal */}
+    <>
       <div className="bg-white border border-gray-200 rounded-lg mb-6 flex shadow-sm">
         {/* Columna Izquierda */}
-        <div className="w-24 flex-shrink-0 p-4 border-r border-gray-200 text-center space-y-3 bg-gray-50/70 rounded-l-lg">
-          <p className="font-bold text-gray-700">Pregunta {index + 1}</p>
+        <div className="w-28 flex-shrink-0 p-4 border-r border-gray-200 text-center space-y-3 bg-gray-50/70 rounded-l-lg">
+          <p className="font-bold text-gray-700 text-lg">Pregunta {index + 1}</p>
           <div className="flex flex-col items-center space-y-2">
-              <button className="text-gray-400 hover:text-primary" title="Marcar pregunta">
-                  <Bookmark className="w-5 h-5" />
-              </button>
-              
-              {/* --- MODIFICADO: Este botón ahora abre el modal --- */}
-              <button 
-                onClick={() => setIsFeedbackModalOpen(true)}
-                className="text-gray-400 hover:text-red-500" 
-                title="Reportar incidencia"
-                disabled={isSubmitted} // Deshabilitamos si el examen está enviado
-              >
-                  <AlertCircle className="w-5 h-5" />
-              </button>
+            {/* Botón de Favorito */}
+            <button 
+              onClick={handleToggleFavorite}
+              disabled={isTogglingFavorite || isSubmitted}
+              className={`transition-colors ${
+                isFavorite 
+                  ? 'text-yellow-500 hover:text-yellow-600' 
+                  : 'text-gray-400 hover:text-yellow-500'
+              } ${isTogglingFavorite ? 'opacity-50 cursor-wait' : ''}`}
+              title="Marcar como favorita"
+            >
+              <Bookmark className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+            </button>
+            
+            {/* Botón de Comentario */}
+            <button 
+              onClick={() => handleOpenModal('feedback')}
+              className="text-gray-400 hover:text-blue-500" 
+              title="Comentario o sugerencia"
+              disabled={isSubmitted}
+            >
+              <MessageSquare className="w-5 h-5" />
+            </button>
+
+            {/* Botón de Impugnación */}
+            <button 
+              onClick={() => handleOpenModal('challenge')}
+              className="text-gray-400 hover:text-red-500" 
+              title="Impugnar pregunta"
+              disabled={isSubmitted}
+            >
+              <AlertTriangle className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
-        {/* Columna Derecha (Sin cambios en su lógica interna) */}
+        {/* Columna Derecha */}
         <div className="p-6 flex-1">
-          <h3 
-            className="text-base text-gray-800 mb-6"
-            dangerouslySetInnerHTML={{ __html: title.rendered }} // Pasamos el title renderizado
-          />
+          {/* Número de pregunta y título */}
+          <div className="mb-6">
+            <h3 
+              className="text-base text-gray-800"
+              dangerouslySetInnerHTML={{ __html: `${index + 1}. ${title.rendered}` }}
+            />
+          </div>
 
           {/* Opciones de respuesta */}
           <div className="space-y-3">
@@ -112,10 +154,11 @@ const Question = ({
         </div>
       </div>
 
-      {/* --- AÑADIDO: Renderizado condicional del modal --- */}
+      {/* Modal de Feedback */}
       {isFeedbackModalOpen && (
         <QuestionFeedbackModal
-          question={question} // Pasamos el objeto 'question' completo
+          question={question}
+          initialFeedbackType={feedbackType}
           onClose={() => setIsFeedbackModalOpen(false)}
         />
       )}
