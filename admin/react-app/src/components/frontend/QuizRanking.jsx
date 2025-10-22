@@ -76,7 +76,7 @@ const QuizRanking = ({ quizId }) => {
     return null; // Don't show anything if there's no ranking data
   }
 
-  const { top, relative, currentUser } = ranking;
+  const { top, relative, currentUser, statistics } = ranking;
   const currentUserId = currentUser?.id;
 
   // --- Lógica para combinar y mostrar rankings sin cambios ---
@@ -107,6 +107,33 @@ const QuizRanking = ({ quizId }) => {
         <Trophy className="w-5 h-5 mr-2 text-yellow-500" />
         Ranking del Cuestionario
       </h3>
+      
+      {/* Statistics Section */}
+      {statistics && (
+        <div className="mb-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100">
+          <h4 className="text-sm font-semibold text-gray-700 mb-2 text-center">
+            Estadísticas Generales
+          </h4>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="bg-white p-2 rounded shadow-sm">
+              <div className="text-gray-500 text-center">Media sin riesgo</div>
+              <div className="text-indigo-600 font-bold text-center text-lg">
+                {Math.round(statistics.avg_score_without_risk)}%
+              </div>
+            </div>
+            <div className="bg-white p-2 rounded shadow-sm">
+              <div className="text-gray-500 text-center">Media con riesgo</div>
+              <div className="text-red-600 font-bold text-center text-lg">
+                {Math.round(statistics.avg_score_with_risk)}%
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 text-center text-xs text-gray-500">
+            Total de usuarios: {statistics.total_users}
+          </div>
+        </div>
+      )}
+
       <ul className="space-y-2">
         {displayList.map((rank) => {
           if (rank.isSeparator) {

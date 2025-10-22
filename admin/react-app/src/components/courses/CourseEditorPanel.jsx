@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Save, Plus, GripVertical, Trash2, UploadCloud, ImageIcon, X } from 'lucide-react'; // Importar el icono X
+import { Save, Plus, GripVertical, Trash2, UploadCloud, ImageIcon, X } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -14,6 +14,7 @@ import useLessons from '../../hooks/useLessons';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
 import Tabs from '../common/layout/Tabs';
 import Button from '../common/Button';
+import ResourceSelectorModal from '../common/ResourceSelectorModal'; // Importamos el nuevo modal
 
 const getCourseTitle = (course) => course?.title?.rendered || course?.title || 'Curso sin título';
 
@@ -51,6 +52,8 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
   const [showNewCategoryForm, setShowNewCategoryForm] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [creatingCategory, setCreatingCategory] = useState(false);
+  
+  const [isSelectorModalOpen, setIsSelectorModalOpen] = useState(false); // Estado para el modal
 
   useEffect(() => {
     setLessons(fetchedLessons);
@@ -58,7 +61,7 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
 
   const resetForm = useCallback(() => {
     setFormData({
-        title: '', content: '', excerpt: '', status: 'publish', 
+        title: '', content: '', status: 'publish', 
         duration: '',
         featured_image_id: null, featured_image_url: '',
         _course_position: '0', _start_date: '', _end_date: '',
@@ -78,7 +81,6 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
           setFormData({
             title: getCourseTitle(data),
             content: data.content?.rendered || '',
-            excerpt: data.excerpt?.rendered || '',
             status: data.status || 'publish',
             qe_category: data.qe_category || [],
             duration: meta._course_duration || '',
@@ -108,7 +110,6 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
       const dataToSave = {
         title: formData.title,
         content: formData.content,
-        excerpt: formData.excerpt,
         status: formData.status,
         featured_media: formData.featured_image_id,
         qe_category: formData.qe_category,
@@ -121,6 +122,9 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
         }
       };
       await onSave(dataToSave);
+      if (mode === 'create') {
+        onCancel();
+      }
     } catch(err) { setError(err.message); }
     finally { setIsSaving(false); }
   };
@@ -145,12 +149,19 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
     setCreatingCategory(true);
     try {
       const newTerm = await createTaxonomyTerm('qe_category', { name: newCategoryName.trim() });
-      if (onCategoryCreated) onCategoryCreated(newTerm); // Notificar al padre para que refresque la lista
+      if (onCategoryCreated) onCategoryCreated(newTerm);
       handleFieldChange('qe_category', [newTerm.id.toString()]);
       setNewCategoryName('');
       setShowNewCategoryForm(false);
     } catch (error) { console.error('Error creating category:', error); }
     finally { setCreatingCategory(false); }
+  };
+
+  const handleAddLessonsFromModal = (newLessons) => {
+    const lessonsToAdd = newLessons.filter(
+      (nl) => !lessons.some((l) => l.id === nl.id)
+    );
+    setLessons(prev => [...prev, ...lessonsToAdd]);
   };
 
   const removeLesson = (lessonId) => {
@@ -167,10 +178,21 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
   };
 
   const settingsTabContent = (
-    <div className="space-y-6">
-      <input type="text" value={formData.title || ''} onChange={(e) => handleFieldChange('title', e.target.value)} placeholder={t('courses.fields.title')} className="w-full text-2xl font-bold focus:outline-none bg-transparent"/>
+    <div className="flex flex-col gap-6 h-full">
+      <input 
+        type="text" 
+        value={formData.title || ''} 
+        onChange={(e) => handleFieldChange('title', e.target.value)} 
+        placeholder={t('courses.fields.title')} 
+        className={clsx(
+            "w-full focus:outline-none bg-transparent flex-shrink-0",
+            mode === 'create' 
+                ? "text-2xl font-bold" 
+                : "text-xl font-semibold border-b pb-2 border-gray-200"
+        )}
+      />
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-shrink-0">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">{t('courses.fields.image')}</label>
           {formData.featured_image_url ? (
@@ -187,13 +209,13 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
             </button>
           )}
         </div>
-        <div>
+        <div className="flex-shrink-0">
           <label className="block text-sm font-medium text-gray-700 mb-2">{t('courses.fields.position')}</label>
           <input type="number" value={formData._course_position || '0'} onChange={(e) => handleFieldChange('_course_position', e.target.value)} className="w-full input border-gray-300 rounded-md"/>
         </div>
       </div>
 
-      <div>
+      <div className="flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
             <label className="block text-sm font-medium text-gray-700">{t('courses.fields.category')}</label>
             {!showNewCategoryForm && (
@@ -217,7 +239,7 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
         </select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-shrink-0">
         <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('courses.fields.startDate')}</label>
             <input type="date" value={formData._start_date || ''} onChange={(e) => handleFieldChange('_start_date', e.target.value)} className="w-full input border-gray-300 rounded-md"/>
@@ -227,18 +249,14 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
             <input type="date" value={formData._end_date || ''} onChange={(e) => handleFieldChange('_end_date', e.target.value)} className="w-full input border-gray-300 rounded-md"/>
         </div>
       </div>
-       <div>
+       <div className="flex-shrink-0">
          <label className="block text-sm font-medium text-gray-700 mb-1">{t('courses.fields.duration')}</label>
          <input type="text" value={formData.duration || ''} onChange={(e) => handleFieldChange('duration', e.target.value)} placeholder="Ej: 10 horas" className="w-full input border-gray-300 rounded-md"/>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">{t('courses.fields.excerpt')}</label>
-        <textarea value={formData.excerpt || ''} onChange={(e) => handleFieldChange('excerpt', e.target.value)} rows="3" className="w-full input border-gray-300 rounded-md" />
-      </div>
-       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">{t('courses.fields.description')}</label>
-        <ReactQuill theme="snow" value={formData.content || ''} onChange={(val) => handleFieldChange('content', val)} />
+       <div className="flex flex-col flex-1 min-h-0">
+        <label className="block text-sm font-medium text-gray-700 mb-1 flex-shrink-0">{t('courses.fields.description')}</label>
+        <ReactQuill theme="snow" value={formData.content || ''} onChange={(val) => handleFieldChange('content', val)} className="h-full" />
       </div>
     </div>
   );
@@ -246,7 +264,7 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
   const builderTabContent = (
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
-         <button onClick={() => alert('Abrir selector de lecciones existentes')} className="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg text-sm">Añadir Existente</button>
+         <button onClick={() => setIsSelectorModalOpen(true)} className="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg text-sm">Añadir Existente</button>
          <button onClick={() => onTriggerCreation('lesson', (newLesson) => setLessons(prev => [...prev, newLesson]))} className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg text-sm">Crear Nueva Lección</button>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -270,26 +288,50 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
   const panelTitle = mode === 'create' ? t('courses.createCourse') : t('courses.editCourse');
   
   return (
-    <div className={clsx("bg-white rounded-lg border border-gray-200 flex flex-col h-full", { 'overflow-hidden': isCollapsed })}>
-      <header className="p-4 border-b flex items-center justify-between flex-shrink-0">
-        <h3 className={clsx("text-lg font-bold text-gray-800 truncate", { "transform -rotate-90 whitespace-nowrap": isCollapsed })}>{panelTitle}</h3>
-        {!isCollapsed && (
-          <div className="flex items-center gap-4">
-            <button onClick={handleSave} disabled={isSaving} className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg text-sm">
-              {isSaving ? t('common.saving') : t('common.save')}
-            </button>
-            {/* Botón de Cierre (X) */}
-            <button onClick={onCancel} className="text-gray-500 hover:text-gray-800">
-              <X className="h-5 w-5" />
-            </button>
+    <>
+      <div className={clsx("bg-white rounded-lg border border-gray-200 flex flex-col h-full", { 'overflow-hidden': isCollapsed })}>
+        <header className={clsx(
+          "flex-shrink-0",
+          { 
+            "p-4 border-b flex items-center justify-between": !isCollapsed,
+            "h-full flex items-center justify-center border-r": isCollapsed,
+          }
+        )}>
+          <div className={clsx("font-bold text-gray-800", { "transform -rotate-90 whitespace-nowrap text-sm tracking-wider uppercase": isCollapsed })}>
+              {isCollapsed ? getCourseTitle(formData) : (
+                  <div>
+                      <h3 className="text-lg">{panelTitle}</h3>
+                      {mode === 'edit' && <p className="text-xs font-normal text-gray-500">{getCourseTitle(formData)}</p>}
+                  </div>
+              )}
           </div>
-        )}
-      </header>
-      <main className={clsx("flex-1 overflow-y-auto", { 'p-6': !isCollapsed, 'hidden': isCollapsed })}>
-        {error && <p className="text-red-500 bg-red-50 p-3 rounded-md mb-4">{error}</p>}
-        <Tabs tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
-      </main>
-    </div>
+          {!isCollapsed && (
+            <div className="flex items-center gap-4">
+              <button onClick={handleSave} disabled={isSaving} className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg text-sm">
+                {isSaving ? t('common.saving') : t('common.save')}
+              </button>
+              <button onClick={onCancel} className="text-gray-500 hover:text-gray-800">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          )}
+        </header>
+        <main className={clsx("flex-1 overflow-y-auto", { 'p-6': !isCollapsed, 'hidden': isCollapsed })}>
+          {error && <p className="text-red-500 bg-red-50 p-3 rounded-md mb-4">{error}</p>}
+          <Tabs tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+        </main>
+      </div>
+      
+      <ResourceSelectorModal
+        isOpen={isSelectorModalOpen}
+        onClose={() => setIsSelectorModalOpen(false)}
+        onAdd={handleAddLessonsFromModal}
+        resourceName="Lecciones"
+        useResourceHook={useLessons}
+        itemsKey="lessons"
+        alreadyAddedIds={lessons.map(l => l.id)}
+      />
+    </>
   );
 };
 

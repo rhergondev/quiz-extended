@@ -1,237 +1,137 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { HelpCircle, Target, FileText, Plus, RefreshCw, AlertCircle, Star } from 'lucide-react';
-
-// Hooks actualizados
-import useQuestions from '../../hooks/useQuestions.js';
-import { useQuizzes } from '../../hooks/useQuizzes.js';
-import { useLessons } from '../../hooks/useLessons.js';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import clsx from 'clsx';
+
+// Hooks
+import useQuestions from '../../hooks/useQuestions.js';
+import useLessons from '../../hooks/useLessons.js';
+import useQuizzes from '../../hooks/useQuizzes.js';
+import useCourses from '../../hooks/useCourses.js';
 import { useTaxonomyOptions } from '../../hooks/useTaxonomyOptions.js';
 
-// Componentes reutilizables
-import ContentManager from '../common/ContentManager.jsx';
-import QuestionCard from './QuestionCard.jsx';
-import DeleteConfirmModal from '../common/DeleteConfirmModal.jsx';
-import QuestionModal from './QuestionModal.jsx';
-import PageHeader from '../common/PageHeader.jsx';
-import FilterBar from '../common/FilterBar.jsx';
-import ResourceGrid from '../common/ResourceGrid.jsx';
+// Componentes comunes
+import ListPanel from '../common/layout/ListPanel';
+import FilterBar from '../common/FilterBar';
+
+// Componentes específicos
+import QuestionListItem from './QuestionListItem';
+import QuestionEditorPanel from './QuestionEditorPanel';
 
 const QuestionsManager = () => {
   const { t } = useTranslation();
 
-  // --- GESTIÓN DE ESTADO ---
-  const [viewMode, setViewMode] = useState('cards');
-  const [modalMode, setModalMode] = useState(null);
-  const [selectedQuestion, setSelectedQuestion] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [questionToDelete, setQuestionToDelete] = useState(null);
-  
-  // --- GESTIÓN DE FILTROS ---
-  const [filters, setFilters] = useState({
-    search: '',
-    quizId: 'all',
-    type: 'all',
-    difficulty: 'all',
-    category: 'all',
-  });
-  
-  // --- FETCHING DE DATOS ---
-  const { 
-    questions, loading, error, pagination, computed, creating, updating, deleting,
-    createQuestion, updateQuestion, deleteQuestion, duplicateQuestion, fetchQuestions, hasMore
-  } = useQuestions({
-    search: filters.search,
-    quizId: filters.quizId !== 'all' ? filters.quizId : null,
-    type: filters.type !== 'all' ? filters.type : null,
-    difficulty: filters.difficulty !== 'all' ? filters.difficulty : null,
-    category: filters.category !== 'all' ? filters.category : null,
-    autoFetch: true,
-    debounceMs: 500
-  });
+  // --- ESTADOS PRINCIPALES ---
+  const [selectedQuestionId, setSelectedQuestionId] = useState(null);
+  const [mode, setMode] = useState('view');
 
-  const { quizzes, loading: quizzesLoading } = useQuizzes({ autoFetch: true, perPage: 100 });
-  const { lessons, loading: lessonsLoading } = useLessons({ autoFetch: true, perPage: 100 });
-  
-  const { options: taxonomyOptions, isLoading: isLoadingTaxonomies } = useTaxonomyOptions(['qe_category']);
+  // --- HOOKS DE DATOS ---
+  const questionsHook = useQuestions({ autoFetch: true, perPage: 50 });
+  const lessonsHook = useLessons({ autoFetch: true, perPage: 100 });
+  const quizzesHook = useQuizzes({ autoFetch: true, perPage: 100 });
+  const coursesHook = useCourses({ autoFetch: true, perPage: 100 });
+  // CORRECCIÓN: Añadimos 'qe_provider' para que el hook lo cargue
+  const { options: taxonomyOptions, isLoading: isLoadingTaxonomies, refetch: refetchTaxonomies } = useTaxonomyOptions(['qe_category', 'qe_provider']);
 
-  // --- INFINITE SCROLL ---
-  const observer = useRef();
-  const lastQuestionElementRef = useCallback(node => {
-    if (loading) return;
-    if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        fetchQuestions(false); // Cargar más
-      }
-    });
-    if (node) observer.current.observe(node);
-  }, [loading, hasMore, fetchQuestions]);
-  
-  // --- MANEJADORES DE MODALES Y ACCIONES ---
-  const openModal = useCallback((mode, question = null) => {
-    setModalMode(mode);
-    setSelectedQuestion(question);
-    setIsModalOpen(true);
-  }, []);
-
-  const closeModal = useCallback(() => {
-    setIsModalOpen(false);
-    setTimeout(() => {
-      setModalMode(null);
-      setSelectedQuestion(null);
-    }, 300);
-  }, []);
-
-  const handleSaveQuestion = async (questionData, nextAction) => {
-    try {
-      if (modalMode === 'edit') {
-        await updateQuestion(selectedQuestion.id, questionData);
-      } else {
-        await createQuestion(questionData);
-      }
-      if (nextAction === 'close') closeModal();
-      else if (nextAction === 'reset') {
-        setSelectedQuestion(null);
-        setModalMode('create');
-      }
-    } catch (err) {
-      console.error("Failed to save question:", err);
-      throw err;
-    }
+  // --- MANEJADORES DE UI ---
+  const handleSelectQuestion = (question) => {
+    setSelectedQuestionId(question.id);
+    setMode('edit');
   };
 
-  const handleDeleteClick = useCallback((question) => {
-    setQuestionToDelete(question);
-    setShowDeleteModal(true);
-  }, []);
-
-  const handleDeleteConfirm = async () => {
-    if (!questionToDelete) return;
-    await deleteQuestion(questionToDelete.id);
-    setShowDeleteModal(false);
-    setQuestionToDelete(null);
+  const handleCreateNew = () => {
+    setSelectedQuestionId(null);
+    setMode('create');
   };
   
-  const handleDuplicate = useCallback(async (question) => {
-      await duplicateQuestion(question.id);
-  }, [duplicateQuestion]);
+  const handleClosePanel = () => {
+      setSelectedQuestionId(null);
+      setMode('view');
+  }
 
-  // --- VALORES COMPUTADOS Y CONFIGURACIONES ---
-  const statsCards = useMemo(() => [
-    { label: 'Total Questions', value: pagination.total || 0, icon: HelpCircle, iconColor: 'text-blue-500' },
-    { label: 'Total Points', value: computed.totalPoints || 0, icon: Star, iconColor: 'text-yellow-500' },
-    { label: 'True/False', value: computed.trueFalseQuestions || 0, icon: Target, iconColor: 'text-green-500' },
-    { label: 'Essay Questions', value: computed.essayQuestions || 0, icon: FileText, iconColor: 'text-indigo-500' },
-  ], [computed, pagination.total]);
+  // --- CONFIGS PARA COMPONENTES HIJO ---
+  const categoryOptions = useMemo(() => taxonomyOptions.qe_category || [], [taxonomyOptions.qe_category]);
+  const providerOptions = useMemo(() => taxonomyOptions.qe_provider || [], [taxonomyOptions.qe_provider]); // NUEVO
   
-  const quizOptions = useMemo(() => [{ value: 'all', label: 'All Quizzes' }, ...quizzes.map(q => ({ value: q.id.toString(), label: q.title || `Quiz ${q.id}` }))], [quizzes]);
+  const lessonOptions = useMemo(() => [
+    { value: 'all', label: 'Todas las Lecciones' },
+    ...(lessonsHook.lessons || []).map(l => ({ value: l.id.toString(), label: l.title?.rendered || l.title }))
+  ], [lessonsHook.lessons]);
   
-  const filtersConfig = [
-    {
-      label: 'Quiz',
-      value: filters.quizId,
-      onChange: (value) => setFilters(prev => ({...prev, quizId: value})),
-      options: quizOptions,
-      isLoading: quizzesLoading,
-    },
-    {
-      label: 'Category',
-      value: filters.category,
-      onChange: (value) => setFilters(prev => ({...prev, category: value})),
-      options: taxonomyOptions.qe_category || [],
-      isLoading: isLoadingTaxonomies,
-    },
-  ];
+  const filtersConfig = useMemo(() => {
+    if (!questionsHook.filters) return [];
+    return [
+      {
+        label: t('filters.category'),
+        value: questionsHook.filters.category || 'all',
+        onChange: (value) => questionsHook.updateFilter('category', value),
+        options: categoryOptions,
+        isLoading: isLoadingTaxonomies,
+      },
+      {
+        label: 'Lección',
+        value: questionsHook.filters.lessonId || 'all',
+        onChange: (value) => questionsHook.updateFilter('lessonId', value),
+        options: lessonOptions,
+        isLoading: lessonsHook.loading,
+      },
+      {
+        label: 'Proveedor',
+        value: questionsHook.filters.provider || 'all',
+        onChange: (value) => questionsHook.updateFilter('provider', value),
+        options: providerOptions,
+        isLoading: isLoadingTaxonomies,
+      },
+    ];
+  }, [questionsHook.filters, categoryOptions, lessonOptions, providerOptions, isLoadingTaxonomies, lessonsHook.loading, t]);
 
+  const searchConfig = useMemo(() => ({
+      value: questionsHook.filters?.search || '',
+      onChange: (e) => questionsHook.updateFilter('search', e.target.value),
+      placeholder: t('questions.searchPlaceholder'),
+      isLoading: questionsHook.loading,
+  }), [questionsHook.filters, questionsHook.loading, t]);
+
+  // --- RENDERIZADO ---
+  const isInitialLoading = !questionsHook.filters || !questionsHook.computed;
+  if (isInitialLoading) {
+    return <div className="flex items-center justify-center h-full"><p>{t('common.loading')}</p></div>;
+  }
+  
   return (
-    <div className="space-y-6 p-6">
-      <PageHeader
-        title="Question Management"
-        description="Manage and organize all questions for your quizzes."
-        stats={statsCards}
-        primaryAction={{ text: "Create Question", onClick: () => openModal('create'), icon: Plus, isLoading: creating }}
-        secondaryAction={{ text: "Refresh", onClick: () => fetchQuestions(true), icon: RefreshCw, isLoading: loading && !creating }}
-      />
-      
-      <FilterBar
-        searchConfig={{
-            value: filters.search,
-            onChange: (e) => setFilters(f => ({...f, search: e.target.value})),
-            onClear: () => setFilters(f => ({...f, search: ''})),
-            placeholder: 'Search questions...'
-        }}
-        filtersConfig={filtersConfig}
-        onResetFilters={() => setFilters({ search: '', quizId: 'all', type: 'all', difficulty: 'all', category: 'all' })}
-      />
+    <div className="qe-lms-admin-app h-full flex overflow-hidden px-6 py-6 space-x-6">
+      <div className="transition-all duration-500 ease-in-out h-full flex-shrink-0 w-full lg:w-[30%]">
+        <ListPanel
+          title={t('questions.title')}
+          itemCount={questionsHook.computed.total || 0}
+          createButtonText={t('questions.addNew')}
+          onCreate={handleCreateNew}
+          isCreating={questionsHook.creating}
+          filters={<FilterBar searchConfig={searchConfig} filtersConfig={filtersConfig} />}
+        >
+          {(questionsHook.questions || []).map(question => (
+            <QuestionListItem key={question.id} question={question} isSelected={selectedQuestionId === question.id} onClick={handleSelectQuestion} />
+          ))}
+        </ListPanel>
+      </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-start">
-          <AlertCircle className="h-5 w-5 text-red-400 mr-2 flex-shrink-0" />
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
-      )}
-
-      <ContentManager
-        items={questions}
-        loading={loading && questions.length === 0}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        emptyState={{ icon: HelpCircle, title: 'No Questions Found', onAction: () => openModal('create'), actionText: "Create First Question" }}
-        title="Questions"
-      >
-        <ResourceGrid
-          items={questions}
-          ItemComponent={QuestionCard}
-          lastItemRef={lastQuestionElementRef}
-          itemProps={{
-            resourceName: 'question',
-            viewMode: viewMode,
-            quizzes: quizzes,
-            availableLessons: lessons,
-            onEdit: (q) => openModal('edit', q),
-            onDelete: handleDeleteClick,
-            onDuplicate: handleDuplicate,
-            onClick: (q) => openModal('view', q),
-          }}
-        />
-      </ContentManager>
-      
-      {loading && questions.length > 0 && (
-        <div className="text-center py-6 col-span-full">
-            <div className="flex justify-center items-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div></div>
-        </div>
-      )}
-      {!loading && !hasMore && questions.length > 0 && (
-        <div className="text-center py-6 col-span-full">
-          <p className="text-gray-500">You've reached the end of the list.</p>
-        </div>
-      )}
-
-      {isModalOpen && (
-        <QuestionModal
-          isOpen={isModalOpen}
-          onClose={closeModal}
-          onSave={handleSaveQuestion}
-          question={selectedQuestion}
-          mode={modalMode}
-          availableQuizzes={quizOptions.filter(q => q.value !== 'all')}
-          availableLessons={lessons}
-          isLoading={creating || updating}
-        />
-      )}
-
-      {showDeleteModal && (
-        <DeleteConfirmModal
-          isOpen={showDeleteModal}
-          onClose={() => setShowDeleteModal(false)}
-          onConfirm={handleDeleteConfirm}
-          title="Delete Question"
-          message={`Are you sure you want to delete "${questionToDelete?.title || ''}"? This action cannot be undone.`}
-          isLoading={deleting}
-        />
-      )}
+      <div className={clsx("transition-all duration-500 ease-in-out h-full flex-1", { "w-0 opacity-0": mode === 'view', "opacity-100": mode !== 'view' })}>
+        {(mode === 'edit' || mode === 'create') && (
+          <QuestionEditorPanel
+            key={selectedQuestionId || 'new'}
+            questionId={selectedQuestionId}
+            mode={mode}
+            onSave={mode === 'create' ? questionsHook.createQuestion : (data) => questionsHook.updateQuestion(selectedQuestionId, data)}
+            onCancel={handleClosePanel}
+            categoryOptions={categoryOptions.filter(opt => opt.value !== 'all')}
+            providerOptions={providerOptions.filter(opt => opt.value !== 'all')} // NUEVO
+            onCategoryCreated={refetchTaxonomies}
+            onProviderCreated={refetchTaxonomies} // NUEVO
+            availableQuizzes={quizzesHook.quizzes}
+            availableLessons={lessonsHook.lessons}
+            availableCourses={coursesHook.courses}
+          />
+        )}
+      </div>
     </div>
   );
 };

@@ -1,6 +1,7 @@
 // src/components/frontend/QuizStartConfirmation.jsx
 import React from 'react';
-import { PlayCircle, HelpCircle, Clock, CheckCircle } from 'lucide-react';
+import { PlayCircle, HelpCircle, Clock, CheckCircle, TrendingUp, Users } from 'lucide-react';
+import { useQuizRanking } from '../../hooks/useQuizRanking';
 
 const StatItem = ({ icon: Icon, label, value }) => (
   <div className="flex items-center text-sm text-gray-600">
@@ -11,6 +12,7 @@ const StatItem = ({ icon: Icon, label, value }) => (
 );
 
 const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
+  const { ranking, loading: rankingLoading } = useQuizRanking(quiz?.id);
   if (!quiz) {
     return (
       <div className="text-center p-8">
@@ -26,6 +28,8 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
     passing_score = 0
   } = quiz;
 
+  const statistics = ranking?.statistics;
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-8 text-center shadow-lg max-w-2xl mx-auto">
       <HelpCircle className="mx-auto h-12 w-12 text-indigo-500 mb-4" />
@@ -36,7 +40,7 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
         Estás a punto de comenzar el cuestionario. ¿Estás listo?
       </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 text-left bg-gray-50 p-4 rounded-md border">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 text-left bg-gray-50 p-4 rounded-md border">
         <StatItem
           icon={HelpCircle}
           label="Preguntas"
@@ -53,6 +57,36 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
           value={`${passing_score}%`}
         />
       </div>
+
+      {/* Statistics Section - Average Scores */}
+      {statistics && statistics.total_users > 0 && !rankingLoading && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100">
+          <div className="flex items-center justify-center mb-3">
+            <TrendingUp className="w-5 h-5 mr-2 text-indigo-600" />
+            <h3 className="text-sm font-semibold text-gray-700">
+              Estadísticas de Otros Usuarios
+            </h3>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="bg-white p-3 rounded shadow-sm">
+              <div className="text-gray-500 text-center text-xs mb-1">Media sin riesgo</div>
+              <div className="text-indigo-600 font-bold text-center text-xl">
+                {Math.round(statistics.avg_score_without_risk)}%
+              </div>
+            </div>
+            <div className="bg-white p-3 rounded shadow-sm">
+              <div className="text-gray-500 text-center text-xs mb-1">Media con riesgo</div>
+              <div className="text-red-600 font-bold text-center text-xl">
+                {Math.round(statistics.avg_score_with_risk)}%
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center justify-center text-xs text-gray-500">
+            <Users className="w-3 h-3 mr-1" />
+            <span>Basado en {statistics.total_users} usuario{statistics.total_users !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+      )}
 
       <button
         onClick={onStartQuiz}

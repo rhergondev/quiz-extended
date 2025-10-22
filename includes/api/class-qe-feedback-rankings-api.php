@@ -170,7 +170,7 @@ class QE_Feedback_Rankings_API extends QE_API_Base
         global $wpdb;
         $attempts_table = $this->get_table('quiz_attempts');
 
-        // 1. Get all users ranked by their highest score for this quiz
+        // 1. Get all users ranked by their LATEST attempt (not highest score)
         $all_rankings = $wpdb->get_results($wpdb->prepare(
             "SELECT 
                 a.user_id, 
@@ -181,24 +181,52 @@ class QE_Feedback_Rankings_API extends QE_API_Base
                 u.user_email
             FROM {$attempts_table} a
             INNER JOIN (
-                SELECT user_id, MAX(score_with_risk) as max_score
+                SELECT user_id, MAX(end_time) as latest_time
                 FROM {$attempts_table}
                 WHERE quiz_id = %d AND status = 'completed'
                 GROUP BY user_id
-            ) as max_scores ON a.user_id = max_scores.user_id AND a.score_with_risk = max_scores.max_score
+            ) as latest_attempts ON a.user_id = latest_attempts.user_id AND a.end_time = latest_attempts.latest_time
             INNER JOIN {$wpdb->users} u ON a.user_id = u.ID
             WHERE a.quiz_id = %d AND a.status = 'completed'
             GROUP BY a.user_id
-            ORDER BY score_with_risk DESC, a.end_time ASC", // Tie-break with earlier completion
+            ORDER BY score_with_risk DESC, a.end_time ASC",
             $quiz_id,
             $quiz_id
         ));
 
+        // 2. Calculate statistics: average scores with and without risk
+        $stats = $wpdb->get_row($wpdb->prepare(
+            "SELECT 
+                AVG(a.score) as avg_score_without_risk,
+                AVG(a.score_with_risk) as avg_score_with_risk
+            FROM {$attempts_table} a
+            INNER JOIN (
+                SELECT user_id, MAX(end_time) as latest_time
+                FROM {$attempts_table}
+                WHERE quiz_id = %d AND status = 'completed'
+                GROUP BY user_id
+            ) as latest_attempts ON a.user_id = latest_attempts.user_id AND a.end_time = latest_attempts.latest_time
+            WHERE a.quiz_id = %d AND a.status = 'completed'",
+            $quiz_id,
+            $quiz_id
+        ));
+
+        $statistics = [
+            'avg_score_without_risk' => $stats ? (float) $stats->avg_score_without_risk : 0,
+            'avg_score_with_risk' => $stats ? (float) $stats->avg_score_with_risk : 0,
+            'total_users' => count($all_rankings)
+        ];
+
         if (empty($all_rankings)) {
-            return $this->success_response(['top' => [], 'relative' => [], 'currentUser' => null]);
+            return $this->success_response([
+                'top' => [],
+                'relative' => [],
+                'currentUser' => null,
+                'statistics' => $statistics
+            ]);
         }
 
-        // 2. Find current user's position
+        // 3. Find current user's position
         $current_user_position = -1;
         foreach ($all_rankings as $index => $rank) {
             if ((int) $rank->user_id === $current_user_id) {
@@ -207,7 +235,7 @@ class QE_Feedback_Rankings_API extends QE_API_Base
             }
         }
 
-        // 3. Prepare Top 3
+        // 4. Prepare Top 3
         $top_3 = array_slice($all_rankings, 0, 3);
         $top_3_processed = [];
         foreach ($top_3 as $index => $rank) {
@@ -222,7 +250,7 @@ class QE_Feedback_Rankings_API extends QE_API_Base
             ];
         }
 
-        // 4. Prepare Relative Ranking
+        // 5. Prepare Relative Ranking
         $relative_ranking_processed = [];
         if ($current_user_position !== -1) {
             $start = max(0, $current_user_position - 3);
@@ -256,7 +284,8 @@ class QE_Feedback_Rankings_API extends QE_API_Base
             'currentUser' => [
                 'id' => $current_user_id,
                 'position' => $current_user_position !== -1 ? $current_user_position + 1 : null,
-            ]
+            ],
+            'statistics' => $statistics
         ]);
     }
 
