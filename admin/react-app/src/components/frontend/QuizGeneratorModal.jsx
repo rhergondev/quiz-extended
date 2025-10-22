@@ -11,7 +11,8 @@ const QuizGeneratorModal = ({
   lessons,
   categories,
   difficulties,
-  isLoading
+  isLoading,
+  isPracticeMode = false
 }) => {
   const [filters, setFilters] = useState({
     course: 'all',
@@ -64,7 +65,7 @@ const QuizGeneratorModal = ({
         <div className="p-6 border-b flex justify-between items-center">
           <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
             <Sliders className="w-5 h-5" />
-            Configurar Cuestionario
+            {isPracticeMode ? 'Configurar Práctica' : 'Configurar Cuestionario'}
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
@@ -92,25 +93,27 @@ const QuizGeneratorModal = ({
                 className="w-full h-10 px-3 text-base placeholder-gray-600 border rounded-lg focus:shadow-outline-blue focus:border-blue-300"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Límite de Tiempo (minutos)
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={filters.timeLimit}
-                onChange={(e) => handleFilterChange('timeLimit', parseInt(e.target.value, 10))}
-                className="w-full h-10 px-3 text-base placeholder-gray-600 border rounded-lg focus:shadow-outline-blue focus:border-blue-300"
-                placeholder="0 para ilimitado"
-              />
-            </div>
+            {!isPracticeMode && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Límite de Tiempo (minutos)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={filters.timeLimit}
+                  onChange={(e) => handleFilterChange('timeLimit', parseInt(e.target.value, 10))}
+                  className="w-full h-10 px-3 text-base placeholder-gray-600 border rounded-lg focus:shadow-outline-blue focus:border-blue-300"
+                  placeholder="0 para ilimitado"
+                />
+              </div>
+            )}
           </div>
         </div>
         
         <div className="bg-gray-50 px-6 py-4 flex justify-end">
           <Button onClick={handleGenerateClick} disabled={isLoading}>
-            {isLoading ? 'Cargando filtros...' : 'Generar Cuestionario'}
+            {isLoading ? 'Cargando filtros...' : isPracticeMode ? 'Comenzar Práctica' : 'Generar Cuestionario'}
           </Button>
         </div>
       </div>

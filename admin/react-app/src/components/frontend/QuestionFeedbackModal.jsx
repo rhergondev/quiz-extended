@@ -9,6 +9,11 @@ const QuestionFeedbackModal = ({ question, initialFeedbackType = 'feedback', onC
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  // Manejar tanto title.rendered como title directo
+  const questionTitle = typeof question.title === 'object' && question.title?.rendered 
+    ? question.title.rendered 
+    : question.title;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!message.trim()) {
@@ -66,7 +71,7 @@ const QuestionFeedbackModal = ({ question, initialFeedbackType = 'feedback', onC
               </button>
             </div>
             <p className="text-sm text-gray-600 mb-4">
-              Pregunta: <span className="font-semibold" dangerouslySetInnerHTML={{ __html: question.title.rendered }} />
+              Pregunta: <span className="font-semibold" dangerouslySetInnerHTML={{ __html: questionTitle || '' }} />
             </p>
             <form onSubmit={handleSubmit}>
               <div className="mb-4">

@@ -52,16 +52,17 @@
     "saveQuiz": "Error al guardar el cuestionario."
   },
   "sidebar": {
-    "dashboard": "Dashboard",
-    "courses": "Cursos",
-    "books": "Libros",
+    "myDesk": "Mi Escritorio",
+    "studyPlanner": "Planificador de Estudio",
+    "test": "Test",
+    "supportMaterial": "Material de Apoyo",
+    "videosClasses": "Vídeos / Clases",
     "profile": "Mi Perfil",
     "logout": "Cerrar Sesión",
     "expand": "Expandir",
     "collapse": "Colapsar",
     "logoAlt": "Logo de la empresa",
-    "logoText": "Tu Logo",
-    "quizGenerator": "Generador de Cuestionarios"
+    "logoText": "Tu Logo"
   },
   "dashboard": {
     "title": "Panel del LMS",

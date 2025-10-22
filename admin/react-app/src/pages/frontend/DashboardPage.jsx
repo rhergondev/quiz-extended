@@ -24,10 +24,6 @@ const DashboardPage = () => {
 
         {/* Quiz Results Summary */}
         <QuizResultsSummary />
-        
-        {/* En el futuro, podrías añadir más componentes aquí */}
-        {/* <MisCursos /> */}
-        {/* <MiActividadReciente /> */}
       </main>
     </div>
   );

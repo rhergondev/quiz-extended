@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  LayoutDashboard, BookOpen, Book, User, LogOut, ChevronLeft, ChevronRight, Menu, X
+  Home, Calendar, FileText, BookOpen, Video, User, LogOut, ChevronLeft, ChevronRight, Menu, X
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -15,10 +15,11 @@ const Sidebar = () => {
   const logoutUrl = window.qe_data?.logout_url;
 
   const navItems = [
-    { to: '/', text: t('sidebar.dashboard'), icon: LayoutDashboard },
-    { to: '/courses', text: t('sidebar.courses'), icon: BookOpen },
-    { to: '/quiz-generator', text: t('sidebar.quizGenerator'), icon: BookOpen },
-    { to: '/books', text: t('sidebar.books'), icon: Book },
+    { to: '/', text: t('sidebar.myDesk'), icon: Home },
+    { to: '/courses', text: t('sidebar.studyPlanner'), icon: Calendar },
+    { to: '/test', text: t('sidebar.test'), icon: FileText },
+    { to: '/materials', text: t('sidebar.supportMaterial'), icon: BookOpen },
+    { to: '/videos', text: t('sidebar.videosClasses'), icon: Video },
   ];
 
   // ✅ Función de clases actualizada para el efecto de barra vertical

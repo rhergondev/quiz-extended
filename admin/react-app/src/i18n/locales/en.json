@@ -52,16 +52,17 @@
     "saveQuiz": "Failed to save the quiz."
   },
   "sidebar": {
-    "dashboard": "Dashboard",
-    "courses": "Courses",
-    "books": "Books",
+    "myDesk": "My Desk",
+    "studyPlanner": "Study Planner",
+    "test": "Test",
+    "supportMaterial": "Support Material",
+    "videosClasses": "Videos / Classes",
     "profile": "My Profile",
     "logout": "Log Out",
     "expand": "Expand",
     "collapse": "Collapse",
     "logoAlt": "Company Logo",
-    "logoText": "Your Logo",
-    "quizGenerator": "Quiz Generator"
+    "logoText": "Your Logo"
   },
   "courses": {
     "title": "Courses",
