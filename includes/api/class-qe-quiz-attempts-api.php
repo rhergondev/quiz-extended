@@ -200,7 +200,37 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             }
         }
 
-        // 4. Unir toda la información para el `detailed_results`.
+        // 4. Calcular estadísticas de error por pregunta para todo el quiz
+        $question_stats = [];
+        if (!empty($all_question_ids)) {
+            foreach ($all_question_ids as $question_id) {
+                // Contar total de respuestas y respuestas incorrectas para esta pregunta
+                $total_answers = $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$answers_table} 
+                     WHERE question_id = %d AND answer_given IS NOT NULL",
+                    $question_id
+                ));
+
+                $incorrect_answers = $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$answers_table} 
+                     WHERE question_id = %d AND is_correct = 0 AND answer_given IS NOT NULL",
+                    $question_id
+                ));
+
+                $error_percentage = 0;
+                if ($total_answers > 0) {
+                    $error_percentage = round(($incorrect_answers / $total_answers) * 100, 1);
+                }
+
+                $question_stats[$question_id] = [
+                    'total_answers' => (int) $total_answers,
+                    'incorrect_answers' => (int) $incorrect_answers,
+                    'error_percentage' => $error_percentage
+                ];
+            }
+        }
+
+        // 5. Unir toda la información para el `detailed_results`.
         $detailed_results = [];
         foreach ($all_question_ids as $question_id) {
             $question_details = $questions_data[$question_id] ?? null;
@@ -231,6 +261,8 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 'correct_answer' => $correct_answer_id, // Cambiado para consistencia
                 'is_correct' => $user_answer ? (bool) $user_answer->is_correct : false,
                 'is_risked' => $user_answer ? (bool) $user_answer->is_risked : false,
+                'error_percentage' => $question_stats[$question_id]['error_percentage'] ?? 0,
+                'total_answers' => $question_stats[$question_id]['total_answers'] ?? 0,
             ];
         }
 
@@ -852,7 +884,10 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 $correct_answers++;
                 $earned_points_actual += 1;
                 $earned_points_hypothetical += 1;
-            } else {
+            } elseif ($answer_given !== null) {
+                // Solo penalizar si la pregunta fue contestada INCORRECTAMENTE
+                // Las preguntas sin contestar (answer_given === null) NO se penalizan
+
                 // Penalización siempre para el score hipotético
                 $earned_points_hypothetical -= $penalty;
 
@@ -861,6 +896,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                     $earned_points_actual -= $penalty;
                 }
             }
+            // Si answer_given === null (sin contestar), no se suma ni se resta nada
 
             $detailed_results[] = [
                 'question_id' => $question_id,

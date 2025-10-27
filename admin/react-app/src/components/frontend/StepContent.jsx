@@ -57,10 +57,13 @@ const StepContent = ({ step, lesson, quizzes }) => {
           />
         );
       case 'quiz':
-        const quizId = stepData.quiz_id;
+        // Intentar obtener quiz_id de múltiples ubicaciones
+        const quizId = stepData.quiz_id || step.quiz_id || step.data?.quiz_id;
+        
         if (!quizId) {
           return <p>Error: No se ha especificado un ID de cuestionario para este paso.</p>;
         }
+        
         const quiz = quizzes.find(q => q.id === quizId);
 
         if (!quizStarted) {
@@ -95,7 +98,9 @@ const StepContent = ({ step, lesson, quizzes }) => {
     return quiz ? (quiz.title.rendered || quiz.title) : 'Cuestionario';
   };
 
-  const stepTitle = step.type === 'quiz' ? getQuizTitle(step.data.quiz_id) : step.title;
+  // Obtener quiz_id de múltiples ubicaciones posibles
+  const quizIdForTitle = step.type === 'quiz' ? (step.data?.quiz_id || step.quiz_id) : null;
+  const stepTitle = step.type === 'quiz' ? getQuizTitle(quizIdForTitle) : step.title;
 
  return (
     <div className="flex-grow lg:w-full bg-gray-100 h-[100%] overflow-y-auto">

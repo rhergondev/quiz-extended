@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { Bookmark, MessageSquare, AlertTriangle, Trash2 } from 'lucide-react';
-import { toggleFavoriteQuestion } from '../../api/services/favoriteService';
-import QuestionFeedbackModal from './QuestionFeedbackModal';
+import { Trash2 } from 'lucide-react';
 
 const Question = ({ 
   question, 
@@ -18,29 +16,6 @@ const Question = ({
   showCorrectAnswer = false,
   isPracticeMode = false
 }) => {
-  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
-  const [feedbackType, setFeedbackType] = useState('feedback');
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
-
-  const handleToggleFavorite = async () => {
-    if (isTogglingFavorite) return;
-    
-    setIsTogglingFavorite(true);
-    try {
-      const response = await toggleFavoriteQuestion(question.id);
-      setIsFavorite(response.is_favorited);
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-    } finally {
-      setIsTogglingFavorite(false);
-    }
-  };
-
-  const handleOpenModal = (type) => {
-    setFeedbackType(type);
-    setIsFeedbackModalOpen(true);
-  };
 
   if (!question) {
     return null;
@@ -63,59 +38,15 @@ const Question = ({
   };
 
   return (
-    <>
-      <div className="bg-white border border-gray-200 rounded-lg mb-6 flex shadow-sm">
-        {/* Columna Izquierda */}
-        {!isPracticeMode && (
-          <div className="w-28 flex-shrink-0 p-4 border-r border-gray-200 text-center space-y-3 bg-gray-50/70 rounded-l-lg">
-            <p className="font-bold text-gray-700 text-lg">Pregunta {displayIndex}</p>
-            <div className="flex flex-col items-center space-y-2">
-              {/* Botón de Favorito */}
-              <button 
-                onClick={handleToggleFavorite}
-                disabled={isTogglingFavorite || isSubmitted}
-                className={`transition-colors ${
-                  isFavorite 
-                    ? 'text-yellow-500 hover:text-yellow-600' 
-                    : 'text-gray-400 hover:text-yellow-500'
-                } ${isTogglingFavorite ? 'opacity-50 cursor-wait' : ''}`}
-                title="Marcar como favorita"
-              >
-                <Bookmark className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
-              </button>
-              
-              {/* Botón de Comentario */}
-              <button 
-                onClick={() => handleOpenModal('feedback')}
-                className="text-gray-400 hover:text-blue-500" 
-                title="Comentario o sugerencia"
-                disabled={isSubmitted}
-              >
-                <MessageSquare className="w-5 h-5" />
-              </button>
-
-              {/* Botón de Impugnación */}
-              <button 
-                onClick={() => handleOpenModal('challenge')}
-                className="text-gray-400 hover:text-red-500" 
-                title="Impugnar pregunta"
-                disabled={isSubmitted}
-              >
-                <AlertTriangle className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Columna Derecha */}
-        <div className="p-6 flex-1">
-          {/* Número de pregunta y título */}
-          <div className="mb-6">
-            <h3 
-              className="text-base text-gray-800"
-              dangerouslySetInnerHTML={{ __html: `${displayIndex}. ${questionTitle || ''}` }}
-            />
-          </div>
+    <div className="bg-white border border-gray-200 rounded-lg mb-6 shadow-sm">
+      <div className="p-6">
+        {/* Número de pregunta y título */}
+        <div className="mb-6">
+          <h3 
+            className="text-base text-gray-800 font-medium"
+            dangerouslySetInnerHTML={{ __html: `${displayIndex}. ${questionTitle || ''}` }}
+          />
+        </div>
 
           {/* Opciones de respuesta */}
           <div className="space-y-3">
@@ -147,8 +78,8 @@ const Question = ({
             })}
           </div>
           
-          {/* Checkbox de Riesgo y Botón de Limpiar - Solo en modo normal */}
-          {!isPracticeMode && selectedAnswer !== null && selectedAnswer !== undefined && !isSubmitted && onToggleRisk && onClearAnswer && (
+          {/* Checkbox de Riesgo y Botón de Limpiar */}
+          {selectedAnswer !== null && selectedAnswer !== undefined && !isSubmitted && !isPracticeMode && onToggleRisk && onClearAnswer && (
             <div className="mt-6 border-t pt-4 flex items-center justify-between">
                 <label className="flex items-center cursor-pointer group">
                     <input
@@ -171,18 +102,8 @@ const Question = ({
                 </button>
             </div>
           )}
-        </div>
       </div>
-
-      {/* Modal de Feedback - Solo en modo normal */}
-      {!isPracticeMode && isFeedbackModalOpen && (
-        <QuestionFeedbackModal
-          question={question}
-          initialFeedbackType={feedbackType}
-          onClose={() => setIsFeedbackModalOpen(false)}
-        />
-      )}
-    </>
+    </div>
   );
 };
 

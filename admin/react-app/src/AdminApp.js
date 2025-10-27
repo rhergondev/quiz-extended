@@ -11,6 +11,7 @@ import QuizzesManager from './components/quizzes/QuizzesManager';
 import UsersPage from './pages/UsersPage';
 import QuestionsManager from './components/questions/QuestionsManager';
 import MessagesManager from './components/messages/MessagesManager';
+import SettingsPage from './pages/SettingsPage';
 
 /**
  * Root component for the admin panel.
@@ -29,7 +30,7 @@ function AdminApp() {
           <Route path="/questions" element={<QuestionsManager />} />
           <Route path="/students" element={<UsersPage />} />
           <Route path="/messages" element={<MessagesManager />} />
-          <Route path="/settings" element={<h1>Settings Page (Coming Soon)</h1>} />
+          <Route path="/settings" element={<SettingsPage />} />
 
           {/* Default redirect for admin */}
           <Route path="*" element={<DashboardPage />} />

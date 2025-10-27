@@ -13,6 +13,7 @@ import {
 
 // Hooks
 import { useQuizzes } from '../../hooks/useQuizzes';
+import { useScoreFormat } from '../../contexts/ScoreFormatContext';
 import useCourses from '../../hooks/useCourses';
 import useLessons from '../../hooks/useLessons';
 
@@ -24,6 +25,7 @@ const QuizDetailPage = () => {
   const navigate = useNavigate();
   const [hasStarted, setHasStarted] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
+  const { formatScore } = useScoreFormat();
 
   const { quizzes, loading: quizzesLoading } = useQuizzes({ perPage: 100 });
   const { courses, loading: coursesLoading } = useCourses({ perPage: 100 });
@@ -179,7 +181,7 @@ const QuizDetailPage = () => {
                     </div>
                     <div>
                       <p className="text-sm text-green-700 font-medium">Puntuación Mínima</p>
-                      <p className="text-2xl font-bold text-green-900">{passingScore}%</p>
+                      <p className="text-2xl font-bold text-green-900">{formatScore(passingScore)}</p>
                     </div>
                   </div>
                 </div>
@@ -221,7 +223,7 @@ const QuizDetailPage = () => {
                     <li>• Puedes marcar preguntas con riesgo si no estás seguro</li>
                     <li>• Revisa tus respuestas antes de enviar el cuestionario</li>
                     {passingScore > 0 && (
-                      <li>• Necesitas obtener al menos {passingScore}% para aprobar</li>
+                      <li>• Necesitas obtener al menos {formatScore(passingScore)} para aprobar</li>
                     )}
                   </ul>
                 </div>

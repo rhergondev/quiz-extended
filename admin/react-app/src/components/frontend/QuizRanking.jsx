@@ -1,8 +1,9 @@
 import React from 'react';
 import { useQuizRanking } from '../../hooks/useQuizRanking';
+import { useScoreFormat } from '../../contexts/ScoreFormatContext';
 import { Loader, Trophy, Calendar, ShieldAlert } from 'lucide-react'; // Cambiamos el icono a uno más adecuado
 
-const RankingRow = ({ rank, isCurrentUser }) => {
+const RankingRow = ({ rank, isCurrentUser, formatScore }) => {
   const { position, display_name, avatar_url, score, score_with_risk, attempt_date } = rank;
   
   const rowClass = isCurrentUser
@@ -14,9 +15,6 @@ const RankingRow = ({ rank, isCurrentUser }) => {
     month: '2-digit',
     year: 'numeric'
   });
-  
-  const roundedScore = Math.round(score);
-  const roundedScoreWithRisk = Math.round(score_with_risk ?? score);
 
   return (
     <li className={`flex items-center p-3 rounded-md transition-colors ${rowClass}`}>
@@ -37,7 +35,7 @@ const RankingRow = ({ rank, isCurrentUser }) => {
       <div className="flex flex-col items-end">
         {/* Puntuación Principal */}
         <span className="font-bold text-indigo-600 text-lg">
-          {roundedScore}%
+          {formatScore(score)}
         </span>
         {/* Puntuación con Riesgo (siempre visible, más pequeña) */}
         <div 
@@ -45,7 +43,7 @@ const RankingRow = ({ rank, isCurrentUser }) => {
             title="Puntuación con penalización por riesgo"
         >
           <ShieldAlert className="w-3 h-3 mr-1 text-red-500" />
-          <span>{roundedScoreWithRisk}%</span>
+          <span>{formatScore(score_with_risk ?? score)}</span>
         </div>
       </div>
     </li>
@@ -55,6 +53,7 @@ const RankingRow = ({ rank, isCurrentUser }) => {
 
 const QuizRanking = ({ quizId }) => {
   const { ranking, loading, error } = useQuizRanking(quizId);
+  const { formatScore } = useScoreFormat();
 
   if (loading) {
     return (
@@ -118,13 +117,13 @@ const QuizRanking = ({ quizId }) => {
             <div className="bg-white p-2 rounded shadow-sm">
               <div className="text-gray-500 text-center">Media sin riesgo</div>
               <div className="text-indigo-600 font-bold text-center text-lg">
-                {Math.round(statistics.avg_score_without_risk)}%
+                {formatScore(statistics.avg_score_without_risk)}
               </div>
             </div>
             <div className="bg-white p-2 rounded shadow-sm">
               <div className="text-gray-500 text-center">Media con riesgo</div>
               <div className="text-red-600 font-bold text-center text-lg">
-                {Math.round(statistics.avg_score_with_risk)}%
+                {formatScore(statistics.avg_score_with_risk)}
               </div>
             </div>
           </div>
@@ -150,6 +149,7 @@ const QuizRanking = ({ quizId }) => {
               key={rank.user_id}
               rank={rank}
               isCurrentUser={currentUserId === rank.user_id}
+              formatScore={formatScore}
             />
           );
         })}

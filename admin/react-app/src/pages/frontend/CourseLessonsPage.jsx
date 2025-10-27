@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getCourse } from '../../api/services/courseService';
 import useLessons from '../../hooks/useLessons';
@@ -36,12 +36,14 @@ const EmptyState = () => (
 
 const CourseLessonsPage = () => {
   const { courseId } = useParams();
+  const location = useLocation();
   const { t } = useTranslation();
 
   // 1. Gestión de estado centralizada
   const [course, setCourse] = useState(null);
   const [activeContent, setActiveContent] = useState({ lesson: null, step: null });
   const [error, setError] = useState(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // 2. Uso de hooks de datos
   const { lessons, loading: lessonsLoading, error: lessonsError } = useLessons({ 
@@ -71,16 +73,55 @@ const CourseLessonsPage = () => {
     if (anyError) setError(anyError.message || 'Ocurrió un error');
   }, [courseError, lessonsError, quizzesError]);
   
-  // Efecto para seleccionar el primer paso por defecto
+  // Efecto para seleccionar el primer paso por defecto O el quiz especificado
   useEffect(() => {
-    if (!lessonsLoading && lessons?.length > 0 && !activeContent.step) {
-      const firstLesson = lessons[0];
-      const firstStep = firstLesson.meta?._lesson_steps?.[0];
-      if (firstLesson && firstStep) {
-        setActiveContent({ lesson: firstLesson, step: firstStep });
+    // Solo ejecutar una vez cuando todo esté cargado
+    if (hasInitialized || lessonsLoading || quizzesLoading || !lessons?.length) {
+      return;
+    }
+    
+    // Si venimos de vuelta a un quiz específico
+    const selectedQuizId = location.state?.selectedQuizId;
+    
+    if (selectedQuizId && quizzes?.length > 0) {
+      // Buscar el quiz en la lista
+      const targetQuiz = quizzes.find(q => parseInt(q.id) === parseInt(selectedQuizId));
+      
+      if (targetQuiz) {
+        // Crear un step virtual para el quiz
+        const quizStep = {
+          id: `quiz-${targetQuiz.id}`,
+          type: 'quiz',
+          quiz_id: targetQuiz.id,
+          quiz: targetQuiz
+        };
+        
+        // Buscar la lección asociada
+        const associatedLesson = lessons.find(l => {
+          const hasStep = l.meta?._lesson_steps?.some(s => {
+            return s?.quiz_id && parseInt(s.quiz_id) === parseInt(targetQuiz.id);
+          });
+          return hasStep;
+        }) || lessons[0];
+        
+        setActiveContent({ lesson: associatedLesson, step: quizStep });
+        setHasInitialized(true);
+        
+        // Limpiar el estado para evitar reselección en futuras navegaciones
+        window.history.replaceState({}, document.title);
+        return;
       }
     }
-  }, [lessons, lessonsLoading, activeContent.step]);
+    
+    // Comportamiento por defecto: seleccionar el primer paso
+    const firstLesson = lessons[0];
+    const firstStep = firstLesson?.meta?._lesson_steps?.[0];
+    
+    if (firstLesson && firstStep) {
+      setActiveContent({ lesson: firstLesson, step: firstStep });
+      setHasInitialized(true);
+    }
+  }, [lessons, lessonsLoading, quizzes, quizzesLoading, hasInitialized, location.state]);
 
   // 4. Handler para la selección de pasos
   const handleSelectStep = (step, lesson) => {

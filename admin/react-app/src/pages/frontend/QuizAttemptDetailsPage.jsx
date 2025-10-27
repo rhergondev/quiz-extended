@@ -1,13 +1,18 @@
 // src/pages/frontend/QuizAttemptDetailsPage.jsx
 import React from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
 import useQuizAttemptDetails from '../../hooks/useQuizAttemptDetails';
 import QuizResults from '../../components/frontend/QuizResults'; // ¡Reutilizamos el componente!
 import { ArrowLeft, Loader } from 'lucide-react';
 
 const QuizAttemptDetailsPage = () => {
   const { attemptId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { details, loading, error } = useQuizAttemptDetails(attemptId);
+  
+  // Obtener la ruta de retorno del state o usar dashboard por defecto
+  const returnPath = location.state?.returnTo || '/';
 
   if (loading) {
     return <div className="flex justify-center items-center h-screen"><Loader className="animate-spin" /></div>;
@@ -32,10 +37,27 @@ const QuizAttemptDetailsPage = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <Link to="/" className="inline-flex items-center text-indigo-600 hover:underline mb-6">
+      <button
+        onClick={() => {
+          // Si hay una ruta de retorno y un quizId, navegar con ese estado
+          if (returnPath && returnPath !== '/' && location.state?.returnToQuiz) {
+            navigate(returnPath, {
+              state: { 
+                selectedQuizId: location.state.returnToQuiz,
+                scrollToQuiz: true 
+              }
+            });
+          } else if (returnPath && returnPath !== '/') {
+            navigate(returnPath);
+          } else {
+            navigate('/');
+          }
+        }}
+        className="inline-flex items-center px-4 py-2 mb-6 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+      >
         <ArrowLeft className="w-4 h-4 mr-2" />
-        Volver al Dashboard
-      </Link>
+        {location.state?.fromQuizConfirmation ? 'Volver al Cuestionario' : 'Volver al Dashboard'}
+      </button>
 
       <QuizResults
         result={resultProp}
