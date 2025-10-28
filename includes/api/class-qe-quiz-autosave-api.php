@@ -19,6 +19,20 @@ if (!defined('ABSPATH')) {
 class QE_Quiz_Autosave_API extends QE_API_Base
 {
     /**
+     * Constructor - Override to add error handling
+     */
+    public function __construct()
+    {
+        try {
+            parent::__construct();
+        } catch (Exception $e) {
+            error_log('QE_Quiz_Autosave_API constructor error: ' . $e->getMessage());
+            // Still register routes even if parent fails
+            add_action('rest_api_init', [$this, 'register_routes']);
+        }
+    }
+
+    /**
      * Register REST API routes
      *
      * @since 2.0.0
@@ -30,7 +44,9 @@ class QE_Quiz_Autosave_API extends QE_API_Base
             [
                 'methods' => WP_REST_Server::CREATABLE,
                 'callback' => [$this, 'save_progress'],
-                'permission_callback' => [$this, 'check_authentication'],
+                'permission_callback' => function () {
+                    return is_user_logged_in();
+                },
                 'args' => [
                     'quiz_id' => [
                         'required' => true,
@@ -72,7 +88,9 @@ class QE_Quiz_Autosave_API extends QE_API_Base
             [
                 'methods' => WP_REST_Server::READABLE,
                 'callback' => [$this, 'get_latest_autosave'],
-                'permission_callback' => [$this, 'check_authentication'],
+                'permission_callback' => function () {
+                    return is_user_logged_in();
+                },
             ],
         ]);
 
@@ -81,7 +99,9 @@ class QE_Quiz_Autosave_API extends QE_API_Base
             [
                 'methods' => WP_REST_Server::READABLE,
                 'callback' => [$this, 'get_quiz_autosave'],
-                'permission_callback' => [$this, 'check_authentication'],
+                'permission_callback' => function () {
+                    return is_user_logged_in();
+                },
                 'args' => [
                     'quiz_id' => [
                         'required' => true,
@@ -97,7 +117,9 @@ class QE_Quiz_Autosave_API extends QE_API_Base
             [
                 'methods' => WP_REST_Server::DELETABLE,
                 'callback' => [$this, 'delete_autosave'],
-                'permission_callback' => [$this, 'check_authentication'],
+                'permission_callback' => function () {
+                    return is_user_logged_in();
+                },
                 'args' => [
                     'quiz_id' => [
                         'required' => true,
@@ -113,7 +135,9 @@ class QE_Quiz_Autosave_API extends QE_API_Base
             [
                 'methods' => WP_REST_Server::DELETABLE,
                 'callback' => [$this, 'clear_all_autosaves'],
-                'permission_callback' => [$this, 'check_authentication'],
+                'permission_callback' => function () {
+                    return is_user_logged_in();
+                },
             ],
         ]);
     }
@@ -131,6 +155,15 @@ class QE_Quiz_Autosave_API extends QE_API_Base
 
         try {
             $user_id = get_current_user_id();
+
+            if (!$user_id) {
+                return new WP_Error(
+                    'not_authenticated',
+                    __('User must be logged in', 'quiz-extended'),
+                    ['status' => 401]
+                );
+            }
+
             $quiz_id = $request->get_param('quiz_id');
             $attempt_id = $request->get_param('attempt_id');
             $quiz_data = $request->get_param('quiz_data');
@@ -138,9 +171,26 @@ class QE_Quiz_Autosave_API extends QE_API_Base
             $answers = $request->get_param('answers');
             $time_remaining = $request->get_param('time_remaining');
 
+            // Validate required params
+            if (!$quiz_id || !$quiz_data || !is_array($answers)) {
+                return new WP_Error(
+                    'invalid_params',
+                    __('Missing required parameters', 'quiz-extended'),
+                    ['status' => 400]
+                );
+            }
+
             // Serialize data
             $quiz_data_json = wp_json_encode($quiz_data);
             $answers_json = wp_json_encode($answers);
+
+            if ($quiz_data_json === false || $answers_json === false) {
+                return new WP_Error(
+                    'json_encode_error',
+                    __('Failed to encode data to JSON', 'quiz-extended'),
+                    ['status' => 500]
+                );
+            }
 
             $table = $wpdb->prefix . 'qe_quiz_autosave';
             $now = current_time('mysql');
@@ -193,7 +243,7 @@ class QE_Quiz_Autosave_API extends QE_API_Base
             if ($result === false) {
                 return new WP_Error(
                     'autosave_failed',
-                    __('Failed to save quiz progress', 'quiz-extended'),
+                    sprintf(__('Database error: %s', 'quiz-extended'), $wpdb->last_error),
                     ['status' => 500]
                 );
             }

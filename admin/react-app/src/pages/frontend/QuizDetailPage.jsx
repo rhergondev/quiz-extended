@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Clock, FileText, Award, User, Calendar } from 'lucide-react';
+import { ArrowLeft, Clock, FileText, Award, User, Calendar, BookOpen, ChevronLeft, Play, Target, Info} from 'lucide-react';
 import quizService from '../../api/services/quizService';
 import QEButton from '../../components/common/QEButton';
+import quizAutosaveService from '../../api/services/quizAutosaveService';
 
 // Hooks
 import { useQuizzes } from '../../hooks/useQuizzes';
@@ -18,6 +19,7 @@ const QuizDetailPage = () => {
   const navigate = useNavigate();
   const [hasStarted, setHasStarted] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
+  const [checkingAutosave, setCheckingAutosave] = useState(true);
   const { formatScore } = useScoreFormat();
 
   const { quizzes, loading: quizzesLoading } = useQuizzes({ perPage: 100 });
@@ -31,7 +33,31 @@ const QuizDetailPage = () => {
     }
   }, [quizzes, quizId]);
 
-  const loading = quizzesLoading || coursesLoading || lessonsLoading;
+  // Verificar si existe un autosave para este quiz
+  useEffect(() => {
+    const checkAutosave = async () => {
+      if (!quizId) {
+        setCheckingAutosave(false);
+        return;
+      }
+
+      try {
+        const autosave = await quizAutosaveService.getQuizAutosave(parseInt(quizId));
+        if (autosave) {
+          // Si hay autosave, iniciar directamente para que Quiz muestre el modal
+          setHasStarted(true);
+        }
+      } catch (error) {
+        console.error('Error checking autosave:', error);
+      } finally {
+        setCheckingAutosave(false);
+      }
+    };
+
+    checkAutosave();
+  }, [quizId]);
+
+  const loading = quizzesLoading || coursesLoading || lessonsLoading || checkingAutosave;
 
   if (loading) {
     return (

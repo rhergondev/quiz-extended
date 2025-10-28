@@ -22,10 +22,11 @@ const QuizRecoveryModal = ({ autosaveData, onResume, onRestart, onClose, isOpen 
     answers,
     time_remaining,
     updated_at,
+    quiz_data,
   } = autosaveData;
 
-  // Calculate progress
-  const totalQuestions = autosaveData.quiz_data?.questions?.length || 0;
+  // Calculate progress - quiz_data contains the full quiz object
+  const totalQuestions = quiz_data?.meta?._quiz_question_ids?.length || 0;
   const answeredQuestions = Object.keys(answers || {}).length;
   const progressPercent = totalQuestions > 0 
     ? Math.round((answeredQuestions / totalQuestions) * 100) 
