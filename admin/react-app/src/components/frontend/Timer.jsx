@@ -2,8 +2,17 @@
 import React, { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
 
-const Timer = ({ durationMinutes, onTimeUp, isPaused }) => {
-  const [remainingTime, setRemainingTime] = useState(durationMinutes * 60);
+const Timer = ({ durationMinutes, onTimeUp, isPaused, initialTimeRemaining = null, onTick = null }) => {
+  const [remainingTime, setRemainingTime] = useState(
+    initialTimeRemaining !== null ? initialTimeRemaining : durationMinutes * 60
+  );
+
+  // Actualizar tiempo inicial cuando se resume desde autoguardado
+  useEffect(() => {
+    if (initialTimeRemaining !== null) {
+      setRemainingTime(initialTimeRemaining);
+    }
+  }, [initialTimeRemaining]);
 
   useEffect(() => {
     if (isPaused || durationMinutes <= 0) {
@@ -17,12 +26,19 @@ const Timer = ({ durationMinutes, onTimeUp, isPaused }) => {
           onTimeUp();
           return 0;
         }
-        return prevTime - 1;
+        const newTime = prevTime - 1;
+        
+        // Notificar al padre el tiempo restante para autoguardado
+        if (onTick) {
+          onTick(newTime);
+        }
+        
+        return newTime;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isPaused, onTimeUp, durationMinutes]);
+  }, [isPaused, onTimeUp, durationMinutes, onTick]);
 
   const formatTime = (seconds) => {
     const h = Math.floor(seconds / 3600).toString().padStart(2, '0');

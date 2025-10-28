@@ -3,6 +3,7 @@
 import React from 'react';
 import QuizResultsSummary from '../../components/frontend/dashboard/QuizResultsSummary';
 import UserInbox from '../../components/frontend/dashboard/UserInbox';
+import PendingQuizAlert from '../../components/frontend/dashboard/PendingQuizAlert';
 
 const DashboardPage = () => {
   const userName = window.qe_data?.user?.name || "Estudiante";
@@ -19,6 +20,9 @@ const DashboardPage = () => {
       </header>
 
       <main className="space-y-8">
+        {/* Pending Quiz Alert - Shows if user has incomplete quiz */}
+        <PendingQuizAlert />
+
         {/* User Messages Inbox */}
         <UserInbox />
 

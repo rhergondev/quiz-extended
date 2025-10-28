@@ -11,6 +11,9 @@ import QuizResults from './QuizResults';
 import DrawingCanvas from './DrawingCanvas';
 import { PenTool } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import useQuizAutosave from '../../hooks/useQuizAutosave';
+import quizAutosaveService from '../../api/services/quizAutosaveService';
+import QuizRecoveryModal from '../quizzes/QuizRecoveryModal';
 
 const Quiz = ({ quizId, customQuiz = null }) => {
   const [quizInfo, setQuizInfo] = useState(null);
@@ -22,6 +25,10 @@ const Quiz = ({ quizId, customQuiz = null }) => {
   const [quizResult, setQuizResult] = useState(null);
   const [startTime, setStartTime] = useState(null); // Para calcular la duración
   const [isDrawingMode, setIsDrawingMode] = useState(false); // Estado para el modo dibujo
+  const [timeRemaining, setTimeRemaining] = useState(null); // Tiempo restante del timer
+  const [autosaveData, setAutosaveData] = useState(null); // Datos de autoguardado recuperados
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false); // Modal de recuperación
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0); // Índice de pregunta actual
   const { theme } = useTheme();
 
   const {
@@ -43,6 +50,18 @@ const Quiz = ({ quizId, customQuiz = null }) => {
       if (!quizId) return;
 
       try {
+        // Verificar si hay autoguardado antes de iniciar nuevo intento
+        const savedProgress = await quizAutosaveService.getQuizAutosave(quizId);
+        
+        if (savedProgress) {
+          // Hay progreso guardado - mostrar modal de recuperación
+          setAutosaveData(savedProgress);
+          setShowRecoveryModal(true);
+          setQuizState('awaiting-recovery'); // Estado especial esperando decisión del usuario
+          return;
+        }
+
+        // No hay autoguardado - continuar con inicio normal
         const quizData = await getQuiz(quizId);
         setQuizInfo(quizData);
         setQuestionIds(quizData.meta?._quiz_question_ids || []);
@@ -70,11 +89,77 @@ const Quiz = ({ quizId, customQuiz = null }) => {
     return shuffled;
   }, [questionIds, allQuestions, questionsLoading]);
 
+  // Hook de autoguardado - se activa cuando cambian las respuestas
+  const { clearAutosave } = useQuizAutosave({
+    quizId: quizId,
+    quizData: quizInfo,
+    currentQuestionIndex,
+    answers: userAnswers,
+    timeRemaining,
+    attemptId,
+    enabled: quizState === 'in-progress' && !customQuiz, // Solo autosave para quizzes normales
+  });
+
   useEffect(() => {
       if (quizInfo && attemptId && !questionsLoading && (quizQuestions.length > 0 || questionIds.length === 0)) {
           setQuizState('in-progress');
       }
   }, [quizInfo, attemptId, questionsLoading, quizQuestions, questionIds]);
+
+  // Handler para resumir quiz desde autoguardado
+  const handleResumeQuiz = async () => {
+    if (!autosaveData) return;
+
+    try {
+      // Restaurar el estado guardado
+      const savedQuizData = typeof autosaveData.quiz_data === 'string' 
+        ? JSON.parse(autosaveData.quiz_data) 
+        : autosaveData.quiz_data;
+      
+      const savedAnswers = typeof autosaveData.answers === 'string'
+        ? JSON.parse(autosaveData.answers)
+        : autosaveData.answers;
+
+      setQuizInfo(savedQuizData);
+      setQuestionIds(savedQuizData.meta?._quiz_question_ids || []);
+      setUserAnswers(savedAnswers);
+      setCurrentQuestionIndex(autosaveData.current_question_index || 0);
+      setTimeRemaining(autosaveData.time_remaining);
+      setAttemptId(autosaveData.attempt_id);
+      
+      setShowRecoveryModal(false);
+      setQuizState('in-progress');
+    } catch (error) {
+      console.error('Error resuming quiz:', error);
+      setQuizState('error');
+    }
+  };
+
+  // Handler para reiniciar quiz (eliminar autoguardado)
+  const handleRestartQuiz = async () => {
+    if (!quizId) return;
+
+    try {
+      // Eliminar autoguardado
+      await quizAutosaveService.deleteAutosave(quizId);
+      
+      // Iniciar quiz normalmente
+      const quizData = await getQuiz(quizId);
+      setQuizInfo(quizData);
+      setQuestionIds(quizData.meta?._quiz_question_ids || []);
+
+      const attemptResponse = await startQuizAttempt(quizId);
+      if (attemptResponse.attempt_id) {
+        setAttemptId(attemptResponse.attempt_id);
+      }
+
+      setShowRecoveryModal(false);
+      setAutosaveData(null);
+    } catch (error) {
+      console.error('Error restarting quiz:', error);
+      setQuizState('error');
+    }
+  };
 
   const handleSelectAnswer = (questionId, answerId) => {
     setUserAnswers(prev => ({ ...prev, [questionId]: answerId }));
@@ -125,6 +210,11 @@ const Quiz = ({ quizId, customQuiz = null }) => {
               result = await submitQuizAttempt(attemptId, formattedAnswers);
           }
           
+          // Limpiar autoguardado después de completar exitosamente
+          if (quizId && !customQuiz) {
+            await clearAutosave();
+          }
+
           setQuizResult(result);
           setQuizState('submitted');
       } catch (error) {
@@ -135,6 +225,19 @@ const Quiz = ({ quizId, customQuiz = null }) => {
 
   if (quizState === 'loading' || (questionIds.length > 0 && questionsLoading)) {
     return <div className="text-center p-8">Cargando cuestionario...</div>;
+  }
+  if (quizState === 'awaiting-recovery') {
+    return (
+      <>
+        <div className="text-center p-8">Cargando cuestionario...</div>
+        <QuizRecoveryModal
+          autosaveData={autosaveData}
+          onResume={handleResumeQuiz}
+          onRestart={handleRestartQuiz}
+          isOpen={showRecoveryModal}
+        />
+      </>
+    );
   }
   if (quizState === 'error' || questionsError) {
       return <div className="text-center p-8 text-red-600">No se pudo cargar el cuestionario.</div>
@@ -211,6 +314,8 @@ const Quiz = ({ quizId, customQuiz = null }) => {
                 durationMinutes={timeLimit}
                 onTimeUp={handleSubmit}
                 isPaused={quizState === 'submitted' || quizState === 'submitting'}
+                initialTimeRemaining={timeRemaining}
+                onTick={(remainingSeconds) => setTimeRemaining(remainingSeconds)}
             />
         </div>
       </aside>

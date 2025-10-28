@@ -62,6 +62,7 @@ class QE_Database
             $results['student_progress'] = self::create_student_progress_table($prefix, $charset_collate);
             $results['favorite_questions'] = self::create_favorite_questions_table($prefix, $charset_collate);
             $results['messages'] = self::create_comm_messages_table($prefix, $charset_collate);
+            $results['quiz_autosave'] = self::create_quiz_autosave_table($prefix, $charset_collate);
 
             // Check if all tables were created successfully
             $all_success = !in_array(false, $results, true);
@@ -200,6 +201,60 @@ class QE_Database
 
         } catch (Exception $e) {
             self::log_error('Failed to create attempt_answers table', [
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Create quiz autosave table
+     *
+     * Stores the current state of a quiz attempt for recovery purposes.
+     * Allows users to resume quizzes after crashes, internet loss, or accidental closure.
+     *
+     * @param string $prefix Table prefix
+     * @param string $charset_collate Charset collation
+     * @return bool True if successful
+     * @since 2.0.0
+     */
+    private static function create_quiz_autosave_table($prefix, $charset_collate)
+    {
+        try {
+            global $wpdb;
+
+            $table_name = $prefix . 'quiz_autosave';
+
+            $sql = "CREATE TABLE {$table_name} (
+                autosave_id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id BIGINT(20) UNSIGNED NOT NULL,
+                quiz_id BIGINT(20) UNSIGNED NOT NULL,
+                attempt_id BIGINT(20) UNSIGNED NULL,
+                quiz_data LONGTEXT NOT NULL,
+                current_question_index INT(10) UNSIGNED NOT NULL DEFAULT 0,
+                answers TEXT NOT NULL,
+                time_remaining INT(10) UNSIGNED NULL,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (autosave_id),
+                UNIQUE KEY user_quiz (user_id, quiz_id),
+                KEY user_id (user_id),
+                KEY quiz_id (quiz_id),
+                KEY updated_at (updated_at)
+            ) {$charset_collate};";
+
+            dbDelta($sql);
+
+            if (self::table_exists($table_name)) {
+                self::log_info("Table created: {$table_name}");
+                return true;
+            } else {
+                self::log_error("Table creation failed: {$table_name}");
+                return false;
+            }
+
+        } catch (Exception $e) {
+            self::log_error('Failed to create quiz_autosave table', [
                 'error' => $e->getMessage()
             ]);
             return false;

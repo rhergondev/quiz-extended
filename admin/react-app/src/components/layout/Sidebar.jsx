@@ -14,12 +14,10 @@ const Sidebar = () => {
   const userEmail = window.qe_data?.user?.email;
   const logoutUrl = window.qe_data?.logout_url;
 
-  const navItems = [
+  const menuItems = [
     { to: '/', text: t('sidebar.myDesk'), icon: Home },
     { to: '/courses', text: t('sidebar.studyPlanner'), icon: Calendar },
     { to: '/test', text: t('sidebar.test'), icon: FileText },
-    { to: '/materials', text: t('sidebar.supportMaterial'), icon: BookOpen },
-    { to: '/videos', text: t('sidebar.videosClasses'), icon: Video },
   ];
 
   // ✅ Función de clases actualizada para el efecto de barra vertical
@@ -55,7 +53,7 @@ const Sidebar = () => {
       </div>
       
       <nav className="flex-1 px-2 space-y-2">
-        {navItems.map((item) => (
+        {menuItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

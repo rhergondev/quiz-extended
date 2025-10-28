@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Trophy, Loader } from 'lucide-react';
 import { getCourse } from '../../api/services/courseService';
 import useLessons from '../../hooks/useLessons';
 import useQuizzes from '../../hooks/useQuizzes';
+import useCourseRanking from '../../hooks/useCourseRanking';
 import CourseLessonList from '../../components/frontend/CourseLessonList';
 import StepContent from '../../components/frontend/StepContent';
-import { Loader } from 'lucide-react'; // Usaremos un icono para el estado de carga
+import CourseRankingModal from '../../components/frontend/CourseRankingModal';
+import QEButton from '../../components/common/QEButton';
 
 // --- Componentes de Estado para mayor claridad ---
 
@@ -44,6 +47,7 @@ const CourseLessonsPage = () => {
   const [activeContent, setActiveContent] = useState({ lesson: null, step: null });
   const [error, setError] = useState(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [showRankingModal, setShowRankingModal] = useState(false);
 
   // 2. Uso de hooks de datos
   const { lessons, loading: lessonsLoading, error: lessonsError } = useLessons({ 
@@ -56,6 +60,15 @@ const CourseLessonsPage = () => {
     perPage: 100, 
     autoFetch: true 
   });
+  
+  // Ranking hook
+  const { 
+    ranking, 
+    myStatus, 
+    loading: rankingLoading, 
+    totalQuizzes,
+    refetch: refetchRanking 
+  } = useCourseRanking(courseId, false); // Don't auto-fetch, load on demand
   
   const { 
     data: fetchedCourse, 
@@ -127,8 +140,14 @@ const CourseLessonsPage = () => {
   const handleSelectStep = (step, lesson) => {
     setActiveContent({ step, lesson });
   };
+
+  // 5. Handler para abrir el ranking
+  const handleOpenRanking = async () => {
+    setShowRankingModal(true);
+    await refetchRanking(); // Fetch ranking data when opening modal
+  };
   
-  // 5. Renderizado condicional limpio
+  // 6. Renderizado condicional limpio
   const isLoading = courseLoading || quizzesLoading || lessonsLoading;
 
   if (isLoading) return <LoadingState />;
@@ -138,13 +157,29 @@ const CourseLessonsPage = () => {
   return (
     // ✅ Fondo gris y maquetación corregida (lista a la izquierda, contenido a la derecha)
     <div className="flex flex-col lg:flex-row h-full overflow-hidden bg-gray-100">
-      <div className="flex-1 overflow-y-auto">
+      {/* Panel de contenido principal */}
+      <div className="flex-1 overflow-y-auto relative">
+        {/* Ranking Button - Positioned in main content area */}
+        <div className="absolute top-4 right-4 z-10">
+          <QEButton
+            onClick={handleOpenRanking}
+            variant="primary"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg shadow-lg"
+            disabled={rankingLoading}
+          >
+            <Trophy className="w-5 h-5" />
+            <span className="hidden sm:inline">Ranking del Curso</span>
+          </QEButton>
+        </div>
+
         <StepContent 
           lesson={activeContent.lesson} 
           step={activeContent.step} 
           quizzes={quizzes}
         />
       </div>
+
+      {/* Panel lateral de lecciones */}
       <CourseLessonList 
         lessons={lessons} 
         isLoading={lessonsLoading}
@@ -152,6 +187,18 @@ const CourseLessonsPage = () => {
         onSelectStep={handleSelectStep}
         quizzes={quizzes}
       />
+
+      {/* Ranking Modal */}
+      {showRankingModal && (
+        <CourseRankingModal
+          courseId={courseId}
+          courseName={course?.title?.rendered || course?.title || 'Curso'}
+          ranking={ranking}
+          myStatus={myStatus}
+          totalQuizzes={totalQuizzes}
+          onClose={() => setShowRankingModal(false)}
+        />
+      )}
     </div>
   );
 };

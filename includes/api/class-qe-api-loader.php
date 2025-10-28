@@ -92,7 +92,9 @@ class QE_API_Loader
             'student-progress' => 'class-qe-student-progress-api.php',
             'feedback-rankings' => 'class-qe-feedback-rankings-api.php',
             'messages' => 'class-qe-messages-api.php',
-            'settings' => 'class-qe-settings-api.php'
+            'settings' => 'class-qe-settings-api.php',
+            'course-ranking' => 'class-qe-course-ranking-api.php',
+            'quiz-autosave' => 'class-qe-quiz-autosave-api.php'
         ];
 
         foreach ($modules as $name => $file) {
