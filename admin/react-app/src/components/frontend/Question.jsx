@@ -54,15 +54,22 @@ const Question = ({
               const isSelected = selectedAnswer !== null && selectedAnswer !== undefined && option.id === selectedAnswer;
               
               const selectionStyle = isSelected 
-                ? 'border-primary bg-primary/10'
-                : 'border-gray-200 hover:bg-gray-50';
+                ? 'border-2'
+                : 'border-2 border-gray-200 hover:bg-gray-50';
               
               const textStyle = isSelected
-                ? 'text-primary font-semibold'
+                ? 'font-semibold'
                 : 'text-gray-700';
 
               return (
-                <label key={option.id} className={`flex items-center cursor-pointer p-3 border-2 rounded-lg transition-colors ${selectionStyle}`}>
+                <label 
+                  key={option.id} 
+                  className={`flex items-center cursor-pointer p-3 rounded-lg transition-colors ${selectionStyle}`}
+                  style={isSelected ? {
+                    borderColor: 'var(--qe-primary)',
+                    backgroundColor: 'var(--qe-primary-light)'
+                  } : {}}
+                >
                   <input
                     type="radio"
                     name={`question-${id}`}
@@ -70,9 +77,15 @@ const Question = ({
                     checked={isSelected}
                     onChange={() => handleAnswerSelect(id, option.id)}
                     disabled={isSubmitted || disabled}
-                    className="h-4 w-4 text-primary border-gray-300 focus:ring-yellow-500"
+                    className="h-4 w-4 border-gray-300"
+                    style={{ accentColor: 'var(--qe-primary)' }}
                   />
-                  <span className={`ml-3 text-sm transition-colors ${textStyle}`}>{String.fromCharCode(65 + optionIndex)}) {option.text}</span>
+                  <span 
+                    className={`ml-3 text-sm transition-colors ${textStyle}`}
+                    style={isSelected ? { color: 'var(--qe-primary)' } : {}}
+                  >
+                    {String.fromCharCode(65 + optionIndex)}) {option.text}
+                  </span>
                 </label>
               );
             })}
@@ -87,16 +100,29 @@ const Question = ({
                         checked={isRisked}
                         onChange={() => onToggleRisk(id)}
                         disabled={isSubmitted}
-                        className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                        className="h-4 w-4 rounded border-gray-300 qe-checkbox-accent"
+                        style={{ accentColor: 'var(--qe-accent)' }}
                     />
-                    <span className="ml-2 text-sm font-semibold text-gray-600 group-hover:text-orange-600 transition-colors">Marcar con riesgo</span>
+                    <span className="ml-2 text-sm font-semibold text-gray-600 transition-colors" style={{ '--hover-color': 'var(--qe-accent)' }}>Marcar con riesgo</span>
                 </label>
 
                 <button
                   type="button"
                   onClick={() => onClearAnswer(id)}
                   title="Limpiar selección"
-                  className="p-2 rounded-full text-gray-500 hover:bg-red-100 hover:text-red-600 transition-colors"
+                  className="p-2 rounded-full transition-colors"
+                  style={{ 
+                    color: 'var(--qe-text-secondary, #6b7280)',
+                    backgroundColor: 'transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                    e.currentTarget.style.color = '#dc2626';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = 'var(--qe-text-secondary, #6b7280)';
+                  }}
                 >
                   <Trash2 className="w-4 h-4"/>
                 </button>

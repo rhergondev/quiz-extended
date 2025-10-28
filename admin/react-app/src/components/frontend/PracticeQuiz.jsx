@@ -76,7 +76,7 @@ const PracticeQuiz = ({ quizId, customQuiz = null, customQuestions = null }) => 
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 qe-spinner-primary mb-4"></div>
           <p className="text-gray-600">Cargando práctica...</p>
         </div>
       </div>
@@ -95,7 +95,7 @@ const PracticeQuiz = ({ quizId, customQuiz = null, customQuestions = null }) => 
         </p>
         <button
           onClick={handleBackToConfig}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="qe-btn-primary px-6 py-2 rounded-lg transition-colors"
         >
           Volver a configurar
         </button>
@@ -122,7 +122,7 @@ const PracticeQuiz = ({ quizId, customQuiz = null, customQuestions = null }) => 
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center space-x-2">
-            <BookCheck className="w-5 h-5 text-blue-600" />
+            <BookCheck className="w-5 h-5 qe-icon-primary" />
             <span className="text-sm font-medium text-gray-700">
               Pregunta {currentQuestionIndex + 1} de {quizQuestions.length}
             </span>
@@ -133,7 +133,7 @@ const PracticeQuiz = ({ quizId, customQuiz = null, customQuestions = null }) => 
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
-            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+            className="qe-progress-bar h-2 rounded-full transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -173,7 +173,7 @@ const PracticeQuiz = ({ quizId, customQuiz = null, customQuestions = null }) => 
                 onClick={() => setCurrentQuestionIndex(index)}
                 className={`w-8 h-8 rounded-full text-xs font-medium transition-colors ${
                   index === currentQuestionIndex
-                    ? 'bg-blue-600 text-white'
+                    ? 'qe-bg-primary text-white'
                     : answers[quizQuestions[index].id]
                     ? 'bg-green-100 text-green-700 border border-green-300'
                     : 'bg-gray-100 text-gray-600 border border-gray-300'
@@ -195,7 +195,7 @@ const PracticeQuiz = ({ quizId, customQuiz = null, customQuestions = null }) => 
           ) : (
             <button
               onClick={handleNext}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="qe-btn-primary inline-flex items-center px-4 py-2 rounded-lg transition-colors"
             >
               Siguiente
               <ChevronRight className="w-4 h-4 ml-1" />
@@ -205,8 +205,8 @@ const PracticeQuiz = ({ quizId, customQuiz = null, customQuestions = null }) => 
       </div>
 
       {/* Info adicional */}
-      <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-700">
+      <div className="mt-4 qe-card-primary rounded-lg p-4">
+        <p className="text-sm qe-text-primary">
           💡 <strong>Modo práctica:</strong> Tómate tu tiempo. No hay límite de tiempo ni penalizaciones. 
           Podrás ver las respuestas correctas al finalizar.
         </p>

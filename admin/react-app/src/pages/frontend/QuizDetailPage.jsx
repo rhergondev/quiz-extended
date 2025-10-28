@@ -1,15 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  BookOpen, 
-  Clock, 
-  FileText, 
-  Target,
-  Play,
-  ChevronLeft,
-  Info,
-  Award
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, Clock, FileText, Award, User, Calendar } from 'lucide-react';
+import quizService from '../../api/services/quizService';
+import QEButton from '../../components/common/QEButton';
 
 // Hooks
 import { useQuizzes } from '../../hooks/useQuizzes';
@@ -65,12 +58,13 @@ const QuizDetailPage = () => {
             <p className="text-gray-600 mb-6">
               El cuestionario que buscas no existe o ha sido eliminado.
             </p>
-            <button
+            <QEButton
               onClick={() => navigate('/')}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              variant="primary"
+              className="px-6 py-2 rounded-lg"
             >
               Volver al Dashboard
-            </button>
+            </QEButton>
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
 import useQuizAttemptDetails from '../../hooks/useQuizAttemptDetails';
 import QuizResults from '../../components/frontend/QuizResults'; // ¡Reutilizamos el componente!
 import { ArrowLeft, Loader } from 'lucide-react';
+import QEButton from '../../components/common/QEButton';
 
 const QuizAttemptDetailsPage = () => {
   const { attemptId } = useParams();
@@ -37,7 +38,7 @@ const QuizAttemptDetailsPage = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <button
+      <QEButton
         onClick={() => {
           // Si hay una ruta de retorno y un quizId, navegar con ese estado
           if (returnPath && returnPath !== '/' && location.state?.returnToQuiz) {
@@ -53,11 +54,12 @@ const QuizAttemptDetailsPage = () => {
             navigate('/');
           }
         }}
-        className="inline-flex items-center px-4 py-2 mb-6 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+        variant="primary"
+        className="inline-flex items-center px-4 py-2 mb-6 text-sm font-medium rounded-lg shadow-sm"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
         {location.state?.fromQuizConfirmation ? 'Volver al Cuestionario' : 'Volver al Dashboard'}
-      </button>
+      </QEButton>
 
       <QuizResults
         result={resultProp}

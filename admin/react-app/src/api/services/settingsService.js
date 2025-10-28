@@ -117,7 +117,44 @@ const settingsService = {
    */
   updateScoreFormat: async (format) => {
     return settingsService.updateSettings({ score_format: format });
+  },
+
+  /**
+   * Get theme settings (public)
+   */
+  getTheme: async () => {
+    const config = getWpConfig();
+    const url = `${config.api_url}/quiz-extended/v1/settings/theme`;
+    
+    try {
+      const response = await makeApiRequest(url, {
+        method: 'GET'
+      });
+      
+      return response;
+    } catch (error) {
+      console.error('Error fetching theme:', error);
+      // Return default theme on error
+      return {
+        success: true,
+        data: {
+          primary: '#3b82f6',
+          secondary: '#8b5cf6',
+          accent: '#f59e0b',
+          background: '#ffffff',
+          dark_mode: false
+        }
+      };
+    }
+  },
+
+  /**
+   * Update theme settings (admin only)
+   */
+  updateTheme: async (theme) => {
+    return settingsService.updateSettings({ theme });
   }
 };
 
+export { settingsService };
 export default settingsService;

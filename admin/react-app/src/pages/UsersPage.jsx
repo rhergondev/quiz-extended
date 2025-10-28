@@ -4,6 +4,7 @@ import useUsers from '../hooks/useUsers.js';
 import UserCard from '../components/users/UserCard.jsx';
 import ContentManager from '../components/common/ContentManager.jsx';
 import FakeUserGenerator from '../components/users/FakeUserGenerator.jsx';
+import QEButton from '../components/common/QEButton';
 
 const UsersPage = () => {
   const [isFakeUserModalOpen, setIsFakeUserModalOpen] = useState(false);
@@ -79,20 +80,22 @@ const UsersPage = () => {
             <p className="text-gray-600 mt-1">Administra usuarios, inscripciones y permisos.</p>
           </div>
           <div className="flex items-center space-x-3">
-            <button
+            <QEButton
               onClick={() => setIsFakeUserModalOpen(true)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+              variant="ghost"
+              className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md shadow-sm"
             >
               <Users className="h-4 w-4 mr-2" />
               Generar Usuarios Ficticios
-            </button>
-            <button
+            </QEButton>
+            <QEButton
               onClick={() => alert('Funcionalidad de "Añadir Usuario" pendiente de implementación.')}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+              variant="primary"
+              className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md shadow-sm"
             >
               <UserPlus className="h-4 w-4 mr-2" />
               Añadir Usuario
-            </button>
+            </QEButton>
           </div>
         </div>
 

@@ -12,6 +12,7 @@ import { getOne as getQuiz } from '../../api/services/quizService';
 import { useQuestions } from '../../hooks/useQuestions';
 
 import Tabs from '../common/layout/Tabs';
+import QEButton from '../common/QEButton';
 
 // --- SUB-COMPONENTES INTERNOS ---
 
@@ -59,14 +60,14 @@ const QuestionManager = ({ onAddQuestion, onCreateNew, selectedQuestions }) => {
                     placeholder={t('quizzes.form.searchPlaceholder')}
                     className="flex-1 input border-gray-300 rounded-md"
                 />
-                <button onClick={handleSearch} disabled={isSearching} className="bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 flex items-center gap-2">
+                <QEButton onClick={handleSearch} disabled={isSearching} variant="primary" className="font-semibold py-2 px-3 rounded-lg shadow-sm text-sm flex items-center gap-2">
                     <Search className="w-4 h-4" />
                     {isSearching ? t('common.searching') : t('common.search')}
-                </button>
-                <button onClick={onCreateNew} className="bg-gray-200 text-gray-800 font-semibold py-2 px-3 rounded-lg shadow-sm hover:bg-gray-300 transition-colors text-sm flex items-center gap-2">
+                </QEButton>
+                <QEButton onClick={onCreateNew} variant="ghost" className="font-semibold py-2 px-3 rounded-lg shadow-sm text-sm flex items-center gap-2">
                     <Plus className="w-4 h-4" />
                     {t('common.createNew')}
-                </button>
+                </QEButton>
             </div>
             {searchError && <p className="text-sm text-red-600">{searchError.message}</p>}
             {searchResults.length > 0 && (
@@ -334,10 +335,10 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
                     <ArrowLeft className="w-4 h-4" /> Volver
                 </button>
             )}
-          <button onClick={handleSave} disabled={isSaving} className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 flex items-center gap-2">
+          <QEButton onClick={handleSave} disabled={isSaving} variant="primary" className="font-semibold py-2 px-4 rounded-lg shadow-sm text-sm flex items-center gap-2">
             <Save className="w-4 h-4"/>
             {isSaving ? t('common.saving') : t('common.save')}
-          </button>
+          </QEButton>
            {!isContextual && (
                 <button onClick={onCancel} className="text-gray-500 hover:text-gray-800">
                     <X className="h-5 w-5" />

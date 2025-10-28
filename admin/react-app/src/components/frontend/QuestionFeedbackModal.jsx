@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Send, Loader, MessageSquareWarning, CheckCircle } from 'lucide-react';
 import { messageService } from '../../api/services/messageService';
+import QEButton from '../common/QEButton';
 
 const QuestionFeedbackModal = ({ question, initialFeedbackType = 'feedback', onClose }) => {
   const [feedbackType, setFeedbackType] = useState(initialFeedbackType);
@@ -52,12 +53,13 @@ const QuestionFeedbackModal = ({ question, initialFeedbackType = 'feedback', onC
             <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
             <h3 className="text-lg font-bold text-gray-800 mt-4 mb-2">¡Mensaje Enviado!</h3>
             <p className="text-gray-600 mb-4">Gracias por tu colaboración. Hemos recibido tu mensaje.</p>
-            <button 
+            <QEButton 
                 onClick={onClose} 
-                className="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+                variant="primary"
+                className="w-full px-4 py-2 rounded-md"
             >
                 Cerrar
-            </button>
+            </QEButton>
           </div>
         ) : (
           <>
@@ -103,14 +105,15 @@ const QuestionFeedbackModal = ({ question, initialFeedbackType = 'feedback', onC
               </div>
               {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
               <div className="flex justify-end">
-                <button
+                <QEButton
                   type="submit"
                   disabled={loading}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-md flex items-center disabled:bg-indigo-400 disabled:cursor-not-allowed transition-colors"
+                  variant="primary"
+                  className="px-4 py-2 rounded-md flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? <Loader className="animate-spin mr-2" size={20} /> : <Send className="mr-2" size={20} />}
                   Enviar Mensaje
-                </button>
+                </QEButton>
               </div>
             </form>
           </>

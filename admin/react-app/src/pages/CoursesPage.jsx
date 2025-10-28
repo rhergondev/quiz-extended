@@ -23,6 +23,7 @@ import { useCourses } from '../components/hooks/useCourses.js';
 import CourseCard from '../components/courses/CourseCard.jsx';
 import ContentManager from '../components/common/ContentManager.jsx';
 import DeleteConfirmModal from '../components/common/DeleteConfirmModal.jsx';
+import QEButton from '../components/common/QEButton';
 
 const CoursesPage = () => {
   // --- STATE ---
@@ -228,14 +229,15 @@ const CoursesPage = () => {
                 Loading...
               </div>
             )}
-            <button
+            <QEButton
               onClick={() => setShowCreateModal(true)}
               disabled={creating}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              variant="primary"
+              className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md shadow-sm"
             >
               <Plus className="h-4 w-4 mr-2" />
               {creating ? 'Creating...' : 'Create Course'}
-            </button>
+            </QEButton>
           </div>
         </div>
 

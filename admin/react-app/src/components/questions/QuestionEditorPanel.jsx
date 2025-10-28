@@ -9,6 +9,7 @@ import { openMediaSelector } from '../../api/utils/mediaUtils';
 
 import { getOne as getQuestion } from '../../api/services/questionService';
 import { createTaxonomyTerm } from '../../api/services/taxonomyService';
+import QEButton from '../common/QEButton';
 import Button from '../common/Button';
 import QuizSelector from './QuizSelector';
 import { SortableOption } from './SortableOption';
@@ -274,9 +275,9 @@ const QuestionEditorPanel = ({
              {mode === 'edit' && <p className="text-xs font-normal text-gray-500">{getQuestionTitle(formData)}</p>}
         </div>
         <div className="flex items-center gap-4">
-            <button onClick={handleSave} disabled={isSaving} className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg text-sm">
+            <QEButton onClick={handleSave} disabled={isSaving} variant="primary" className="font-semibold py-2 px-4 rounded-lg text-sm">
               {isSaving ? t('common.saving') : t('common.save')}
-            </button>
+            </QEButton>
             <button onClick={onCancel} className="text-gray-500 hover:text-gray-800">
               <X className="h-5 w-5" />
             </button>

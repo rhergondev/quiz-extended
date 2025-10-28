@@ -5,6 +5,7 @@ import ReviewedQuestion from './ReviewedQuestion';
 import ResultsSidebar from './ResultsSidebar';
 import { useTranslation } from 'react-i18next';
 import { useScoreFormat } from '../../contexts/ScoreFormatContext';
+import QEButton from '../common/QEButton';
 
 const QuizResults = ({ result, quizTitle, questions }) => {
   const { t } = useTranslation();
@@ -121,11 +122,13 @@ const QuizResults = ({ result, quizTitle, questions }) => {
         )}
 
         <div className="mt-8 text-center pb-4">
-          <Link 
-            to="/courses" 
-            className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors shadow-md"
-          >
-            Volver a Cursos
+          <Link to="/courses">
+            <QEButton 
+              variant="primary"
+              className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3 rounded-lg font-semibold shadow-md"
+            >
+              Volver a Cursos
+            </QEButton>
           </Link>
         </div>
       </main>

@@ -1,0 +1,260 @@
+/**
+ * Theme CSS Variables and Custom Styles
+ * 
+ * Este archivo define las variables CSS personalizadas del tema
+ * y sobrescribe estilos que podrían venir de Elementor u otros temas
+ */
+
+/* Variables CSS del tema (se aplican desde ThemeContext) */
+:root {
+  /* Colores personalizables */
+  --qe-primary: #3b82f6;
+  --qe-primary-light: rgba(59, 130, 246, 0.1);
+  --qe-primary-hover: #2563eb;
+  
+  --qe-secondary: #8b5cf6;
+  --qe-secondary-light: rgba(139, 92, 246, 0.1);
+  --qe-secondary-hover: #7c3aed;
+  
+  --qe-accent: #f59e0b;
+  --qe-accent-light: rgba(245, 158, 11, 0.1);
+  --qe-accent-hover: #d97706;
+  
+  --qe-background: #ffffff;
+  
+  /* Colores de texto */
+  --qe-text: #111827;
+  --qe-text-secondary: #6b7280;
+  
+  /* Colores de borde y fondo */
+  --qe-border: #e5e7eb;
+  --qe-bg-card: #ffffff;
+  --qe-bg-hover: #f9fafb;
+  
+  /* Colores fijos (no personalizables) */
+  --qe-success: #16a34a;
+  --qe-error: #dc2626;
+  --qe-warning: #f59e0b;
+  --qe-info: #3b82f6;
+  --qe-gray: #6b7280;
+}
+
+/* Modo oscuro */
+.qe-dark-mode {
+  --qe-text: #f3f4f6;
+  --qe-text-secondary: #d1d5db;
+  --qe-border: #374151;
+  --qe-bg-card: #1f2937;
+  --qe-bg-hover: #374151;
+  --qe-background: #111827;
+}
+
+/* Clases de utilidad usando variables del tema */
+.qe-btn-primary {
+  background-color: var(--qe-primary) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.qe-btn-primary:hover {
+  background-color: var(--qe-primary-hover) !important;
+}
+
+.qe-btn-secondary {
+  background-color: var(--qe-secondary) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.qe-btn-secondary:hover {
+  background-color: var(--qe-secondary-hover) !important;
+}
+
+.qe-btn-accent {
+  background-color: var(--qe-accent) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.qe-btn-accent:hover {
+  background-color: var(--qe-accent-hover) !important;
+}
+
+.qe-btn-ghost {
+  background-color: transparent !important;
+  color: var(--qe-text) !important;
+  border: 1px solid var(--qe-border) !important;
+}
+
+.qe-btn-ghost:hover {
+  background-color: var(--qe-bg-hover) !important;
+}
+
+.qe-text-primary {
+  color: var(--qe-primary) !important;
+}
+
+.qe-text-secondary {
+  color: var(--qe-secondary) !important;
+}
+
+.qe-bg-primary {
+  background-color: var(--qe-primary) !important;
+}
+
+.qe-bg-primary-light {
+  background-color: var(--qe-primary-light) !important;
+}
+
+.qe-bg-secondary {
+  background-color: var(--qe-secondary) !important;
+}
+
+.qe-bg-secondary-light {
+  background-color: var(--qe-secondary-light) !important;
+}
+
+.qe-border-primary {
+  border-color: var(--qe-primary) !important;
+}
+
+.qe-border-primary {
+  border-color: var(--qe-primary) !important;
+}
+
+.qe-border-secondary {
+  border-color: var(--qe-secondary) !important;
+}
+
+.qe-border-accent {
+  border-color: var(--qe-accent) !important;
+}
+
+/* Clases de utilidad adicionales para reemplazar Tailwind hardcoded */
+.qe-bg-gradient-primary {
+  background: linear-gradient(to bottom right, var(--qe-primary-light), var(--qe-secondary-light)) !important;
+}
+
+.qe-bg-gradient-accent {
+  background: linear-gradient(to right, var(--qe-accent-light), var(--qe-primary-light)) !important;
+}
+
+.qe-text-accent {
+  color: var(--qe-accent) !important;
+}
+
+.qe-icon-primary {
+  color: var(--qe-primary) !important;
+}
+
+.qe-icon-secondary {
+  color: var(--qe-secondary) !important;
+}
+
+.qe-icon-accent {
+  color: var(--qe-accent) !important;
+}
+
+.qe-spinner-primary {
+  border-color: var(--qe-primary) !important;
+}
+
+.qe-spinner-secondary {
+  border-color: var(--qe-secondary) !important;
+}
+
+.qe-focus-primary:focus {
+  border-color: var(--qe-primary) !important;
+  box-shadow: 0 0 0 3px var(--qe-primary-light) !important;
+}
+
+.qe-hover-primary:hover {
+  background-color: var(--qe-primary-light) !important;
+}
+
+.qe-hover-bg-primary:hover {
+  background-color: var(--qe-primary-hover) !important;
+}
+
+.qe-progress-bar {
+  background-color: var(--qe-primary) !important;
+}
+
+/* Tarjetas con borde del tema */
+.qe-card-primary {
+  border: 2px solid var(--qe-primary) !important;
+  background-color: var(--qe-primary-light) !important;
+}
+
+.qe-card-secondary {
+  border: 2px solid var(--qe-secondary) !important;
+  background-color: var(--qe-secondary-light) !important;
+}
+
+.qe-card-accent {
+  border: 1px solid var(--qe-accent) !important;
+  background-color: var(--qe-accent-light) !important;
+}
+
+/* Toggle switch usando colores del tema */
+.qe-toggle-active {
+  background-color: var(--qe-primary) !important;
+}
+
+.qe-toggle-inactive {
+  background-color: #d1d5db !important;
+}
+
+/* Tabs usando colores del tema */
+.qe-tab-active {
+  color: var(--qe-primary) !important;
+  border-bottom-color: var(--qe-primary) !important;
+}
+
+.qe-tab-inactive {
+  color: #6b7280 !important;
+  border-bottom-color: transparent !important;
+}
+
+.qe-tab-inactive:hover {
+  color: #111827 !important;
+}
+
+/* Radio buttons usando colores del tema */
+.qe-radio-primary:checked {
+  background-color: var(--qe-primary) !important;
+  border-color: var(--qe-primary) !important;
+}
+
+/* Sobrescribir estilos de Elementor y otros temas */
+#qe-app button,
+#qe-app a.button,
+#qe-app .btn {
+  all: unset;
+  box-sizing: border-box;
+}
+
+/* Asegurar que nuestros botones mantengan el estilo */
+#qe-app .qe-btn-primary,
+#qe-app .qe-btn-secondary,
+#qe-app .qe-btn-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+/* Proteger contra resets de Elementor */
+#qe-app * {
+  box-sizing: border-box;
+}
+
+#qe-app button:focus,
+#qe-app a:focus {
+  outline: 2px solid var(--qe-primary);
+  outline-offset: 2px;
+}

@@ -16,6 +16,7 @@ import {
 import { useQuizRanking } from '../../hooks/useQuizRanking';
 import { useScoreFormat } from '../../contexts/ScoreFormatContext';
 import QuizResultsSummary from './dashboard/QuizResultsSummary';
+import QEButton from '../common/QEButton';
 
 const StatItem = ({ icon: Icon, label, value }) => (
   <div className="flex items-center text-sm text-gray-600">
@@ -261,15 +262,16 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
           <h3 className="text-lg font-bold text-gray-800">
             Mis Últimos Intentos
           </h3>
-          <button
+          <QEButton
             onClick={(e) => {
               e.preventDefault();
               navigate('/');
             }}
-            className="text-sm font-medium transition-colors px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+            variant="primary"
+            className="text-sm font-medium px-3 py-1.5 rounded-lg"
           >
             Ver todos →
-          </button>
+          </QEButton>
         </div>
         
         <QuizResultsSummary 
@@ -281,13 +283,15 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
 
       {/* Botón de Inicio */}
       <div className="text-center pt-6">
-        <button
+        <QEButton
           onClick={onStartQuiz}
-          className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-lg rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+          variant="primary"
+          className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-white font-bold text-lg rounded-xl shadow-lg transform hover:-translate-y-0.5"
+          style={{ background: 'linear-gradient(to right, var(--qe-primary), var(--qe-secondary))' }}
         >
           <PlayCircle className="w-6 h-6 mr-2" />
           Comenzar Cuestionario
-        </button>
+        </QEButton>
       </div>
     </div>
   );

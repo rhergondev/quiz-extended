@@ -8,6 +8,9 @@ import Question from './Question';
 import QuizSidebar from './QuizSidebar';
 import Timer from './Timer';
 import QuizResults from './QuizResults';
+import DrawingCanvas from './DrawingCanvas';
+import { PenTool } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const Quiz = ({ quizId, customQuiz = null }) => {
   const [quizInfo, setQuizInfo] = useState(null);
@@ -18,6 +21,8 @@ const Quiz = ({ quizId, customQuiz = null }) => {
   const [attemptId, setAttemptId] = useState(null);
   const [quizResult, setQuizResult] = useState(null);
   const [startTime, setStartTime] = useState(null); // Para calcular la duración
+  const [isDrawingMode, setIsDrawingMode] = useState(false); // Estado para el modo dibujo
+  const { theme } = useTheme();
 
   const {
     questions: allQuestions,
@@ -147,7 +152,35 @@ const Quiz = ({ quizId, customQuiz = null }) => {
   const timeLimit = quizInfo?.meta?._time_limit || 0;
 
   return (
-    <div className="w-full max-w-screen-2xl mx-auto p-4 flex flex-col lg:flex-row gap-8 h-[100%]">
+    <div className="w-full max-w-screen-2xl mx-auto p-4 flex flex-col lg:flex-row gap-8 h-[100%] relative">
+      {/* Botón flotante para activar modo dibujo - Arriba a la derecha */}
+      <button
+        onClick={() => setIsDrawingMode(!isDrawingMode)}
+        className="fixed top-6 right-6 z-40 p-3 rounded-full shadow-lg transition-all duration-300 text-white"
+        style={{
+          backgroundColor: isDrawingMode ? '#dc2626' : theme.primary,
+          transform: isDrawingMode ? 'rotate(45deg)' : 'rotate(0deg)'
+        }}
+        onMouseEnter={(e) => {
+          if (!isDrawingMode) e.currentTarget.style.transform = 'scale(1.1)';
+        }}
+        onMouseLeave={(e) => {
+          if (!isDrawingMode) e.currentTarget.style.transform = 'scale(1)';
+        }}
+        title={isDrawingMode ? 'Desactivar herramientas de dibujo' : 'Activar herramientas de dibujo'}
+      >
+        <PenTool 
+          className="w-6 h-6 transition-transform duration-300" 
+          style={{ transform: isDrawingMode ? 'rotate(-45deg)' : 'rotate(0deg)' }}
+        />
+      </button>
+
+      {/* Canvas de dibujo */}
+      <DrawingCanvas 
+        isActive={isDrawingMode} 
+        onClose={() => setIsDrawingMode(false)} 
+      />
+
       {/* Columna de Preguntas (con scroll interno) */}
       <main className="w-full lg:w-2/3 lg:overflow-y-auto lg:pr-4">
         {quizQuestions.map((question, index) => (

@@ -31,7 +31,14 @@ class QE_Settings_API extends QE_API_Base
      * @var array
      */
     private $default_settings = [
-        'score_format' => 'percentage' // 'percentage' or 'base10'
+        'score_format' => 'percentage', // 'percentage' or 'base10'
+        'theme' => [
+            'primary' => '#3b82f6',     // Blue
+            'secondary' => '#8b5cf6',   // Purple
+            'accent' => '#f59e0b',      // Amber
+            'background' => '#ffffff',  // White
+            'dark_mode' => false
+        ]
     ];
 
     /**
@@ -80,6 +87,17 @@ class QE_Settings_API extends QE_API_Base
             [
                 'methods' => 'GET',
                 'callback' => [$this, 'get_score_format'],
+                'permission_callback' => '__return_true' // Public endpoint
+            ]
+        );
+
+        // GET /settings/theme - Get theme settings (public)
+        register_rest_route(
+            $this->namespace,
+            '/settings/theme',
+            [
+                'methods' => 'GET',
+                'callback' => [$this, 'get_theme'],
                 'permission_callback' => '__return_true' // Public endpoint
             ]
         );
@@ -148,6 +166,31 @@ class QE_Settings_API extends QE_API_Base
     }
 
     /**
+     * Get theme settings
+     *
+     * @param WP_REST_Request $request Request object
+     * @return WP_REST_Response|WP_Error
+     */
+    public function get_theme($request)
+    {
+        try {
+            $settings = get_option($this->option_name, $this->default_settings);
+            $theme = $settings['theme'] ?? $this->default_settings['theme'];
+
+            return rest_ensure_response([
+                'success' => true,
+                'data' => $theme
+            ]);
+        } catch (Exception $e) {
+            return new WP_Error(
+                'settings_fetch_error',
+                'Error al obtener configuración de tema',
+                ['status' => 500, 'error' => $e->getMessage()]
+            );
+        }
+    }
+
+    /**
      * Update settings
      *
      * @param WP_REST_Request $request Request object
@@ -164,6 +207,9 @@ class QE_Settings_API extends QE_API_Base
             if ($request->has_param('score_format')) {
                 $new_values['score_format'] = $request->get_param('score_format');
             }
+            if ($request->has_param('theme')) {
+                $new_values['theme'] = $request->get_param('theme');
+            }
 
             // Validate score_format
             if (isset($new_values['score_format'])) {
@@ -174,6 +220,34 @@ class QE_Settings_API extends QE_API_Base
                         ['status' => 400]
                     );
                 }
+            }
+
+            // Validate theme
+            if (isset($new_values['theme'])) {
+                $theme = $new_values['theme'];
+
+                // Validate color format (hex)
+                $color_fields = ['primary', 'secondary', 'accent', 'background'];
+                foreach ($color_fields as $field) {
+                    if (isset($theme[$field])) {
+                        if (!preg_match('/^#[0-9A-F]{6}$/i', $theme[$field])) {
+                            return new WP_Error(
+                                'invalid_color',
+                                "Color inválido para {$field}. Use formato hexadecimal (#RRGGBB)",
+                                ['status' => 400]
+                            );
+                        }
+                    }
+                }
+
+                // Validate dark_mode
+                if (isset($theme['dark_mode'])) {
+                    $theme['dark_mode'] = (bool) $theme['dark_mode'];
+                }
+
+                // Merge with existing theme settings
+                $current_theme = $current_settings['theme'] ?? $this->default_settings['theme'];
+                $new_values['theme'] = array_merge($current_theme, $theme);
             }
 
             // Merge with current settings

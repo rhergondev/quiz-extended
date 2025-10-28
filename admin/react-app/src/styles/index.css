@@ -11,6 +11,9 @@
 /* Importa las capas base, de componentes y de utilidades de Tailwind. */
 @import './tailwind.css';
 
+/* Importar estilos del tema personalizable */
+@import './theme.css';
+
 /*
  * Ejemplo de estilos base globales.
  * Estos se aplican a toda la aplicación para mejorar la consistencia
@@ -19,4 +22,20 @@
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Animaciones personalizadas para el canvas de dibujo */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slideDown {
+  animation: slideDown 0.3s ease-out;
 }
