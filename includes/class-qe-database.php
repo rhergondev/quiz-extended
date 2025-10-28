@@ -223,7 +223,7 @@ class QE_Database
         try {
             global $wpdb;
 
-            $table_name = $prefix . 'quiz_autosave';
+            $table_name = $prefix . 'qe_quiz_autosave';
 
             $sql = "CREATE TABLE {$table_name} (
                 autosave_id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,

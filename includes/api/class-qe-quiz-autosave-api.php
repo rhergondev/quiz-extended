@@ -398,3 +398,6 @@ class QE_Quiz_Autosave_API extends QE_API_Base
         }
     }
 }
+
+// Initialize the API
+new QE_Quiz_Autosave_API();

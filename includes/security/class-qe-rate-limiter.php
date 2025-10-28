@@ -267,6 +267,11 @@ class QE_Rate_Limiter
      */
     private function get_limit_type_for_route($route, $method)
     {
+        // ✅ EXEMPT: Quiz autosave from rate limiting - legitimate frequent operation
+        if (strpos($route, '/quiz-autosave') !== false) {
+            return false; // No rate limiting for autosave
+        }
+
         // Quiz attempts - stricter limits
         if (strpos($route, '/quiz-attempts/start') !== false) {
             return 'api_quiz_start';
