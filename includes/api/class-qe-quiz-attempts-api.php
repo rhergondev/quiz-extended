@@ -865,7 +865,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 // Convertir a entero para comparaciones consistentes
                 $answer_given = intval($answer['answer_given']);
             }
-            
+
             $is_risked = isset($answer['is_risked']) && $answer['is_risked'] === true;
 
             $options = get_post_meta($question_id, '_question_options', true);
@@ -1132,14 +1132,14 @@ class QE_Quiz_Attempts_API extends QE_API_Base
 
         foreach ($question_ids_in_quiz as $question_id) {
             $answer = $answers_map[$question_id] ?? ['question_id' => $question_id];
-            
+
             // 🔥 CORRECCIÓN: Verificar si answer_given existe y no es null
             $answer_given = null;
             if (array_key_exists('answer_given', $answer) && $answer['answer_given'] !== null) {
                 // Convertir a entero para comparaciones consistentes
                 $answer_given = intval($answer['answer_given']);
             }
-            
+
             $is_risked = isset($answer['is_risked']) && $answer['is_risked'] === true;
 
             $options = get_post_meta($question_id, '_question_options', true);
