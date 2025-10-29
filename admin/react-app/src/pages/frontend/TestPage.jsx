@@ -19,6 +19,18 @@ const TestPage = () => {
       available: true
     },
     {
+      id: 'library',
+      title: 'Biblioteca de Cuestionarios',
+      description: 'Accede a todos los cuestionarios disponibles organizados por curso y lección',
+      icon: BookOpen,
+      iconColor: 'text-indigo-500',
+      bgColor: 'bg-indigo-50',
+      hoverBg: 'hover:bg-indigo-100',
+      borderColor: 'border-indigo-200',
+      route: '/test/library',
+      available: true
+    },
+    {
       id: 'practice',
       title: 'Modo Práctica',
       description: 'Practica con preguntas aleatorias sin límite de tiempo ni penalizaciones',
@@ -31,18 +43,6 @@ const TestPage = () => {
       available: true
     },
     {
-      id: 'exams',
-      title: 'Exámenes Oficiales',
-      description: 'Realiza exámenes completos con las condiciones y tiempos del examen real',
-      icon: ClipboardList,
-      iconColor: 'text-red-500',
-      bgColor: 'bg-red-50',
-      hoverBg: 'hover:bg-red-100',
-      borderColor: 'border-red-200',
-      route: '/test/official-exams',
-      available: false
-    },
-    {
       id: 'history',
       title: 'Historial de Tests',
       description: 'Consulta todos tus intentos anteriores y revisa tus respuestas',
@@ -52,18 +52,6 @@ const TestPage = () => {
       hoverBg: 'hover:bg-green-100',
       borderColor: 'border-green-200',
       route: '/test/history',
-      available: false
-    },
-    {
-      id: 'library',
-      title: 'Biblioteca de Cuestionarios',
-      description: 'Accede a todos los cuestionarios disponibles organizados por curso y lección',
-      icon: BookOpen,
-      iconColor: 'text-indigo-500',
-      bgColor: 'bg-indigo-50',
-      hoverBg: 'hover:bg-indigo-100',
-      borderColor: 'border-indigo-200',
-      route: '/test/library',
       available: true
     }
   ];

@@ -44,7 +44,7 @@ const MessagesManager = () => {
     computed,
     updating,
     hasNewMessages,
-    updateMessage,
+    updateMessageStatus,
     fetchMessages,
     requestNotificationPermission
   } = useMessages({
@@ -72,28 +72,32 @@ const MessagesManager = () => {
 
     return [
       {
-        label: 'Total Messages',
+        label: 'Total Mensajes',
         value: totalMessages,
         icon: MessageSquare,
-        iconColor: 'text-blue-500'
+        iconColor: 'text-indigo-600',
+        bgColor: 'bg-indigo-50'
       },
       {
-        label: 'Unread',
+        label: 'Sin Leer',
         value: unreadMessages,
         icon: Mail,
-        iconColor: 'text-red-500'
+        iconColor: 'text-red-600',
+        bgColor: 'bg-red-50'
       },
       {
-        label: 'Feedback',
+        label: 'Dudas',
         value: feedbackMessages,
         icon: MessageCircle,
-        iconColor: 'text-green-500'
+        iconColor: 'text-blue-600',
+        bgColor: 'bg-blue-50'
       },
       {
-        label: 'Challenges',
+        label: 'Impugnaciones',
         value: challengeMessages,
         icon: Flag,
-        iconColor: 'text-orange-500'
+        iconColor: 'text-orange-600',
+        bgColor: 'bg-orange-50'
       }
     ];
   }, [computed]);
@@ -109,9 +113,9 @@ const MessagesManager = () => {
     
     // Mark as read if unread
     if (message.status === 'unread') {
-      updateMessage(message.id, { status: 'read' });
+      updateMessageStatus(message.id, 'read');
     }
-  }, [updateMessage]);
+  }, [updateMessageStatus]);
 
   const handleCloseDetailModal = useCallback(() => {
     setIsDetailModalOpen(false);
@@ -120,11 +124,11 @@ const MessagesManager = () => {
 
   const handleStatusChange = useCallback(async (messageId, newStatus) => {
     try {
-      await updateMessage(messageId, { status: newStatus });
+      await updateMessageStatus(messageId, newStatus);
     } catch (error) {
       console.error('Error updating message status:', error);
     }
-  }, [updateMessage]);
+  }, [updateMessageStatus]);
 
   // --- SEARCH CONFIG ---
   const searchConfig = {
@@ -137,17 +141,17 @@ const MessagesManager = () => {
 
   // --- FILTERS CONFIG ---
   const statusOptions = [
-    { value: 'all', label: 'All Statuses' },
-    { value: 'unread', label: 'Unread' },
-    { value: 'read', label: 'Read' },
-    { value: 'resolved', label: 'Resolved' },
-    { value: 'archived', label: 'Archived' }
+    { value: 'all', label: 'Todos los Estados' },
+    { value: 'unread', label: 'Sin Leer' },
+    { value: 'read', label: 'Leídos' },
+    { value: 'resolved', label: 'Resueltos' },
+    { value: 'archived', label: 'Archivados' }
   ];
 
   const typeOptions = [
-    { value: 'all', label: 'All Types' },
-    { value: 'question_feedback', label: 'Feedback' },
-    { value: 'question_challenge', label: 'Challenge' }
+    { value: 'all', label: 'Todos los Tipos' },
+    { value: 'question_feedback', label: 'Dudas' },
+    { value: 'question_challenge', label: 'Impugnaciones' }
   ];
 
   const filtersConfig = [
@@ -172,8 +176,8 @@ const MessagesManager = () => {
     <div className="space-y-6 p-6">
       {/* Header with Stats */}
       <PageHeader
-        title="Messages"
-        description="Manage student feedback and question challenges"
+        title="Mensajería"
+        description="Gestiona dudas, impugnaciones y mensajes a estudiantes"
         stats={statsCards}
         isLoading={isFiltering || isSearching}
         primaryAction={{
@@ -185,25 +189,25 @@ const MessagesManager = () => {
 
       {/* New Messages Notification Banner */}
       {hasNewMessages && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="flex-shrink-0">
-              <CheckCircle className="w-5 h-5 text-blue-500" />
+              <CheckCircle className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <h3 className="text-sm font-medium text-blue-800">
-                New messages available
+              <h3 className="text-sm font-medium text-indigo-900">
+                Nuevos mensajes disponibles
               </h3>
-              <p className="text-sm text-blue-600">
-                Click refresh to see the latest messages
+              <p className="text-sm text-indigo-700">
+                Haz clic en actualizar para ver los últimos mensajes
               </p>
             </div>
           </div>
           <button
             onClick={handleRefresh}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
           >
-            Refresh Now
+            Actualizar Ahora
           </button>
         </div>
       )}

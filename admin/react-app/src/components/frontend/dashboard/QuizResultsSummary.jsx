@@ -8,15 +8,22 @@ import useMultipleQuizRankings from '../../../hooks/useMultipleQuizRankings';
 import { useScoreFormat } from '../../../contexts/ScoreFormatContext';
 import { Award, BookOpen, Calendar, CheckCircle, XCircle, TrendingUp, TrendingDown, ExternalLink, Eye } from 'lucide-react';
 
-const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn = true }) => {
+const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn = true, limitedView = false }) => {
   const { attempts, loading, error } = useQuizAttempts();
   const navigate = useNavigate();
   const { formatScore } = useScoreFormat();
 
   // Filtrar intentos si se especifica un quizId
-  const filteredAttempts = quizId 
-    ? attempts.filter(a => parseInt(a.quiz_id) === parseInt(quizId)).slice(0, maxResults || 5)
+  let filteredAttempts = quizId 
+    ? attempts.filter(a => parseInt(a.quiz_id) === parseInt(quizId))
     : attempts;
+  
+  // Aplicar límite si está en modo limitado o si se especifica maxResults
+  if (limitedView) {
+    filteredAttempts = filteredAttempts.slice(0, 5);
+  } else if (maxResults) {
+    filteredAttempts = filteredAttempts.slice(0, maxResults);
+  }
 
   // Obtener lista única de quiz IDs de los intentos filtrados
   const uniqueQuizIds = [...new Set(filteredAttempts.map(a => a.quiz_id))];

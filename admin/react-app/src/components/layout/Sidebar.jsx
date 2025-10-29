@@ -4,11 +4,19 @@ import { useTranslation } from 'react-i18next';
 import {
   Home, Calendar, FileText, BookOpen, Video, User, LogOut, ChevronLeft, ChevronRight, Menu, X
 } from 'lucide-react';
+import useUserInbox from '../../hooks/useUserInbox';
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const { t } = useTranslation();
+  
+  // Get unread messages count
+  const { messages, loading: loadingMessages } = useUserInbox({
+    enablePolling: true,
+    pollingInterval: 30000
+  });
+  const unreadCount = messages.filter(msg => msg.status === 'unread').length;
 
   const userName = window.qe_data?.user?.name;
   const userEmail = window.qe_data?.user?.email;
@@ -62,8 +70,16 @@ const Sidebar = () => {
             title={isCollapsed ? item.text : ''}
             onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
           >
-            <item.icon className="w-6 h-6" />
-            {!isCollapsed && <span className="ml-4 text-lg">{item.text}</span>}
+            <div className="flex items-center relative">
+              <item.icon className="w-6 h-6" />
+              {!isCollapsed && <span className="ml-4 text-lg">{item.text}</span>}
+              {/* Show badge next to "Mi Escritorio" if there are unread messages */}
+              {item.to === '/' && unreadCount > 0 && (
+                <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
           </NavLink>
         ))}
       </nav>

@@ -229,17 +229,6 @@ const PracticeResults = ({ questions, answers, onBackToConfig }) => {
           })}
         </div>
       </div>
-
-      {/* Acciones */}
-      <div className="flex justify-center">
-        <button
-          onClick={onBackToConfig}
-          className="inline-flex items-center px-8 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all shadow-lg"
-        >
-          <RotateCcw className="w-5 h-5 mr-2" />
-          Nueva Práctica
-        </button>
-      </div>
     </div>
   );
 };

@@ -305,7 +305,8 @@ final class QE_Loader
 
         $admin_files = [
             'admin_menu' => 'admin/class-qe-admin-menu.php',
-            'admin_assets' => 'admin/class-qe-assets.php'
+            'admin_assets' => 'admin/class-qe-assets.php',
+            'menu_badge' => 'includes/class-qe-menu-badge.php'
         ];
 
         foreach ($admin_files as $name => $file) {
@@ -348,6 +349,11 @@ final class QE_Loader
                 if (class_exists('QE_Assets')) {
                     new QE_Assets();
                     $this->loaded_components['admin_assets_initialized'] = true;
+                }
+
+                if (class_exists('QE_Menu_Badge')) {
+                    QE_Menu_Badge::instance();
+                    $this->loaded_components['menu_badge_initialized'] = true;
                 }
             }
 

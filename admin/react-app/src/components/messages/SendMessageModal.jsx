@@ -6,9 +6,11 @@ import { makeApiRequest } from '../../api/services/baseService';
 import { getApiConfig } from '../../api/config/apiConfig';
 
 const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
-  const [recipientType, setRecipientType] = useState('all'); // 'all' or 'specific'
+  const [recipientType, setRecipientType] = useState('all'); // 'all', 'specific', 'course'
   const [selectedUsers, setSelectedUsers] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState('');
   const [users, setUsers] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -17,11 +19,15 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingCourses, setLoadingCourses] = useState(false);
 
   // Fetch users when modal opens
   useEffect(() => {
     if (isOpen && recipientType === 'specific') {
       fetchUsers();
+    }
+    if (isOpen && recipientType === 'course') {
+      fetchCourses();
     }
   }, [isOpen, recipientType]);
 
@@ -40,6 +46,21 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
     }
   };
 
+  const fetchCourses = async () => {
+    setLoadingCourses(true);
+    try {
+      const config = getApiConfig();
+      const url = `${config.endpoints.courses}?per_page=100`;
+      const response = await makeApiRequest(url);
+      setCourses(response.data || []);
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+      setError('Error al cargar cursos');
+    } finally {
+      setLoadingCourses(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -53,6 +74,11 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
       return;
     }
 
+    if (recipientType === 'course' && !selectedCourse) {
+      setError('Selecciona un curso');
+      return;
+    }
+
     setSending(true);
     setError('');
 
@@ -60,7 +86,14 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
       const config = getApiConfig();
       const url = `${config.endpoints.custom_api}/messages/send`;
 
-      const recipient_ids = recipientType === 'all' ? ['all'] : selectedUsers;
+      let recipient_ids;
+      if (recipientType === 'all') {
+        recipient_ids = ['all'];
+      } else if (recipientType === 'course') {
+        recipient_ids = [`course:${selectedCourse}`];
+      } else {
+        recipient_ids = selectedUsers;
+      }
 
       await makeApiRequest(url, {
         method: 'POST',
@@ -92,6 +125,7 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
   const resetForm = () => {
     setRecipientType('all');
     setSelectedUsers([]);
+    setSelectedCourse('');
     setSubject('');
     setMessage('');
     setMessageType('announcement');
@@ -151,33 +185,75 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Destinatarios
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <button
                     type="button"
                     onClick={() => setRecipientType('all')}
-                    className={`p-4 border-2 rounded-lg flex items-center justify-center space-x-2 transition-colors ${
+                    className={`p-4 border-2 rounded-lg flex flex-col items-center justify-center space-y-2 transition-colors ${
                       recipientType === 'all'
                         ? 'border-blue-600 bg-blue-50 text-blue-700'
                         : 'border-gray-300 hover:border-gray-400'
                     }`}
                   >
                     <Users className="w-5 h-5" />
-                    <span className="font-medium">Todos los usuarios</span>
+                    <span className="font-medium text-sm text-center">Todos los usuarios</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecipientType('course')}
+                    className={`p-4 border-2 rounded-lg flex flex-col items-center justify-center space-y-2 transition-colors ${
+                      recipientType === 'course'
+                        ? 'border-blue-600 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    <span className="font-medium text-sm text-center">Usuarios de un curso</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setRecipientType('specific')}
-                    className={`p-4 border-2 rounded-lg flex items-center justify-center space-x-2 transition-colors ${
+                    className={`p-4 border-2 rounded-lg flex flex-col items-center justify-center space-y-2 transition-colors ${
                       recipientType === 'specific'
                         ? 'border-blue-600 bg-blue-50 text-blue-700'
                         : 'border-gray-300 hover:border-gray-400'
                     }`}
                   >
                     <User className="w-5 h-5" />
-                    <span className="font-medium">Usuarios específicos</span>
+                    <span className="font-medium text-sm text-center">Usuarios específicos</span>
                   </button>
                 </div>
               </div>
+
+              {/* Course Selection */}
+              {recipientType === 'course' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Seleccionar curso
+                  </label>
+                  {loadingCourses ? (
+                    <div className="flex items-center justify-center py-4 text-gray-500">
+                      <Loader className="w-5 h-5 animate-spin mr-2" />
+                      Cargando cursos...
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedCourse}
+                      onChange={(e) => setSelectedCourse(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Selecciona un curso...</option>
+                      {courses.map((course) => (
+                        <option key={course.id} value={course.id}>
+                          {course.title?.rendered || course.title}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
 
               {/* User Selection */}
               {recipientType === 'specific' && (

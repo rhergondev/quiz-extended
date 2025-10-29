@@ -265,11 +265,36 @@ const useMessages = (options = {}) => {
       if (!mountedRef.current) return;
 
       const updatedMessage = response.data; // La API devuelve el objeto actualizado
+      
+      console.log('� Updating message ID:', messageId, 'Type:', typeof messageId);
+      console.log('�📦 API Response:', updatedMessage);
+      console.log('📦 Updated message ID:', updatedMessage.id, 'Type:', typeof updatedMessage.id);
+      console.log('📦 Updated status:', updatedMessage.status);
 
       // Update local state
-      setMessages(prev =>
-        prev.map(msg => msg.id === messageId ? { ...msg, ...updatedMessage } : msg)
-      );
+      setMessages(prev => {
+        console.log('📋 Current messages:', prev.map(m => ({ id: m.id, idType: typeof m.id, status: m.status })));
+        
+        const updated = prev.map(msg => {
+          // Use loose equality to handle string/number comparison
+          if (msg.id == messageId) {
+            const merged = { ...msg, ...updatedMessage };
+            console.log('🔄 Merging message:', { 
+              msgId: msg.id, 
+              msgIdType: typeof msg.id,
+              updateId: messageId,
+              updateIdType: typeof messageId,
+              oldStatus: msg.status, 
+              newStatus: updatedMessage.status, 
+              mergedStatus: merged.status 
+            });
+            return merged;
+          }
+          return msg;
+        });
+        console.log('📋 Updated messages array:', updated.map(m => ({ id: m.id, status: m.status })));
+        return updated;
+      });
 
       // Notify WordPress to update menu badge
       if (window.jQuery) {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ChevronDown, ChevronUp, Info, TrendingDown } from 'lucide-react';
 
 const Question = ({ 
   question, 
@@ -16,12 +16,23 @@ const Question = ({
   showCorrectAnswer = false,
   isPracticeMode = false
 }) => {
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [showStats, setShowStats] = useState(false);
 
   if (!question) {
     return null;
   }
 
   const { id, title, meta } = question;
+  
+  // Log para verificar isPracticeMode
+  console.log(`📋 Question ${id} - Props:`, { 
+    isPracticeMode, 
+    hasExplanation: !!meta?._question_explanation,
+    hasStats: meta?._question_fail_rate !== undefined,
+    disabled,
+    isSubmitted
+  });
   
   // Manejar tanto title.rendered como title directo
   const questionTitle = typeof title === 'object' && title?.rendered ? title.rendered : title;
@@ -30,6 +41,16 @@ const Question = ({
 
   // Handler unificado para cambios de respuesta
   const handleAnswerSelect = (questionId, optionId) => {
+    console.log('🔘 Question.jsx - Selección de respuesta:', { 
+      questionId, 
+      optionId, 
+      tipoQuestionId: typeof questionId,
+      tipoOptionId: typeof optionId,
+      isPracticeMode,
+      hasOnAnswerChange: !!onAnswerChange,
+      hasOnSelectAnswer: !!onSelectAnswer
+    });
+    
     if (isPracticeMode && onAnswerChange) {
       onAnswerChange(optionId);
     } else if (onSelectAnswer) {
@@ -52,6 +73,16 @@ const Question = ({
           <div className="space-y-3">
             {options.map((option, optionIndex) => {
               const isSelected = selectedAnswer !== null && selectedAnswer !== undefined && option.id === selectedAnswer;
+              
+              console.log(`🎨 Renderizando opción ${option.id} de pregunta ${id}:`, {
+                optionId: option.id,
+                selectedAnswer,
+                isSelected,
+                tipoOptionId: typeof option.id,
+                tipoSelectedAnswer: typeof selectedAnswer,
+                comparacionEstricta: option.id === selectedAnswer,
+                comparacionLaxa: option.id == selectedAnswer
+              });
               
               const selectionStyle = isSelected 
                 ? 'border-2'
@@ -90,6 +121,84 @@ const Question = ({
               );
             })}
           </div>
+          
+          {/* Explanation Section - Solo en modo práctica o modo zen */}
+          {isPracticeMode && (
+            <div className="mt-4 border-t pt-4">
+              <button
+                onClick={() => setShowExplanation(!showExplanation)}
+                className="flex items-center justify-between w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  <Info className="w-5 h-5 text-blue-600" />
+                  <span className="text-sm font-semibold text-blue-900">
+                    Explicación de la respuesta
+                  </span>
+                </div>
+                {showExplanation ? (
+                  <ChevronUp className="w-5 h-5 text-blue-600" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-blue-600" />
+                )}
+              </button>
+              
+              {showExplanation && (
+                <div className="mt-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {meta?._question_explanation || 'No hay explicación disponible para esta pregunta aún.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Statistics Section - Solo en modo práctica o modo zen */}
+          {isPracticeMode && (
+            <div className="mt-4">
+              <button
+                onClick={() => setShowStats(!showStats)}
+                className="flex items-center justify-between w-full text-left p-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  <TrendingDown className="w-5 h-5 text-orange-600" />
+                  <span className="text-sm font-semibold text-orange-900">
+                    Estadísticas de la pregunta
+                  </span>
+                </div>
+                {showStats ? (
+                  <ChevronUp className="w-5 h-5 text-orange-600" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-orange-600" />
+                )}
+              </button>
+              
+              {showStats && (
+                <div className="mt-3 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                  {meta?._question_fail_rate !== undefined ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">
+                          Porcentaje de usuarios que fallan esta pregunta:
+                        </span>
+                        <span className="text-lg font-bold text-orange-700">
+                          {meta._question_fail_rate}%
+                        </span>
+                      </div>
+                      {meta._question_fail_rate > 50 && (
+                        <p className="mt-2 text-xs text-orange-600">
+                          ⚠️ Esta es una pregunta difícil - más de la mitad de los estudiantes la fallan
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-600">
+                      No hay suficientes datos estadísticos para esta pregunta aún.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           
           {/* Checkbox de Riesgo y Botón de Limpiar */}
           {selectedAnswer !== null && selectedAnswer !== undefined && !isSubmitted && !isPracticeMode && onToggleRisk && onClearAnswer && (

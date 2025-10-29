@@ -176,15 +176,29 @@ class QE_Menu_Badge
 
                     currentCount = count;
 
-                    // Find menu item - adapted for hash routing structure
-                    // Look for the submenu item that contains #/messages
-                    const $menuItem = $('#toplevel_page_quiz-extended-lms')
+                    // Find menu item - try multiple selectors for robustness
+                    let $menuItem = $('#adminmenu #toplevel_page_quiz-extended-lms')
                         .find('.wp-submenu a[href*="#/messages"]');
 
+                    // Fallback: try without the admin menu wrapper
                     if (!$menuItem.length) {
-                        console.log('QE Badge: Messages menu item not found');
+                        $menuItem = $('.wp-submenu a[href*="quiz-extended-lms"][href*="#/messages"]');
+                    }
+
+                    // Final fallback: any submenu item with messages in the href
+                    if (!$menuItem.length) {
+                        $menuItem = $('a[href*="quiz-extended-lms#/messages"]');
+                    }
+
+                    if (!$menuItem.length) {
+                        console.log('QE Badge: Messages menu item not found. Selectors tried:');
+                        console.log('  - #toplevel_page_quiz-extended-lms .wp-submenu a[href*="#/messages"]');
+                        console.log('  - .wp-submenu a[href*="quiz-extended-lms"][href*="#/messages"]');
+                        console.log('  - a[href*="quiz-extended-lms#/messages"]');
                         return;
                     }
+
+                    console.log('QE Badge: Found menu item:', $menuItem.attr('href'));
 
                     // Remove existing badges
                     $menuItem.find('.awaiting-mod, .update-plugins').remove();
@@ -208,6 +222,8 @@ class QE_Menu_Badge
                         }
 
                         console.log('QE Badge: Updated to ' + count);
+                    } else {
+                        console.log('QE Badge: Count is 0, badge removed');
                     }
                 }
 
@@ -260,6 +276,12 @@ class QE_Menu_Badge
 
                 // Initial load
                 $(document).ready(function () {
+                    console.log('QE Badge: Initializing...');
+                    console.log('QE Badge: Looking for menu structure...');
+                    console.log('  Main menu:', $('#toplevel_page_quiz-extended-lms').length ? 'Found' : 'NOT FOUND');
+                    console.log('  Submenu:', $('#toplevel_page_quiz-extended-lms .wp-submenu').length ? 'Found' : 'NOT FOUND');
+                    console.log('  Messages link:', $('#toplevel_page_quiz-extended-lms .wp-submenu a[href*="#/messages"]').length ? 'Found' : 'NOT FOUND');
+
                     fetchCount();
                     console.log('QE Badge: Initialized');
                 });
@@ -326,6 +348,3 @@ class QE_Menu_Badge
         wp_send_json_success(['count' => $count]);
     }
 }
-
-// Initialize
-QE_Menu_Badge::instance();

@@ -15,7 +15,7 @@ const StatisticsBar = ({ stats = [], className = '' }) => {
   }
 
   // Define dynamically the number of columns to make it responsive
-  const gridCols = `grid-cols-2 md:grid-cols-3 lg:grid-cols-${Math.min(stats.length, 6)}`;
+  const gridCols = `grid-cols-2 md:grid-cols-4 lg:grid-cols-${Math.min(stats.length, 6)}`;
 
   return (
     <div className={`grid ${gridCols} gap-4 ${className}`}>

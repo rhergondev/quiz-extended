@@ -2,7 +2,7 @@
 
 import React from 'react';
 import QuizResultsSummary from '../../components/frontend/dashboard/QuizResultsSummary';
-import UserInbox from '../../components/frontend/dashboard/UserInbox';
+import SimpleUserInbox from '../../components/frontend/dashboard/SimpleUserInbox';
 import PendingQuizAlert from '../../components/frontend/dashboard/PendingQuizAlert';
 
 const DashboardPage = () => {
@@ -23,11 +23,13 @@ const DashboardPage = () => {
         {/* Pending Quiz Alert - Shows if user has incomplete quiz */}
         <PendingQuizAlert />
 
-        {/* User Messages Inbox */}
-        <UserInbox />
-
-        {/* Quiz Results Summary */}
-        <QuizResultsSummary />
+        {/* User Messages Inbox (simplified) */}
+        <div id="user-inbox-section">
+          <SimpleUserInbox />
+        </div>
+        
+        {/* Quiz Results Summary - Limited to 5 most recent */}
+        <QuizResultsSummary limitedView={true} />
       </main>
     </div>
   );

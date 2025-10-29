@@ -162,7 +162,12 @@ const Quiz = ({ quizId, customQuiz = null }) => {
   };
 
   const handleSelectAnswer = (questionId, answerId) => {
-    setUserAnswers(prev => ({ ...prev, [questionId]: answerId }));
+    console.log('🎯 Seleccionando respuesta:', { questionId, answerId, tipo: typeof answerId });
+    setUserAnswers(prev => {
+      const newAnswers = { ...prev, [questionId]: answerId };
+      console.log('📝 Estado actualizado de respuestas:', newAnswers);
+      return newAnswers;
+    });
   };
 
   const handleToggleRisk = (questionId) => {
@@ -190,11 +195,21 @@ const Quiz = ({ quizId, customQuiz = null }) => {
       }
       setQuizState('submitting');
 
-      const formattedAnswers = quizQuestions.map(q => ({
+      console.log('📊 Estado de respuestas antes de formatear:', userAnswers);
+      console.log('📋 Preguntas del cuestionario:', quizQuestions.map(q => ({ id: q.id, title: q.title })));
+
+      const formattedAnswers = quizQuestions.map(q => {
+        const hasAnswer = userAnswers.hasOwnProperty(q.id);
+        const answerGiven = hasAnswer ? userAnswers[q.id] : null;
+        console.log(`❓ Pregunta ${q.id}:`, { hasAnswer, answerGiven, isRisked: riskedAnswers.includes(q.id) });
+        return {
           question_id: q.id,
-          answer_given: userAnswers.hasOwnProperty(q.id) ? userAnswers[q.id] : null,
+          answer_given: answerGiven,
           is_risked: riskedAnswers.includes(q.id)
-      }));
+        };
+      });
+
+      console.log('📤 Respuestas formateadas para enviar:', formattedAnswers);
 
       try {
           let result;
@@ -209,6 +224,8 @@ const Quiz = ({ quizId, customQuiz = null }) => {
           } else {
               result = await submitQuizAttempt(attemptId, formattedAnswers);
           }
+          
+          console.log('✅ Resultado recibido:', result);
           
           // Limpiar autoguardado después de completar exitosamente
           if (quizId && !customQuiz) {
@@ -297,6 +314,7 @@ const Quiz = ({ quizId, customQuiz = null }) => {
             onToggleRisk={handleToggleRisk}
             onClearAnswer={handleClearAnswer}
             isSubmitted={quizState === 'submitted' || quizState === 'submitting'}
+            isPracticeMode={true}
           />
         ))}
       </main>

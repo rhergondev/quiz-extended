@@ -264,6 +264,8 @@ class QE_Messages_API extends QE_API_Base
 
             // Detect if the message should be sent to all users
             $send_to_all = false;
+            $send_to_course = false;
+            $course_id = null;
 
             if (!empty($recipient_ids)) {
                 $first = $recipient_ids[0];
@@ -272,10 +274,18 @@ class QE_Messages_API extends QE_API_Base
                     $send_to_all = true;
                 } elseif (in_array('all', $recipient_ids, true) || in_array('ALL', $recipient_ids, true)) {
                     $send_to_all = true;
+                } elseif (is_string($first) && strpos($first, 'course:') === 0) {
+                    // Detect course:{id} format
+                    $send_to_course = true;
+                    $course_id = absint(str_replace('course:', '', $first));
                 }
             }
 
-            $this->log_info('Send to all detection', ['send_to_all' => $send_to_all]);
+            $this->log_info('Send to detection', [
+                'send_to_all' => $send_to_all,
+                'send_to_course' => $send_to_course,
+                'course_id' => $course_id
+            ]);
 
             if ($send_to_all) {
                 // Get ALL users
@@ -300,6 +310,38 @@ class QE_Messages_API extends QE_API_Base
 
 
                 $this->log_info('Converted to IDs', [
+                    'recipient_ids_count' => count($recipient_ids),
+                    'recipient_ids_sample' => array_slice($recipient_ids, 0, 10)
+                ]);
+            } elseif ($send_to_course && $course_id > 0) {
+                // Get ALL users enrolled in the course
+                global $wpdb;
+
+                $enrolled_users = $wpdb->get_col($wpdb->prepare(
+                    "SELECT user_id FROM {$wpdb->usermeta} 
+                    WHERE meta_key = %s AND meta_value = %s",
+                    '_enrolled_course_' . $course_id,
+                    '1'
+                ));
+
+                $this->log_info('Fetched enrolled users for course', [
+                    'course_id' => $course_id,
+                    'total_enrolled' => count($enrolled_users),
+                    'users_sample' => array_slice($enrolled_users, 0, 5)
+                ]);
+
+                if (empty($enrolled_users)) {
+                    $this->log_error('No enrolled users found for course', ['course_id' => $course_id]);
+                    return $this->error_response(
+                        'no_enrolled_users',
+                        'No hay estudiantes matriculados en este curso. El mensaje no se ha enviado.',
+                        400
+                    );
+                }
+
+                $recipient_ids = array_map('absint', $enrolled_users);
+
+                $this->log_info('Converted enrolled users to IDs', [
                     'recipient_ids_count' => count($recipient_ids),
                     'recipient_ids_sample' => array_slice($recipient_ids, 0, 10)
                 ]);
@@ -623,6 +665,18 @@ class QE_Messages_API extends QE_API_Base
             $query_params = array_merge($params, [$per_page, $offset]);
             $messages = $wpdb->get_results($wpdb->prepare($query, $query_params), ARRAY_A);
 
+            // Convert numeric fields to integers for each message
+            foreach ($messages as &$message) {
+                $message['id'] = (int) $message['id'];
+                $message['sender_id'] = (int) $message['sender_id'];
+                $message['recipient_id'] = (int) $message['recipient_id'];
+                $message['parent_id'] = (int) $message['parent_id'];
+                if ($message['related_object_id']) {
+                    $message['related_object_id'] = (int) $message['related_object_id'];
+                }
+            }
+            unset($message); // Break the reference
+
             // Calculate pagination
             $total_pages = ceil($total / $per_page);
 
@@ -666,6 +720,15 @@ class QE_Messages_API extends QE_API_Base
 
             if (!$message) {
                 return $this->error_response('not_found', 'Mensaje no encontrado.', 404);
+            }
+
+            // Convert numeric fields to integers
+            $message['id'] = (int) $message['id'];
+            $message['sender_id'] = (int) $message['sender_id'];
+            $message['recipient_id'] = (int) $message['recipient_id'];
+            $message['parent_id'] = (int) $message['parent_id'];
+            if ($message['related_object_id']) {
+                $message['related_object_id'] = (int) $message['related_object_id'];
             }
 
             return $this->success_response($message);
@@ -761,6 +824,17 @@ class QE_Messages_API extends QE_API_Base
                  WHERE m.id = %d",
                 $message_id
             ), ARRAY_A);
+
+            // Convert numeric fields to integers
+            if ($updated_message) {
+                $updated_message['id'] = (int) $updated_message['id'];
+                $updated_message['sender_id'] = (int) $updated_message['sender_id'];
+                $updated_message['recipient_id'] = (int) $updated_message['recipient_id'];
+                $updated_message['parent_id'] = (int) $updated_message['parent_id'];
+                if ($updated_message['related_object_id']) {
+                    $updated_message['related_object_id'] = (int) $updated_message['related_object_id'];
+                }
+            }
 
             $this->log_info('Message updated successfully', [
                 'message_id' => $message_id,

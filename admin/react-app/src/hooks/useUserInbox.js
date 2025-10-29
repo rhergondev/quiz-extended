@@ -144,6 +144,37 @@ const useUserInbox = (options = {}) => {
     }
   }, [messages, markAsRead]);
 
+  // --- DELETE MESSAGE ---
+  const deleteMessage = useCallback(async (messageId) => {
+    if (!mountedRef.current) return;
+
+    try {
+      const config = getApiConfig();
+      const url = `${config.endpoints.custom_api}/messages/${messageId}`;
+
+      console.log(`🗑️ Deleting message ${messageId}`);
+
+      await makeApiRequest(url, { method: 'DELETE' });
+
+      if (!mountedRef.current) return;
+
+      // Update local state - remove message
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+
+      // Update unread count if was unread
+      const deletedMessage = messages.find(m => m.id === messageId);
+      if (deletedMessage && deletedMessage.status === 'unread') {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+
+      console.log('✅ Message deleted');
+
+    } catch (err) {
+      console.error('❌ Error deleting message:', err);
+      throw err;
+    }
+  }, [messages]);
+
   // --- POLLING ---
   const startPolling = useCallback(() => {
     if (!enablePolling || pollingTimerRef.current) return;
@@ -215,6 +246,7 @@ const useUserInbox = (options = {}) => {
     fetchMessages,
     markAsRead,
     markAllAsRead,
+    deleteMessage,
     startPolling,
     stopPolling
   };

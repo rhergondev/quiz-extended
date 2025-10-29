@@ -859,7 +859,13 @@ class QE_Quiz_Attempts_API extends QE_API_Base
         foreach ($question_ids_in_quiz as $question_id) {
             $answer = $answers_map[$question_id] ?? ['question_id' => $question_id];
 
-            $answer_given = isset($answer['answer_given']) ? $this->security->validate_string($answer['answer_given'], 255) : null;
+            // 🔥 CORRECCIÓN: Verificar si answer_given existe y no es null
+            $answer_given = null;
+            if (array_key_exists('answer_given', $answer) && $answer['answer_given'] !== null) {
+                // Convertir a entero para comparaciones consistentes
+                $answer_given = intval($answer['answer_given']);
+            }
+            
             $is_risked = isset($answer['is_risked']) && $answer['is_risked'] === true;
 
             $options = get_post_meta($question_id, '_question_options', true);
@@ -871,8 +877,9 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             if (is_array($options)) {
                 foreach ($options as $option) {
                     if (isset($option['isCorrect']) && $option['isCorrect']) {
-                        $correct_answer_id = isset($option['id']) ? $option['id'] : null;
-                        if ($answer_given !== null && isset($option['id']) && $option['id'] == $answer_given) {
+                        $correct_answer_id = isset($option['id']) ? intval($option['id']) : null;
+                        // 🔥 CORRECCIÓN: Comparación estricta con valores enteros
+                        if ($answer_given !== null && isset($option['id']) && intval($option['id']) === $answer_given) {
                             $is_correct = true;
                         }
                         break;
@@ -1125,7 +1132,14 @@ class QE_Quiz_Attempts_API extends QE_API_Base
 
         foreach ($question_ids_in_quiz as $question_id) {
             $answer = $answers_map[$question_id] ?? ['question_id' => $question_id];
-            $answer_given = isset($answer['answer_given']) ? $this->security->validate_string($answer['answer_given'], 255) : null;
+            
+            // 🔥 CORRECCIÓN: Verificar si answer_given existe y no es null
+            $answer_given = null;
+            if (array_key_exists('answer_given', $answer) && $answer['answer_given'] !== null) {
+                // Convertir a entero para comparaciones consistentes
+                $answer_given = intval($answer['answer_given']);
+            }
+            
             $is_risked = isset($answer['is_risked']) && $answer['is_risked'] === true;
 
             $options = get_post_meta($question_id, '_question_options', true);
@@ -1137,8 +1151,9 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             if (is_array($options)) {
                 foreach ($options as $option) {
                     if (isset($option['isCorrect']) && $option['isCorrect']) {
-                        $correct_answer_id = isset($option['id']) ? $option['id'] : null;
-                        if ($answer_given !== null && isset($option['id']) && $option['id'] == $answer_given) {
+                        $correct_answer_id = isset($option['id']) ? intval($option['id']) : null;
+                        // 🔥 CORRECCIÓN: Comparación estricta con valores enteros
+                        if ($answer_given !== null && isset($option['id']) && intval($option['id']) === $answer_given) {
                             $is_correct = true;
                         }
                         break;
@@ -1150,7 +1165,8 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 $correct_answers++;
                 $earned_points_actual += 1;
                 $earned_points_hypothetical += 1;
-            } else {
+            } elseif ($answer_given !== null) {
+                // Solo penalizar si la pregunta fue contestada INCORRECTAMENTE
                 $earned_points_hypothetical -= $penalty;
                 if (!$is_risked) {
                     $earned_points_actual -= $penalty;
