@@ -226,7 +226,7 @@ class QE_Student_Progress_API extends QE_API_Base
 
             // Calculate progress
             $progress_percentage = $this->calculate_course_progress($user_id, $course_id);
-            
+
             // Get last activity
             $last_activity = get_user_meta($user_id, "_course_{$course_id}_last_activity", true);
 
@@ -288,7 +288,7 @@ class QE_Student_Progress_API extends QE_API_Base
             );
 
             // Format results
-            $formatted = array_map(function($item) {
+            $formatted = array_map(function ($item) {
                 return [
                     'content_id' => (int) $item->content_id,
                     'content_type' => $item->content_type,
