@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader, AlertTriangle, Inbox } from 'lucide-react';
 import useCourses from '../../hooks/useCourses';
-import CourseCard from '../../components/frontend/CourseCard';
+import CourseProgressCard from '../../components/frontend/CourseProgressCard';
 
 const PageState = ({ icon: Icon, title, message }) => (
   <div className="text-center py-16">
@@ -33,26 +33,29 @@ const CoursesPage = () => {
     }
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="space-y-6">
         {courses.map(course => (
-          <CourseCard key={course.id} course={course} />
+          <CourseProgressCard key={course.id} course={course} />
         ))}
       </div>
     );
   };
 
   return (
-    // CAMBIO: Contenedor único con fondo gris claro y padding reducido para ocupar más espacio.
-    <div className="bg-gray-100 p-4 h-[97vh] w-full overflow-y-auto">
+    // Contenedor con fondo gris claro y scroll vertical
+    <div className="bg-gray-100 p-6 h-[97vh] w-full overflow-y-auto">
       
-      {/* La cabecera ya no necesita su propio fondo, pero le añadimos un borde inferior para separar. */}
-      <header className="border-b border-gray-200 pb-4 mb-6">
+      {/* Cabecera */}
+      <header className="border-b border-gray-200 pb-4 mb-8">
         <h1 className="text-3xl font-bold text-gray-900">
           {t('courses.title')}
         </h1>
+        <p className="text-gray-600 mt-2">
+          Gestiona tu progreso y accede rápidamente a tus lecciones
+        </p>
       </header>
       
-      {/* El contenido principal (tarjetas) va dentro del mismo contenedor gris. */}
+      {/* Contenido principal */}
       <main>
         {renderContent()}
       </main>

@@ -51,6 +51,38 @@ class QE_Student_Progress_API extends QE_API_Base
             ]
         );
 
+        // Get course progress
+        $this->register_secure_route(
+            '/student-progress/course/(?P<course_id>\d+)',
+            WP_REST_Server::READABLE,
+            'get_course_progress',
+            [
+                'validation_schema' => [
+                    'course_id' => [
+                        'required' => true,
+                        'type' => 'integer',
+                        'minimum' => 1
+                    ]
+                ]
+            ]
+        );
+
+        // Get completed content for a course
+        $this->register_secure_route(
+            '/student-progress/completed/(?P<course_id>\d+)',
+            WP_REST_Server::READABLE,
+            'get_completed_content',
+            [
+                'validation_schema' => [
+                    'course_id' => [
+                        'required' => true,
+                        'type' => 'integer',
+                        'minimum' => 1
+                    ]
+                ]
+            ]
+        );
+
         // Toggle favorite question
         $this->register_secure_route(
             '/favorite-questions/toggle',
@@ -152,6 +184,123 @@ class QE_Student_Progress_API extends QE_API_Base
 
         } catch (Exception $e) {
             $this->log_error('Exception in mark_content_complete', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return $this->error_response(
+                'internal_error',
+                __('An unexpected error occurred. Please try again.', 'quiz-extended'),
+                500
+            );
+        }
+    }
+
+    // ============================================================
+    // GET COURSE PROGRESS
+    // ============================================================
+
+    /**
+     * Get course progress for current user
+     *
+     * @param WP_REST_Request $request Request object
+     * @return WP_REST_Response|WP_Error Response
+     */
+    public function get_course_progress(WP_REST_Request $request)
+    {
+        try {
+            $user_id = get_current_user_id();
+            $course_id = $request->get_param('course_id');
+
+            // Log API call
+            $this->log_api_call('/student-progress/course', [
+                'user_id' => $user_id,
+                'course_id' => $course_id
+            ]);
+
+            // Check course access
+            $access_check = $this->check_course_access($course_id);
+            if (is_wp_error($access_check)) {
+                return $access_check;
+            }
+
+            // Calculate progress
+            $progress_percentage = $this->calculate_course_progress($user_id, $course_id);
+            
+            // Get last activity
+            $last_activity = get_user_meta($user_id, "_course_{$course_id}_last_activity", true);
+
+            return $this->success_response([
+                'course_id' => (int) $course_id,
+                'percentage' => $progress_percentage,
+                'last_activity' => $last_activity ?: null
+            ]);
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in get_course_progress', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return $this->error_response(
+                'internal_error',
+                __('An unexpected error occurred. Please try again.', 'quiz-extended'),
+                500
+            );
+        }
+    }
+
+    // ============================================================
+    // GET COMPLETED CONTENT
+    // ============================================================
+
+    /**
+     * Get completed content for a course
+     *
+     * @param WP_REST_Request $request Request object
+     * @return WP_REST_Response|WP_Error Response
+     */
+    public function get_completed_content(WP_REST_Request $request)
+    {
+        try {
+            $user_id = get_current_user_id();
+            $course_id = $request->get_param('course_id');
+
+            // Log API call
+            $this->log_api_call('/student-progress/completed', [
+                'user_id' => $user_id,
+                'course_id' => $course_id
+            ]);
+
+            // Check course access
+            $access_check = $this->check_course_access($course_id);
+            if (is_wp_error($access_check)) {
+                return $access_check;
+            }
+
+            // Get completed content
+            $completed = $this->db_get_results(
+                "SELECT content_id, content_type, status, last_viewed 
+                 FROM {$this->get_table('student_progress')} 
+                 WHERE user_id = %d AND course_id = %d AND status = 'completed'
+                 ORDER BY last_viewed DESC",
+                [$user_id, $course_id]
+            );
+
+            // Format results
+            $formatted = array_map(function($item) {
+                return [
+                    'content_id' => (int) $item->content_id,
+                    'content_type' => $item->content_type,
+                    'status' => $item->status,
+                    'completed_at' => $item->last_viewed
+                ];
+            }, $completed ?: []);
+
+            return $this->success_response($formatted);
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in get_completed_content', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
