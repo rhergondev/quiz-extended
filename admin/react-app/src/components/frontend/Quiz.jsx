@@ -314,7 +314,7 @@ const Quiz = ({ quizId, customQuiz = null }) => {
             onToggleRisk={handleToggleRisk}
             onClearAnswer={handleClearAnswer}
             isSubmitted={quizState === 'submitted' || quizState === 'submitting'}
-            isPracticeMode={true}
+            showRiskSelector={true}
           />
         ))}
       </main>

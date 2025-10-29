@@ -14,7 +14,8 @@ const Question = ({
   isSubmitted,
   disabled = false,
   showCorrectAnswer = false,
-  isPracticeMode = false
+  isPracticeMode = false,
+  showRiskSelector = false // Nueva prop para controlar el selector de riesgo
 }) => {
   const [showExplanation, setShowExplanation] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -200,8 +201,8 @@ const Question = ({
             </div>
           )}
           
-          {/* Checkbox de Riesgo y Botón de Limpiar */}
-          {selectedAnswer !== null && selectedAnswer !== undefined && !isSubmitted && !isPracticeMode && onToggleRisk && onClearAnswer && (
+          {/* Checkbox de Riesgo y Botón de Limpiar - CORREGIDO: usar showRiskSelector */}
+          {selectedAnswer !== null && selectedAnswer !== undefined && !isSubmitted && showRiskSelector && onToggleRisk && onClearAnswer && (
             <div className="mt-6 border-t pt-4 flex items-center justify-between">
                 <label className="flex items-center cursor-pointer group">
                     <input
