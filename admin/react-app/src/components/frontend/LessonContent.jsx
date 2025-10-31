@@ -13,7 +13,7 @@ const LessonContent = ({ lesson }) => {
   // Si no hay ninguna lección seleccionada, muestra un mensaje
   if (!lesson) {
     return (
-      <div className="flex-grow lg:w-2/3 p-8 flex flex-col items-center justify-center text-center bg-white rounded-lg shadow-md">
+      <div className="flex-grow lg:w-2/3 p-8 flex flex-col items-center justify-center text-center rounded-lg shadow-md">
         <BookOpen className="w-16 h-16 text-gray-300 mb-4" />
         <h2 className="text-2xl font-semibold text-gray-700">Selecciona una lección</h2>
         <p className="text-gray-500 mt-2">Elige una lección de la lista para ver su contenido aquí.</p>
@@ -25,7 +25,7 @@ const LessonContent = ({ lesson }) => {
   const steps = meta?._lesson_steps || [];
 
   return (
-    <div className="flex-grow lg:w-2/3 p-6 bg-white rounded-lg shadow-md">
+    <div className="flex-grow lg:w-2/3 p-6 rounded-lg shadow-md">
       {/* Título de la lección */}
       <h1 className="text-3xl font-bold text-gray-800 mb-4">{title}</h1>
       

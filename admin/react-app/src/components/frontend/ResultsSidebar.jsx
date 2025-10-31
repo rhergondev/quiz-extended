@@ -12,7 +12,7 @@ const StatBox = ({ label, value, icon: Icon, colorClass = 'bg-gray-100 text-gray
   </div>
 );
 
-const ResultsSidebar = ({ result }) => {
+const ResultsSidebar = ({ result, questions }) => {
   const { formatScore } = useScoreFormat();
   
   if (!result) {
@@ -28,10 +28,30 @@ const ResultsSidebar = ({ result }) => {
     return `${m}:${s}`;
   };
 
+  const scrollToQuestion = (displayIndex) => {
+    const element = document.getElementById(`question-${displayIndex}`);
+    if (element) {
+      element.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+      // Añadir un efecto visual temporal
+      element.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2');
+      setTimeout(() => {
+        element.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2');
+      }, 2000);
+    }
+  };
+
+  // Ordenar los resultados según el orden de las preguntas
+  const orderedResults = questions 
+    ? questions.map(q => detailed_results.find(r => r.question_id === q.id)).filter(Boolean)
+    : detailed_results;
+
   return (
-    <aside className="lg:w-80 w-full flex-shrink-0">
-      <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">Resumen de Resultados</h3>
+    <aside className="w-full">
+      <div className="sticky top-4 qe-bg-background p-4 rounded-lg border qe-border-primary shadow-sm max-h-[calc(100vh-2rem)] overflow-y-auto">
+        <h3 className="text-lg font-semibold qe-text-primary mb-4 text-center">Resumen de Resultados</h3>
 
         <div className="grid grid-cols-1 gap-3 mb-6">
           {/* 🔥 CORRECCIÓN: Se han invertido las etiquetas y los valores para que coincidan con la lógica. */}
@@ -39,25 +59,25 @@ const ResultsSidebar = ({ result }) => {
             label="Puntuación"
             value={formatScore(score)}
             icon={Award}
-            colorClass="bg-blue-50 text-blue-800"
+            colorClass="qe-bg-primary-light qe-text-primary"
           />
           <StatBox
             label="Puntuación (con riesgo)"
             value={formatScore(score_with_risk)}
             icon={Zap}
-            colorClass="bg-yellow-50 text-yellow-800"
+            colorClass="qe-bg-accent-light qe-text-accent"
           />
           <StatBox
             label="Tiempo Empleado"
             value={formatTime(duration_seconds)}
             icon={Clock}
-            colorClass="bg-gray-100 text-gray-800"
+            colorClass="qe-bg-primary-light qe-text-primary"
           />
         </div>
 
         <h4 className="text-sm font-semibold text-gray-700 mb-2">Mapa de Preguntas</h4>
         <div className="grid grid-cols-10 gap-1.5 p-2 bg-gray-50 rounded-lg">
-          {detailed_results && detailed_results.map((res, index) => {
+          {orderedResults && orderedResults.map((res, index) => {
             // Determinar si la pregunta fue contestada
             const wasAnswered = res.answer_given !== null;
             
@@ -92,7 +112,8 @@ const ResultsSidebar = ({ result }) => {
             return (
               <div
                 key={res.question_id}
-                className={`w-full h-7 rounded text-xs font-bold transition-colors flex items-center justify-center ${boxStyle}`}
+                onClick={() => scrollToQuestion(index + 1)}
+                className={`w-full h-7 rounded text-xs font-bold transition-colors flex items-center justify-center cursor-pointer hover:opacity-80 leading-none ${boxStyle}`}
                 title={title}
               >
                 {index + 1}

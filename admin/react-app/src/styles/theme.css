@@ -50,44 +50,53 @@
 }
 
 /* Clases de utilidad usando variables del tema */
-.qe-btn-primary {
+.qe-btn-primary,
+button.qe-btn-primary {
   background-color: var(--qe-primary) !important;
   color: white !important;
   border: none !important;
 }
 
-.qe-btn-primary:hover {
+.qe-btn-primary:hover,
+button.qe-btn-primary:hover {
   background-color: var(--qe-primary-hover) !important;
 }
 
-.qe-btn-secondary {
+.qe-btn-secondary,
+button.qe-btn-secondary {
   background-color: var(--qe-secondary) !important;
   color: white !important;
   border: none !important;
 }
 
-.qe-btn-secondary:hover {
+.qe-btn-secondary:hover,
+button.qe-btn-secondary:hover {
   background-color: var(--qe-secondary-hover) !important;
 }
 
-.qe-btn-accent {
+.qe-btn-accent,
+button.qe-btn-accent {
   background-color: var(--qe-accent) !important;
   color: white !important;
   border: none !important;
 }
 
-.qe-btn-accent:hover {
+.qe-btn-accent:hover,
+button.qe-btn-accent:hover {
   background-color: var(--qe-accent-hover) !important;
 }
 
-.qe-btn-ghost {
-  background-color: transparent !important;
-  color: var(--qe-text) !important;
-  border: 1px solid var(--qe-border) !important;
+.qe-btn-ghost,
+button.qe-btn-ghost {
+  background-color: var(--qe-primary) !important;
+  color: white !important;
+  border: none !important;
 }
 
-.qe-btn-ghost:hover {
-  background-color: var(--qe-bg-hover) !important;
+.qe-btn-ghost:hover,
+button.qe-btn-ghost:hover {
+  background-color: var(--qe-accent) !important;
+  color: white !important;
 }
 
 .qe-text-primary {
@@ -227,17 +236,33 @@
 }
 
 /* Sobrescribir estilos de Elementor y otros temas */
+.qe-lms-app button,
 #qe-app button,
+.qe-lms-app a.button,
 #qe-app a.button,
+.qe-lms-app .btn,
 #qe-app .btn {
   all: unset;
   box-sizing: border-box;
 }
 
 /* Asegurar que nuestros botones mantengan el estilo */
+.qe-lms-app .qe-btn-primary,
+.qe-lms-app button.qe-btn-primary,
 #qe-app .qe-btn-primary,
+#qe-app button.qe-btn-primary,
+.qe-lms-app .qe-btn-secondary,
+.qe-lms-app button.qe-btn-secondary,
 #qe-app .qe-btn-secondary,
-#qe-app .qe-btn-accent {
+#qe-app button.qe-btn-secondary,
+.qe-lms-app .qe-btn-accent,
+.qe-lms-app button.qe-btn-accent,
+#qe-app .qe-btn-accent,
+#qe-app button.qe-btn-accent,
+.qe-lms-app .qe-btn-ghost,
+.qe-lms-app button.qe-btn-ghost,
+#qe-app .qe-btn-ghost,
+#qe-app button.qe-btn-ghost {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -248,13 +273,356 @@
   transition: all 0.2s;
 }
 
+/* Reforzar colores de botones primary */
+.qe-lms-app .qe-btn-primary,
+.qe-lms-app button.qe-btn-primary,
+#qe-app .qe-btn-primary,
+#qe-app button.qe-btn-primary {
+  background-color: var(--qe-primary) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.qe-lms-app .qe-btn-primary:hover,
+.qe-lms-app button.qe-btn-primary:hover,
+#qe-app .qe-btn-primary:hover,
+#qe-app button.qe-btn-primary:hover {
+  background-color: var(--qe-primary-hover) !important;
+}
+
+/* Reforzar colores de botones secondary */
+.qe-lms-app .qe-btn-secondary,
+.qe-lms-app button.qe-btn-secondary,
+#qe-app .qe-btn-secondary,
+#qe-app button.qe-btn-secondary {
+  background-color: var(--qe-secondary) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.qe-lms-app .qe-btn-secondary:hover,
+.qe-lms-app button.qe-btn-secondary:hover,
+#qe-app .qe-btn-secondary:hover,
+#qe-app button.qe-btn-secondary:hover {
+  background-color: var(--qe-secondary-hover) !important;
+}
+
+/* Reforzar colores de botones accent */
+.qe-lms-app .qe-btn-accent,
+.qe-lms-app button.qe-btn-accent,
+#qe-app .qe-btn-accent,
+#qe-app button.qe-btn-accent {
+  background-color: var(--qe-accent) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.qe-lms-app .qe-btn-accent:hover,
+.qe-lms-app button.qe-btn-accent:hover,
+#qe-app .qe-btn-accent:hover,
+#qe-app button.qe-btn-accent:hover {
+  background-color: var(--qe-accent-hover) !important;
+}
+
+/* Reforzar colores de botones ghost */
+.qe-lms-app .qe-btn-ghost,
+.qe-lms-app button.qe-btn-ghost,
+#qe-app .qe-btn-ghost,
+#qe-app button.qe-btn-ghost {
+  background-color: var(--qe-primary) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.qe-lms-app .qe-btn-ghost:hover,
+.qe-lms-app button.qe-btn-ghost:hover,
+#qe-app .qe-btn-ghost:hover,
+#qe-app button.qe-btn-ghost:hover {
+  background-color: var(--qe-accent) !important;
+  color: white !important;
+}
+
 /* Proteger contra resets de Elementor */
+.qe-lms-app *,
 #qe-app * {
   box-sizing: border-box;
 }
 
+.qe-lms-app button:focus,
+.qe-lms-app a:focus,
 #qe-app button:focus,
 #qe-app a:focus {
   outline: 2px solid var(--qe-primary);
   outline-offset: 2px;
+}
+
+/* ========================================
+   🎨 FASE 1 - CLASES DE UTILIDAD EXPANDIDAS
+   ======================================== */
+
+/* Accent backgrounds */
+.qe-bg-accent,
+.qe-lms-app .qe-bg-accent,
+#qe-app .qe-bg-accent {
+  background-color: var(--qe-accent) !important;
+}
+
+.qe-bg-accent-light,
+.qe-lms-app .qe-bg-accent-light,
+#qe-app .qe-bg-accent-light {
+  background-color: var(--qe-accent-light) !important;
+}
+
+/* Text colors */
+.qe-text,
+.qe-lms-app .qe-text,
+#qe-app .qe-text {
+  color: var(--qe-text) !important;
+}
+
+.qe-text-on-primary,
+.qe-lms-app .qe-text-on-primary,
+#qe-app .qe-text-on-primary {
+  color: white !important;
+}
+
+.qe-text-on-secondary,
+.qe-lms-app .qe-text-on-secondary,
+#qe-app .qe-text-on-secondary {
+  color: white !important;
+}
+
+.qe-text-on-accent,
+.qe-lms-app .qe-text-on-accent,
+#qe-app .qe-text-on-accent {
+  color: white !important;
+}
+
+/* Focus rings (compatibles con Tailwind) */
+.qe-ring-primary,
+.qe-lms-app .qe-ring-primary,
+#qe-app .qe-ring-primary {
+  --tw-ring-color: var(--qe-primary) !important;
+  box-shadow: 0 0 0 3px var(--qe-primary-light) !important;
+}
+
+.qe-ring-secondary,
+.qe-lms-app .qe-ring-secondary,
+#qe-app .qe-ring-secondary {
+  --tw-ring-color: var(--qe-secondary) !important;
+  box-shadow: 0 0 0 3px var(--qe-secondary-light) !important;
+}
+
+.qe-ring-accent,
+.qe-lms-app .qe-ring-accent,
+#qe-app .qe-ring-accent {
+  --tw-ring-color: var(--qe-accent) !important;
+  box-shadow: 0 0 0 3px var(--qe-accent-light) !important;
+}
+
+/* Borders */
+.qe-border,
+.qe-lms-app .qe-border,
+#qe-app .qe-border {
+  border-color: var(--qe-border) !important;
+}
+
+/* Hover states con transición */
+.qe-hover-primary,
+.qe-lms-app .qe-hover-primary,
+#qe-app .qe-hover-primary {
+  transition: background-color 0.2s ease;
+}
+
+.qe-hover-primary:hover,
+.qe-lms-app .qe-hover-primary:hover,
+#qe-app .qe-hover-primary:hover {
+  background-color: var(--qe-primary-hover) !important;
+}
+
+.qe-hover-secondary,
+.qe-lms-app .qe-hover-secondary,
+#qe-app .qe-hover-secondary {
+  transition: background-color 0.2s ease;
+}
+
+.qe-hover-secondary:hover,
+.qe-lms-app .qe-hover-secondary:hover,
+#qe-app .qe-hover-secondary:hover {
+  background-color: var(--qe-secondary-hover) !important;
+}
+
+.qe-hover-accent,
+.qe-lms-app .qe-hover-accent,
+#qe-app .qe-hover-accent {
+  transition: background-color 0.2s ease;
+}
+
+.qe-hover-accent:hover,
+.qe-lms-app .qe-hover-accent:hover,
+#qe-app .qe-hover-accent:hover {
+  background-color: var(--qe-accent-hover) !important;
+}
+
+/* Hover para fondos claros */
+.qe-hover-light-primary:hover,
+.qe-lms-app .qe-hover-light-primary:hover,
+#qe-app .qe-hover-light-primary:hover {
+  background-color: var(--qe-primary-light) !important;
+}
+
+.qe-hover-light-secondary:hover,
+.qe-lms-app .qe-hover-light-secondary:hover,
+#qe-app .qe-hover-light-secondary:hover {
+  background-color: var(--qe-secondary-light) !important;
+}
+
+.qe-hover-light-accent:hover,
+.qe-lms-app .qe-hover-light-accent:hover,
+#qe-app .qe-hover-light-accent:hover {
+  background-color: var(--qe-accent-light) !important;
+}
+
+/* Badge styles */
+.qe-badge-primary,
+.qe-lms-app .qe-badge-primary,
+#qe-app .qe-badge-primary {
+  background-color: var(--qe-primary) !important;
+  color: white !important;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.qe-badge-secondary,
+.qe-lms-app .qe-badge-secondary,
+#qe-app .qe-badge-secondary {
+  background-color: var(--qe-secondary) !important;
+  color: white !important;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.qe-badge-accent,
+.qe-lms-app .qe-badge-accent,
+#qe-app .qe-badge-accent {
+  background-color: var(--qe-accent) !important;
+  color: white !important;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Badge light variants */
+.qe-badge-primary-light,
+.qe-lms-app .qe-badge-primary-light,
+#qe-app .qe-badge-primary-light {
+  background-color: var(--qe-primary-light) !important;
+  color: var(--qe-primary) !important;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.qe-badge-secondary-light,
+.qe-lms-app .qe-badge-secondary-light,
+#qe-app .qe-badge-secondary-light {
+  background-color: var(--qe-secondary-light) !important;
+  color: var(--qe-secondary) !important;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.qe-badge-accent-light,
+.qe-lms-app .qe-badge-accent-light,
+#qe-app .qe-badge-accent-light {
+  background-color: var(--qe-accent-light) !important;
+  color: var(--qe-accent) !important;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Dividers con color del tema */
+.qe-divider-primary,
+.qe-lms-app .qe-divider-primary,
+#qe-app .qe-divider-primary {
+  border-color: var(--qe-primary) !important;
+}
+
+.qe-divider-secondary,
+.qe-lms-app .qe-divider-secondary,
+#qe-app .qe-divider-secondary {
+  border-color: var(--qe-secondary) !important;
+}
+
+/* Links con color del tema */
+.qe-link-primary,
+.qe-lms-app .qe-link-primary,
+#qe-app .qe-link-primary {
+  color: var(--qe-primary) !important;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.qe-link-primary:hover,
+.qe-lms-app .qe-link-primary:hover,
+#qe-app .qe-link-primary:hover {
+  color: var(--qe-primary-hover) !important;
+}
+
+/* Input y Select con estilos del tema */
+.qe-input-primary,
+.qe-lms-app .qe-input-primary,
+#qe-app .qe-input-primary {
+  border-color: var(--qe-border) !important;
+}
+
+.qe-input-primary:focus,
+.qe-lms-app .qe-input-primary:focus,
+#qe-app .qe-input-primary:focus {
+  border-color: var(--qe-primary) !important;
+  box-shadow: 0 0 0 3px var(--qe-primary-light) !important;
+  outline: none !important;
+}
+
+/* Skeleton loaders con tema */
+.qe-skeleton-primary,
+.qe-lms-app .qe-skeleton-primary,
+#qe-app .qe-skeleton-primary {
+  background: linear-gradient(
+    90deg,
+    var(--qe-primary-light) 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    var(--qe-primary-light) 100%
+  );
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+/* ========================================
+   🎨 SIDEBAR - FORZAR COLORES DEL TEMA
+   ======================================== */
+
+/* Forzar background en el sidebar */
+.qe-sidebar-wrapper,
+.qe-lms-app .qe-sidebar-wrapper,
+#qe-app .qe-sidebar-wrapper {
+  background-color: var(--qe-background) !important;
 }

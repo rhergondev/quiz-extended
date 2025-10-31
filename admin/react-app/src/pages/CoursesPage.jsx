@@ -104,7 +104,7 @@ const CoursesPage = () => {
         label: 'Total Courses',
         value: totalCourses,
         icon: BookOpen,
-        iconColor: 'text-blue-500'
+        iconColor: 'qe-icon-primary'
       },
       {
         label: 'Average Price',
@@ -122,13 +122,13 @@ const CoursesPage = () => {
         label: 'Free Courses',
         value: freeCourses,
         icon: Target,
-        iconColor: 'text-blue-400'
+        iconColor: 'qe-icon-secondary'
       },
       {
         label: 'Paid Courses',
         value: paidCourses,
         icon: Trophy,
-        iconColor: 'text-yellow-500'
+        iconColor: 'qe-icon-accent'
       },
       {
         label: 'Featured',
@@ -216,7 +216,7 @@ const CoursesPage = () => {
   return (
     <div className="space-y-6">
       {/* Header with Stats */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Course Management</h1>
@@ -225,7 +225,7 @@ const CoursesPage = () => {
           <div className="flex items-center space-x-3">
             {loading && (
               <div className="flex items-center text-sm text-gray-500">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 qe-border-primary mr-2"></div>
                 Loading...
               </div>
             )}
@@ -263,7 +263,7 @@ const CoursesPage = () => {
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {/* Search Input */}
           <div className="relative">

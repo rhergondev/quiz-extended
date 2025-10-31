@@ -156,8 +156,19 @@ export const formatQuestionForDisplay = (question) => {
     return null;
   }
 
-  // 🔥 CORRECCIÓN: Nos aseguramos de capturar la explicación desde `content`.
-  const fullExplanation = (sanitized.content || sanitized.meta?._explanation || '').replace(/<p>|<\/p>/g, '').trim();
+  // 🔥 CORRECCIÓN: Accedemos a content.rendered si es un objeto, o usamos el string directamente
+  let contentText = '';
+  if (sanitized.content) {
+    if (typeof sanitized.content === 'object') {
+      contentText = sanitized.content?.rendered || '';
+    } else if (typeof sanitized.content === 'string') {
+      contentText = sanitized.content;
+    }
+  }
+  
+  // Si no hay contenido, usamos el meta _explanation
+  const explanationText = contentText || sanitized.meta?._explanation || '';
+  const fullExplanation = explanationText ? explanationText.replace(/<p>|<\/p>/g, '').trim() : '';
 
   return {
     ...sanitized,

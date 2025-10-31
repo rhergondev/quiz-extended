@@ -537,10 +537,92 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             // Update rankings
             $this->update_rankings($attempt->user_id, $attempt->course_id, $grading_result);
 
-            // Fire action hook
-            do_action('qe_quiz_attempt_submitted', $user_id, $attempt->quiz_id, $grading_result);
+            // Calculate average scores for this quiz
+            $quiz_attempts = $this->db_get_results(
+                "SELECT score, score_with_risk 
+                 FROM {$this->get_table('quiz_attempts')} 
+                 WHERE quiz_id = %d AND status = 'completed'",
+                [$attempt->quiz_id]
+            );
 
-            // Log success
+            $average_score = null;
+            $average_score_with_risk = null;
+
+            if (!empty($quiz_attempts)) {
+                $total_score = 0;
+                $total_score_with_risk = 0;
+                $count = count($quiz_attempts);
+
+                foreach ($quiz_attempts as $qa) {
+                    $total_score += floatval($qa->score);
+                    $total_score_with_risk += floatval($qa->score_with_risk);
+                }
+
+                $average_score = $total_score / $count;
+                $average_score_with_risk = $total_score_with_risk / $count;
+            }
+
+            // Calculate question statistics - count only unique users (latest attempt per user)
+            $answers_table = $this->get_table('attempt_answers');
+            $attempts_table = $this->get_table('quiz_attempts');
+            $question_ids = array_column($grading_result['detailed_results'], 'question_id');
+            $detailed_results_with_stats = [];
+
+            foreach ($grading_result['detailed_results'] as $detail) {
+                $question_id = $detail['question_id'];
+
+                // Count unique users who answered this question (using latest attempt per user)
+                $total_answers = $this->db_get_var(
+                    "SELECT COUNT(*) FROM (
+                        SELECT att.user_id
+                        FROM {$answers_table} ans
+                        INNER JOIN (
+                            SELECT user_id, MAX(attempt_id) as latest_attempt_id
+                            FROM {$attempts_table}
+                            WHERE quiz_id = %d AND status = 'completed'
+                            GROUP BY user_id
+                        ) latest ON ans.attempt_id = latest.latest_attempt_id
+                        INNER JOIN {$attempts_table} att ON ans.attempt_id = att.attempt_id
+                        WHERE ans.question_id = %d 
+                        AND ans.answer_given IS NOT NULL
+                        GROUP BY att.user_id
+                    ) AS unique_users",
+                    [$attempt->quiz_id, $question_id]
+                );
+
+                // Count unique users who answered incorrectly (using latest attempt per user)
+                $incorrect_answers = $this->db_get_var(
+                    "SELECT COUNT(*) FROM (
+                        SELECT att.user_id
+                        FROM {$answers_table} ans
+                        INNER JOIN (
+                            SELECT user_id, MAX(attempt_id) as latest_attempt_id
+                            FROM {$attempts_table}
+                            WHERE quiz_id = %d AND status = 'completed'
+                            GROUP BY user_id
+                        ) latest ON ans.attempt_id = latest.latest_attempt_id
+                        INNER JOIN {$attempts_table} att ON ans.attempt_id = att.attempt_id
+                        WHERE ans.question_id = %d 
+                        AND ans.answer_given IS NOT NULL
+                        AND ans.is_correct = 0
+                        GROUP BY att.user_id
+                    ) AS unique_incorrect_users",
+                    [$attempt->quiz_id, $question_id]
+                );
+
+                $error_percentage = 0;
+                if ($total_answers > 0) {
+                    $error_percentage = round(($incorrect_answers / $total_answers) * 100, 1);
+                }
+
+                $detailed_results_with_stats[] = array_merge($detail, [
+                    'error_percentage' => $error_percentage,
+                    'total_answers' => (int) $total_answers
+                ]);
+            }
+
+            // Fire action hook
+            do_action('qe_quiz_attempt_submitted', $user_id, $attempt->quiz_id, $grading_result);            // Log success
             $this->log_info('Quiz attempt submitted successfully', [
                 'attempt_id' => $attempt_id,
                 'user_id' => $user_id,
@@ -559,8 +641,10 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 'total_points' => $grading_result['total_points'],
                 'earned_points' => $grading_result['earned_points'],
                 'passed' => $grading_result['passed'],
-                'detailed_results' => $grading_result['detailed_results'],
-                'duration_seconds' => $duration_seconds
+                'detailed_results' => $detailed_results_with_stats,
+                'duration_seconds' => $duration_seconds,
+                'average_score' => $average_score,
+                'average_score_with_risk' => $average_score_with_risk
             ]);
 
         } catch (Exception $e) {

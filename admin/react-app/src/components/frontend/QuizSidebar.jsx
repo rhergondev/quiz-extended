@@ -32,6 +32,25 @@ const QuizSidebar = ({
   const unansweredCount = questions.length - answeredCount;
   const impugnedCount = 0;
 
+  const scrollToQuestion = (index) => {
+    const element = document.getElementById(`quiz-question-${index + 1}`);
+    if (element) {
+      element.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+      // Añadir un efecto visual temporal
+      element.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2');
+      setTimeout(() => {
+        element.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2');
+      }, 2000);
+    }
+    // También llamar a onQuestionSelect si existe
+    if (onQuestionSelect) {
+      onQuestionSelect(index);
+    }
+  };
+
   return (
     <div className="sticky top-4 w-full">
       <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
@@ -74,8 +93,8 @@ const QuizSidebar = ({
             return (
               <div
                 key={question.id}
-                onClick={() => onQuestionSelect(index)}
-                className={`w-full h-7 rounded text-xs font-bold transition-colors flex items-center justify-center ${style}`}
+                onClick={() => scrollToQuestion(index)}
+                className={`w-full h-7 rounded text-xs font-bold transition-colors flex items-center justify-center cursor-pointer hover:opacity-80 ${style}`}
               >
                 {index + 1}
               </div>

@@ -4,8 +4,9 @@ import { formatQuestionForDisplay } from '../../api/utils/questionDataUtils';
 import { useTranslation } from 'react-i18next';
 import { toggleFavoriteQuestion } from '../../api/services/favoriteService';
 import QuestionFeedbackModal from './QuestionFeedbackModal';
+import QEButton from '../common/QEButton';
 
-const ReviewedQuestion = ({ question, result, index }) => {
+const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [feedbackType, setFeedbackType] = useState('feedback');
@@ -86,51 +87,54 @@ const ReviewedQuestion = ({ question, result, index }) => {
 
   return (
     <>
-      <div className="bg-white border border-gray-200 rounded-lg mb-6 shadow-sm">
+      <div id={`question-${displayIndex || question.id}`} className="qe-bg-background border qe-border-primary rounded-lg mb-6 shadow-sm scroll-mt-6">
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
             <div className="flex-1">
               <h3
-                className="text-base text-gray-800 font-medium"
+                className="text-base qe-text-primary font-medium"
                 dangerouslySetInnerHTML={{ __html: title }}
               />
             </div>
             <div className="flex items-center space-x-2 ml-4">
               {/* Botón de Favorito */}
-              <button 
+              <QEButton 
+                variant="ghost"
                 onClick={handleToggleFavorite}
                 disabled={isTogglingFavorite}
-                className={`transition-colors ${
+                className={`transition-colors p-1 ${
                   isFavorite 
-                    ? 'text-yellow-500 hover:text-yellow-600' 
-                    : 'text-gray-400 hover:text-yellow-500'
+                    ? 'qe-text-accent hover:qe-text-accent' 
+                    : 'hover:qe-text-accent'
                 } ${isTogglingFavorite ? 'opacity-50 cursor-wait' : ''}`}
                 title="Marcar como favorita"
               >
                 <Bookmark className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
-              </button>
+              </QEButton>
               
               {/* Botón de Comentario */}
-              <button 
+              <QEButton 
+                variant="ghost"
                 onClick={() => handleOpenModal('feedback')}
-                className="text-gray-400 hover:text-blue-500" 
+                className="qe-hover-primary p-1" 
                 title="Comentario o sugerencia"
               >
                 <MessageSquare className="w-5 h-5" />
-              </button>
+              </QEButton>
 
               {/* Botón de Impugnación */}
-              <button 
+              <QEButton 
+                variant="ghost"
                 onClick={() => handleOpenModal('challenge')}
-                className="text-gray-400 hover:text-red-500" 
+                className="hover:qe-text-secondary p-1" 
                 title="Impugnar pregunta"
               >
                 <AlertTriangle className="w-5 h-5" />
-              </button>
+              </QEButton>
 
               {/* Indicador de riesgo y corrección */}
               {is_risked && (
-                <span className="flex items-center text-xs text-orange-600 font-semibold px-2 py-1 bg-orange-50 rounded" title="Marcada con riesgo">
+                <span className="flex items-center text-xs qe-text-accent font-semibold px-2 py-1 qe-bg-accent-light rounded" title="Marcada con riesgo">
                   <AlertTriangle className="w-3 h-3 mr-1" />
                   Riesgo
                 </span>
@@ -168,16 +172,20 @@ const ReviewedQuestion = ({ question, result, index }) => {
           )}
         </div>
 
-        {/* Estadísticas de error de la pregunta */}
-        {total_answers > 0 && (
-          <div className="mx-6 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <span className="font-semibold">Información de la pregunta:</span>
-              <br />
-              Esta pregunta ha sido fallada por el <span className="font-bold">{error_percentage}%</span> del alumnado.
-            </p>
-          </div>
-        )}
+        {/* Estadísticas de error de la pregunta - Siempre visible */}
+        <div className="mx-6 mb-4 p-3 qe-bg-primary-light qe-border-primary rounded-lg">
+          <p className="text-sm qe-text-primary">
+            <span className="font-semibold">Estadística de la pregunta:</span>
+            <br />
+            {total_answers > 0 ? (
+              <>
+                Esta pregunta ha sido fallada por el <span className="font-bold">{error_percentage}%</span> del alumnado ({total_answers} respuestas totales).
+              </>
+            ) : (
+              <span className="text-gray-600">No hay suficientes datos estadísticos disponibles.</span>
+            )}
+          </p>
+        </div>
 
         {/* 🔥 CAMBIO: Se usa un DIV en lugar de un BUTTON */}
         {fullExplanation && (

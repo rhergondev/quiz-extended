@@ -18,6 +18,7 @@ export const ThemeProvider = ({ children }) => {
     secondary: '#8b5cf6',
     accent: '#f59e0b',
     background: '#ffffff',
+    text: '#111827',
     dark_mode: false
   });
   const [loading, setLoading] = useState(true);
@@ -52,6 +53,7 @@ export const ThemeProvider = ({ children }) => {
     root.style.setProperty('--qe-secondary', themeData.secondary);
     root.style.setProperty('--qe-accent', themeData.accent);
     root.style.setProperty('--qe-background', themeData.background);
+    root.style.setProperty('--qe-text', themeData.text || '#111827');
     
     // Calcular colores derivados
     const primaryRGB = hexToRGB(themeData.primary);
@@ -69,14 +71,16 @@ export const ThemeProvider = ({ children }) => {
     // Modo oscuro
     if (themeData.dark_mode) {
       root.classList.add('qe-dark-mode');
-      root.style.setProperty('--qe-text', '#f3f4f6');
+      // En modo oscuro, usar el color de texto personalizado
+      root.style.setProperty('--qe-text', themeData.text || '#f3f4f6');
       root.style.setProperty('--qe-text-secondary', '#d1d5db');
       root.style.setProperty('--qe-border', '#374151');
       root.style.setProperty('--qe-bg-card', '#1f2937');
       root.style.setProperty('--qe-bg-hover', '#374151');
     } else {
       root.classList.remove('qe-dark-mode');
-      root.style.setProperty('--qe-text', '#111827');
+      // En modo claro, usar el color personalizado o el por defecto
+      root.style.setProperty('--qe-text', themeData.text || '#111827');
       root.style.setProperty('--qe-text-secondary', '#6b7280');
       root.style.setProperty('--qe-border', '#e5e7eb');
       root.style.setProperty('--qe-bg-card', '#ffffff');

@@ -17,6 +17,7 @@ const SettingsPage = () => {
     secondary: '#8b5cf6',
     accent: '#f59e0b',
     background: '#ffffff',
+    text: '#111827',
     dark_mode: false
   });
   const [loading, setLoading] = useState(false);
@@ -27,6 +28,7 @@ const SettingsPage = () => {
     secondary: '#8b5cf6',
     accent: '#f59e0b',
     background: '#ffffff',
+    text: '#111827',
     dark_mode: false
   };
 
@@ -87,36 +89,158 @@ const SettingsPage = () => {
     }
   };
 
-  const ColorPicker = ({ label, value, onChange, description }) => (
-    <div className="space-y-2">
-      <label className="block text-sm font-semibold text-gray-700">
-        {label}
-      </label>
-      {description && (
-        <p className="text-xs text-gray-500">{description}</p>
-      )}
-      <div className="flex items-center gap-3">
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-12 w-20 rounded border-2 border-gray-300 cursor-pointer"
-        />
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          pattern="^#[0-9A-Fa-f]{6}$"
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-          placeholder="#000000"
-        />
-        <div
-          className="h-12 w-32 rounded border-2 border-gray-300"
-          style={{ backgroundColor: value }}
-        />
+  const ColorPicker = ({ label, value, onChange, description }) => {
+    // Validar y normalizar el valor
+    const safeValue = value || '#000000';
+    const [tempValue, setTempValue] = React.useState(safeValue);
+    const [isOpen, setIsOpen] = React.useState(false);
+    const colorInputRef = React.useRef(null);
+    
+    // Actualizar tempValue cuando cambia el valor externo
+    React.useEffect(() => {
+      setTempValue(safeValue);
+    }, [safeValue]);
+    
+    const handleOpenPicker = () => {
+      setTempValue(safeValue);
+      setIsOpen(true);
+    };
+    
+    const handleConfirm = () => {
+      if (onChange) {
+        onChange(tempValue);
+      }
+      setIsOpen(false);
+    };
+    
+    const handleCancel = () => {
+      setTempValue(safeValue);
+      setIsOpen(false);
+    };
+    
+    const handleColorChange = (e) => {
+      setTempValue(e.target.value);
+    };
+    
+    return (
+      <div className="space-y-3">
+        <label className="block text-sm font-semibold text-gray-700">
+          {label}
+        </label>
+        {description && (
+          <p className="text-xs text-gray-500">{description}</p>
+        )}
+        <div className="flex items-center gap-4">
+          {/* Selector de color circular mejorado */}
+          <div className="relative group">
+            <button
+              type="button"
+              onClick={handleOpenPicker}
+              className="w-12 h-12 rounded-full border-4 border-white shadow-lg cursor-pointer ring-2 ring-gray-200 hover:ring-blue-400 hover:scale-105 transition-all focus:outline-none focus:ring-blue-500 relative"
+              style={{ backgroundColor: safeValue }}
+              title="Haz clic para elegir un color"
+            >
+              {/* Ícono de editar superpuesto */}
+              <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-30 rounded-full">
+                <Palette className="w-5 h-5 text-white" />
+              </span>
+            </button>
+          </div>
+          
+          {/* Input de texto */}
+          <input
+            type="text"
+            value={safeValue}
+            onChange={(e) => onChange(e.target.value)}
+            pattern="^#[0-9A-Fa-f]{6}$"
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+            placeholder="#000000"
+          />
+          
+          {/* Vista previa del color */}
+          <div className="flex items-center gap-2">
+            <div
+              className="w-8 h-8 rounded border-2 border-gray-200 shadow-sm"
+              style={{ backgroundColor: safeValue }}
+            />
+            <span className="text-xs text-gray-500 font-mono">{safeValue.toUpperCase()}</span>
+          </div>
+        </div>
+        
+        {/* Modal del selector de color */}
+        {isOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleCancel}>
+            <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                Seleccionar {label}
+              </h3>
+              <p className="text-sm text-gray-500 mb-4 flex items-center gap-2">
+                <Palette className="w-4 h-4" />
+                Haz clic o arrastra el ratón en el selector para elegir un color
+              </p>
+              
+              {/* Selector de color grande */}
+              <div className="mb-6 relative group">
+                <input
+                  ref={colorInputRef}
+                  type="color"
+                  value={tempValue}
+                  onChange={handleColorChange}
+                  onInput={handleColorChange}
+                  className="w-full h-48 cursor-crosshair rounded border-2 border-gray-300 hover:qe-border-primary transition-colors"
+                />
+                {/* Indicador visual flotante */}
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="bg-black bg-opacity-60 text-white px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+                    <Palette className="w-3 h-3" />
+                    Hacer click para elegir
+                  </div>
+                </div>
+              </div>
+              
+              {/* Vista previa y valor hex */}
+              <div className="mb-6 flex items-center gap-4">
+                <div
+                  className="w-16 h-16 rounded border-2 border-gray-300 shadow-sm"
+                  style={{ backgroundColor: tempValue }}
+                />
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Código de color
+                  </label>
+                  <input
+                    type="text"
+                    value={tempValue}
+                    onChange={handleColorChange}
+                    pattern="^#[0-9A-Fa-f]{6}$"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md qe-input-primary font-mono text-sm"
+                  />
+                </div>
+              </div>
+              
+              {/* Botones de acción */}
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  className="px-4 py-2 qe-bg-primary qe-text-on-primary rounded-md qe-hover-primary transition-colors font-medium"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   if (initialLoading) {
     return (
@@ -133,7 +257,7 @@ const SettingsPage = () => {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <Settings className="w-8 h-8 text-blue-600" />
+          <Settings className="w-8 h-8 qe-icon-primary" />
           <h1 className="text-3xl font-bold text-gray-900">Configuración</h1>
         </div>
         <p className="text-gray-600">
@@ -148,7 +272,7 @@ const SettingsPage = () => {
             onClick={() => setActiveTab('general')}
             className={`px-4 py-2 font-medium transition-colors border-b-2 ${
               activeTab === 'general'
-                ? 'text-blue-600 border-blue-600'
+                ? 'qe-text-primary qe-border-primary'
                 : 'text-gray-600 border-transparent hover:text-gray-900'
             }`}
           >
@@ -161,7 +285,7 @@ const SettingsPage = () => {
             onClick={() => setActiveTab('theme')}
             className={`px-4 py-2 font-medium transition-colors border-b-2 ${
               activeTab === 'theme'
-                ? 'text-blue-600 border-blue-600'
+                ? 'qe-text-primary qe-border-primary'
                 : 'text-gray-600 border-transparent hover:text-gray-900'
             }`}
           >
@@ -195,11 +319,11 @@ const SettingsPage = () => {
                     value="percentage"
                     checked={scoreFormat === 'percentage'}
                     onChange={(e) => setScoreFormat(e.target.value)}
-                    className="mt-1 w-5 h-5 text-blue-600"
+                    className="mt-1 w-5 h-5 qe-radio-primary"
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <Percent className="w-5 h-5 text-blue-600" />
+                      <Percent className="w-5 h-5 qe-icon-primary" />
                       <span className="font-medium text-gray-900">Porcentaje (0-100%)</span>
                     </div>
                     <p className="text-sm text-gray-600">
@@ -219,11 +343,11 @@ const SettingsPage = () => {
                     value="base10"
                     checked={scoreFormat === 'base10'}
                     onChange={(e) => setScoreFormat(e.target.value)}
-                    className="mt-1 w-5 h-5 text-blue-600"
+                    className="mt-1 w-5 h-5 qe-radio-primary"
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <Hash className="w-5 h-5 text-blue-600" />
+                      <Hash className="w-5 h-5 qe-icon-primary" />
                       <span className="font-medium text-gray-900">Base 10 (0-10)</span>
                     </div>
                     <p className="text-sm text-gray-600">
@@ -318,6 +442,12 @@ const SettingsPage = () => {
                   value={theme.background}
                   onChange={(value) => handleColorChange('background', value)}
                 />
+                <ColorPicker
+                  label="Color de Texto"
+                  description="Color principal del texto"
+                  value={theme.text}
+                  onChange={(value) => handleColorChange('text', value)}
+                />
               </div>
 
               {/* Preview Section */}
@@ -352,6 +482,16 @@ const SettingsPage = () => {
                   >
                     Fondo
                   </div>
+                  <div
+                    className="px-4 py-2 rounded-lg border font-medium"
+                    style={{
+                      backgroundColor: theme.background,
+                      borderColor: '#e5e7eb',
+                      color: theme.text
+                    }}
+                  >
+                    Texto Principal
+                  </div>
                 </div>
               </div>
             </div>
@@ -373,8 +513,8 @@ const SettingsPage = () => {
       </div>
 
       {/* Info Box */}
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
+      <div className="mt-6 qe-bg-primary-light qe-border-primary rounded-lg p-4">
+        <p className="text-sm qe-text-primary">
           <strong>Nota:</strong> Al cambiar el formato de puntuación, se aplicará 
           globalmente a toda la plataforma para todos los usuarios. La página se recargará 
           automáticamente para aplicar los cambios.

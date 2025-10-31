@@ -60,7 +60,7 @@ const Question = ({
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg mb-6 shadow-sm">
+    <div id={`quiz-question-${displayIndex}`} className="bg-white border border-gray-200 rounded-lg mb-6 shadow-sm scroll-mt-6">
       <div className="p-6">
         {/* Número de pregunta y título */}
         <div className="mb-6">
@@ -128,23 +128,23 @@ const Question = ({
             <div className="mt-4 border-t pt-4">
               <button
                 onClick={() => setShowExplanation(!showExplanation)}
-                className="flex items-center justify-between w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                className="flex items-center justify-between w-full text-left p-3 qe-bg-primary-light qe-hover-light-primary rounded-lg transition-colors"
               >
                 <div className="flex items-center space-x-2">
-                  <Info className="w-5 h-5 text-blue-600" />
-                  <span className="text-sm font-semibold text-blue-900">
+                  <Info className="w-5 h-5 qe-icon-primary" />
+                  <span className="text-sm font-semibold qe-text-primary">
                     Explicación de la respuesta
                   </span>
                 </div>
                 {showExplanation ? (
-                  <ChevronUp className="w-5 h-5 text-blue-600" />
+                  <ChevronUp className="w-5 h-5 qe-icon-primary" />
                 ) : (
-                  <ChevronDown className="w-5 h-5 text-blue-600" />
+                  <ChevronDown className="w-5 h-5 qe-icon-primary" />
                 )}
               </button>
               
               {showExplanation && (
-                <div className="mt-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="mt-3 p-4 qe-bg-primary-light qe-border-primary rounded-lg">
                   <p className="text-sm text-gray-700 leading-relaxed">
                     {meta?._question_explanation || 'No hay explicación disponible para esta pregunta aún.'}
                   </p>
