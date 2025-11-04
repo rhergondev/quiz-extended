@@ -1004,6 +1004,19 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 'is_correct' => $is_correct ? 1 : 0,
                 'is_risked' => $is_risked ? 1 : 0
             ], ['%d', '%d', '%s', '%d', '%d']);
+
+            // Update user question stats
+            $answer_status = 'unanswered';
+            if ($answer_given !== null) {
+                $answer_status = $is_correct ? 'correct' : 'incorrect';
+            }
+
+            $this->update_user_question_stats(
+                $attempt->user_id,
+                $question_id,
+                $attempt->course_id,
+                $answer_status
+            );
         }
 
         // Calcular puntuaciones finales como porcentajes
@@ -1282,6 +1295,61 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             'passed' => $passed,
             'detailed_results' => $detailed_results
         ];
+    }
+
+    /**
+     * Update user question statistics
+     *
+     * Updates or inserts the most recent answer state for a question by a user.
+     * This allows tracking of correct/incorrect/unanswered stats per question.
+     *
+     * @param int $user_id User ID
+     * @param int $question_id Question ID
+     * @param int $course_id Course ID
+     * @param string $answer_status Status: 'correct', 'incorrect', or 'unanswered'
+     * @return bool Success
+     */
+    private function update_user_question_stats($user_id, $question_id, $course_id, $answer_status)
+    {
+        global $wpdb;
+        $table_name = $this->get_table('user_question_stats');
+
+        // Check if record exists
+        $existing = $wpdb->get_row($wpdb->prepare(
+            "SELECT id FROM {$table_name} WHERE user_id = %d AND question_id = %d",
+            $user_id,
+            $question_id
+        ));
+
+        if ($existing) {
+            // Update existing record
+            return $wpdb->update(
+                $table_name,
+                [
+                    'last_answer_status' => $answer_status,
+                    'last_answered_at' => current_time('mysql')
+                ],
+                [
+                    'user_id' => $user_id,
+                    'question_id' => $question_id
+                ],
+                ['%s', '%s'],
+                ['%d', '%d']
+            ) !== false;
+        } else {
+            // Insert new record
+            return $wpdb->insert(
+                $table_name,
+                [
+                    'user_id' => $user_id,
+                    'question_id' => $question_id,
+                    'course_id' => $course_id,
+                    'last_answer_status' => $answer_status,
+                    'last_answered_at' => current_time('mysql')
+                ],
+                ['%d', '%d', '%d', '%s', '%s']
+            ) !== false;
+        }
     }
 }
 

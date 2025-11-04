@@ -63,6 +63,7 @@ class QE_Database
             $results['favorite_questions'] = self::create_favorite_questions_table($prefix, $charset_collate);
             $results['messages'] = self::create_comm_messages_table($prefix, $charset_collate);
             $results['quiz_autosave'] = self::create_quiz_autosave_table($prefix, $charset_collate);
+            $results['user_question_stats'] = self::create_user_question_stats_table($prefix, $charset_collate);
 
             // Check if all tables were created successfully
             $all_success = !in_array(false, $results, true);
@@ -461,6 +462,58 @@ class QE_Database
 
         } catch (Exception $e) {
             self::log_error('Failed to create attempt_answers table', [
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Create user question stats table
+     *
+     * Stores the most recent answer state for each question per user.
+     * Each row represents the last time a user answered a specific question.
+     *
+     * @param string $prefix Table prefix
+     * @param string $charset_collate Charset collation
+     * @return bool True if successful
+     * @since 2.0.0
+     */
+    private static function create_user_question_stats_table($prefix, $charset_collate)
+    {
+        try {
+            global $wpdb;
+
+            $table_name = $prefix . 'user_question_stats';
+
+            $sql = "CREATE TABLE $table_name (
+                id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id BIGINT(20) UNSIGNED NOT NULL,
+                question_id BIGINT(20) UNSIGNED NOT NULL,
+                course_id BIGINT(20) UNSIGNED NOT NULL,
+                last_answer_status VARCHAR(20) NOT NULL DEFAULT 'unanswered',
+                last_answered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY user_question (user_id, question_id),
+                KEY user_id (user_id),
+                KEY question_id (question_id),
+                KEY course_id (course_id),
+                KEY last_answer_status (last_answer_status),
+                KEY last_answered_at (last_answered_at)
+            ) $charset_collate;";
+
+            dbDelta($sql);
+
+            if (self::table_exists($table_name)) {
+                self::log_info("Table created: {$table_name}");
+                return true;
+            } else {
+                self::log_error("Table creation failed: {$table_name}");
+                return false;
+            }
+
+        } catch (Exception $e) {
+            self::log_error('Failed to create user_question_stats table', [
                 'error' => $e->getMessage()
             ]);
             return false;
