@@ -26,16 +26,33 @@ const QuestionStatsWidget = () => {
       try {
         const config = getApiConfig();
         const params = selectedCourseId !== 'all' ? `?course_id=${selectedCourseId}` : '';
-        const response = await makeApiRequest(`${config.apiUrl}/quiz-extended/v1/user-stats/questions${params}`);
+        const url = `${config.apiUrl}/quiz-extended/v1/user-stats/questions${params}`;
+        
+        console.log('📊 Fetching user stats from:', url);
+        const response = await makeApiRequest(url);
+        console.log('📊 User stats response:', response);
+        console.log('📊 Response data:', response.data);
+        
+        // Handle different response structures
+        const data = response.data?.data || response.data || {};
+        console.log('📊 Extracted data:', data);
         
         setStats({
-          totalQuestions: response.data.total_questions || 0,
-          correctAnswers: response.data.correct_answers || 0,
-          incorrectAnswers: response.data.incorrect_answers || 0,
-          unanswered: response.data.unanswered || 0
+          totalQuestions: data.total_questions || 0,
+          correctAnswers: data.correct_answers || 0,
+          incorrectAnswers: data.incorrect_answers || 0,
+          unanswered: data.unanswered || 0
+        });
+        
+        console.log('📊 Final stats state:', {
+          totalQuestions: data.total_questions || 0,
+          correctAnswers: data.correct_answers || 0,
+          incorrectAnswers: data.incorrect_answers || 0,
+          unanswered: data.unanswered || 0
         });
       } catch (error) {
-        console.error('Error fetching user stats:', error);
+        console.error('❌ Error fetching user stats:', error);
+        console.error('Error details:', error.response || error.message);
         setStats({
           totalQuestions: 0,
           correctAnswers: 0,
