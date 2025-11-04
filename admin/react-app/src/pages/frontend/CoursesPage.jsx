@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader, AlertTriangle, Inbox } from 'lucide-react';
 import useCourses from '../../hooks/useCourses';
-import CourseProgressCard from '../../components/frontend/CourseProgressCard';
+import CompactCourseCard from '../../components/frontend/CompactCourseCard';
 
 const PageState = ({ icon: Icon, title, message }) => (
   <div className="text-center py-16">
@@ -33,24 +33,24 @@ const CoursesPage = () => {
     }
 
     return (
-      <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {courses.map(course => (
-          <CourseProgressCard key={course.id} course={course} />
+          <CompactCourseCard key={course.id} course={course} />
         ))}
       </div>
     );
   };
 
   return (
-    // Contenedor con fondo gris claro y scroll vertical
-    <div className="bg-gray-100 p-6 h-[97vh] w-full overflow-y-auto">
+    // Contenedor con fondo y scroll vertical
+    <div className="qe-bg-primary-light p-6 h-[97vh] w-full overflow-y-auto">
       
       {/* Cabecera */}
-      <header className="border-b border-gray-200 pb-4 mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
+      <header className="border-b qe-border-primary pb-4 mb-8">
+        <h1 className="text-3xl font-bold qe-text-primary">
           {t('courses.title')}
         </h1>
-        <p className="text-gray-600 mt-2">
+        <p className="qe-text-secondary mt-2">
           Gestiona tu progreso y accede rápidamente a tus lecciones
         </p>
       </header>
