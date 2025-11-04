@@ -84,25 +84,27 @@ const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+    <div className="rounded-lg shadow-sm border qe-border-primary" style={{ backgroundColor: 'var(--qe-bg-card)' }}>
       {!quizId && (
-        <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
+        <div className="px-4 pt-4 pb-3 border-b qe-border-primary mx-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 qe-bg-primary-light rounded-lg">
+              <Award className="w-5 h-5 qe-text-primary" />
+            </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-                <Award className="w-7 h-7 mr-3 text-indigo-600" />
+              <h2 className="text-lg font-bold qe-text-primary">
                 Mis Resultados de Cuestionarios
               </h2>
-              <p className="text-sm text-gray-600 mt-1">Revisa tu progreso y compara tus notas con la media</p>
+              <p className="text-xs qe-text-secondary mt-0.5">Revisa tu progreso y compara tus notas con la media</p>
             </div>
           </div>
         </div>
       )}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto mx-4 mb-4">
         <table className="min-w-full">
           <thead>
-            <tr className="bg-gradient-to-r from-gray-50 to-slate-50 border-b-2 border-gray-200">
-              <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+            <tr className="qe-bg-primary-light border-b-2 qe-border-primary">
+              <th scope="col" className="px-6 py-4 text-left text-xs font-bold qe-text-primary uppercase tracking-wider align-middle">
                 <div className="flex items-center">
                   <Calendar className="w-4 h-4 mr-2" />
                   Fecha
@@ -110,7 +112,7 @@ const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn
               </th>
               {showCourseColumn && (
                 <>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-4 text-left text-xs font-bold qe-text-primary uppercase tracking-wider align-middle">
                     <div className="flex items-center">
                       <BookOpen className="w-4 h-4 mr-2" />
                       Curso / Cuestionario
@@ -118,29 +120,29 @@ const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn
                   </th>
                 </>
               )}
-              <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-blue-50">
+              <th scope="col" className="px-6 py-4 text-center text-xs font-bold qe-text-primary uppercase tracking-wider align-middle bg-gradient-to-br from-blue-50 to-blue-100/50">
                 <div className="flex items-center justify-center">
-                  <div className="bg-blue-100 px-3 py-1 rounded-full">
+                  <div className="qe-bg-card px-3 py-1 rounded-full">
                     Sin Riesgo
                   </div>
                 </div>
               </th>
-              <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider bg-yellow-50">
+              <th scope="col" className="px-6 py-4 text-center text-xs font-bold qe-text-primary uppercase tracking-wider align-middle bg-yellow-50">
                 <div className="flex items-center justify-center">
-                  <div className="bg-yellow-100 px-3 py-1 rounded-full">
+                  <div className="qe-bg-card px-3 py-1 rounded-full">
                     Con Riesgo
                   </div>
                 </div>
               </th>
-              <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-4 text-center text-xs font-bold qe-text-primary uppercase tracking-wider align-middle">
                 Estado
               </th>
-              <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-4 text-center text-xs font-bold qe-text-primary uppercase tracking-wider align-middle">
                 Acción
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y qe-border-primary">
             {filteredAttempts.map((attempt, index) => {
               if (!attempt || !attempt.attempt_id) {
                 return null;
@@ -152,22 +154,22 @@ const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn
               return (
                 <tr 
                   key={attempt.attempt_id} 
-                  className="hover:bg-gradient-to-r hover:from-gray-50 hover:to-slate-50 transition-all duration-200"
+                  className="hover:qe-bg-primary-light transition-all duration-200"
                 >
                   {/* Fecha */}
-                  <td className="px-6 py-5 whitespace-nowrap">
+                  <td className="px-6 py-5 whitespace-nowrap align-middle">
                     <div className="flex items-center">
-                      <div className="bg-indigo-100 p-2 rounded-lg mr-3">
-                        <Calendar className="w-4 h-4 text-indigo-600" />
+                      <div className="qe-bg-primary-light p-2 rounded-lg mr-3">
+                        <Calendar className="w-4 h-4 qe-text-primary" />
                       </div>
                       <div>
-                        <div className="text-sm font-semibold text-gray-800">
+                        <div className="text-sm font-semibold qe-text-primary">
                           {new Date(attempt.end_time).toLocaleDateString('es-ES', { 
                             day: '2-digit', 
                             month: 'short'
                           })}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs qe-text-secondary">
                           {new Date(attempt.end_time).toLocaleDateString('es-ES', { 
                             year: 'numeric'
                           })}
@@ -178,14 +180,14 @@ const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn
                   
                   {/* Curso y Cuestionario */}
                   {showCourseColumn && (
-                    <td className="px-6 py-5">
+                    <td className="px-6 py-5 align-middle">
                       <div className="space-y-2">
-                        <div className="flex items-center text-xs text-gray-500">
-                          <BookOpen className="w-3 h-3 mr-1.5 text-indigo-400" />
+                        <div className="flex items-center text-xs qe-text-secondary">
+                          <BookOpen className="w-3 h-3 mr-1.5 qe-text-primary" />
                           {attempt.courseTitle || 'Sin curso'}
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="text-sm font-medium text-gray-800 max-w-xs truncate">
+                          <div className="text-sm font-medium qe-text-primary max-w-xs truncate">
                             {attempt.quizTitle || 'Cuestionario sin título'}
                           </div>
                           <button
@@ -199,8 +201,15 @@ const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn
                                 }
                               });
                             }}
-                            className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                            className="text-white rounded p-1 transition-colors"
+                            style={{ backgroundColor: 'var(--qe-primary)' }}
                             title="Ir al cuestionario"
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+                            }}
                           >
                             <ExternalLink className="w-4 h-4" />
                           </button>
@@ -210,7 +219,7 @@ const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn
                   )}
                   
                   {/* Grupo Sin Riesgo */}
-                  <td className="px-6 py-5 text-center bg-gradient-to-br from-blue-50 to-blue-100/50">
+                  <td className="px-6 py-5 text-center align-middle bg-gradient-to-br from-blue-50 to-blue-100/50">
                     <div className="inline-flex flex-col items-center space-y-2 py-2">
                       <div className={`text-2xl font-bold ${
                         attempt.passed ? 'text-green-600' : 'text-red-600'
@@ -237,7 +246,7 @@ const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn
                   </td>
                   
                   {/* Grupo Con Riesgo */}
-                  <td className="px-6 py-5 text-center bg-gradient-to-br from-yellow-50 to-yellow-100/50">
+                  <td className="px-6 py-5 text-center align-middle bg-yellow-50">
                     <div className="inline-flex flex-col items-center space-y-2 py-2">
                       <div className={`text-2xl font-bold ${
                         attempt.passed ? 'text-green-600' : 'text-red-600'
@@ -245,7 +254,7 @@ const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn
                         {formatScore(attempt.score_with_risk)}
                       </div>
                       {showPercentiles && percentilConRiesgo !== '-' && (
-                        <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/80 shadow-sm">
+                        <div className="flex items-center gap-1 px-2 py-1 rounded-full qe-bg-card shadow-sm">
                           {parseFloat(percentilConRiesgo) > 0 ? (
                             <TrendingUp className="w-3 h-3 text-green-600" />
                           ) : parseFloat(percentilConRiesgo) < 0 ? (
@@ -254,7 +263,7 @@ const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn
                           <span className={`text-xs font-semibold ${
                             parseFloat(percentilConRiesgo) > 0 ? 'text-green-600' : 
                             parseFloat(percentilConRiesgo) < 0 ? 'text-red-600' : 
-                            'text-gray-600'
+                            'qe-text-secondary'
                           }`}>
                             {percentilConRiesgo}
                           </span>
@@ -264,25 +273,32 @@ const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn
                   </td>
                   
                   {/* Estado */}
-                  <td className="px-6 py-5 text-center">
+                  <td className="px-6 py-5 text-center align-middle">
                     {attempt.passed ? (
-                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-50 border border-green-200">
                         <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span className="text-sm font-bold text-green-700">Aprobado</span>
+                        <span className="text-sm font-bold text-green-600">Aprobado</span>
                       </div>
                     ) : (
-                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-red-50 to-rose-50 border border-red-200">
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-50 border border-red-200">
                         <XCircle className="w-4 h-4 text-red-600" />
-                        <span className="text-sm font-bold text-red-700">No Aprobado</span>
+                        <span className="text-sm font-bold text-red-600">No Aprobado</span>
                       </div>
                     )}
                   </td>
                   
                   {/* Botón Ver Detalles */}
-                  <td className="px-6 py-5 text-center">
+                  <td className="px-6 py-5 text-center align-middle">
                     <button
                       onClick={() => navigate(`/dashboard/attempts/${attempt.attempt_id}`)}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-medium rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                      className="inline-flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                      style={{ backgroundColor: 'var(--qe-primary)' }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+                      }}
                     >
                       <Eye className="w-4 h-4" />
                       Ver Detalles

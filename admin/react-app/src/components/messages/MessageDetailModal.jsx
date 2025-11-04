@@ -22,81 +22,6 @@ const MessageDetailModal = ({ message, onClose, onStatusChange, updating }) => {
     await onStatusChange(message.id, newStatus);
   };
 
-  // Función para ajustar el brillo del color
-  const adjustColorBrightness = (color, percent) => {
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-
-    const rgbToHsl = (r, g, b) => {
-      r /= 255; g /= 255; b /= 255;
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-      let h, s, l = (max + min) / 2;
-      if (max === min) {
-        h = s = 0;
-      } else {
-        const d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        switch (max) {
-          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-          case g: h = ((b - r) / d + 2) / 6; break;
-          case b: h = ((r - g) / d + 4) / 6; break;
-        }
-      }
-      return [h * 360, s * 100, l * 100];
-    };
-
-    const hslToRgb = (h, s, l) => {
-      h /= 360; s /= 100; l /= 100;
-      let r, g, b;
-      if (s === 0) {
-        r = g = b = l;
-      } else {
-        const hue2rgb = (p, q, t) => {
-          if (t < 0) t += 1;
-          if (t > 1) t -= 1;
-          if (t < 1/6) return p + (q - p) * 6 * t;
-          if (t < 1/2) return q;
-          if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-          return p;
-        };
-        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        const p = 2 * l - q;
-        r = hue2rgb(p, q, h + 1/3);
-        g = hue2rgb(p, q, h);
-        b = hue2rgb(p, q, h - 1/3);
-      }
-      return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
-    };
-
-    const [h, s, l] = rgbToHsl(r, g, b);
-    const newL = Math.max(0, Math.min(100, l + (l * percent)));
-    const [newR, newG, newB] = hslToRgb(h, s, newL);
-    return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
-  };
-
-  const isLightColor = (color) => {
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance > 0.5;
-  };
-
-  const getAdjustedPrimaryColor = () => {
-    const primaryColor = getComputedStyle(document.documentElement)
-      .getPropertyValue('--qe-primary')
-      .trim();
-    if (primaryColor && primaryColor.startsWith('#')) {
-      const isLight = isLightColor(primaryColor);
-      return adjustColorBrightness(primaryColor, isLight ? -0.05 : 0.05);
-    }
-    return primaryColor;
-  };
-
   const getTypeInfo = (type) => {
     const types = {
       question_feedback: {
@@ -134,16 +59,9 @@ const MessageDetailModal = ({ message, onClose, onStatusChange, updating }) => {
       />
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div 
-          className="rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden border-2 qe-border-primary pointer-events-auto"
-          style={{ backgroundColor: 'var(--qe-bg-card)' }}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="qe-bg-background rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden border-2 qe-border-primary pointer-events-auto">
         {/* Header */}
-        <div 
-          className="p-6 text-white"
-          style={{ backgroundColor: getAdjustedPrimaryColor() }}
-        >
+        <div className="qe-bg-gradient-primary p-6 text-white">
           <div className="flex items-start justify-between">
             <div className="flex items-start space-x-4">
               <div className={`p-3 ${typeInfo.bgColor} ${typeInfo.color} rounded-lg`}>
@@ -169,7 +87,7 @@ const MessageDetailModal = ({ message, onClose, onStatusChange, updating }) => {
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-250px)]" style={{ backgroundColor: '#FFFFFF' }}>
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-250px)]">
           {/* Meta Information */}
           <div className="grid grid-cols-2 gap-4 mb-6 p-4 qe-bg-primary-light rounded-lg">
             <div className="flex items-center space-x-2 text-sm">
@@ -224,12 +142,9 @@ const MessageDetailModal = ({ message, onClose, onStatusChange, updating }) => {
         </div>
 
         {/* Footer - Actions */}
-        <div 
-          className="border-t qe-border-primary p-6"
-          style={{ backgroundColor: getAdjustedPrimaryColor() }}
-        >
+        <div className="border-t qe-border-primary p-6 qe-bg-primary-light">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-white opacity-90">
+            <div className="text-sm qe-text-secondary">
               Message ID: {message.id}
             </div>
             <div className="flex items-center space-x-2">

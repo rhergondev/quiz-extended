@@ -83,28 +83,30 @@ const SimpleUserInbox = () => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      {/* Header con contador y controles */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+    <div className="rounded-lg h-full flex flex-col shadow-sm border qe-border-primary" style={{ backgroundColor: 'var(--qe-bg-card)' }}>
+      {/* Header compacto con contador y controles */}
+      <div className="flex items-center justify-between p-4 pb-3 border-b qe-border-primary mx-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-100 rounded-lg">
-            <Mail className="w-5 h-5 text-indigo-600" />
+          <div className="p-2 qe-bg-primary-light rounded-lg">
+            <Mail className="w-5 h-5 qe-text-primary" />
           </div>
-          <div>
-            <div className="text-sm font-medium text-gray-900">Mensajes</div>
-            <div className="text-xs text-gray-600">
-              {unreadCount > 0 ? `${unreadCount} sin leer` : 'Todo al día'}
-            </div>
-          </div>
+          <h2 className="text-lg font-bold qe-text-primary">Mensajes</h2>
         </div>
 
         {/* Controles de navegación y búsqueda */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {/* Botón búsqueda */}
           <button
             onClick={() => setShowSearch(!showSearch)}
-            className={`p-2 rounded hover:bg-white transition-colors ${showSearch ? 'bg-white text-indigo-600' : 'text-gray-600'}`}
+            className="p-1.5 rounded text-white hover:qe-bg-accent transition-all"
+            style={{ backgroundColor: 'var(--qe-primary)' }}
             title="Buscar"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+            }}
           >
             <Search className="w-4 h-4" />
           </button>
@@ -113,35 +115,56 @@ const SimpleUserInbox = () => {
           <button
             onClick={() => fetchMessages(true)}
             disabled={loading}
-            className="p-2 rounded hover:bg-white text-gray-600 transition-colors disabled:opacity-50"
+            className="p-1.5 rounded text-white hover:qe-bg-accent transition-all disabled:opacity-50"
+            style={{ backgroundColor: 'var(--qe-primary)' }}
             title="Actualizar"
+            onMouseEnter={(e) => {
+              if (!loading) e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+            }}
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
           {/* Navegación */}
           {filteredMessages.length > 0 && (
-            <div className="flex items-center gap-1 ml-2 pl-2 border-l border-gray-300">
+            <div className="flex items-center gap-1 ml-1 pl-1 border-l qe-border-primary">
               <button
                 onClick={goToPrev}
                 disabled={currentIndex === 0}
-                className="p-1.5 rounded hover:bg-white text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-1 rounded text-white hover:qe-bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                style={{ backgroundColor: 'var(--qe-primary)' }}
                 title="Anterior"
+                onMouseEnter={(e) => {
+                  if (currentIndex !== 0) e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+                }}
+                onMouseLeave={(e) => {
+                  if (currentIndex !== 0) e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+                }}
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-3.5 h-3.5" />
               </button>
               
-              <span className="text-xs text-gray-600 px-2 min-w-[60px] text-center">
-                {currentIndex + 1} de {filteredMessages.length}
+              <span className="text-xs qe-text-primary px-1.5 min-w-[50px] text-center">
+                {currentIndex + 1}/{filteredMessages.length}
               </span>
               
               <button
                 onClick={goToNext}
                 disabled={currentIndex === filteredMessages.length - 1}
-                className="p-1.5 rounded hover:bg-white text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-1 rounded text-white hover:qe-bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                style={{ backgroundColor: 'var(--qe-primary)' }}
                 title="Siguiente"
+                onMouseEnter={(e) => {
+                  if (currentIndex !== filteredMessages.length - 1) e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+                }}
+                onMouseLeave={(e) => {
+                  if (currentIndex !== filteredMessages.length - 1) e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+                }}
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
@@ -150,31 +173,62 @@ const SimpleUserInbox = () => {
 
       {/* Barra de búsqueda (colapsable) */}
       {showSearch && (
-        <div className="p-3 border-b border-gray-200 bg-gray-50">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Buscar en mensajes..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentIndex(0); // Reset al primer resultado
+        <div className="p-3 border-b qe-border-primary qe-bg-primary-light">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Buscar en mensajes..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentIndex(0); // Reset al primer resultado
+                }}
+                className="w-full pl-8 pr-8 py-1.5 text-sm border qe-border-primary rounded-lg focus:outline-none focus:ring-2 focus:qe-ring-accent qe-bg-card qe-text-primary"
+                style={{ backgroundColor: 'var(--qe-bg-card)' }}
+                autoFocus
+              />
+              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 qe-text-primary" />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2.5 top-2 text-white rounded-full p-0.5 hover:qe-bg-accent transition-all"
+                  style={{ backgroundColor: 'var(--qe-primary)' }}
+                  title="Limpiar búsqueda"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+                  }}
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              )}
+            </div>
+            
+            {/* Botón cerrar búsqueda */}
+            <button
+              onClick={() => {
+                setShowSearch(false);
+                setSearchTerm('');
               }}
-              className="w-full pl-9 pr-9 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              autoFocus
-            />
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+              className="p-1.5 rounded text-white hover:qe-bg-accent transition-all flex-shrink-0"
+              style={{ backgroundColor: 'var(--qe-primary)' }}
+              title="Cerrar búsqueda"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+              }}
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
+          
           {searchTerm && (
-            <div className="text-xs text-gray-500 mt-2">
+            <div className="text-xs qe-text-secondary mt-1.5">
               {filteredMessages.length} resultado{filteredMessages.length !== 1 ? 's' : ''}
             </div>
           )}
@@ -184,18 +238,18 @@ const SimpleUserInbox = () => {
       {/* Contenido del mensaje actual */}
       <div className="p-5">
         {error && (
-          <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">{error}</div>
+          <div className="text-sm qe-text-error qe-bg-error-light p-3 rounded-lg">{error}</div>
         )}
 
         {loading && messages.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-500" />
+          <div className="text-center py-8 qe-text-secondary">
+            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 qe-text-primary" />
             <p className="text-sm">Cargando mensajes...</p>
           </div>
         ) : filteredMessages.length === 0 ? (
           <div className="text-center py-8">
-            <Mail className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-sm text-gray-500">
+            <Mail className="w-12 h-12 qe-text-secondary mx-auto mb-3 opacity-30" />
+            <p className="text-sm qe-text-secondary">
               {searchTerm ? 'No se encontraron mensajes' : 'No tienes mensajes'}
             </p>
           </div>
@@ -204,18 +258,18 @@ const SimpleUserInbox = () => {
             {/* Encabezado del mensaje */}
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                <h3 className="text-lg font-semibold qe-text-primary mb-1">
                   {currentMessage.subject}
                 </h3>
-                <div className="flex items-center gap-3 text-xs text-gray-500">
+                <div className="flex items-center gap-3 text-xs qe-text-secondary">
                   <span>De: {currentMessage.sender_name || 'Admin'}</span>
                   <span>•</span>
                   <span>{formatDate(currentMessage.created_at)}</span>
                   {currentMessage.status === 'unread' && (
                     <>
                       <span>•</span>
-                      <span className="inline-flex items-center gap-1 text-indigo-600 font-medium">
-                        <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full"></span>
+                      <span className="inline-flex items-center gap-1 qe-text-accent font-medium">
+                        <span className="w-1.5 h-1.5 qe-bg-accent rounded-full"></span>
                         Nuevo
                       </span>
                     </>
@@ -226,8 +280,15 @@ const SimpleUserInbox = () => {
               {/* Botón borrar */}
               <button
                 onClick={handleDeleteMessage}
-                className="ml-4 p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                className="ml-4 p-2 rounded transition-all text-white"
+                style={{ backgroundColor: 'var(--qe-error, #dc2626)' }}
                 title="Borrar mensaje"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--qe-error-dark, #b91c1c)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--qe-error, #dc2626)';
+                }}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -235,9 +296,9 @@ const SimpleUserInbox = () => {
 
             {/* Cuerpo del mensaje */}
             <div className="prose prose-sm max-w-none">
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div className="qe-bg-primary-light rounded-lg p-4 border qe-border-primary">
                 <div 
-                  className="text-gray-700 leading-relaxed"
+                  className="qe-text-primary leading-relaxed"
                   dangerouslySetInnerHTML={{ __html: currentMessage.message }}
                 />
               </div>
@@ -246,7 +307,7 @@ const SimpleUserInbox = () => {
             {/* Metadatos adicionales */}
             {currentMessage.type && (
               <div className="flex items-center gap-2">
-                <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded">
+                <span className="text-xs px-2 py-1 qe-bg-primary-light qe-text-primary rounded">
                   {currentMessage.type.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())}
                 </span>
               </div>

@@ -23,81 +23,6 @@ const QuizGeneratorModal = ({
     timeLimit: 0,
   });
 
-  // Función para ajustar el brillo del color
-  const adjustColorBrightness = (color, percent) => {
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-
-    const rgbToHsl = (r, g, b) => {
-      r /= 255; g /= 255; b /= 255;
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-      let h, s, l = (max + min) / 2;
-      if (max === min) {
-        h = s = 0;
-      } else {
-        const d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        switch (max) {
-          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-          case g: h = ((b - r) / d + 2) / 6; break;
-          case b: h = ((r - g) / d + 4) / 6; break;
-        }
-      }
-      return [h * 360, s * 100, l * 100];
-    };
-
-    const hslToRgb = (h, s, l) => {
-      h /= 360; s /= 100; l /= 100;
-      let r, g, b;
-      if (s === 0) {
-        r = g = b = l;
-      } else {
-        const hue2rgb = (p, q, t) => {
-          if (t < 0) t += 1;
-          if (t > 1) t -= 1;
-          if (t < 1/6) return p + (q - p) * 6 * t;
-          if (t < 1/2) return q;
-          if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-          return p;
-        };
-        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-        const p = 2 * l - q;
-        r = hue2rgb(p, q, h + 1/3);
-        g = hue2rgb(p, q, h);
-        b = hue2rgb(p, q, h - 1/3);
-      }
-      return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
-    };
-
-    const [h, s, l] = rgbToHsl(r, g, b);
-    const newL = Math.max(0, Math.min(100, l + (l * percent)));
-    const [newR, newG, newB] = hslToRgb(h, s, newL);
-    return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
-  };
-
-  const isLightColor = (color) => {
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance > 0.5;
-  };
-
-  const getAdjustedPrimaryColor = () => {
-    const primaryColor = getComputedStyle(document.documentElement)
-      .getPropertyValue('--qe-primary')
-      .trim();
-    if (primaryColor && primaryColor.startsWith('#')) {
-      const isLight = isLightColor(primaryColor);
-      return adjustColorBrightness(primaryColor, isLight ? -0.05 : 0.05);
-    }
-    return primaryColor;
-  };
-
   const handleFilterChange = (filterName, value) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
   };
@@ -134,34 +59,20 @@ const QuizGeneratorModal = ({
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* Overlay oscuro */}
-      <div 
-        className="fixed inset-0 z-[60]" 
-        style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
-        onClick={onClose}
-      />
-      {/* Modal */}
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
-        <div 
-          className="relative rounded-lg shadow-xl max-w-2xl w-full mx-auto pointer-events-auto"
-          style={{ backgroundColor: 'var(--qe-bg-card)' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div 
-            className="p-6 border-b qe-border-primary flex justify-between items-center"
-            style={{ backgroundColor: getAdjustedPrimaryColor() }}
-          >
-            <h3 className="text-lg font-medium text-white flex items-center gap-2">
-            <Sliders className="w-5 h-5 text-white" />
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-gray-500 opacity-75" onClick={onClose}></div>
+      <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-auto">
+        <div className="p-6 border-b flex justify-between items-center">
+          <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+            <Sliders className="w-5 h-5" />
             {isPracticeMode ? 'Configurar Práctica' : 'Configurar Cuestionario'}
           </h3>
-          <button onClick={onClose} className="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition-colors">
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto" style={{ backgroundColor: '#FFFFFF' }}>
+        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
           {/* Usamos el nuevo renderSelect para cada dropdown */}
           {renderSelect('Filtrar por Curso', 'course', filters.course, handleFilterChange, courseOptions, isLoading)}
           {renderSelect('Filtrar por Lección', 'lesson', filters.lesson, handleFilterChange, lessonOptions, isLoading)}
@@ -200,17 +111,13 @@ const QuizGeneratorModal = ({
           </div>
         </div>
         
-        <div 
-          className="px-6 py-4 flex justify-end"
-          style={{ backgroundColor: getAdjustedPrimaryColor() }}
-        >
-          <Button onClick={handleGenerateClick} disabled={isLoading} variant="ghost" className="text-white hover:bg-white hover:bg-opacity-20 transition-colors">
+        <div className="bg-gray-50 px-6 py-4 flex justify-end">
+          <Button onClick={handleGenerateClick} disabled={isLoading}>
             {isLoading ? 'Cargando filtros...' : isPracticeMode ? 'Comenzar Práctica' : 'Generar Cuestionario'}
           </Button>
         </div>
       </div>
     </div>
-    </>
   );
 };
 
