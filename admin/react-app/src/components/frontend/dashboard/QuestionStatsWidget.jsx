@@ -74,10 +74,10 @@ const QuestionStatsWidget = () => {
       {/* Header */}
       <div className="p-4 pb-3 border-b qe-border-primary mx-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 qe-bg-primary-light rounded-lg">
+          <div className="p-2 qe-bg-primary-light rounded-lg flex items-center justify-center">
             <BarChart2 className="w-5 h-5 qe-text-primary" />
           </div>
-          <h2 className="text-lg font-bold qe-text-primary">Estadísticas de Preguntas</h2>
+          <h2 className="text-lg font-bold qe-text-primary flex items-center">Estadísticas de Preguntas</h2>
         </div>
       </div>
 

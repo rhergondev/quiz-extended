@@ -25,7 +25,22 @@ define('QUIZ_EXTENDED_BASENAME', plugin_basename(__FILE__));
 require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-loader.php';
 require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-database.php';
 require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-frontend.php';
+
+// Activation hooks
 register_activation_hook(__FILE__, ['QE_Database', 'create_tables']);
+register_activation_hook(__FILE__, 'quiz_extended_flush_rewrite_rules');
+
+/**
+ * Flush rewrite rules on activation to register new API routes
+ */
+function quiz_extended_flush_rewrite_rules()
+{
+    // Load API loader to register routes
+    if (class_exists('QE_API_Loader')) {
+        QE_API_Loader::instance()->load_modules();
+    }
+    flush_rewrite_rules();
+}
 
 // Carga TGMPA
 require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/lib/class-tgm-plugin-activation.php';

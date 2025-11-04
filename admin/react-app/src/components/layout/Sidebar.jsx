@@ -28,38 +28,50 @@ const Sidebar = () => {
     { to: '/test', text: t('sidebar.test'), icon: FileText },
   ];
 
-  // ✅ Función de clases actualizada para el efecto de barra vertical
+  // Función de clases para los links del sidebar
   const getLinkClassName = ({ isActive }) => {
-    // Clases base: reservamos espacio para ambas barras (vertical y horizontal)
-    const baseClasses = `h-20 flex items-center p-3 transition-colors duration-200 border-l-4 border-b-4`;
+    const baseClasses = `flex items-center p-3 transition-all duration-200 rounded-lg border-[3px]`;
     const collapsedClasses = isCollapsed ? 'justify-center' : '';
 
     if (isActive) {
-      // Estado activo: Barra vertical usando color primario del tema, texto primario
-      return `${baseClasses} ${collapsedClasses} border-b-transparent`;
+      // Estado selected: Fondo primario, texto blanco, border del mismo color
+      return `${baseClasses} ${collapsedClasses}`;
     }
     
-    // Estado normal: Barras transparentes, hover en barra inferior dorada
-    return `${baseClasses} ${collapsedClasses} border-l-transparent border-b-transparent`;
+    // Estado normal: Sin fondo, preparado para hover
+    return `${baseClasses} ${collapsedClasses} border-transparent`;
   };
 
   const getLinkStyle = (isActive) => {
     if (isActive) {
       return {
-        borderLeftColor: 'var(--qe-primary)',
-        color: 'var(--qe-primary)'
+        backgroundColor: 'var(--qe-primary)',
+        borderColor: 'var(--qe-primary)',
+        color: '#ffffff'
       };
     }
     return {
-      color: 'var(--qe-text)'
+      backgroundColor: 'transparent',
+      color: 'var(--qe-primary)'
     };
   };
 
-  const handleLinkHover = (e, isEnter) => {
+  const handleLinkHover = (e, isEnter, isActive) => {
+    if (isActive) return; // No aplicar hover en elementos activos
+    
     if (isEnter) {
-      e.currentTarget.style.borderBottomColor = 'var(--qe-accent)';
+      // Hover: Fondo primario + doble borde (blanco interno + secundario externo)
+      e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+      e.currentTarget.style.borderColor = 'var(--qe-secondary)'; // Border externo del color de fondo del sidebar
+      e.currentTarget.style.color = '#ffffff';
+      // Border interno blanco usando box-shadow
+      e.currentTarget.style.boxShadow = 'inset 0 0 0 3px #ffffff';
     } else {
-      e.currentTarget.style.borderBottomColor = 'transparent';
+      // Volver al estado normal
+      e.currentTarget.style.backgroundColor = 'transparent';
+      e.currentTarget.style.borderColor = 'transparent';
+      e.currentTarget.style.color = 'var(--qe-primary)';
+      e.currentTarget.style.boxShadow = 'none';
     }
   };
 
@@ -67,12 +79,12 @@ const Sidebar = () => {
     <div 
       className="qe-sidebar-wrapper flex flex-col h-full"
       style={{ 
-        backgroundColor: 'var(--qe-background)',
-        color: 'var(--qe-text)'
+        backgroundColor: 'var(--qe-secondary)',
+        color: 'var(--qe-primary)'
       }}
     >
       <div className={`p-4 transition-all duration-300`}>
-        <div className="flex items-center justify-end h-16">
+        <div className={`flex items-center h-16 ${isCollapsed ? 'justify-center' : 'justify-end'}`}>
           <div
             onClick={() => setIsCollapsed(!isCollapsed)}
             role="button"
@@ -97,8 +109,14 @@ const Sidebar = () => {
             end
             className={getLinkClassName}
             style={({ isActive }) => getLinkStyle(isActive)}
-            onMouseEnter={(e) => handleLinkHover(e, true)}
-            onMouseLeave={(e) => handleLinkHover(e, false)}
+            onMouseEnter={(e) => {
+              const isActive = e.currentTarget.getAttribute('aria-current') === 'page';
+              handleLinkHover(e, true, isActive);
+            }}
+            onMouseLeave={(e) => {
+              const isActive = e.currentTarget.getAttribute('aria-current') === 'page';
+              handleLinkHover(e, false, isActive);
+            }}
             title={isCollapsed ? item.text : ''}
             onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
           >
@@ -106,12 +124,12 @@ const Sidebar = () => {
               <div className="flex items-center relative">
                 <item.icon 
                   className="w-6 h-6" 
-                  style={{ color: isActive ? 'var(--qe-primary)' : 'var(--qe-text)' }}
+                  style={{ color: isActive ? '#ffffff' : 'currentColor' }}
                 />
                 {!isCollapsed && (
                   <span 
                     className="ml-4 text-lg" 
-                    style={{ color: isActive ? 'var(--qe-primary)' : 'var(--qe-text)' }}
+                    style={{ color: isActive ? '#ffffff' : 'currentColor' }}
                   >
                     {item.text}
                   </span>
@@ -132,17 +150,24 @@ const Sidebar = () => {
         {logoutUrl && (
           <a
             href={logoutUrl}
-            className={`flex items-center p-3 text-lg transition-colors mb-4 border-l-4 border-b-4 border-transparent ${isCollapsed ? 'justify-center' : ''}`}
+            className={`flex items-center p-3 text-lg transition-all duration-200 rounded-lg border-[3px] border-transparent mb-4 ${isCollapsed ? 'justify-center' : ''}`}
+            style={{ color: 'var(--qe-primary)' }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.borderBottomColor = 'var(--qe-accent)';
+              e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+              e.currentTarget.style.borderColor = 'var(--qe-secondary)'; // Border externo
+              e.currentTarget.style.color = '#ffffff';
+              e.currentTarget.style.boxShadow = 'inset 0 0 0 3px #ffffff'; // Border interno blanco
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderBottomColor = 'transparent';
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.borderColor = 'transparent';
+              e.currentTarget.style.color = 'var(--qe-primary)';
+              e.currentTarget.style.boxShadow = 'none';
             }}
             title={isCollapsed ? t('sidebar.logout') : ''}
           >
-            <LogOut className="w-6 h-6" style={{ color: 'var(--qe-text)' }} />
-            {!isCollapsed && <span className="ml-4" style={{ color: 'var(--qe-text)' }}>{t('sidebar.logout')}</span>}
+            <LogOut className="w-6 h-6" style={{ color: 'currentColor' }} />
+            {!isCollapsed && <span className="ml-4" style={{ color: 'currentColor' }}>{t('sidebar.logout')}</span>}
           </a>
         )}
 
@@ -152,7 +177,7 @@ const Sidebar = () => {
         >
           <User 
             className="w-8 h-8 flex-shrink-0" 
-            style={{ color: 'var(--qe-secondary)' }}
+            style={{ color: 'var(--qe-primary)' }}
           />
           {!isCollapsed && (
             <div className="flex flex-col flex-1 min-w-0 ml-3 justify-center pt-0.5">
@@ -164,8 +189,8 @@ const Sidebar = () => {
                 {userName}
               </p>
               <p 
-                className="text-xs truncate leading-tight" 
-                style={{ color: 'var(--qe-text)' }}
+                className="text-xs truncate leading-tight opacity-80" 
+                style={{ color: 'var(--qe-primary)' }}
                 title={userEmail}
               >
                 {userEmail}
@@ -183,8 +208,8 @@ const Sidebar = () => {
       <button
         className="md:hidden absolute top-4 left-4 z-20 p-2 rounded-full shadow"
         style={{ 
-          color: 'var(--qe-secondary)',
-          backgroundColor: 'var(--qe-background)'
+          color: 'var(--qe-primary)',
+          backgroundColor: 'var(--qe-secondary)'
         }}
         onClick={() => setIsMobileMenuOpen(true)}
       >
@@ -205,7 +230,7 @@ const Sidebar = () => {
           ></div>
           <aside 
             className="relative z-50 w-64 flex flex-col"
-            style={{ backgroundColor: 'var(--qe-background)' }}
+            style={{ backgroundColor: 'var(--qe-secondary)' }}
           >
             <button
               onClick={() => setIsMobileMenuOpen(false)}

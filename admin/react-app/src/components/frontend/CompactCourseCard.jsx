@@ -25,10 +25,13 @@ import useQuizAttempts from '../../hooks/useQuizAttempts';
 import useQuizzes from '../../hooks/useQuizzes';
 import { getApiConfig } from '../../api/config/apiConfig';
 import { makeApiRequest } from '../../api/services/baseService';
+import CourseTopicsModal from './CourseTopicsModal';
+import CourseRankingModal from './CourseRankingModal';
 
 const CompactCourseCard = ({ course }) => {
-  const { id, title, excerpt, _embedded } = course;
-  const [showLessonsPanel, setShowLessonsPanel] = useState(false);
+  const { id, title, excerpt, content, _embedded } = course;
+  const [showTopicsModal, setShowTopicsModal] = useState(false);
+  const [showRankingModal, setShowRankingModal] = useState(false);
   const [expandedLessons, setExpandedLessons] = useState({});
   const [stats, setStats] = useState({
     totalQuestions: 0,
@@ -92,13 +95,22 @@ const CompactCourseCard = ({ course }) => {
   const imageUrl = _embedded?.['wp:featuredmedia']?.[0]?.source_url;
   const renderedTitle = title?.rendered || title || 'Curso sin título';
   
-  // Extraer el excerpt correctamente
+  // Extraer el excerpt correctamente - priorizar excerpt.rendered
   let renderedExcerpt = '';
-  if (excerpt) {
-    if (typeof excerpt === 'string') {
-      renderedExcerpt = excerpt.replace(/<[^>]+>/g, '');
-    } else if (excerpt.rendered) {
-      renderedExcerpt = excerpt.rendered.replace(/<[^>]+>/g, '');
+  
+  // Primero intentar con excerpt
+  if (excerpt?.rendered && typeof excerpt.rendered === 'string') {
+    renderedExcerpt = excerpt.rendered.replace(/<[^>]+>/g, '').trim();
+  } else if (typeof excerpt === 'string') {
+    renderedExcerpt = excerpt.replace(/<[^>]+>/g, '').trim();
+  }
+  
+  // Si el excerpt está vacío, intentar con content
+  if (!renderedExcerpt) {
+    if (content?.rendered && typeof content.rendered === 'string') {
+      renderedExcerpt = content.rendered.replace(/<[^>]+>/g, '').trim();
+    } else if (typeof content === 'string') {
+      renderedExcerpt = content.replace(/<[^>]+>/g, '').trim();
     }
   }
   
@@ -198,142 +210,76 @@ const CompactCourseCard = ({ course }) => {
 
   return (
     <div 
-      className="rounded-lg shadow-sm border qe-border-primary hover:shadow-lg transition-all duration-300 relative"
-      style={{ 
-        backgroundColor: 'var(--qe-bg-card)',
-        minHeight: '280px',
-        width: showLessonsPanel ? 'auto' : '100%',
-        maxWidth: showLessonsPanel ? 'none' : '100%'
-      }}
+      className="rounded-lg shadow-sm border qe-border-primary hover:shadow-lg transition-all duration-300 bg-white overflow-hidden flex flex-col"
     >
-      {/* Imagen de fondo con transparencia - solo en columna principal */}
-      {imageUrl && (
+      {/* Imagen destacada arriba */}
+      {imageUrl ? (
         <div 
-          className="absolute bg-cover bg-center"
+          className="h-48 bg-cover bg-center"
           style={{ 
             backgroundImage: `url(${imageUrl})`,
-            opacity: 0.15,
-            top: 0,
-            left: 0,
-            bottom: 0,
-            right: showLessonsPanel ? 'auto' : 0,
-            width: showLessonsPanel ? 'calc(100% - 384px)' : '100%'
           }}
         />
+      ) : (
+        <div 
+          className="h-48 flex items-center justify-center"
+          style={{ backgroundColor: 'var(--qe-primary)' }}
+        >
+          <BookOpen className="w-20 h-20 text-white opacity-50" />
+        </div>
       )}
-      
-      {/* Overlay blanco para mejorar legibilidad - solo en columna principal */}
-      <div 
-        className="absolute bg-white" 
-        style={{ 
-          opacity: 0.6,
-          top: 0,
-          left: 0,
-          bottom: 0,
-          right: showLessonsPanel ? 'auto' : 0,
-          width: showLessonsPanel ? 'calc(100% - 384px)' : '100%'
-        }} 
-      />
 
-      {/* Contenido principal en dos columnas */}
-      <div className="relative z-10 flex h-full" style={{ minHeight: '280px' }}>
-        {/* Columna izquierda: Info principal - SIEMPRE mantiene su ancho */}
-        <div className="p-4 flex flex-col justify-between flex-1" style={{ minWidth: '320px' }}>
-          <div className="space-y-3">
-            {/* Título y descripción */}
-            <div>
-              <h3 
-                className="text-xl font-bold qe-text-primary line-clamp-2 mb-1"
-                dangerouslySetInnerHTML={{ __html: renderedTitle }}
-              />
-              {renderedExcerpt && (
-                <p className="text-sm qe-text-secondary line-clamp-2">
-                  {renderedExcerpt}
-                </p>
-              )}
-            </div>
+      {/* Contenido de la tarjeta */}
+      <div className="p-6 flex flex-col flex-1">
+        {/* Título y descripción */}
+        <div className="mb-4">
+          <h3 
+            className="text-2xl font-bold qe-text-primary line-clamp-2 mb-2"
+            dangerouslySetInnerHTML={{ __html: renderedTitle }}
+          />
+          {renderedExcerpt && (
+            <p className="text-sm qe-text-secondary line-clamp-3">
+              {renderedExcerpt}
+            </p>
+          )}
+        </div>
 
-            {/* Barra de progreso */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-xs font-semibold qe-text-secondary">Progreso del curso</span>
-                <span className="text-sm font-bold qe-text-primary">{progressPercentage}%</span>
-              </div>
-              <div className="qe-bg-card-secondary rounded-full h-2 overflow-hidden">
-                <div 
-                  className="h-full transition-all duration-500 rounded-full"
-                  style={{ 
-                    width: `${progressPercentage}%`,
-                    backgroundColor: 'var(--qe-primary)'
-                  }}
-                />
-              </div>
-              <div className="flex justify-between items-center mt-1">
-                <span className="text-xs qe-text-secondary">
-                  {completedLessons}/{totalLessons} lecciones
-                </span>
-                <span className="text-xs qe-text-secondary">
-                  {completedQuizzes} cuestionarios
-                </span>
-              </div>
-            </div>
-
-            {/* Grid de estadísticas 2x2 */}
-            <div className="grid grid-cols-2 gap-2">
-              {/* Nota media */}
-              <div className="bg-white/90 rounded-lg p-2 border qe-border-primary">
-                <div className="flex items-center gap-1 mb-1">
-                  <TrendingUp className="w-3 h-3 qe-text-primary" />
-                  <span className="text-xs font-medium qe-text-secondary">Nota Media</span>
-                </div>
-                <div className={`text-lg font-bold ${
-                  averageScore === null ? 'qe-text-secondary' :
-                  averageScore >= 70 ? 'text-green-600' : 
-                  averageScore >= 50 ? 'text-yellow-600' : 'text-red-600'
-                }`}>
-                  {averageScore !== null ? `${averageScore}%` : '-'}
-                </div>
-              </div>
-
-              {/* Preguntas acertadas */}
-              <div className="bg-white/90 rounded-lg p-2 border qe-border-primary">
-                <div className="flex items-center gap-1 mb-1">
-                  <CheckCircle2 className="w-3 h-3 text-green-600" />
-                  <span className="text-xs font-medium qe-text-secondary">Correctas</span>
-                </div>
-                <div className="text-lg font-bold text-green-600">
-                  {stats.correctAnswers}
-                </div>
-              </div>
-
-              {/* Preguntas incorrectas */}
-              <div className="bg-white/90 rounded-lg p-2 border qe-border-primary">
-                <div className="flex items-center gap-1 mb-1">
-                  <Target className="w-3 h-3 text-red-600" />
-                  <span className="text-xs font-medium qe-text-secondary">Incorrectas</span>
-                </div>
-                <div className="text-lg font-bold text-red-600">
-                  {stats.incorrectAnswers}
-                </div>
-              </div>
-
-              {/* Sin contestar */}
-              <div className="bg-white/90 rounded-lg p-2 border qe-border-primary">
-                <div className="flex items-center gap-1 mb-1">
-                  <BarChart2 className="w-3 h-3 text-gray-500" />
-                  <span className="text-xs font-medium qe-text-secondary">Pendientes</span>
-                </div>
-                <div className="text-lg font-bold text-gray-600">
-                  {stats.unanswered}
-                </div>
-              </div>
-            </div>
+        {/* Barra de progreso */}
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-semibold qe-text-secondary">Progreso</span>
+            <span className="text-lg font-bold qe-text-primary">{progressPercentage}%</span>
           </div>
+          <div className="qe-bg-card-secondary rounded-full h-3 overflow-hidden">
+            <div 
+              className="h-full transition-all duration-500 rounded-full"
+              style={{ 
+                width: `${progressPercentage}%`,
+                backgroundColor: 'var(--qe-primary)'
+              }}
+            />
+          </div>
+          <div className="flex justify-between items-center mt-2">
+            <span className="text-sm qe-text-secondary">
+              {completedLessons}/{totalLessons} temas
+            </span>
+            {averageScore !== null && (
+              <span className={`text-sm font-semibold ${
+                averageScore >= 70 ? 'text-green-600' : 
+                averageScore >= 50 ? 'text-yellow-600' : 'text-red-600'
+              }`}>
+                {averageScore}%
+              </span>
+            )}
+          </div>
+        </div>
 
-          {/* Botón de acción con más espacio superior */}
+        {/* Botones de acción en vertical */}
+        <div className="space-y-3 mt-auto">
+          {/* Botón principal más grande */}
           <Link
             to={`/courses/${id}`}
-            className="block w-full py-2.5 text-center text-sm font-medium text-white rounded-lg transition-all shadow-sm hover:shadow-md mt-4"
+            className="block w-full py-3 text-center text-base font-semibold text-white rounded-lg transition-all shadow-sm hover:shadow-md"
             style={{ backgroundColor: 'var(--qe-primary)' }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
@@ -345,203 +291,63 @@ const CompactCourseCard = ({ course }) => {
             {progressPercentage === 100 ? 'Reiniciar Curso' : progressPercentage > 0 ? 'Continuar Curso' : 'Comenzar Curso'}
           </Link>
 
-          {/* Botón para expandir panel de lecciones */}
-          <button
-            onClick={() => setShowLessonsPanel(!showLessonsPanel)}
-            className="p-2 rounded text-white transition-all flex items-center justify-center gap-2 mt-3"
-            style={{ backgroundColor: 'var(--qe-primary)' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
-            }}
-          >
-            <List className="w-4 h-4" />
-            <span className="text-xs font-medium">
-              {showLessonsPanel ? 'Ocultar Lecciones' : 'Ver Lecciones'}
-            </span>
-          </button>
-        </div>
+          {/* Botones secundarios en fila */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setShowTopicsModal(true)}
+              className="py-2.5 text-center text-sm font-medium text-white rounded-lg transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+              style={{ backgroundColor: 'var(--qe-primary)' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+              }}
+            >
+              <List className="w-4 h-4" />
+              Temas
+            </button>
 
-        {/* Panel lateral de lecciones (expandible) - se agrega a la derecha */}
-        {showLessonsPanel && (
-          <div 
-            className="bg-white border-l qe-border-primary flex-shrink-0"
-            style={{ width: '384px' }}
-          >
-            <div className="h-full flex flex-col">
-            {/* Header del panel */}
-            <div className="flex items-center justify-between mb-4 px-4 pt-4">
-              <h4 className="text-lg font-bold qe-text-primary">Lecciones del Curso</h4>
-              <button
-                onClick={() => setShowLessonsPanel(false)}
-                className="p-1.5 rounded text-white hover:opacity-80 transition-opacity"
-                style={{ backgroundColor: 'var(--qe-primary)' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
-                }}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Barra de progreso en el panel */}
-            <div className="mb-4 pb-4 border-b qe-border-primary px-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs font-semibold qe-text-secondary">Progreso</span>
-                <span className="text-sm font-bold qe-text-primary">{progressPercentage}%</span>
-              </div>
-              <div className="qe-bg-card-secondary rounded-full h-2 overflow-hidden">
-                <div 
-                  className="h-full transition-all duration-500 rounded-full"
-                  style={{ 
-                    width: `${progressPercentage}%`,
-                    backgroundColor: 'var(--qe-primary)'
-                  }}
-                />
-              </div>
-              <div className="flex justify-between items-center mt-1">
-                <span className="text-xs qe-text-secondary">
-                  {completedLessons}/{totalLessons} lecciones
-                </span>
-                <span className="text-xs qe-text-secondary">
-                  {completedQuizzes} cuestionarios
-                </span>
-              </div>
-            </div>
-
-            {/* Lista de lecciones */}
-            <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
-              {lessons.map((lesson) => {
-                const completed = isCompleted(lesson.id, 'lesson');
-                const isExpanded = expandedLessons[lesson.id];
-                const steps = lesson.meta?._lesson_steps || [];
-                
-                return (
-                  <div key={lesson.id} className="space-y-1">
-                    <div className="flex items-center gap-2 p-2 rounded qe-bg-primary-light hover:qe-bg-card-secondary transition-colors">
-                      <button
-                        onClick={(e) => handleToggleLesson(lesson.id, e)}
-                        className="flex-shrink-0 p-1 rounded hover:bg-gray-100 transition-all group"
-                        disabled={progressLoading}
-                      >
-                        {completed ? (
-                          <CheckCircle2 className="w-5 h-5 text-green-600 group-hover:text-green-700 transition-colors" />
-                        ) : (
-                          <Circle className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors" />
-                        )}
-                      </button>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1">
-                          {steps.length > 0 && (
-                            <button
-                              onClick={(e) => toggleLessonExpansion(lesson.id, e)}
-                              className="flex-shrink-0 p-0.5 rounded text-white hover:opacity-80 transition-opacity"
-                              style={{ backgroundColor: 'var(--qe-primary)' }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
-                              }}
-                            >
-                              {isExpanded ? (
-                                <ChevronUp className="w-3 h-3" />
-                              ) : (
-                                <ChevronDown className="w-3 h-3" />
-                              )}
-                            </button>
-                          )}
-                          <Link
-                            to={`/courses/${id}`}
-                            state={{ selectedLessonId: lesson.id, scrollToLesson: true }}
-                            className="flex-1 text-sm qe-text-primary hover:qe-text-accent transition-colors font-medium truncate"
-                          >
-                            <span 
-                              className={completed ? 'line-through opacity-60' : ''}
-                              dangerouslySetInnerHTML={{ __html: lesson.title?.rendered || lesson.title }}
-                            />
-                          </Link>
-                        </div>
-                        
-                        {/* Steps colapsables */}
-                        {isExpanded && steps.length > 0 && (
-                          <div className="ml-2 mt-2 space-y-1.5 border-l-2 qe-border-primary pl-3">
-                            {steps.map((step, index) => {
-                              const StepIcon = getStepIcon(step.type);
-                              const stepId = step.data?.quiz_id || step.data?.video_id || step.data?.file_id || step.data?.image_id || null;
-                              const isStepCompleted = stepId ? isCompleted(stepId, step.type) : false;
-                              const score = step.type === 'quiz' && stepId ? getQuizScore(stepId) : null;
-                              
-                              // Obtener el título del step desde la base de datos
-                              let stepTitle = step.title;
-                              
-                              // Si es un quiz, intentar obtener el título real desde la BD
-                              if (step.type === 'quiz' && step.data?.quiz_id) {
-                                const quizTitle = getQuizTitle(step.data.quiz_id);
-                                if (quizTitle) {
-                                  stepTitle = quizTitle;
-                                } else if (!stepTitle || stepTitle.trim() === '') {
-                                  stepTitle = `Cuestionario ${index + 1}`;
-                                }
-                              } else if (!stepTitle || stepTitle.trim() === '') {
-                                // Si no hay título, usar nombres descriptivos como fallback
-                                const typeNames = {
-                                  'video': 'Video',
-                                  'text': 'Contenido',
-                                  'image': 'Imagen',
-                                  'pdf': 'PDF'
-                                };
-                                stepTitle = `${typeNames[step.type] || 'Step'} ${index + 1}`;
-                              }
-                              
-                              return (
-                                <Link
-                                  key={index}
-                                  to={`/courses/${id}`}
-                                  state={{ 
-                                    selectedLessonId: lesson.id, 
-                                    selectedStepIndex: index,
-                                    scrollToLesson: true 
-                                  }}
-                                  className="flex items-center gap-2 text-xs py-1.5 px-2 rounded hover:qe-bg-card-secondary transition-colors group"
-                                >
-                                  <StepIcon className="w-3.5 h-3.5 qe-text-secondary group-hover:qe-text-primary flex-shrink-0 transition-colors" />
-                                  <span className={`flex-1 truncate group-hover:font-medium transition-all ${isStepCompleted ? 'line-through opacity-60' : ''}`}>
-                                    {stepTitle}
-                                  </span>
-                                  {score !== null && (
-                                    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${
-                                      score >= 70 ? 'bg-green-100 text-green-700' :
-                                      score >= 50 ? 'bg-yellow-100 text-yellow-700' :
-                                      'bg-red-100 text-red-700'
-                                    }`}>
-                                      {score}%
-                                    </span>
-                                  )}
-                                  {isStepCompleted && (
-                                    <CheckCircle2 className="w-3 h-3 text-green-600 flex-shrink-0" />
-                                  )}
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <button
+              onClick={() => setShowRankingModal(true)}
+              className="py-2.5 text-center text-sm font-medium text-white rounded-lg transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+              style={{ backgroundColor: 'var(--qe-primary)' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+              }}
+            >
+              <Award className="w-4 h-4" />
+              Ranking
+            </button>
           </div>
         </div>
-        )}
       </div>
+
+      {/* Modal de temas */}
+      <CourseTopicsModal 
+        isOpen={showTopicsModal}
+        onClose={() => setShowTopicsModal(false)}
+        courseId={id}
+        courseTitle={renderedTitle}
+        lessons={lessons}
+        isCompleted={isCompleted}
+        markComplete={markComplete}
+        unmarkComplete={unmarkComplete}
+        progressLoading={progressLoading}
+        getQuizTitle={getQuizTitle}
+        getQuizScore={getQuizScore}
+      />
+
+      {/* Modal de ranking */}
+      <CourseRankingModal
+        isOpen={showRankingModal}
+        onClose={() => setShowRankingModal(false)}
+        courseId={id}
+        courseName={renderedTitle}
+      />
     </div>
   );
 };

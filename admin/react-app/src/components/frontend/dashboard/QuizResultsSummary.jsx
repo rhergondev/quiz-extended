@@ -88,15 +88,12 @@ const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn
       {!quizId && (
         <div className="px-4 pt-4 pb-3 border-b qe-border-primary mx-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 qe-bg-primary-light rounded-lg">
+            <div className="p-2 qe-bg-primary-light rounded-lg flex items-center justify-center">
               <Award className="w-5 h-5 qe-text-primary" />
             </div>
-            <div>
-              <h2 className="text-lg font-bold qe-text-primary">
-                Mis Resultados de Cuestionarios
-              </h2>
-              <p className="text-xs qe-text-secondary mt-0.5">Revisa tu progreso y compara tus notas con la media</p>
-            </div>
+            <h2 className="text-lg font-bold qe-text-primary flex items-center">
+              Mis Cuestionarios
+            </h2>
           </div>
         </div>
       )}

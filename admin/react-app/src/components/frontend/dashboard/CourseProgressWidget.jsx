@@ -103,10 +103,10 @@ const CourseProgressWidget = () => {
       {/* Header */}
       <div className="flex items-center justify-between p-4 pb-3 border-b qe-border-primary mx-4 mb-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 qe-bg-primary-light rounded-lg">
+          <div className="p-2 qe-bg-primary-light rounded-lg flex items-center justify-center">
             <GraduationCap className="w-5 h-5 qe-text-primary" />
           </div>
-          <h2 className="text-lg font-bold qe-text-primary">Mis Cursos</h2>
+          <h2 className="text-lg font-bold qe-text-primary flex items-center">Mis Cursos</h2>
         </div>
 
         <Link

@@ -87,10 +87,10 @@ const SimpleUserInbox = () => {
       {/* Header compacto con contador y controles */}
       <div className="flex items-center justify-between p-4 pb-3 border-b qe-border-primary mx-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 qe-bg-primary-light rounded-lg">
+          <div className="p-2 qe-bg-primary-light rounded-lg flex items-center justify-center">
             <Mail className="w-5 h-5 qe-text-primary" />
           </div>
-          <h2 className="text-lg font-bold qe-text-primary">Mensajes</h2>
+          <h2 className="text-lg font-bold qe-text-primary flex items-center">Mensajes</h2>
         </div>
 
         {/* Controles de navegación y búsqueda */}
@@ -258,13 +258,13 @@ const SimpleUserInbox = () => {
             {/* Encabezado del mensaje */}
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold qe-text-primary mb-1">
+                <h3 className="text-xl font-bold qe-text-primary mb-2">
                   {currentMessage.subject}
                 </h3>
-                <div className="flex items-center gap-3 text-xs qe-text-secondary">
-                  <span>De: {currentMessage.sender_name || 'Admin'}</span>
+                <div className="flex items-center gap-3 text-sm qe-text-primary">
+                  <span className="font-semibold">De: {currentMessage.sender_name || 'Admin'}</span>
                   <span>•</span>
-                  <span>{formatDate(currentMessage.created_at)}</span>
+                  <span className="qe-text-secondary">{formatDate(currentMessage.created_at)}</span>
                   {currentMessage.status === 'unread' && (
                     <>
                       <span>•</span>

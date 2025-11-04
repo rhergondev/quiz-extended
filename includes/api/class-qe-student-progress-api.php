@@ -40,12 +40,58 @@ class QE_Student_Progress_API extends QE_API_Base
                     'content_type' => [
                         'required' => true,
                         'type' => 'string',
-                        'enum' => ['lesson', 'quiz', 'video', 'document']
+                        'enum' => ['lesson', 'quiz', 'video', 'document', 'text', 'image', 'step']
                     ],
                     'course_id' => [
                         'required' => true,
                         'type' => 'integer',
                         'minimum' => 1
+                    ],
+                    'parent_lesson_id' => [
+                        'required' => false,
+                        'type' => 'integer',
+                        'minimum' => 1
+                    ],
+                    'step_index' => [
+                        'required' => false,
+                        'type' => 'integer',
+                        'minimum' => 0
+                    ]
+                ]
+            ]
+        );
+
+        // Unmark content (remove completion)
+        $this->register_secure_route(
+            '/student-progress/unmark-complete',
+            WP_REST_Server::CREATABLE,
+            'unmark_content_complete',
+            [
+                'validation_schema' => [
+                    'content_id' => [
+                        'required' => true,
+                        'type' => 'integer',
+                        'minimum' => 1
+                    ],
+                    'content_type' => [
+                        'required' => true,
+                        'type' => 'string',
+                        'enum' => ['lesson', 'quiz', 'video', 'document', 'text', 'image', 'step']
+                    ],
+                    'course_id' => [
+                        'required' => true,
+                        'type' => 'integer',
+                        'minimum' => 1
+                    ],
+                    'parent_lesson_id' => [
+                        'required' => false,
+                        'type' => 'integer',
+                        'minimum' => 1
+                    ],
+                    'step_index' => [
+                        'required' => false,
+                        'type' => 'integer',
+                        'minimum' => 0
                     ]
                 ]
             ]
@@ -117,13 +163,17 @@ class QE_Student_Progress_API extends QE_API_Base
             $content_id = $request->get_param('content_id');
             $content_type = $request->get_param('content_type');
             $course_id = $request->get_param('course_id');
+            $parent_lesson_id = $request->get_param('parent_lesson_id');
+            $step_index = $request->get_param('step_index');
 
             // Log API call
             $this->log_api_call('/student-progress/mark-complete', [
                 'user_id' => $user_id,
                 'content_id' => $content_id,
                 'content_type' => $content_type,
-                'course_id' => $course_id
+                'course_id' => $course_id,
+                'parent_lesson_id' => $parent_lesson_id,
+                'step_index' => $step_index
             ]);
 
             // Check course access
@@ -132,11 +182,18 @@ class QE_Student_Progress_API extends QE_API_Base
                 return $access_check;
             }
 
+            // Para steps, usar identificador compuesto
+            $unique_content_id = $content_id;
+            if ($content_type === 'step' && $parent_lesson_id !== null && $step_index !== null) {
+                // Crear identificador único: lesson_id * 10000 + step_index
+                $unique_content_id = ($parent_lesson_id * 10000) + $step_index;
+            }
+
             // Check if record exists
             $existing = $this->db_get_var(
                 "SELECT progress_id FROM {$this->get_table('student_progress')} 
-                 WHERE user_id = %d AND content_id = %d",
-                [$user_id, $content_id]
+                 WHERE user_id = %d AND content_id = %d AND content_type = %s",
+                [$user_id, $unique_content_id, $content_type]
             );
 
             if ($existing) {
@@ -156,11 +213,17 @@ class QE_Student_Progress_API extends QE_API_Base
                 $this->db_insert('student_progress', [
                     'user_id' => $user_id,
                     'course_id' => $course_id,
-                    'content_id' => $content_id,
+                    'content_id' => $unique_content_id,
                     'content_type' => $content_type,
                     'status' => 'completed',
                     'last_viewed' => $this->get_mysql_timestamp()
                 ], ['%d', '%d', '%d', '%s', '%s', '%s']);
+            }
+
+            // Si es un step, verificar si todos los steps de la lección están completados
+            // y marcar la lección padre como completada automáticamente
+            if ($content_type === 'step' && $parent_lesson_id) {
+                $this->auto_complete_lesson_if_all_steps_done($user_id, $course_id, $parent_lesson_id);
             }
 
             // Calculate and update course progress
@@ -173,6 +236,7 @@ class QE_Student_Progress_API extends QE_API_Base
             $this->log_info('Content marked as complete', [
                 'user_id' => $user_id,
                 'content_id' => $content_id,
+                'unique_content_id' => $unique_content_id,
                 'content_type' => $content_type,
                 'course_id' => $course_id,
                 'progress' => $progress_percentage
@@ -184,6 +248,97 @@ class QE_Student_Progress_API extends QE_API_Base
 
         } catch (Exception $e) {
             $this->log_error('Exception in mark_content_complete', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return $this->error_response(
+                'internal_error',
+                __('An unexpected error occurred. Please try again.', 'quiz-extended'),
+                500
+            );
+        }
+    }
+
+    /**
+     * Unmark content (remove completion)
+     *
+     * @param WP_REST_Request $request Request object
+     * @return WP_REST_Response|WP_Error Response
+     */
+    public function unmark_content_complete(WP_REST_Request $request)
+    {
+        try {
+            $user_id = get_current_user_id();
+            $content_id = $request->get_param('content_id');
+            $content_type = $request->get_param('content_type');
+            $course_id = $request->get_param('course_id');
+            $parent_lesson_id = $request->get_param('parent_lesson_id');
+            $step_index = $request->get_param('step_index');
+
+            // Log API call
+            $this->log_api_call('/student-progress/unmark-complete', [
+                'user_id' => $user_id,
+                'content_id' => $content_id,
+                'content_type' => $content_type,
+                'course_id' => $course_id,
+                'parent_lesson_id' => $parent_lesson_id,
+                'step_index' => $step_index
+            ]);
+
+            // Check course access
+            $access_check = $this->check_course_access($course_id);
+            if (is_wp_error($access_check)) {
+                return $access_check;
+            }
+
+            // Para steps, usar identificador compuesto
+            $unique_content_id = $content_id;
+            if ($content_type === 'step' && $parent_lesson_id !== null && $step_index !== null) {
+                $unique_content_id = ($parent_lesson_id * 10000) + $step_index;
+            }
+
+            // Delete the progress record
+            $deleted = $this->db_delete(
+                'student_progress',
+                [
+                    'user_id' => $user_id,
+                    'content_id' => $unique_content_id,
+                    'content_type' => $content_type,
+                    'course_id' => $course_id
+                ],
+                ['%d', '%d', '%s', '%d']
+            );
+
+            // Si es un step, desmarcar la lección padre si ya no todos los steps están completados
+            if ($content_type === 'step' && $parent_lesson_id) {
+                $this->unmark_lesson_if_steps_incomplete($user_id, $course_id, $parent_lesson_id);
+            }
+
+            // Calculate and update course progress
+            $progress_percentage = $this->calculate_course_progress($user_id, $course_id);
+
+            // Update user meta
+            update_user_meta($user_id, "_course_{$course_id}_progress", $progress_percentage);
+            update_user_meta($user_id, "_course_{$course_id}_last_activity", current_time('mysql'));
+
+            $this->log_info('Content unmarked', [
+                'user_id' => $user_id,
+                'content_id' => $content_id,
+                'unique_content_id' => $unique_content_id,
+                'content_type' => $content_type,
+                'course_id' => $course_id,
+                'deleted' => $deleted,
+                'progress' => $progress_percentage
+            ]);
+
+            return $this->success_response([
+                'progress' => $progress_percentage,
+                'deleted' => (bool) $deleted
+            ]);
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in unmark_content_complete', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -395,6 +550,154 @@ class QE_Student_Progress_API extends QE_API_Base
     // ============================================================
     // HELPER METHODS
     // ============================================================
+
+    /**
+     * Auto-complete lesson if all its steps are completed
+     *
+     * @param int $user_id User ID
+     * @param int $course_id Course ID
+     * @param int $lesson_id Lesson ID
+     * @return void
+     */
+    private function auto_complete_lesson_if_all_steps_done($user_id, $course_id, $lesson_id)
+    {
+        try {
+            // Get lesson steps
+            $steps = get_post_meta($lesson_id, '_lesson_steps', true);
+
+            if (empty($steps) || !is_array($steps)) {
+                return;
+            }
+
+            $total_steps = count($steps);
+            $completed_steps = 0;
+
+            // Check each step
+            foreach ($steps as $index => $step) {
+                $unique_step_id = ($lesson_id * 10000) + $index;
+
+                $is_completed = $this->db_get_var(
+                    "SELECT progress_id FROM {$this->get_table('student_progress')} 
+                     WHERE user_id = %d AND content_id = %d AND content_type = 'step' AND status = 'completed'",
+                    [$user_id, $unique_step_id]
+                );
+
+                if ($is_completed) {
+                    $completed_steps++;
+                }
+            }
+
+            // Si todos los steps están completados, marcar la lección como completada
+            if ($completed_steps === $total_steps) {
+                $this->log_info('All steps completed, auto-completing lesson', [
+                    'lesson_id' => $lesson_id,
+                    'total_steps' => $total_steps
+                ]);
+
+                // Check if lesson already marked as complete
+                $existing = $this->db_get_var(
+                    "SELECT progress_id FROM {$this->get_table('student_progress')} 
+                     WHERE user_id = %d AND content_id = %d AND content_type = 'lesson'",
+                    [$user_id, $lesson_id]
+                );
+
+                if ($existing) {
+                    // Update existing
+                    $this->db_update(
+                        'student_progress',
+                        [
+                            'status' => 'completed',
+                            'last_viewed' => $this->get_mysql_timestamp()
+                        ],
+                        ['progress_id' => $existing],
+                        ['%s', '%s'],
+                        ['%d']
+                    );
+                } else {
+                    // Insert new
+                    $this->db_insert('student_progress', [
+                        'user_id' => $user_id,
+                        'course_id' => $course_id,
+                        'content_id' => $lesson_id,
+                        'content_type' => 'lesson',
+                        'status' => 'completed',
+                        'last_viewed' => $this->get_mysql_timestamp()
+                    ], ['%d', '%d', '%d', '%s', '%s', '%s']);
+                }
+            }
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in auto_complete_lesson_if_all_steps_done', [
+                'message' => $e->getMessage(),
+                'lesson_id' => $lesson_id
+            ]);
+        }
+    }
+
+    /**
+     * Unmark lesson if not all steps are completed
+     *
+     * @param int $user_id User ID
+     * @param int $course_id Course ID
+     * @param int $lesson_id Lesson ID
+     * @return void
+     */
+    private function unmark_lesson_if_steps_incomplete($user_id, $course_id, $lesson_id)
+    {
+        try {
+            // Get lesson steps
+            $steps = get_post_meta($lesson_id, '_lesson_steps', true);
+
+            if (empty($steps) || !is_array($steps)) {
+                return;
+            }
+
+            $total_steps = count($steps);
+            $completed_steps = 0;
+
+            // Check each step
+            foreach ($steps as $index => $step) {
+                $unique_step_id = ($lesson_id * 10000) + $index;
+
+                $is_completed = $this->db_get_var(
+                    "SELECT progress_id FROM {$this->get_table('student_progress')} 
+                     WHERE user_id = %d AND content_id = %d AND content_type = 'step' AND status = 'completed'",
+                    [$user_id, $unique_step_id]
+                );
+
+                if ($is_completed) {
+                    $completed_steps++;
+                }
+            }
+
+            // Si NO todos los steps están completados, desmarcar la lección
+            if ($completed_steps < $total_steps) {
+                $this->log_info('Steps incomplete, unmarking lesson', [
+                    'lesson_id' => $lesson_id,
+                    'completed_steps' => $completed_steps,
+                    'total_steps' => $total_steps
+                ]);
+
+                // Delete lesson completion record
+                $this->db_delete(
+                    'student_progress',
+                    [
+                        'user_id' => $user_id,
+                        'content_id' => $lesson_id,
+                        'content_type' => 'lesson',
+                        'course_id' => $course_id
+                    ],
+                    ['%d', '%d', '%s', '%d']
+                );
+            }
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in unmark_lesson_if_steps_incomplete', [
+                'message' => $e->getMessage(),
+                'lesson_id' => $lesson_id
+            ]);
+        }
+    }
 
     /**
      * Calculate course progress percentage

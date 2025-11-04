@@ -1,6 +1,6 @@
 // src/hooks/useStudentProgress.js
 import { useState, useCallback, useEffect } from 'react';
-import { markContentComplete, getCourseProgress, getCompletedContent } from '../api/services/studentProgressService';
+import { markContentComplete, unmarkContentComplete, getCourseProgress, getCompletedContent } from '../api/services/studentProgressService';
 
 /**
  * Hook para gestionar el progreso del estudiante
@@ -52,8 +52,12 @@ const useStudentProgress = (courseId, autoFetch = false) => {
 
   /**
    * Marcar contenido como completado
+   * @param {number} contentId - ID del contenido
+   * @param {string} contentType - Tipo del contenido
+   * @param {number} [parentLessonId] - ID de la lección padre (para steps)
+   * @param {number} [stepIndex] - Índice del step (para steps)
    */
-  const markComplete = useCallback(async (contentId, contentType) => {
+  const markComplete = useCallback(async (contentId, contentType, parentLessonId = null, stepIndex = null) => {
     if (!courseId) {
       throw new Error('Course ID is required');
     }
@@ -62,7 +66,7 @@ const useStudentProgress = (courseId, autoFetch = false) => {
     setError(null);
 
     try {
-      const result = await markContentComplete(contentId, contentType, courseId);
+      const result = await markContentComplete(contentId, contentType, courseId, parentLessonId, stepIndex);
       
       // Actualizar el progreso local
       if (result?.progress !== undefined) {
@@ -72,15 +76,21 @@ const useStudentProgress = (courseId, autoFetch = false) => {
         }));
       }
 
+      // Crear identificador único para steps
+      let uniqueId = contentId;
+      if (contentType === 'step' && parentLessonId !== null && stepIndex !== null) {
+        uniqueId = (parentLessonId * 10000) + stepIndex;
+      }
+
       // Agregar a la lista de completados
       setCompletedItems(prev => {
         const exists = prev.find(item => 
-          item.content_id === contentId && item.content_type === contentType
+          item.content_id === uniqueId && item.content_type === contentType
         );
         if (exists) return prev;
         
         return [...prev, {
-          content_id: contentId,
+          content_id: uniqueId,
           content_type: contentType,
           completed_at: new Date().toISOString()
         }];
@@ -88,6 +98,7 @@ const useStudentProgress = (courseId, autoFetch = false) => {
 
       // Refetch para asegurar consistencia
       await fetchProgress();
+      await fetchCompletedContent();
 
       return result;
     } catch (err) {
@@ -97,14 +108,77 @@ const useStudentProgress = (courseId, autoFetch = false) => {
     } finally {
       setLoading(false);
     }
-  }, [courseId, fetchProgress]);
+  }, [courseId, fetchProgress, fetchCompletedContent]);
+
+  /**
+   * Desmarcar contenido (quitar completado)
+   * @param {number} contentId - ID del contenido
+   * @param {string} contentType - Tipo del contenido
+   * @param {number} [parentLessonId] - ID de la lección padre (para steps)
+   * @param {number} [stepIndex] - Índice del step (para steps)
+   */
+  const unmarkComplete = useCallback(async (contentId, contentType, parentLessonId = null, stepIndex = null) => {
+    if (!courseId) {
+      throw new Error('Course ID is required');
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await unmarkContentComplete(contentId, contentType, courseId, parentLessonId, stepIndex);
+      
+      // Actualizar el progreso local
+      if (result?.progress !== undefined) {
+        setProgress(prev => ({
+          ...prev,
+          percentage: result.progress
+        }));
+      }
+
+      // Crear identificador único para steps
+      let uniqueId = contentId;
+      if (contentType === 'step' && parentLessonId !== null && stepIndex !== null) {
+        uniqueId = (parentLessonId * 10000) + stepIndex;
+      }
+
+      // Remover de la lista de completados
+      setCompletedItems(prev => 
+        prev.filter(item => 
+          !(item.content_id === uniqueId && item.content_type === contentType)
+        )
+      );
+
+      // Refetch para asegurar consistencia
+      await fetchProgress();
+      await fetchCompletedContent();
+
+      return result;
+    } catch (err) {
+      console.error('Error unmarking content:', err);
+      setError(err.message || 'Error al desmarcar');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [courseId, fetchProgress, fetchCompletedContent]);
 
   /**
    * Verificar si un contenido está completado
+   * @param {number} contentId - ID del contenido
+   * @param {string} contentType - Tipo del contenido
+   * @param {number} [parentLessonId] - ID de la lección padre (para steps)
+   * @param {number} [stepIndex] - Índice del step (para steps)
    */
-  const isCompleted = useCallback((contentId, contentType) => {
+  const isCompleted = useCallback((contentId, contentType, parentLessonId = null, stepIndex = null) => {
+    // Crear identificador único para steps
+    let uniqueId = contentId;
+    if (contentType === 'step' && parentLessonId !== null && stepIndex !== null) {
+      uniqueId = (parentLessonId * 10000) + stepIndex;
+    }
+
     return completedItems.some(item => 
-      item.content_id === contentId && 
+      item.content_id === uniqueId && 
       item.content_type === contentType
     );
   }, [completedItems]);
@@ -132,6 +206,7 @@ const useStudentProgress = (courseId, autoFetch = false) => {
     loading,
     error,
     markComplete,
+    unmarkComplete,
     isCompleted,
     refresh,
     fetchProgress,

@@ -86,14 +86,39 @@ const CourseLessonsPage = () => {
     if (anyError) setError(anyError.message || 'Ocurrió un error');
   }, [courseError, lessonsError, quizzesError]);
   
-  // Efecto para seleccionar el primer paso por defecto O el quiz especificado
+  // Efecto para seleccionar el primer paso por defecto O el paso/quiz especificado
   useEffect(() => {
     // Solo ejecutar una vez cuando todo esté cargado
     if (hasInitialized || lessonsLoading || quizzesLoading || !lessons?.length) {
       return;
     }
     
-    // Si venimos de vuelta a un quiz específico
+    // Prioridad 1: Si venimos con una lección y paso específicos desde el modal
+    const selectedLessonId = location.state?.selectedLessonId;
+    const selectedStepIndex = location.state?.selectedStepIndex;
+    
+    if (selectedLessonId !== undefined && selectedStepIndex !== undefined) {
+      // Buscar la lección específica
+      const targetLesson = lessons.find(l => parseInt(l.id) === parseInt(selectedLessonId));
+      
+      if (targetLesson && targetLesson.meta?._lesson_steps) {
+        const steps = targetLesson.meta._lesson_steps;
+        
+        // Verificar que el índice esté dentro del rango
+        if (selectedStepIndex >= 0 && selectedStepIndex < steps.length) {
+          const targetStep = steps[selectedStepIndex];
+          
+          setActiveContent({ lesson: targetLesson, step: targetStep });
+          setHasInitialized(true);
+          
+          // Limpiar el estado para evitar reselección en futuras navegaciones
+          window.history.replaceState({}, document.title);
+          return;
+        }
+      }
+    }
+    
+    // Prioridad 2: Si venimos de vuelta a un quiz específico
     const selectedQuizId = location.state?.selectedQuizId;
     
     if (selectedQuizId && quizzes?.length > 0) {
@@ -191,12 +216,10 @@ const CourseLessonsPage = () => {
       {/* Ranking Modal */}
       {showRankingModal && (
         <CourseRankingModal
+          isOpen={showRankingModal}
+          onClose={() => setShowRankingModal(false)}
           courseId={courseId}
           courseName={course?.title?.rendered || course?.title || 'Curso'}
-          ranking={ranking}
-          myStatus={myStatus}
-          totalQuizzes={totalQuizzes}
-          onClose={() => setShowRankingModal(false)}
         />
       )}
     </div>

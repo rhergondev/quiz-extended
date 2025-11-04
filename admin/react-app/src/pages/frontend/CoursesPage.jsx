@@ -33,7 +33,7 @@ const CoursesPage = () => {
     }
 
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {courses.map(course => (
           <CompactCourseCard key={course.id} course={course} />
         ))}
@@ -42,17 +42,14 @@ const CoursesPage = () => {
   };
 
   return (
-    // Contenedor con fondo y scroll vertical
-    <div className="qe-bg-primary-light p-6 h-[97vh] w-full overflow-y-auto">
+    // Contenedor con scroll vertical
+    <div className="p-6 h-[97vh] w-full overflow-y-auto">
       
       {/* Cabecera */}
       <header className="border-b qe-border-primary pb-4 mb-8">
-        <h1 className="text-3xl font-bold qe-text-primary">
-          {t('courses.title')}
+        <h1 className="text-4xl font-bold qe-text-primary">
+          {t('courses.myCourses', 'Mis Cursos')}
         </h1>
-        <p className="qe-text-secondary mt-2">
-          Gestiona tu progreso y accede rápidamente a tus lecciones
-        </p>
       </header>
       
       {/* Contenido principal */}

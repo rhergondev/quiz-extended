@@ -145,7 +145,10 @@ class QE_API_Loader
         // Only add CORS for our endpoints
         $request_uri = $_SERVER['REQUEST_URI'] ?? '';
 
-        if (strpos($request_uri, '/wp-json/quiz-extended/v1') === false) {
+        if (
+            strpos($request_uri, '/wp-json/quiz-extended/v1') === false &&
+            strpos($request_uri, '/wp-json/qe/v1') === false
+        ) {
             return;
         }
 

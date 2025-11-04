@@ -14,13 +14,13 @@ if (!defined('ABSPATH')) {
 class QE_Course_Ranking_API extends QE_API_Base
 {
 
-    protected $namespace = 'quiz-extended/v1';
-    protected $resource = 'courses';
+    protected $namespace = 'qe/v1';
+    protected $resource = 'course-ranking';
 
     public function register_routes()
     {
-        // GET /courses/{course_id}/ranking
-        register_rest_route($this->namespace, '/' . $this->resource . '/(?P<course_id>\d+)/ranking', [
+        // GET /qe/v1/course-ranking/ranking?course_id=X
+        register_rest_route($this->namespace, '/' . $this->resource . '/ranking', [
             'methods' => WP_REST_Server::READABLE,
             'callback' => [$this, 'get_course_ranking'],
             'permission_callback' => [$this, 'check_read_permission'],
@@ -31,11 +31,29 @@ class QE_Course_Ranking_API extends QE_API_Base
                         return is_numeric($param);
                     }
                 ],
+                'page' => [
+                    'required' => false,
+                    'default' => 1,
+                    'validate_callback' => function ($param) {
+                        return is_numeric($param);
+                    }
+                ],
+                'per_page' => [
+                    'required' => false,
+                    'default' => 20,
+                    'validate_callback' => function ($param) {
+                        return is_numeric($param);
+                    }
+                ],
+                'with_risk' => [
+                    'required' => false,
+                    'default' => false,
+                ],
             ]
         ]);
 
-        // GET /courses/{course_id}/my-ranking-status
-        register_rest_route($this->namespace, '/' . $this->resource . '/(?P<course_id>\d+)/my-ranking-status', [
+        // GET /qe/v1/course-ranking/my-ranking-status?course_id=X
+        register_rest_route($this->namespace, '/' . $this->resource . '/my-ranking-status', [
             'methods' => WP_REST_Server::READABLE,
             'callback' => [$this, 'get_my_ranking_status'],
             'permission_callback' => [$this, 'check_read_permission'],
@@ -57,10 +75,15 @@ class QE_Course_Ranking_API extends QE_API_Base
     public function get_course_ranking($request)
     {
         $course_id = (int) $request->get_param('course_id');
+        $with_risk = $request->get_param('with_risk') === 'true' || $request->get_param('with_risk') === true;
+        $page = max(1, (int) $request->get_param('page', 1));
+        $per_page = min(50, max(10, (int) $request->get_param('per_page', 20)));
+
+        $current_user_id = get_current_user_id();
 
         // Verify course exists
         $course = get_post($course_id);
-        if (!$course || $course->post_type !== 'qe_course') {
+        if (!$course || $course->post_type !== 'course') {
             return new WP_REST_Response([
                 'success' => false,
                 'message' => 'Course not found'
@@ -76,6 +99,14 @@ class QE_Course_Ranking_API extends QE_API_Base
                 'data' => [
                     'ranking' => [],
                     'total_quizzes' => 0,
+                    'statistics' => [],
+                    'my_stats' => null,
+                    'pagination' => [
+                        'current_page' => 1,
+                        'total_pages' => 0,
+                        'per_page' => $per_page,
+                        'total_users' => 0
+                    ],
                     'message' => 'No quizzes found for this course'
                 ]
             ], 200);
@@ -84,45 +115,157 @@ class QE_Course_Ranking_API extends QE_API_Base
         $quiz_ids = array_map('intval', $course_quizzes);
         $total_quizzes = count($quiz_ids);
 
-        // Get all users who have attempted at least one quiz
         global $wpdb;
         $table_name = $wpdb->prefix . 'qe_quiz_attempts';
 
-        $user_stats = $wpdb->get_results($wpdb->prepare("
+        // Determine which score column to use
+        $score_column = $with_risk ? 'score_with_risk' : 'score';
+
+        // Get GLOBAL statistics (all users who completed all quizzes)
+        $global_stats = $wpdb->get_row($wpdb->prepare("
+            SELECT 
+                COUNT(DISTINCT user_id) as total_users,
+                AVG(score) as avg_score_without_risk,
+                AVG(score_with_risk) as avg_score_with_risk
+            FROM (
+                SELECT 
+                    user_id,
+                    AVG(score) as score,
+                    AVG(score_with_risk) as score_with_risk
+                FROM {$table_name}
+                WHERE quiz_id IN (" . implode(',', array_fill(0, count($quiz_ids), '%d')) . ")
+                GROUP BY user_id
+                HAVING COUNT(DISTINCT quiz_id) = %d
+            ) as user_averages
+        ", array_merge($quiz_ids, [$total_quizzes])));
+
+        $statistics = [
+            'total_users' => $global_stats ? (int) $global_stats->total_users : 0,
+            'avg_score_without_risk' => $global_stats ? round((float) $global_stats->avg_score_without_risk, 2) : 0,
+            'avg_score_with_risk' => $global_stats ? round((float) $global_stats->avg_score_with_risk, 2) : 0,
+        ];
+
+        // Get ALL users who completed all quizzes (for finding current user position)
+        $all_users = $wpdb->get_results($wpdb->prepare("
             SELECT 
                 user_id,
                 COUNT(DISTINCT quiz_id) as quizzes_completed,
-                AVG(score) as average_score,
+                AVG(score) as average_score_without_risk,
+                AVG(score_with_risk) as average_score_with_risk,
                 SUM(score) as total_score,
                 COUNT(*) as total_attempts
             FROM {$table_name}
             WHERE quiz_id IN (" . implode(',', array_fill(0, count($quiz_ids), '%d')) . ")
             GROUP BY user_id
             HAVING quizzes_completed = %d
-            ORDER BY average_score DESC, total_attempts ASC
+            ORDER BY {$score_column} DESC, total_attempts ASC
         ", array_merge($quiz_ids, [$total_quizzes])));
 
-        $ranking = [];
-        $position = 1;
+        $total_users = count($all_users);
+        $total_pages = ceil($total_users / $per_page);
 
-        foreach ($user_stats as $stat) {
+        // Find current user's position and stats
+        $current_user_position = null;
+        $my_stats = null;
+
+        // Calculate positions for both risk modes
+        $position_without_risk = null;
+        $position_with_risk = null;
+
+        // Sort for without risk
+        $users_sorted_without_risk = $all_users;
+        usort($users_sorted_without_risk, function ($a, $b) {
+            $score_diff = $b->average_score_without_risk - $a->average_score_without_risk;
+            if ($score_diff != 0)
+                return $score_diff > 0 ? 1 : -1;
+            return $a->total_attempts - $b->total_attempts;
+        });
+
+        // Sort for with risk
+        $users_sorted_with_risk = $all_users;
+        usort($users_sorted_with_risk, function ($a, $b) {
+            $score_diff = $b->average_score_with_risk - $a->average_score_with_risk;
+            if ($score_diff != 0)
+                return $score_diff > 0 ? 1 : -1;
+            return $a->total_attempts - $b->total_attempts;
+        });
+
+        // Find positions
+        foreach ($users_sorted_without_risk as $index => $user_data) {
+            if ((int) $user_data->user_id === $current_user_id) {
+                $position_without_risk = $index + 1;
+                break;
+            }
+        }
+
+        foreach ($users_sorted_with_risk as $index => $user_data) {
+            if ((int) $user_data->user_id === $current_user_id) {
+                $position_with_risk = $index + 1;
+                break;
+            }
+        }
+
+        // Get user stats
+        foreach ($all_users as $index => $user_data) {
+            if ((int) $user_data->user_id === $current_user_id) {
+                $current_user_position = $with_risk ? $position_with_risk : $position_without_risk;
+
+                $score_without_risk = round((float) $user_data->average_score_without_risk, 2);
+                $score_with_risk = round((float) $user_data->average_score_with_risk, 2);
+
+                $my_stats = [
+                    'position' => $current_user_position,
+                    'position_without_risk' => $position_without_risk,
+                    'position_with_risk' => $position_with_risk,
+                    'score_without_risk' => $score_without_risk,
+                    'score_with_risk' => $score_with_risk,
+                    'percentile_without_risk' => round($score_without_risk - $statistics['avg_score_without_risk'], 2),
+                    'percentile_with_risk' => round($score_with_risk - $statistics['avg_score_with_risk'], 2),
+                    'total_attempts' => (int) $user_data->total_attempts,
+                ];
+                break;
+            }
+        }
+
+        // If user found, calculate which page they're on and adjust page if needed
+        $user_page = null;
+        if ($current_user_position) {
+            $user_page = ceil($current_user_position / $per_page);
+            // If page not specified or is 1, go to user's page
+            if ($page === 1 && $user_page > 1) {
+                $page = $user_page;
+            }
+        }
+
+        // Get paginated results
+        $offset = ($page - 1) * $per_page;
+        $paged_users = array_slice($all_users, $offset, $per_page);
+
+        $ranking = [];
+        $start_position = $offset + 1;
+
+        foreach ($paged_users as $index => $stat) {
             $user = get_userdata($stat->user_id);
             if (!$user)
                 continue;
+
+            $position = $start_position + $index;
+            $score_value = $with_risk ?
+                round((float) $stat->average_score_with_risk, 2) :
+                round((float) $stat->average_score_without_risk, 2);
 
             $ranking[] = [
                 'position' => $position,
                 'user_id' => (int) $stat->user_id,
                 'display_name' => $user->display_name,
                 'avatar_url' => get_avatar_url($stat->user_id, ['size' => 48]),
-                'average_score' => round((float) $stat->average_score, 2),
-                'total_score' => (float) $stat->total_score,
+                'score_without_risk' => round((float) $stat->average_score_without_risk, 2),
+                'score_with_risk' => round((float) $stat->average_score_with_risk, 2),
+                'score' => $score_value, // Current view score
                 'quizzes_completed' => (int) $stat->quizzes_completed,
                 'total_attempts' => (int) $stat->total_attempts,
                 'is_current_user' => get_current_user_id() === (int) $stat->user_id
             ];
-
-            $position++;
         }
 
         return new WP_REST_Response([
@@ -130,7 +273,16 @@ class QE_Course_Ranking_API extends QE_API_Base
             'data' => [
                 'ranking' => $ranking,
                 'total_quizzes' => $total_quizzes,
-                'total_ranked_users' => count($ranking)
+                'statistics' => $statistics,
+                'my_stats' => $my_stats,
+                'pagination' => [
+                    'current_page' => $page,
+                    'total_pages' => $total_pages,
+                    'per_page' => $per_page,
+                    'total_users' => $total_users,
+                    'user_page' => $user_page
+                ],
+                'with_risk' => $with_risk
             ]
         ], 200);
     }
@@ -232,7 +384,7 @@ class QE_Course_Ranking_API extends QE_API_Base
     {
         // Get lessons for this course
         $lessons = get_posts([
-            'post_type' => 'qe_lesson',
+            'post_type' => 'lesson',
             'meta_query' => [
                 [
                     'key' => '_course_ids',
@@ -265,3 +417,6 @@ class QE_Course_Ranking_API extends QE_API_Base
         return is_user_logged_in();
     }
 }
+
+// Initialize the API
+new QE_Course_Ranking_API();

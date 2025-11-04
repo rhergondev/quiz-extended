@@ -1,0 +1,35 @@
+## ESTÁNDARES DE DISEÑO - QUIZ EXTENDED
+
+### SIDEBAR
+
+#### Colores base:
+- Fondo: Color secundario (--qe-secondary)
+- Texto: Color primario (--qe-primary)
+
+#### Estados de los elementos de navegación:
+
+**Estado Normal:**
+- Sin fondo especial
+- Texto en color primario
+- Sin bordes
+
+**Estado Hover:**
+- Fondo: Color primario (--qe-primary)
+- Texto: Blanco (#ffffff)
+- Esquinas redondeadas
+- Border interno: Blanco (#ffffff)
+- Border externo: Color de fondo del sidebar (color secundario)
+- Efecto: Doble borde que crea separación visual del fondo del sidebar
+
+**Estado Selected (Activo):**
+- Fondo: Color primario (--qe-primary)
+- Texto: Blanco (#ffffff)
+- Esquinas redondeadas
+- Border exterior: Mismo color que el fondo (color primario)
+- Sin el efecto de "hueco" del hover
+
+#### Implementación:
+- Los estados hover y selected mantienen coherencia visual
+- El hover añade un efecto de profundidad con el border
+- El selected es sólido sin el efecto de hueco
+- Transiciones suaves entre estados

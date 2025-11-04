@@ -13,12 +13,9 @@ const DashboardPage = () => {
   return (
     <div className="container mx-auto p-6 space-y-8">
       <header>
-        <h1 className="text-3xl font-bold qe-text-primary">
+        <h1 className="text-4xl font-bold qe-text-primary">
           ¡Bienvenido de nuevo, {userName}!
         </h1>
-        <p className="mt-2 text-lg qe-text-secondary">
-          Aquí tienes un resumen de tu progreso y mensajes.
-        </p>
       </header>
 
       <main className="space-y-8">
