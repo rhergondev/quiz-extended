@@ -72,6 +72,47 @@ final class QE_Loader
         add_action('plugins_loaded', [$this, 'load_textdomain']);
         add_action('admin_enqueue_scripts', [$this, 'set_script_translations'], 100);
 
+        // Verificar y asignar permisos si es necesario
+        add_action('init', [$this, 'ensure_capabilities'], 999);
+    }
+
+    /**
+     * Ensure administrator has all necessary capabilities
+     * Run on init with high priority to ensure post types are registered
+     *
+     * @since 2.0.0
+     */
+    public function ensure_capabilities()
+    {
+        // Only run once per session
+        if (get_transient('qe_capabilities_checked')) {
+            return;
+        }
+
+        // Check if administrator has the capabilities
+        if (class_exists('QE_Capabilities')) {
+            $status = QE_Capabilities::get_capabilities_status();
+
+            // Check if any capability is missing
+            $missing_capabilities = false;
+            foreach ($status as $post_type => $caps) {
+                foreach ($caps as $cap_name => $has_cap) {
+                    if (!$has_cap) {
+                        $missing_capabilities = true;
+                        break 2;
+                    }
+                }
+            }
+
+            // If missing, add them
+            if ($missing_capabilities) {
+                QE_Capabilities::add_capabilities();
+                error_log('[Quiz Extended] Capabilities automatically assigned to administrator');
+            }
+        }
+
+        // Set transient for 1 hour to avoid checking on every request
+        set_transient('qe_capabilities_checked', true, HOUR_IN_SECONDS);
     }
 
     /**

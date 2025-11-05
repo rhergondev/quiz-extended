@@ -9,7 +9,7 @@ import DashboardPage from './pages/DashboardPage';
 import CoursesManager from './components/courses/CoursesManager';
 import LessonsManager from './components/lessons/LessonsManager';
 import QuizzesManager from './components/quizzes/QuizzesManager';
-import UsersPage from './pages/UsersPage';
+import UsersManager from './components/users/UsersManager';
 import QuestionsManager from './components/questions/QuestionsManager';
 import MessagesManager from './components/messages/MessagesManager';
 import SettingsPage from './pages/SettingsPage';
@@ -31,7 +31,7 @@ function AdminApp() {
             <Route path="/lessons" element={<LessonsManager />} />
             <Route path="/quizzes" element={<QuizzesManager />} />
             <Route path="/questions" element={<QuestionsManager />} />
-            <Route path="/students" element={<UsersPage />} />
+            <Route path="/students" element={<UsersManager />} />
             <Route path="/messages" element={<MessagesManager />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/theme" element={<ThemeSettingsPage />} />

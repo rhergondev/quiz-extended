@@ -95,7 +95,9 @@ class QE_API_Loader
             'settings' => 'class-qe-settings-api.php',
             'course-ranking' => 'class-qe-course-ranking-api.php',
             'quiz-autosave' => 'class-qe-quiz-autosave-api.php',
-            'user-stats' => 'class-qe-user-stats-api.php'
+            'user-stats' => 'class-qe-user-stats-api.php',
+            'user-enrollments' => 'class-qe-user-enrollments-api.php',
+            'debug' => 'class-qe-debug-api.php'
         ];
 
         foreach ($modules as $name => $file) {

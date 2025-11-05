@@ -25,10 +25,15 @@ define('QUIZ_EXTENDED_BASENAME', plugin_basename(__FILE__));
 require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-loader.php';
 require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-database.php';
 require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-frontend.php';
+require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-capabilities.php';
 
 // Activation hooks
 register_activation_hook(__FILE__, ['QE_Database', 'create_tables']);
+register_activation_hook(__FILE__, ['QE_Capabilities', 'add_capabilities']);
 register_activation_hook(__FILE__, 'quiz_extended_flush_rewrite_rules');
+
+// Deactivation hook
+register_deactivation_hook(__FILE__, ['QE_Capabilities', 'remove_capabilities']);
 
 /**
  * Flush rewrite rules on activation to register new API routes

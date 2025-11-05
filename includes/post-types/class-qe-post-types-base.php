@@ -67,12 +67,41 @@ abstract class QE_Post_Types_Base
 
             register_post_type($this->post_type, $args);
 
+            // 🔥 IMPORTANTE: Asignar capabilities al rol administrator automáticamente
+            $this->assign_capabilities_to_administrator();
+
             $this->log_info("Post type '{$this->post_type}' registered successfully");
 
         } catch (Exception $e) {
             $this->log_error("Failed to register post type '{$this->post_type}'", [
                 'error' => $e->getMessage()
             ]);
+        }
+    }
+
+    /**
+     * Assign capabilities to administrator role
+     * This ensures admins can manage the custom post type
+     *
+     * @return void
+     */
+    protected function assign_capabilities_to_administrator()
+    {
+        $admin_role = get_role('administrator');
+
+        if (!$admin_role) {
+            $this->log_error("Administrator role not found when registering '{$this->post_type}'");
+            return;
+        }
+
+        $args = $this->get_default_capability_args();
+
+        if (isset($args['capabilities'])) {
+            foreach ($args['capabilities'] as $cap) {
+                $admin_role->add_cap($cap);
+            }
+
+            $this->log_info("Capabilities assigned to administrator for '{$this->post_type}'");
         }
     }
 

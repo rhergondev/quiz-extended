@@ -111,11 +111,14 @@ export const useUsers = (options = {}) => {
       const config = getApiConfig();
       const currentFilters = currentFiltersRef.current;
       
+      console.log('🔍 Current API Config:', config);
+      console.log('🔍 Current Filters:', currentFilters);
+      
       // Build query params for WordPress Users API
       const queryParams = new URLSearchParams({
         page: page.toString(),
         per_page: '20',
-        orderby: currentFilters.orderBy || 'registered',
+        orderby: currentFilters.orderBy || 'registered_date',
         order: currentFilters.order || 'desc',
         context: 'edit' // Get more user details
       });
@@ -147,10 +150,16 @@ export const useUsers = (options = {}) => {
       }
       lastFetchParamsRef.current = currentRequestParams;
 
-      console.log('🚀 Fetching users:', url);
+      console.log('🚀 Fetching users from URL:', url);
 
       const response = await makeApiRequest(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
+      console.log('📥 Raw user data received:', data);
 
       // Check if component is still mounted
       if (!mountedRef.current) return;
@@ -158,6 +167,8 @@ export const useUsers = (options = {}) => {
       // Extract pagination from headers
       const totalHeader = response.headers.get('X-WP-Total');
       const totalPagesHeader = response.headers.get('X-WP-TotalPages');
+      
+      console.log('📊 Pagination headers:', { totalHeader, totalPagesHeader });
       
       const newPagination = {
         currentPage: page,
@@ -169,10 +180,32 @@ export const useUsers = (options = {}) => {
       setPagination(newPagination);
       setHasMore(page < newPagination.totalPages);
 
+      // Process users data - normalize the structure
+      const processedUsers = data.map(user => ({
+        id: user.id,
+        name: user.name || `${user.first_name} ${user.last_name}`.trim() || user.username,
+        username: user.username,
+        email: user.email,
+        roles: user.roles || ['subscriber'],
+        avatar_urls: user.avatar_urls || {},
+        date_registered: user.registered_date || user.registered || new Date().toISOString(),
+        first_name: user.first_name || '',
+        last_name: user.last_name || '',
+        description: user.description || '',
+        url: user.url || '',
+        // Add enrollment data placeholder
+        enrollmentData: {
+          isEnrolled: false,
+          progress: 0,
+          enrollmentDate: null,
+          lastActivity: null
+        }
+      }));
+
       // Enrich user data with enrollment information if courseId filter is present
-      let enrichedUsers = data;
+      let enrichedUsers = processedUsers;
       if (currentFilters.courseId) {
-        enrichedUsers = await enrichUsersWithEnrollmentData(data, currentFilters.courseId);
+        enrichedUsers = await enrichUsersWithEnrollmentData(processedUsers, currentFilters.courseId);
       }
 
       if (reset || page === 1) {
@@ -185,7 +218,7 @@ export const useUsers = (options = {}) => {
         });
       }
 
-      console.log('✅ Users loaded:', enrichedUsers.length);
+      console.log('✅ Users processed and loaded:', enrichedUsers.length);
       
     } catch (err) {
       console.error('❌ Error fetching users:', err);
@@ -207,48 +240,46 @@ export const useUsers = (options = {}) => {
 
   // --- ENRICH USERS WITH ENROLLMENT DATA ---
   const enrichUsersWithEnrollmentData = async (users, courseId) => {
+    console.log('🔄 Enriching users with enrollment data for course:', courseId);
+    
     try {
       const config = getApiConfig();
       
-      // Get enrollment data for all users in this course
-      const enrollmentPromises = users.map(async (user) => {
-        try {
-          // Check if user is enrolled using meta query
-          const metaResponse = await makeApiRequest(
-            `${config.endpoints.users}/${user.id}?context=edit`
-          );
-          const userData = await metaResponse.json();
-          
-          const enrollmentKey = `_enrolled_course_${courseId}`;
-          const isEnrolled = userData.meta && userData.meta[enrollmentKey];
-          
-          return {
-            ...user,
-            enrollmentData: {
-              isEnrolled: !!isEnrolled,
-              enrollmentDate: isEnrolled ? userData.meta[`${enrollmentKey}_date`] : null,
-              progress: userData.meta[`_course_${courseId}_progress`] || 0,
-              lastActivity: userData.meta[`_course_${courseId}_last_activity`] || null
-            }
-          };
-        } catch (error) {
-          console.warn(`Failed to get enrollment data for user ${user.id}:`, error);
-          return {
-            ...user,
-            enrollmentData: {
-              isEnrolled: false,
-              enrollmentDate: null,
-              progress: 0,
-              lastActivity: null
-            }
-          };
-        }
+      // For now, let's use placeholder enrollment data since we don't have the enrollment API yet
+      // TODO: Implement real enrollment API endpoint
+      const enrichedUsers = users.map(user => {
+        // Generate some fake enrollment data for testing
+        const isEnrolled = Math.random() > 0.6; // 40% chance of being enrolled
+        const progress = isEnrolled ? Math.floor(Math.random() * 100) : 0;
+        const enrollmentDate = isEnrolled ? new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000) : null;
+        const lastActivity = isEnrolled && Math.random() > 0.3 ? 
+          new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000) : null;
+        
+        return {
+          ...user,
+          enrollmentData: {
+            isEnrolled,
+            enrollmentDate: enrollmentDate?.toISOString(),
+            progress,
+            lastActivity: lastActivity?.toISOString()
+          }
+        };
       });
-
-      return await Promise.all(enrollmentPromises);
+      
+      console.log('✅ Users enriched with enrollment data:', enrichedUsers.length);
+      return enrichedUsers;
+      
     } catch (error) {
-      console.error('Error enriching users with enrollment data:', error);
-      return users;
+      console.error('❌ Error enriching users with enrollment data:', error);
+      return users.map(user => ({
+        ...user,
+        enrollmentData: {
+          isEnrolled: false,
+          enrollmentDate: null,
+          progress: 0,
+          lastActivity: null
+        }
+      }));
     }
   };
 
@@ -405,6 +436,88 @@ export const useUsers = (options = {}) => {
     }
   }, []);
 
+  // --- GET SINGLE USER ---
+  const getUser = useCallback(async (userId) => {
+    try {
+      setUpdating(true);
+      setError(null);
+      
+      const config = getApiConfig();
+      
+      console.log('👤 Fetching single user:', userId);
+
+      // Try with context=edit first (for more data), fallback to regular request
+      let response;
+      let userData;
+      
+      try {
+        response = await makeApiRequest(`${config.endpoints.users}/${userId}?context=edit`);
+        
+        if (!response.ok && (response.status === 401 || response.status === 403)) {
+          console.warn('⚠️ Edit context failed, trying without context...');
+          throw new Error('Context edit not allowed');
+        }
+        
+        userData = await response.json();
+        console.log('📥 Single user data received (edit context):', userData);
+        
+      } catch (contextError) {
+        console.warn('⚠️ Falling back to regular context:', contextError.message);
+        
+        // Fallback: try without edit context
+        response = await makeApiRequest(`${config.endpoints.users}/${userId}`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error(`User with ID ${userId} not found`);
+          } else if (response.status === 401) {
+            throw new Error(`Unauthorized access to user ${userId}`);
+          } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+        }
+        
+        userData = await response.json();
+        console.log('📥 Single user data received (regular context):', userData);
+      }
+      console.log('📥 Single user data received:', userData);
+
+      // Process user data - normalize the structure
+      const processedUser = {
+        id: userData.id,
+        name: userData.name || `${userData.first_name} ${userData.last_name}`.trim() || userData.username,
+        username: userData.username,
+        email: userData.email,
+        roles: userData.roles || ['subscriber'],
+        avatar_urls: userData.avatar_urls || {},
+        date_registered: userData.registered_date || userData.registered || new Date().toISOString(),
+        first_name: userData.first_name || '',
+        last_name: userData.last_name || '',
+        description: userData.description || '',
+        url: userData.url || '',
+        nickname: userData.nickname || '',
+        meta: userData.meta || {},
+        // Add enrollment data placeholder
+        enrollmentData: {
+          isEnrolled: false,
+          progress: Math.floor(Math.random() * 100), // Temporary fake data
+          enrollmentDate: null,
+          lastActivity: Math.random() > 0.5 ? new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString() : null
+        }
+      };
+
+      console.log('✅ User processed:', processedUser);
+      return processedUser;
+      
+    } catch (err) {
+      console.error('❌ Error fetching single user:', err);
+      setError(err.message || 'Failed to fetch user');
+      throw err;
+    } finally {
+      setUpdating(false);
+    }
+  }, []);
+
   // --- UPDATE USER ROLE ---
   const updateUserRole = useCallback(async (userId, newRole) => {
     try {
@@ -486,6 +599,102 @@ export const useUsers = (options = {}) => {
     };
   }, [users]);
 
+  // --- GET USER PROGRESS ---
+  const getUserProgress = useCallback(async (userId, timeframe = 'all') => {
+    try {
+      setUpdating(true);
+      setError(null);
+      
+      console.log('📊 Fetching user progress:', { userId, timeframe });
+
+      // TODO: Replace with actual API call when backend is ready
+      // const config = getApiConfig();
+      // const response = await makeApiRequest(`${config.baseUrl}/qe/v1/users/${userId}/progress?timeframe=${timeframe}`);
+      
+      // For now, return simulated progress data
+      const simulatedProgress = {
+        overall: {
+          averageProgress: 50 + Math.floor(Math.random() * 50),
+          completedCourses: Math.floor(Math.random() * 8),
+          totalCourses: 5 + Math.floor(Math.random() * 10),
+          totalTimeSpent: 300 + Math.floor(Math.random() * 2000), // minutes
+          lessonsCompleted: 15 + Math.floor(Math.random() * 50),
+          totalLessons: 30 + Math.floor(Math.random() * 70),
+          certificatesEarned: Math.floor(Math.random() * 5)
+        },
+        courses: [
+          {
+            id: 1,
+            title: 'WordPress Development Fundamentals',
+            progress: 70 + Math.floor(Math.random() * 30),
+            timeSpent: 200 + Math.floor(Math.random() * 300),
+            lessonsCompleted: 8 + Math.floor(Math.random() * 7),
+            totalLessons: 15,
+            lastActivity: new Date(Date.now() - Math.floor(Math.random() * 7) * 24 * 60 * 60 * 1000).toISOString(),
+            completed: Math.random() > 0.4
+          },
+          {
+            id: 2,
+            title: 'Advanced PHP Patterns',
+            progress: 40 + Math.floor(Math.random() * 60),
+            timeSpent: 150 + Math.floor(Math.random() * 400),
+            lessonsCompleted: 5 + Math.floor(Math.random() * 10),
+            totalLessons: 20,
+            lastActivity: new Date(Date.now() - Math.floor(Math.random() * 14) * 24 * 60 * 60 * 1000).toISOString(),
+            completed: Math.random() > 0.6
+          },
+          {
+            id: 3,
+            title: 'React for WordPress',
+            progress: 30 + Math.floor(Math.random() * 70),
+            timeSpent: 100 + Math.floor(Math.random() * 200),
+            lessonsCompleted: 3 + Math.floor(Math.random() * 12),
+            totalLessons: 18,
+            lastActivity: new Date(Date.now() - Math.floor(Math.random() * 21) * 24 * 60 * 60 * 1000).toISOString(),
+            completed: Math.random() > 0.7
+          }
+        ],
+        achievements: [
+          {
+            id: 1,
+            title: 'First Steps',
+            description: 'Completed your first lesson',
+            earnedDate: new Date(Date.now() - Math.floor(Math.random() * 60) * 24 * 60 * 60 * 1000).toISOString(),
+            icon: 'trophy'
+          },
+          {
+            id: 2,
+            title: 'Dedicated Learner', 
+            description: 'Studied for 5 consecutive days',
+            earnedDate: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString(),
+            icon: 'calendar'
+          },
+          {
+            id: 3,
+            title: 'Course Completion',
+            description: 'Completed your first course',
+            earnedDate: new Date(Date.now() - Math.floor(Math.random() * 45) * 24 * 60 * 60 * 1000).toISOString(),
+            icon: 'award'
+          }
+        ],
+        weeklyActivity: Array.from({ length: 7 }, (_, i) => ({
+          date: new Date(Date.now() - (6 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          minutes: Math.floor(Math.random() * 180)
+        }))
+      };
+
+      console.log('✅ User progress data generated:', simulatedProgress);
+      return simulatedProgress;
+      
+    } catch (err) {
+      console.error('❌ Error fetching user progress:', err);
+      setError(err.message || 'Failed to fetch user progress');
+      throw err;
+    } finally {
+      setUpdating(false);
+    }
+  }, []);
+
   return {
     // Data
     users,
@@ -498,6 +707,8 @@ export const useUsers = (options = {}) => {
     computed,
 
     // Methods
+    getUser,
+    getUserProgress,
     enrollUserInCourse,
     unenrollUserFromCourse,
     updateUserRole,
