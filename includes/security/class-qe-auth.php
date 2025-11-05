@@ -748,7 +748,7 @@ class QE_Auth
 
         // Validate course
         $course = get_post($course_id);
-        if (!$course || $course->post_type !== 'course') {
+        if (!$course || $course->post_type !== 'qe_course') {
             return new WP_Error(
                 'invalid_course',
                 __('Invalid course ID.', 'quiz-extended'),

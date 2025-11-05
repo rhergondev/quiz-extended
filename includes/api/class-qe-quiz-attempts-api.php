@@ -184,7 +184,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
         if (!empty($all_question_ids)) {
             $posts = get_posts([
                 'post__in' => $all_question_ids,
-                'post_type' => 'question',
+                'post_type' => 'qe_question',
                 'posts_per_page' => -1,
                 'orderby' => 'post__in',
             ]);
@@ -838,7 +838,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
         foreach ($question_ids as $question_id) {
             $question_post = get_post($question_id);
 
-            if (!$question_post || $question_post->post_type !== 'question') {
+            if (!$question_post || $question_post->post_type !== 'qe_question') {
                 continue;
             }
 

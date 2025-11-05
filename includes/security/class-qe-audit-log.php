@@ -371,7 +371,7 @@ class QE_Audit_Log
     public function log_post_status_change($new_status, $old_status, $post)
     {
         // Only log our custom post types
-        if (!in_array($post->post_type, ['course', 'lesson', 'quiz', 'question'])) {
+        if (!in_array($post->post_type, ['qe_course', 'qe_lesson', 'qe_quiz', 'qe_question'])) {
             return;
         }
 
@@ -398,7 +398,7 @@ class QE_Audit_Log
     public function log_post_deletion($post_id, $post)
     {
         // Only log our custom post types
-        if (!in_array($post->post_type, ['course', 'lesson', 'quiz', 'question'])) {
+        if (!in_array($post->post_type, ['qe_course', 'qe_lesson', 'qe_quiz', 'qe_question'])) {
             return;
         }
 

@@ -122,7 +122,7 @@ class QE_Step_Sanitizer
             $quiz_id = absint($data['quiz_id']);
 
             // Validate quiz exists
-            if ($quiz_id > 0 && get_post_type($quiz_id) === 'quiz') {
+            if ($quiz_id > 0 && get_post_type($quiz_id) === 'qe_quiz') {
                 $sanitized['quiz_id'] = $quiz_id;
             }
         }

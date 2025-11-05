@@ -22,8 +22,8 @@ class QE_Question_Type extends QE_Post_Types_Base
      */
     public function __construct()
     {
-        parent::__construct('question');
-        add_action('rest_after_insert_question', [$this, 'sync_question_with_quizzes'], 10, 3);
+        parent::__construct('qe_question');
+        add_action('rest_after_insert_qe_question', [$this, 'sync_question_with_quizzes'], 10, 3);
         add_action('before_delete_post', [$this, 'clear_quiz_associations_on_delete'], 10, 1);
 
     }
@@ -84,7 +84,7 @@ class QE_Question_Type extends QE_Post_Types_Base
      */
     public function clear_quiz_associations_on_delete($post_id)
     {
-        if (get_post_type($post_id) !== 'question') {
+        if (get_post_type($post_id) !== 'qe_question') {
             return;
         }
 
@@ -133,7 +133,7 @@ class QE_Question_Type extends QE_Post_Types_Base
             'description' => __('Question bank for quizzes', 'quiz-extended'),
             'public' => false,
             'show_ui' => true,
-            'show_in_menu' => 'edit.php?post_type=course',
+            'show_in_menu' => 'edit.php?post_type=qe_course',
             'supports' => [
                 'title',
                 'editor',

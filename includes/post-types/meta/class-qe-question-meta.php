@@ -19,11 +19,11 @@ if (!defined('ABSPATH')) {
 class QE_Question_Meta
 {
     /**
-     * Post type this meta belongs to
+     * Post type this meta is for
      *
      * @var string
      */
-    private $post_type = 'question';
+    private $post_type = 'qe_question';
 
     /**
      * Register all question meta fields

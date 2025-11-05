@@ -138,9 +138,9 @@ class QE_Admin_Menu
     public function hide_default_cpt_menus()
     {
         // Oculta el menú principal de "Courses" y todos sus submenús.
-        remove_menu_page('edit.php?post_type=course');
+        remove_menu_page('edit.php?post_type=qe_course');
 
-        remove_menu_page('edit.php?post_type=lesson');
+        remove_menu_page('edit.php?post_type=qe_lesson');
 
         // Oculta el menú principal de "Books".
         remove_menu_page('edit.php?post_type=book');

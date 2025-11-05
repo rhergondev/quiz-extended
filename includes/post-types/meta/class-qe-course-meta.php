@@ -18,11 +18,11 @@ if (!defined('ABSPATH')) {
 class QE_Course_Meta
 {
     /**
-     * Post type this meta belongs to
+     * Post type this meta is for
      *
      * @var string
      */
-    private $post_type = 'course';
+    private $post_type = 'qe_course';
 
     /**
      * Register all course meta fields

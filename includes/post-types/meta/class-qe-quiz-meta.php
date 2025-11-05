@@ -18,11 +18,11 @@ if (!defined('ABSPATH')) {
 class QE_Quiz_Meta
 {
     /**
-     * Post type this meta belongs to
+     * Post type this meta is for
      *
      * @var string
      */
-    private $post_type = 'quiz';
+    private $post_type = 'qe_quiz';
 
     /**
      * Register all quiz meta fields

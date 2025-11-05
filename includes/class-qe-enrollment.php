@@ -117,7 +117,7 @@ class QE_Enrollment
                     // Validate course exists
                     $course = get_post($course_id);
 
-                    if (!$course || $course->post_type !== 'course') {
+                    if (!$course || $course->post_type !== 'qe_course') {
                         $skipped_items[] = [
                             'item_id' => $item_id,
                             'product_id' => $product_id,
@@ -414,7 +414,7 @@ class QE_Enrollment
 
             // Get all published courses
             $courses = get_posts([
-                'post_type' => 'course',
+                'post_type' => 'qe_course',
                 'post_status' => 'publish',
                 'posts_per_page' => -1,
                 'orderby' => 'title',
@@ -514,7 +514,7 @@ class QE_Enrollment
             // Verify course exists
             $course = get_post($course_id);
 
-            if (!$course || $course->post_type !== 'course') {
+            if (!$course || $course->post_type !== 'qe_course') {
                 throw new Exception("Course not found or invalid: {$course_id}");
             }
 

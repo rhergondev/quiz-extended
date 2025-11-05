@@ -358,16 +358,16 @@ class QE_Post_Types_Loader
     private function register_rest_enhancements()
     {
         // Add REST API filters for meta queries
-        add_filter('rest_course_query', [$this, 'filter_by_meta'], 10, 2);
-        add_filter('rest_lesson_query', [$this, 'filter_by_meta'], 10, 2);
-        add_filter('rest_quiz_query', [$this, 'filter_by_meta'], 10, 2);
-        add_filter('rest_question_query', [$this, 'filter_by_meta'], 10, 2);
+        add_filter('rest_qe_course_query', [$this, 'filter_by_meta'], 10, 2);
+        add_filter('rest_qe_lesson_query', [$this, 'filter_by_meta'], 10, 2);
+        add_filter('rest_qe_quiz_query', [$this, 'filter_by_meta'], 10, 2);
+        add_filter('rest_qe_question_query', [$this, 'filter_by_meta'], 10, 2);
 
         // Add REST API collection parameters
-        add_filter('rest_course_collection_params', [$this, 'add_collection_params'], 10, 1);
-        add_filter('rest_lesson_collection_params', [$this, 'add_collection_params'], 10, 1);
-        add_filter('rest_quiz_collection_params', [$this, 'add_collection_params'], 10, 1);
-        add_filter('rest_question_collection_params', [$this, 'add_collection_params'], 10, 1);
+        add_filter('rest_qe_course_collection_params', [$this, 'add_collection_params'], 10, 1);
+        add_filter('rest_qe_lesson_collection_params', [$this, 'add_collection_params'], 10, 1);
+        add_filter('rest_qe_quiz_collection_params', [$this, 'add_collection_params'], 10, 1);
+        add_filter('rest_qe_question_collection_params', [$this, 'add_collection_params'], 10, 1);
 
         // REST API authentication
         add_filter('rest_pre_dispatch', [$this, 'handle_rest_authentication'], 10, 3);
@@ -504,7 +504,7 @@ class QE_Post_Types_Loader
         $route = $request->get_route();
 
         // Only check our endpoints
-        $our_endpoints = ['/wp/v2/course', '/wp/v2/lesson', '/wp/v2/quiz', '/wp/v2/question'];
+        $our_endpoints = ['/wp/v2/qe_course', '/wp/v2/qe_lesson', '/wp/v2/qe_quiz', '/wp/v2/qe_question'];
         $is_our_endpoint = false;
 
         foreach ($our_endpoints as $endpoint) {

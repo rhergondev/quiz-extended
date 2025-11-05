@@ -163,7 +163,7 @@ class QE_Feedback_Rankings_API extends QE_API_Base
 
         // Validate quiz
         $quiz = get_post($quiz_id);
-        if (!$quiz || $quiz->post_type !== 'quiz') {
+        if (!$quiz || $quiz->post_type !== 'qe_quiz') {
             return $this->error_response('not_found', 'Quiz no encontrado.', 404);
         }
 

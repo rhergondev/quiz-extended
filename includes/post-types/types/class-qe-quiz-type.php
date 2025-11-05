@@ -22,7 +22,7 @@ class QE_Quiz_Type extends QE_Post_Types_Base
      */
     public function __construct()
     {
-        parent::__construct('quiz');
+        parent::__construct('qe_quiz');
     }
 
     /**
@@ -59,7 +59,7 @@ class QE_Quiz_Type extends QE_Post_Types_Base
             'publicly_queryable' => true,
             'hierarchical' => true,
             'show_ui' => true,
-            'show_in_menu' => 'edit.php?post_type=course',
+            'show_in_menu' => 'edit.php?post_type=qe_course',
             'supports' => [
                 'title',
                 'editor',

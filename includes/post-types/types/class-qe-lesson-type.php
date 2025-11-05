@@ -22,7 +22,7 @@ class QE_Lesson_Type extends QE_Post_Types_Base
      */
     public function __construct()
     {
-        parent::__construct('lesson');
+        parent::__construct('qe_lesson');
     }
 
     /**
@@ -57,7 +57,7 @@ class QE_Lesson_Type extends QE_Post_Types_Base
             'description' => __('Lessons that belong to courses', 'quiz-extended'),
             'public' => true,
             'hierarchical' => true,
-            'show_in_menu' => 'edit.php?post_type=course',
+            'show_in_menu' => 'edit.php?post_type=qe_course',
             'supports' => [
                 'title',
                 'editor',

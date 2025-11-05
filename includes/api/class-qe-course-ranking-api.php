@@ -83,7 +83,7 @@ class QE_Course_Ranking_API extends QE_API_Base
 
         // Verify course exists
         $course = get_post($course_id);
-        if (!$course || $course->post_type !== 'course') {
+        if (!$course || $course->post_type !== 'qe_course') {
             return new WP_REST_Response([
                 'success' => false,
                 'message' => 'Course not found'
@@ -384,7 +384,7 @@ class QE_Course_Ranking_API extends QE_API_Base
     {
         // Get lessons for this course
         $lessons = get_posts([
-            'post_type' => 'lesson',
+            'post_type' => 'qe_lesson',
             'meta_query' => [
                 [
                     'key' => '_course_ids',

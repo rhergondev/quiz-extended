@@ -22,7 +22,7 @@ class QE_Course_Type extends QE_Post_Types_Base
      */
     public function __construct()
     {
-        parent::__construct('course');
+        parent::__construct('qe_course');
     }
 
     /**

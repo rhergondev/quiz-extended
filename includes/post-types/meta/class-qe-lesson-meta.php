@@ -19,11 +19,11 @@ if (!defined('ABSPATH')) {
 class QE_Lesson_Meta
 {
     /**
-     * Post type this meta belongs to
+     * Post type this meta is for
      *
      * @var string
      */
-    private $post_type = 'lesson';
+    private $post_type = 'qe_lesson';
 
     /**
      * Register all lesson meta fields
@@ -366,7 +366,7 @@ class QE_Lesson_Meta
             case 'quiz':
                 if (isset($data['quiz_id'])) {
                     $quiz_id = absint($data['quiz_id']);
-                    if ($quiz_id > 0 && get_post_type($quiz_id) === 'quiz') {
+                    if ($quiz_id > 0 && get_post_type($quiz_id) === 'qe_quiz') {
                         $sanitized['quiz_id'] = $quiz_id;
                     }
                 }

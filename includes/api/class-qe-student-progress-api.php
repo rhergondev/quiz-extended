@@ -711,7 +711,7 @@ class QE_Student_Progress_API extends QE_API_Base
         try {
             // Get total lessons
             $total_lessons = count(get_posts([
-                'post_type' => 'lesson',
+                'post_type' => 'qe_lesson',
                 'meta_key' => '_course_id',
                 'meta_value' => $course_id,
                 'posts_per_page' => -1,
@@ -720,7 +720,7 @@ class QE_Student_Progress_API extends QE_API_Base
 
             // Get total quizzes
             $total_quizzes = count(get_posts([
-                'post_type' => 'quiz',
+                'post_type' => 'qe_quiz',
                 'meta_key' => '_course_id',
                 'meta_value' => $course_id,
                 'posts_per_page' => -1,

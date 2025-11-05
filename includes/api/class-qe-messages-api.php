@@ -182,7 +182,7 @@ class QE_Messages_API extends QE_API_Base
 
             // Validate question exists
             $question = get_post($question_id);
-            if (!$question || 'question' !== $question->post_type) {
+            if (!$question || 'qe_question' !== $question->post_type) {
                 return $this->error_response('not_found', 'La pregunta no existe.', 404);
             }
 
