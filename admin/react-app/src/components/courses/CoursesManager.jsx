@@ -23,7 +23,7 @@ const CoursesManager = () => {
   const [panelStack, setPanelStack] = useState([{ type: 'courseList' }]);
 
   // --- HOOKS DE DATOS ---
-  const coursesHook = useCourses({ autoFetch: true, perPage: 50 });
+  const coursesHook = useCourses({ autoFetch: true, perPage: 100 });
   const lessonsHook = useLessons({ autoFetch: false });
   const quizzesHook = useQuizzes({ autoFetch: false });
   const { options: taxonomyOptions, refetch: refetchTaxonomies } = useTaxonomyOptions(['qe_category']);
@@ -120,11 +120,13 @@ const CoursesManager = () => {
               return (
                   <ListPanel
                       title={t('courses.title')}
-                      itemCount={coursesHook.computed.totalCourses || 0}
+                      itemCount={coursesHook.pagination?.total || 0}
                       createButtonText={t('courses.addNew')}
                       onCreate={handleCreateNewCourse}
                       isCreating={coursesHook.creating}
-                      // CORRECCIÓN: Corregido el typo de `search-config` a `searchConfig`
+                      onLoadMore={coursesHook.loadMore}
+                      hasMore={coursesHook.pagination?.hasMore}
+                      isLoadingMore={coursesHook.loading && (coursesHook.courses?.length || 0) > 0}
                       filters={<FilterBar searchConfig={searchConfig} filtersConfig={filtersConfig} />}
                   >
                       {(coursesHook.courses || []).map(course => (

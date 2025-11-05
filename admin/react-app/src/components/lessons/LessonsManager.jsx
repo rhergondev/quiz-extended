@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import clsx from 'clsx'; // Utility for conditional classes
 
@@ -31,9 +31,24 @@ const LessonsManager = () => {
   });
 
   // --- OBTENCIÓN DE DATOS ---
-  const lessonsHook = useLessons({ autoFetch: true, perPage: 50 });
-  const coursesHook = useCourses({ autoFetch: true, perPage: 100 });
-  const quizzesHook = useQuizzes({ autoFetch: true, perPage: 100 });
+  const lessonsHook = useLessons({ autoFetch: true, perPage: 100 });
+  const coursesHook = useCourses({ autoFetch: false });
+  const quizzesHook = useQuizzes({ autoFetch: false });
+
+  // --- LAZY LOADING: Cargar cursos y quizzes solo cuando sea necesario ---
+  useEffect(() => {
+    if ((mode === 'edit' || mode === 'create' || lessonsHook.filters?.courseId) && 
+        coursesHook.courses.length === 0 && !coursesHook.loading) {
+      coursesHook.fetchCourses(true, { perPage: 100 });
+    }
+  }, [mode, lessonsHook.filters?.courseId]);
+
+  useEffect(() => {
+    if (creationContext.isActive && creationContext.childType === 'quiz' &&
+        quizzesHook.quizzes.length === 0 && !quizzesHook.loading) {
+      quizzesHook.fetchQuizzes(true, { perPage: 100 });
+    }
+  }, [creationContext.isActive, creationContext.childType]);
 
   // --- MANEJADORES DE LA UI ---
   const handleSelectLesson = (lesson) => {
@@ -111,7 +126,7 @@ const LessonsManager = () => {
   }, [lessonsHook.filters, lessonsHook.updateFilter, lessonsHook.loading, t]);
 
   // --- RENDERIZADO ---
-  const isInitialLoading = !lessonsHook.filters || !lessonsHook.computed || !coursesHook.courses;
+  const isInitialLoading = !lessonsHook.filters || !lessonsHook.pagination;
 
   if (isInitialLoading) {
     return <div className="flex items-center justify-center h-full"><p>{t('common.loading')}</p></div>;
@@ -132,10 +147,13 @@ const LessonsManager = () => {
       )}>
         <ListPanel
           title="Lecciones"
-          itemCount={lessonsHook.computed.total || 0}
+          itemCount={lessonsHook.pagination?.total || 0}
           createButtonText="Crear Lección"
           onCreate={handleCreateNew}
           isCreating={lessonsHook.creating}
+          onLoadMore={lessonsHook.loadMore}
+          hasMore={lessonsHook.pagination?.hasMore}
+          isLoadingMore={lessonsHook.loading && (lessonsHook.lessons?.length || 0) > 0}
           filters={<FilterBar searchConfig={searchConfig} filtersConfig={filtersConfig} />}
         >
           {(lessonsHook.lessons || []).map(lesson => (
