@@ -58,11 +58,21 @@ class QE_Quiz_Meta
     private function register_relationship_fields()
     {
         register_post_meta($this->post_type, '_course_id', [
-            'show_in_rest' => true,
+            'show_in_rest' => [
+                'schema' => [
+                    'type' => 'integer',
+                    'description' => __('Parent course ID', 'quiz-extended'),
+                    'default' => 0,
+                ],
+            ],
             'single' => true,
             'type' => 'integer',
             'description' => __('Parent course ID', 'quiz-extended'),
-            'sanitize_callback' => 'absint',
+            'default' => 0,
+            'sanitize_callback' => function ($value) {
+                // Allow empty values to be saved as 0
+                return $value ? absint($value) : 0;
+            },
             'auth_callback' => [$this, 'auth_callback'],
         ]);
     }

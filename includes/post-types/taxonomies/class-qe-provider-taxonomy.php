@@ -22,7 +22,7 @@ class QE_Provider_Taxonomy extends QE_Taxonomy_Base
      */
     public function __construct()
     {
-        parent::__construct('qe_provider', ['question']);
+        parent::__construct('qe_provider', ['qe_question']);
     }
 
     /**

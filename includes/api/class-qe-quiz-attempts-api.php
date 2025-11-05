@@ -363,7 +363,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             ]);
 
             // Validate quiz
-            $quiz = $this->validate_post($quiz_id, 'quiz');
+            $quiz = $this->validate_post($quiz_id, 'qe_quiz');
             if (is_wp_error($quiz)) {
                 return $quiz;
             }

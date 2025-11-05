@@ -98,7 +98,7 @@ class QE_Feedback_Rankings_API extends QE_API_Base
             ]);
 
             // Validate question
-            $question = $this->validate_post($question_id, 'question');
+            $question = $this->validate_post($question_id, 'qe_question');
             if (is_wp_error($question)) {
                 return $question;
             }
@@ -357,7 +357,7 @@ class QE_Feedback_Rankings_API extends QE_API_Base
             ]);
 
             // Validate course
-            $course = $this->validate_post($course_id, 'course');
+            $course = $this->validate_post($course_id, 'qe_course');
             if (is_wp_error($course)) {
                 return $course;
             }

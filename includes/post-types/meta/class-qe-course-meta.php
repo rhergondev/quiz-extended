@@ -216,6 +216,36 @@ class QE_Course_Meta
             'sanitize_callback' => [$this, 'sanitize_id_array'],
             'auth_callback' => [$this, 'auth_callback'],
         ]);
+
+        register_post_meta($this->post_type, '_quiz_ids', [
+            'show_in_rest' => [
+                'schema' => [
+                    'description' => __('Array of quiz IDs associated with this course', 'quiz-extended'),
+                    'type' => 'array',
+                    'items' => ['type' => 'integer'],
+                ]
+            ],
+            'single' => true,
+            'type' => 'array',
+            'description' => __('Quizzes in this course', 'quiz-extended'),
+            'sanitize_callback' => [$this, 'sanitize_id_array'],
+            'auth_callback' => [$this, 'auth_callback'],
+        ]);
+
+        register_post_meta($this->post_type, '_question_ids', [
+            'show_in_rest' => [
+                'schema' => [
+                    'description' => __('Array of question IDs associated with this course', 'quiz-extended'),
+                    'type' => 'array',
+                    'items' => ['type' => 'integer'],
+                ]
+            ],
+            'single' => true,
+            'type' => 'array',
+            'description' => __('Questions in this course', 'quiz-extended'),
+            'sanitize_callback' => [$this, 'sanitize_id_array'],
+            'auth_callback' => [$this, 'auth_callback'],
+        ]);
     }
 
     /**

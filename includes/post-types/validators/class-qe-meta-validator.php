@@ -25,10 +25,10 @@ class QE_Meta_Validator
      */
     public function register_hooks()
     {
-        add_filter('rest_pre_insert_course', [$this, 'validate_course'], 10, 2);
-        add_filter('rest_pre_insert_lesson', [$this, 'validate_lesson'], 10, 2);
-        add_filter('rest_pre_insert_quiz', [$this, 'validate_quiz'], 10, 2);
-        add_filter('rest_pre_insert_question', [$this, 'validate_question'], 10, 2);
+        add_filter('rest_pre_insert_qe_course', [$this, 'validate_course'], 10, 2);
+        add_filter('rest_pre_insert_qe_lesson', [$this, 'validate_lesson'], 10, 2);
+        add_filter('rest_pre_insert_qe_quiz', [$this, 'validate_quiz'], 10, 2);
+        add_filter('rest_pre_insert_qe_question', [$this, 'validate_question'], 10, 2);
     }
 
     // ============================================================
@@ -131,7 +131,7 @@ class QE_Meta_Validator
             if (isset($meta['_course_id'])) {
                 $course_id = absint($meta['_course_id']);
 
-                if ($course_id > 0 && !$this->validate_post_exists($course_id, 'course')) {
+                if ($course_id > 0 && !$this->validate_post_exists($course_id, 'qe_course')) {
                     return new WP_Error(
                         'invalid_course_id',
                         __('The specified course does not exist', 'quiz-extended'),
@@ -152,7 +152,7 @@ class QE_Meta_Validator
             // Validate prerequisite lessons
             if (isset($meta['_prerequisite_lessons']) && is_array($meta['_prerequisite_lessons'])) {
                 foreach ($meta['_prerequisite_lessons'] as $lesson_id) {
-                    if (!$this->validate_post_exists($lesson_id, 'lesson')) {
+                    if (!$this->validate_post_exists($lesson_id, 'qe_lesson')) {
                         return new WP_Error(
                             'invalid_prerequisite',
                             sprintf(
@@ -228,7 +228,7 @@ class QE_Meta_Validator
             if ($step['type'] === 'quiz' && isset($step['data']['quiz_id'])) {
                 $quiz_id = absint($step['data']['quiz_id']);
 
-                if ($quiz_id > 0 && !$this->validate_post_exists($quiz_id, 'quiz')) {
+                if ($quiz_id > 0 && !$this->validate_post_exists($quiz_id, 'qe_quiz')) {
                     return new WP_Error(
                         'invalid_quiz_id',
                         sprintf(
@@ -269,7 +269,7 @@ class QE_Meta_Validator
             if (isset($meta['_course_id'])) {
                 $course_id = absint($meta['_course_id']);
 
-                if ($course_id > 0 && !$this->validate_post_exists($course_id, 'course')) {
+                if ($course_id > 0 && !$this->validate_post_exists($course_id, 'qe_course')) {
                     return new WP_Error(
                         'invalid_course_id',
                         __('The specified course does not exist', 'quiz-extended'),
@@ -294,7 +294,7 @@ class QE_Meta_Validator
             // Validate question IDs
             if (isset($meta['_quiz_question_ids']) && is_array($meta['_quiz_question_ids'])) {
                 foreach ($meta['_quiz_question_ids'] as $question_id) {
-                    if (!$this->validate_post_exists($question_id, 'question')) {
+                    if (!$this->validate_post_exists($question_id, 'qe_question')) {
                         return new WP_Error(
                             'invalid_question_id',
                             sprintf(
@@ -346,7 +346,7 @@ class QE_Meta_Validator
             if (isset($meta['_course_id'])) {
                 $course_id = absint($meta['_course_id']);
 
-                if ($course_id > 0 && !$this->validate_post_exists($course_id, 'course')) {
+                if ($course_id > 0 && !$this->validate_post_exists($course_id, 'qe_course')) {
                     return new WP_Error(
                         'invalid_course_id',
                         __('The specified course does not exist', 'quiz-extended'),

@@ -318,10 +318,10 @@ class QE_Auth
         $route = $_SERVER['REQUEST_URI'] ?? '';
 
         if (
-            strpos($route, '/wp-json/wp/v2/course') === false &&
-            strpos($route, '/wp-json/wp/v2/lesson') === false &&
-            strpos($route, '/wp-json/wp/v2/quiz') === false &&
-            strpos($route, '/wp-json/wp/v2/question') === false &&
+            strpos($route, '/wp-json/wp/v2/qe_course') === false &&
+            strpos($route, '/wp-json/wp/v2/qe_lesson') === false &&
+            strpos($route, '/wp-json/wp/v2/qe_quiz') === false &&
+            strpos($route, '/wp-json/wp/v2/qe_question') === false &&
             strpos($route, '/wp-json/quiz-extended/v1') === false
         ) {
             return $result;
@@ -387,10 +387,10 @@ class QE_Auth
     private function is_our_endpoint($route)
     {
         $our_routes = [
-            '/wp/v2/course',
-            '/wp/v2/lesson',
-            '/wp/v2/quiz',
-            '/wp/v2/question',
+            '/wp/v2/qe_course',
+            '/wp/v2/qe_lesson',
+            '/wp/v2/qe_quiz',
+            '/wp/v2/qe_question',
             '/quiz-extended/v1',
         ];
 
@@ -414,7 +414,7 @@ class QE_Auth
     private function check_route_permission($route, $method, $request)
     {
         // Extract resource type and ID
-        preg_match('#/wp/v2/(course|lesson|quiz|question)(?:/(\d+))?#', $route, $matches);
+        preg_match('#/wp/v2/(qe_course|qe_lesson|qe_quiz|qe_question)(?:/(\d+))?#', $route, $matches);
 
         if (empty($matches)) {
             // Custom API routes - handle separately
@@ -456,37 +456,32 @@ class QE_Auth
     private function check_read_permission($resource_type, $resource_id)
     {
         // Admins can read everything
-        if (current_user_can('manage_lms')) {
+        if (current_user_can('administrator') || current_user_can('manage_lms')) {
             return true;
         }
 
-        // Instructors can read their own content
-        if (current_user_can('edit_own_' . $resource_type . 's')) {
-            if ($resource_id && !$this->security->user_owns_post($resource_id)) {
-                // Can still read published content
-                $post = get_post($resource_id);
-                if ($post && $post->post_status === 'publish') {
-                    return true;
-                }
-
-                return new WP_Error(
-                    'rest_forbidden',
-                    __('You do not have permission to view this resource.', 'quiz-extended'),
-                    ['status' => 403]
-                );
-            }
+        // Check WordPress native read capability
+        $read_cap = 'read_private_' . $resource_type . 's';
+        if (current_user_can($read_cap)) {
             return true;
         }
 
-        // Students can read published courses/lessons
-        if (in_array($resource_type, ['course', 'lesson']) && current_user_can('view_courses')) {
-            if ($resource_id) {
-                $post = get_post($resource_id);
-                if ($post && $post->post_status === 'publish') {
-                    return true;
-                }
+        // Can read own posts
+        if ($resource_id && $this->security->user_owns_post($resource_id)) {
+            return true;
+        }
+
+        // Can read published content
+        if ($resource_id) {
+            $post = get_post($resource_id);
+            if ($post && $post->post_status === 'publish') {
+                return true;
             }
-            return true; // Can browse list
+        }
+
+        // Students can browse published courses/lessons
+        if (in_array($resource_type, ['qe_course', 'qe_lesson'])) {
+            return true; // Can browse list of published items
         }
 
         return new WP_Error(
@@ -510,25 +505,27 @@ class QE_Auth
      */
     private function check_create_permission($resource_type)
     {
-        // Admins can create everything
-        if (current_user_can('manage_lms') || current_user_can('administrator')) {
+        // WordPress native capabilities - trust the system
+        // Admins and users with proper capabilities can create
+        if (current_user_can('administrator')) {
             return true;
         }
 
-        // Check specific create capability
-        $capability = 'create_' . $resource_type . 's';
-        if (current_user_can($capability)) {
+        // Check WordPress native create capability for this post type
+        $create_cap = 'create_' . $resource_type . 's';
+        if (current_user_can($create_cap)) {
             return true;
         }
 
-        // Check generic edit capability (WordPress fallback)
-        $capability = 'edit_' . $resource_type . 's';
-        if (current_user_can($capability)) {
+        // Fallback: check edit capability (WordPress standard)
+        $edit_cap = 'edit_' . $resource_type . 's';
+        if (current_user_can($edit_cap)) {
             return true;
         }
 
-        // Si es quiz, verificar permisos de publish también
-        if ($resource_type === 'quiz' && current_user_can('publish_quizzes')) {
+        // Check publish capability (needed for creating published posts)
+        $publish_cap = 'publish_' . $resource_type . 's';
+        if (current_user_can($publish_cap)) {
             return true;
         }
 
@@ -536,7 +533,7 @@ class QE_Auth
             'rest_cannot_create',
             sprintf(
                 __('You do not have permission to create %s.', 'quiz-extended'),
-                $resource_type . 's'
+                str_replace('qe_', '', $resource_type) . 's'
             ),
             ['status' => 403]
         );
@@ -560,21 +557,21 @@ class QE_Auth
         }
 
         // Admins can update everything
-        if (current_user_can('manage_lms')) {
+        if (current_user_can('administrator') || current_user_can('manage_lms')) {
             return true;
         }
 
-        // Check if user owns the resource
+        // Check if user owns the resource and can edit it
         if ($this->security->user_owns_post($resource_id)) {
-            $capability = 'edit_own_' . $resource_type . 's';
-            if (current_user_can($capability)) {
+            $edit_cap = 'edit_' . $resource_type . 's';
+            if (current_user_can($edit_cap)) {
                 return true;
             }
         }
 
         // Check if user can edit others' content
-        $capability = 'edit_others_' . $resource_type . 's';
-        if (current_user_can($capability)) {
+        $edit_others_cap = 'edit_others_' . $resource_type . 's';
+        if (current_user_can($edit_others_cap)) {
             return true;
         }
 
@@ -603,21 +600,21 @@ class QE_Auth
         }
 
         // Admins can delete everything
-        if (current_user_can('manage_lms')) {
+        if (current_user_can('administrator') || current_user_can('manage_lms')) {
             return true;
         }
 
-        // Check if user owns the resource
+        // Check if user owns the resource and can delete it
         if ($this->security->user_owns_post($resource_id)) {
-            $capability = 'delete_own_' . $resource_type . 's';
-            if (current_user_can($capability)) {
+            $delete_cap = 'delete_' . $resource_type . 's';
+            if (current_user_can($delete_cap)) {
                 return true;
             }
         }
 
         // Check if user can delete others' content
-        $capability = 'delete_others_' . $resource_type . 's';
-        if (current_user_can($capability)) {
+        $delete_others_cap = 'delete_others_' . $resource_type . 's';
+        if (current_user_can($delete_others_cap)) {
             return true;
         }
 

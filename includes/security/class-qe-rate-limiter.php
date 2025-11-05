@@ -293,10 +293,10 @@ class QE_Rate_Limiter
 
         // General API limit for our endpoints
         if (
-            strpos($route, '/wp/v2/course') !== false ||
-            strpos($route, '/wp/v2/lesson') !== false ||
-            strpos($route, '/wp/v2/quiz') !== false ||
-            strpos($route, '/wp/v2/question') !== false ||
+            strpos($route, '/wp/v2/qe_course') !== false ||
+            strpos($route, '/wp/v2/qe_lesson') !== false ||
+            strpos($route, '/wp/v2/qe_quiz') !== false ||
+            strpos($route, '/wp/v2/qe_question') !== false ||
             strpos($route, '/quiz-extended/v1') !== false
         ) {
             return 'api_general';

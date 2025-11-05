@@ -127,7 +127,13 @@ abstract class QE_Post_Types_Base
     protected function get_default_capability_args()
     {
         $singular = $this->post_type;
-        $plural = $singular === 'quiz' ? 'quizzes' : $singular . 's';
+
+        // Handle plural forms correctly for qe_* post types
+        if (strpos($singular, 'qe_quiz') === 0) {
+            $plural = str_replace('qe_quiz', 'qe_quizzes', $singular);
+        } else {
+            $plural = $singular . 's';
+        }
 
         return [
             'capability_type' => [$singular, $plural],

@@ -491,7 +491,7 @@ class QE_Student_Progress_API extends QE_API_Base
             ]);
 
             // Validate question
-            $question = $this->validate_post($question_id, 'question');
+            $question = $this->validate_post($question_id, 'qe_question');
             if (is_wp_error($question)) {
                 return $question;
             }

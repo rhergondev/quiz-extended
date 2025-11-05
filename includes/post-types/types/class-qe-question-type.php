@@ -24,8 +24,81 @@ class QE_Question_Type extends QE_Post_Types_Base
     {
         parent::__construct('qe_question');
         add_action('rest_after_insert_qe_question', [$this, 'sync_question_with_quizzes'], 10, 3);
+        add_action('rest_after_insert_qe_question', [$this, 'sync_question_with_course'], 20, 3);
         add_action('before_delete_post', [$this, 'clear_quiz_associations_on_delete'], 10, 1);
+        add_action('before_delete_post', [$this, 'clear_course_association_on_delete'], 10, 1);
+    }
 
+    /**
+     * Syncs the question with its parent course after saving.
+     *
+     * @param WP_Post         $post_inserted  The post of the question being saved.
+     * @param WP_REST_Request $request        The REST API request.
+     * @param bool            $creating       True if creating, false if updating.
+     */
+    public function sync_question_with_course($post_inserted, $request, $creating)
+    {
+        $question_id = $post_inserted->ID;
+
+        // Get new course ID from the request
+        $new_course_id = $request->get_param('meta')['_course_id'] ?? 0;
+        $new_course_id = absint($new_course_id);
+
+        // Get old course ID (before save)
+        $old_course_id = get_post_meta($question_id, '_course_id_before_save', true);
+        $old_course_id = absint($old_course_id);
+
+        // If the course hasn't changed, do nothing
+        if ($old_course_id === $new_course_id) {
+            return;
+        }
+
+        // Remove question from old course's _question_ids
+        if ($old_course_id > 0) {
+            $question_ids = get_post_meta($old_course_id, '_question_ids', true);
+            if (is_array($question_ids)) {
+                $updated_ids = array_diff($question_ids, [$question_id]);
+                update_post_meta($old_course_id, '_question_ids', array_values($updated_ids));
+            }
+        }
+
+        // Add question to new course's _question_ids
+        if ($new_course_id > 0) {
+            $question_ids = get_post_meta($new_course_id, '_question_ids', true);
+            if (!is_array($question_ids)) {
+                $question_ids = [];
+            }
+            if (!in_array($question_id, $question_ids)) {
+                $question_ids[] = $question_id;
+                update_post_meta($new_course_id, '_question_ids', $question_ids);
+            }
+        }
+
+        // Save current state for next update
+        update_post_meta($question_id, '_course_id_before_save', $new_course_id);
+    }
+
+    /**
+     * Cleans the course association when a question is permanently deleted.
+     *
+     * @param int $post_id The ID of the post being deleted.
+     */
+    public function clear_course_association_on_delete($post_id)
+    {
+        if (get_post_type($post_id) !== 'qe_question') {
+            return;
+        }
+
+        $course_id = get_post_meta($post_id, '_course_id_before_save', true);
+        if (!$course_id) {
+            return;
+        }
+
+        $question_ids = get_post_meta($course_id, '_question_ids', true);
+        if (is_array($question_ids)) {
+            $updated_ids = array_diff($question_ids, [$post_id]);
+            update_post_meta($course_id, '_question_ids', array_values($updated_ids));
+        }
     }
 
     /**

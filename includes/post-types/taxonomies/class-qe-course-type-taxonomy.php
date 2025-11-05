@@ -22,7 +22,7 @@ class QE_Course_Type_Taxonomy extends QE_Taxonomy_Base
      */
     public function __construct()
     {
-        parent::__construct('course_type', ['course']);
+        parent::__construct('course_type', ['qe_course']);
     }
 
     /**

@@ -28,10 +28,10 @@ export const getApiConfig = () => {
   
   // 🔧 FIXED: Use predefined endpoints if available, otherwise construct them
   const finalEndpoints = endpoints || {
-    courses: `${api_url}/wp/v2/course`,
-    lessons: `${api_url}/wp/v2/lesson`,
-    quizzes: `${api_url}/wp/v2/quiz`,
-    questions: `${api_url}/wp/v2/question`,
+    courses: `${api_url}/wp/v2/qe_course`,
+    lessons: `${api_url}/wp/v2/qe_lesson`,
+    quizzes: `${api_url}/wp/v2/qe_quiz`,
+    questions: `${api_url}/wp/v2/qe_question`,
     books: `${api_url}/wp/v2/book`,
     categories: `${api_url}/wp/v2/qe_category`,
     topics: `${api_url}/wp/v2/qe_topic`,
