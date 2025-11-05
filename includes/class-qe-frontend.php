@@ -125,6 +125,7 @@ class QE_Frontend
 
         $page_data = array(
             'post_title' => __('LMS Home', 'quiz-extended'),
+            'post_name' => 'campus', // Slug for the LMS page
             'post_content' => '[quiz_extended_lms]',
             'post_status' => 'publish',
             'post_author' => 1,
