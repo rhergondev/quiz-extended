@@ -54,7 +54,7 @@ export const transformQuestionDataForApi = (questionData) => {
 
   const transformed = {
     title: sanitizeString(questionData.title),
-    content: sanitizeString(questionData.explanation || ''),
+    content: sanitizeString(questionData.explanation || questionData.content || ''),
     status: sanitizePostStatus(questionData.status, 'publish'),
     // Las taxonomías se envían en el nivel raíz
     qe_category: sanitizeIdArray(questionData.qe_category),
@@ -67,7 +67,7 @@ export const transformQuestionDataForApi = (questionData) => {
   transformed.meta._question_lesson = sanitizeInteger(questionData.lessonId, 0);
   
   transformed.meta._quiz_ids = sanitizeIdArray(questionData.quizIds);
-  transformed.meta._explanation = sanitizeString(questionData.explanation);
+  transformed.meta._explanation = sanitizeString(questionData.explanation || questionData.content || '');
   transformed.meta._question_type = sanitizeEnum(questionData.type, VALID_QUESTION_TYPES, 'multiple_choice');
   transformed.meta._difficulty_level = sanitizeEnum(questionData.difficulty, VALID_DIFFICULTY_LEVELS, 'medium');
   transformed.meta._points = sanitizeInteger(questionData.points, 1, 0);
@@ -82,6 +82,8 @@ export const transformQuestionDataForApi = (questionData) => {
   }
 
   console.log('🔄 transformQuestionDataForApi - Output:', transformed);
+  console.log('📝 Content length:', transformed.content?.length || 0);
+  console.log('📝 Explanation length:', transformed.meta._explanation?.length || 0);
   return transformed;
 };
 
@@ -167,8 +169,10 @@ export const formatQuestionForDisplay = (question) => {
   }
   
   // Si no hay contenido, usamos el meta _explanation
-  const explanationText = contentText || sanitized.meta?._explanation || '';
-  const fullExplanation = explanationText ? explanationText.replace(/<p>|<\/p>/g, '').trim() : '';
+  const explanationHTML = contentText || sanitized.meta?._explanation || '';
+  
+  // Para la versión corta (sin HTML), eliminamos las etiquetas
+  const explanationPlainText = explanationHTML.replace(/<[^>]*>/g, '').trim();
 
   return {
     ...sanitized,
@@ -176,8 +180,8 @@ export const formatQuestionForDisplay = (question) => {
     formattedType: capitalize(sanitized.meta._question_type.replace('_', ' ')),
     formattedDifficulty: capitalize(sanitized.meta._difficulty_level),
     formattedDate: formatDate(sanitized.date),
-    shortExplanation: truncateText(fullExplanation, 100),
-    fullExplanation: fullExplanation, // Exponemos la explicación completa
+    shortExplanation: truncateText(explanationPlainText, 100), // Versión sin HTML para preview
+    fullExplanation: explanationHTML, // HTML completo para el editor
     isPublished: sanitized.status === 'publish',
   };
 };

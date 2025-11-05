@@ -292,3 +292,69 @@ export const bulkCreateQuestions = async (questionsData) => {
     throw error;
   }
 };
+
+/**
+ * Get multiple questions by their IDs
+ * Fetches questions in batches to avoid overwhelming the API
+ * @param {Array<number>} questionIds - Array of question IDs
+ * @param {Object} options - Additional options
+ * @param {number} options.batchSize - Number of questions to fetch per batch (default: 20)
+ * @returns {Promise<Array>} Array of questions (maintains order of input IDs)
+ */
+export const getQuestionsByIds = async (questionIds, options = {}) => {
+  if (!Array.isArray(questionIds) || questionIds.length === 0) {
+    return [];
+  }
+
+  const batchSize = options.batchSize || 20;
+  const validIds = questionIds.filter(id => Number.isInteger(id) && id > 0);
+  
+  if (validIds.length === 0) {
+    return [];
+  }
+
+  console.log(`📝 Fetching ${validIds.length} questions by IDs (batch size: ${batchSize})...`);
+
+  try {
+    // Divide los IDs en lotes para no sobrecargar la API
+    const batches = [];
+    for (let i = 0; i < validIds.length; i += batchSize) {
+      batches.push(validIds.slice(i, i + batchSize));
+    }
+
+    // Procesa cada lote en paralelo
+    const batchPromises = batches.map(async (batchIds) => {
+      const fetchPromises = batchIds.map(id => 
+        getOne(id).catch(error => {
+          console.warn(`⚠️ Failed to fetch question ${id}:`, error.message);
+          return null; // Retorna null si falla, para mantener la estructura
+        })
+      );
+      return Promise.all(fetchPromises);
+    });
+
+    const batchResults = await Promise.all(batchPromises);
+    const allQuestions = batchResults.flat().filter(Boolean); // Elimina los null
+
+    // Crea un mapa para acceso rápido por ID
+    const questionsMap = new Map(allQuestions.map(q => [q.id, q]));
+
+    // Mantiene el orden de los IDs originales
+    const orderedQuestions = validIds
+      .map(id => questionsMap.get(id))
+      .filter(Boolean);
+
+    console.log(`✅ Successfully fetched ${orderedQuestions.length}/${validIds.length} questions`);
+    
+    if (orderedQuestions.length < validIds.length) {
+      const missingIds = validIds.filter(id => !questionsMap.has(id));
+      console.warn(`⚠️ Could not fetch ${missingIds.length} questions:`, missingIds);
+    }
+
+    return orderedQuestions;
+
+  } catch (error) {
+    console.error('❌ Error fetching questions by IDs:', error);
+    throw error;
+  }
+};

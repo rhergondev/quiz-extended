@@ -245,26 +245,62 @@ export const useUsers = (options = {}) => {
     try {
       const config = getApiConfig();
       
-      // For now, let's use placeholder enrollment data since we don't have the enrollment API yet
-      // TODO: Implement real enrollment API endpoint
-      const enrichedUsers = users.map(user => {
-        // Generate some fake enrollment data for testing
-        const isEnrolled = Math.random() > 0.6; // 40% chance of being enrolled
-        const progress = isEnrolled ? Math.floor(Math.random() * 100) : 0;
-        const enrollmentDate = isEnrolled ? new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000) : null;
-        const lastActivity = isEnrolled && Math.random() > 0.3 ? 
-          new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000) : null;
-        
-        return {
-          ...user,
-          enrollmentData: {
-            isEnrolled,
-            enrollmentDate: enrollmentDate?.toISOString(),
-            progress,
-            lastActivity: lastActivity?.toISOString()
+      // Fetch enrollment data for all users in parallel
+      const enrollmentPromises = users.map(async (user) => {
+        try {
+          const response = await fetch(`${config.apiUrl}/qe/v1/users/${user.id}/enrollments`, {
+            headers: {
+              'Content-Type': 'application/json',
+              'X-WP-Nonce': config.nonce,
+            },
+            credentials: 'same-origin'
+          });
+          
+          if (!response.ok) {
+            console.warn(`⚠️ Failed to fetch enrollments for user ${user.id}`);
+            return {
+              ...user,
+              enrollmentData: {
+                isEnrolled: false,
+                enrollmentDate: null,
+                progress: 0,
+                lastActivity: null
+              }
+            };
           }
-        };
+          
+          const enrollments = await response.json();
+          const enrollmentsArray = Array.isArray(enrollments) ? enrollments : [];
+          
+          // Check if user is enrolled in the specific course
+          const courseEnrollment = enrollmentsArray.find(
+            e => e.course_id === parseInt(courseId)
+          );
+          
+          return {
+            ...user,
+            enrollmentData: {
+              isEnrolled: !!courseEnrollment,
+              enrollmentDate: courseEnrollment?.enrollment_date || null,
+              progress: courseEnrollment?.progress || 0,
+              lastActivity: courseEnrollment?.last_activity || null
+            }
+          };
+        } catch (error) {
+          console.error(`❌ Error fetching enrollments for user ${user.id}:`, error);
+          return {
+            ...user,
+            enrollmentData: {
+              isEnrolled: false,
+              enrollmentDate: null,
+              progress: 0,
+              lastActivity: null
+            }
+          };
+        }
       });
+      
+      const enrichedUsers = await Promise.all(enrollmentPromises);
       
       console.log('✅ Users enriched with enrollment data:', enrichedUsers.length);
       return enrichedUsers;

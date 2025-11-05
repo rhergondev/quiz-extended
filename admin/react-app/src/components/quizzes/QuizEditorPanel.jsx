@@ -9,6 +9,7 @@ import { CSS } from '@dnd-kit/utilities';
 import clsx from 'clsx';
 
 import { getOne as getQuiz } from '../../api/services/quizService';
+import { getQuestionsByIds } from '../../api/services/questionService';
 import { useQuestions } from '../../hooks/useQuestions';
 
 import Tabs from '../common/layout/Tabs';
@@ -37,15 +38,14 @@ const SortableQuestionItem = ({ question, onRemove }) => {
   );
 };
 
-const QuestionManager = ({ onAddQuestion, onCreateNew, selectedQuestions }) => {
+const QuestionManager = ({ onAddQuestion, onCreateNew, selectedQuestions, searchResults, isSearching, onSearch }) => {
     const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState('');
-    const { questions: searchResults, loading: isSearching, error: searchError, fetchItems: fetchQuestions } = useQuestions({ autoFetch: false });
 
     const handleSearch = (e) => {
         e.preventDefault();
         if (!searchQuery.trim()) return;
-        fetchQuestions(true, { search: searchQuery }); // `true` para resetear la búsqueda
+        onSearch(searchQuery);
     };
 
     return (
@@ -69,7 +69,6 @@ const QuestionManager = ({ onAddQuestion, onCreateNew, selectedQuestions }) => {
                     {t('common.createNew')}
                 </QEButton>
             </div>
-            {searchError && <p className="text-sm text-red-600">{searchError.message}</p>}
             {searchResults.length > 0 && (
                 <div className="border rounded-md max-h-48 overflow-y-auto bg-white">
                     {searchResults.map(q => {
@@ -98,10 +97,12 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
   const [activeTab, setActiveTab] = useState(0);
   const [formData, setFormData] = useState({});
   const [selectedQuestions, setSelectedQuestions] = useState([]);
+  const [questionsLoaded, setQuestionsLoaded] = useState(false); // Flag para evitar recargas
   
   const sensors = useSensors(useSensor(PointerSensor));
 
-  const { questions: allQuestions } = useQuestions({ perPage: 100 });
+  // Solo necesitamos useQuestions para búsquedas, no para cargar todas las preguntas
+  const { questions: searchResults, loading: isSearchingQuestions, error: searchError, fetchItems: fetchQuestions } = useQuestions({ autoFetch: false });
   
   const resetForm = useCallback(() => {
     setFormData({
@@ -120,6 +121,7 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
       questionIds: [],
     });
     setSelectedQuestions([]);
+    setQuestionsLoaded(false);
   }, []);
 
   useEffect(() => {
@@ -127,9 +129,12 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
       if (quizId && (mode === 'edit' || mode === 'view')) {
         setIsLoading(true);
         setError(null);
+        setQuestionsLoaded(false);
         try {
+          console.log('🔍 Fetching quiz data for ID:', quizId);
           const quizData = await getQuiz(quizId);
           const meta = quizData.meta || {};
+          
           setFormData({
             title: quizData.title?.rendered || '',
             content: quizData.content?.rendered || meta._quiz_instructions || '',
@@ -145,12 +150,33 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
             enable_negative_scoring: meta._enable_negative_scoring || false,
             questionIds: meta._quiz_question_ids || [],
           });
-          const questionDetails = (meta._quiz_question_ids || [])
-            .map(id => allQuestions.find(q => q.id === id))
-            .filter(Boolean);
-          setSelectedQuestions(questionDetails);
+
+          // Cargar las preguntas específicas del quiz por sus IDs
+          const questionIds = meta._quiz_question_ids || [];
+          console.log('📝 Loading questions for quiz. Total IDs:', questionIds.length);
+          
+          if (questionIds.length > 0) {
+            try {
+              const questionDetails = await getQuestionsByIds(questionIds, { batchSize: 30 });
+              console.log('✅ Loaded questions:', questionDetails.length);
+              setSelectedQuestions(questionDetails);
+              setQuestionsLoaded(true);
+            } catch (questionError) {
+              console.error('❌ Error loading questions:', questionError);
+              setError(t('errors.loadQuestions') || 'Error loading questions');
+              setSelectedQuestions([]);
+              setQuestionsLoaded(true); // Marcar como cargado aunque haya fallado para evitar reintentos
+            }
+          } else {
+            console.log('ℹ️ Quiz has no questions');
+            setSelectedQuestions([]);
+            setQuestionsLoaded(true);
+          }
+
         } catch (err) {
+          console.error('❌ Error fetching quiz:', err);
           setError(t('errors.fetchQuiz'));
+          setQuestionsLoaded(true);
         } finally {
           setIsLoading(false);
         }
@@ -159,7 +185,7 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
       }
     };
     fetchQuizData();
-  }, [quizId, mode, t, allQuestions, resetForm]);
+  }, [quizId, mode, t, resetForm]);
 
   const handleFieldChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -177,6 +203,10 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
     const newSelected = selectedQuestions.filter(q => q.id !== questionId);
     setSelectedQuestions(newSelected);
     handleFieldChange('questionIds', newSelected.map(q => q.id));
+  };
+
+  const handleSearchQuestions = (searchQuery) => {
+    fetchQuestions(true, { search: searchQuery, perPage: 50 });
   };
   
   const handleDragEnd = (event) => {
@@ -302,10 +332,17 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
             onAddQuestion={addQuestionToQuiz}
             onCreateNew={() => alert('Próximamente: Crear nueva pregunta desde aquí.')}
             selectedQuestions={selectedQuestions}
+            searchResults={searchResults}
+            isSearching={isSearchingQuestions}
+            onSearch={handleSearchQuestions}
         />
         <div>
             <h4 className="font-medium text-gray-800 mb-2">{t('quizzes.form.selectedQuestions')} ({selectedQuestions.length})</h4>
-            {selectedQuestions.length > 0 ? (
+            {!questionsLoaded && isLoading ? (
+                <div className="p-8 text-center">
+                    <p className="text-gray-500">{t('common.loading')}...</p>
+                </div>
+            ) : selectedQuestions.length > 0 ? (
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <SortableContext items={selectedQuestions.map(q => q.id)} strategy={verticalListSortingStrategy}>
                         <div className="space-y-2">

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
 
@@ -25,10 +25,10 @@ const QuestionsManager = () => {
   const [mode, setMode] = useState('view');
 
   // --- HOOKS DE DATOS ---
-  const questionsHook = useQuestions({ autoFetch: true, perPage: 50 });
-  const lessonsHook = useLessons({ autoFetch: true, perPage: 100 });
-  const quizzesHook = useQuizzes({ autoFetch: true, perPage: 100 });
-  const coursesHook = useCourses({ autoFetch: true, perPage: 100 });
+  const questionsHook = useQuestions({ autoFetch: true, perPage: 100 });
+  const lessonsHook = useLessons({ autoFetch: false }); // Solo cargar cuando sea necesario
+  const quizzesHook = useQuizzes({ autoFetch: false }); // Solo cargar cuando sea necesario
+  const coursesHook = useCourses({ autoFetch: false }); // Solo cargar cuando sea necesario
   // CORRECCIÓN: Añadimos 'qe_provider' para que el hook lo cargue
   const { options: taxonomyOptions, isLoading: isLoadingTaxonomies, refetch: refetchTaxonomies } = useTaxonomyOptions(['qe_category', 'qe_provider']);
 
@@ -48,14 +48,35 @@ const QuestionsManager = () => {
       setMode('view');
   }
 
+  // Cargar datos necesarios solo cuando se abre el editor
+  useEffect(() => {
+    if (mode === 'edit' || mode === 'create') {
+      if (lessonsHook.lessons.length === 0 && !lessonsHook.loading) {
+        lessonsHook.fetchLessons(true, { perPage: 100 });
+      }
+      if (quizzesHook.quizzes.length === 0 && !quizzesHook.loading) {
+        quizzesHook.fetchQuizzes(true, { perPage: 100 });
+      }
+      if (coursesHook.courses.length === 0 && !coursesHook.loading) {
+        coursesHook.fetchCourses(true, { perPage: 100 });
+      }
+    }
+  }, [mode]);
+
   // --- CONFIGS PARA COMPONENTES HIJO ---
   const categoryOptions = useMemo(() => taxonomyOptions.qe_category || [], [taxonomyOptions.qe_category]);
   const providerOptions = useMemo(() => taxonomyOptions.qe_provider || [], [taxonomyOptions.qe_provider]); // NUEVO
   
-  const lessonOptions = useMemo(() => [
-    { value: 'all', label: 'Todas las Lecciones' },
-    ...(lessonsHook.lessons || []).map(l => ({ value: l.id.toString(), label: l.title?.rendered || l.title }))
-  ], [lessonsHook.lessons]);
+  const lessonOptions = useMemo(() => {
+    const baseOptions = [{ value: 'all', label: 'Todas las Lecciones' }];
+    if (lessonsHook.lessons && lessonsHook.lessons.length > 0) {
+      return [
+        ...baseOptions,
+        ...(lessonsHook.lessons || []).map(l => ({ value: l.id.toString(), label: l.title?.rendered || l.title }))
+      ];
+    }
+    return baseOptions;
+  }, [lessonsHook.lessons]);
   
   const filtersConfig = useMemo(() => {
     if (!questionsHook.filters) return [];
@@ -68,13 +89,6 @@ const QuestionsManager = () => {
         isLoading: isLoadingTaxonomies,
       },
       {
-        label: 'Lección',
-        value: questionsHook.filters.lessonId || 'all',
-        onChange: (value) => questionsHook.updateFilter('lessonId', value),
-        options: lessonOptions,
-        isLoading: lessonsHook.loading,
-      },
-      {
         label: 'Proveedor',
         value: questionsHook.filters.provider || 'all',
         onChange: (value) => questionsHook.updateFilter('provider', value),
@@ -82,7 +96,7 @@ const QuestionsManager = () => {
         isLoading: isLoadingTaxonomies,
       },
     ];
-  }, [questionsHook.filters, categoryOptions, lessonOptions, providerOptions, isLoadingTaxonomies, lessonsHook.loading, t]);
+  }, [questionsHook.filters, categoryOptions, providerOptions, isLoadingTaxonomies, t]);
 
   const searchConfig = useMemo(() => ({
       value: questionsHook.filters?.search || '',
@@ -102,11 +116,14 @@ const QuestionsManager = () => {
       <div className="transition-all duration-500 ease-in-out h-full flex-shrink-0 w-full lg:w-[30%]">
         <ListPanel
           title={t('questions.title')}
-          itemCount={questionsHook.computed.total || 0}
+          itemCount={questionsHook.pagination.total || 0}
           createButtonText={t('questions.addNew')}
           onCreate={handleCreateNew}
           isCreating={questionsHook.creating}
           filters={<FilterBar searchConfig={searchConfig} filtersConfig={filtersConfig} />}
+          onLoadMore={questionsHook.loadMoreQuestions}
+          hasMore={questionsHook.hasMore}
+          isLoadingMore={questionsHook.loading && questionsHook.questions.length > 0}
         >
           {(questionsHook.questions || []).map(question => (
             <QuestionListItem key={question.id} question={question} isSelected={selectedQuestionId === question.id} onClick={handleSelectQuestion} />

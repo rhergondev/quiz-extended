@@ -71,10 +71,23 @@ const QuestionEditorPanel = ({
         try {
           const data = await getQuestion(questionId);
           
-          // Extraer HTML limpio del contenido
-          const contentHTML = data.content?.rendered || data.meta?._explanation || '';
+          // Extraer HTML del contenido (prioridad: content.rendered > meta._explanation)
+          let contentHTML = '';
+          if (data.content?.rendered) {
+            contentHTML = data.content.rendered.trim();
+          } else if (data.meta?._explanation) {
+            contentHTML = data.meta._explanation.trim();
+          }
           
-          setFormData({
+          console.log('📝 Question Data:', {
+            id: data.id,
+            contentRendered: data.content?.rendered,
+            metaExplanation: data.meta?._explanation,
+            finalContentHTML: contentHTML,
+            htmlLength: contentHTML.length
+          });
+          
+          const newFormData = {
               title: getQuestionTitle(data),
               status: data.status || 'publish',
               type: data.meta?._question_type || 'multiple_choice',
@@ -88,8 +101,18 @@ const QuestionEditorPanel = ({
               courseId: data.meta?._course_id?.toString() || '',
               category: data.qe_category?.[0]?.toString() || '',
               provider: data.qe_provider?.[0]?.toString() || '',
+          };
+          
+          console.log('🔄 Setting formData with explanation:', {
+            explanation: newFormData.explanation,
+            explanationLength: newFormData.explanation?.length || 0
           });
-        } catch (err) { setError('Failed to load question data.'); }
+          
+          setFormData(newFormData);
+        } catch (err) { 
+          console.error('Error loading question:', err);
+          setError('Failed to load question data.'); 
+        }
         finally { setIsLoading(false); }
       } else if (mode === 'create') {
         resetForm();
@@ -97,6 +120,15 @@ const QuestionEditorPanel = ({
     };
     fetchQuestionData();
   }, [questionId, mode, resetForm]);
+  
+  // Debug: Verificar cuando formData.explanation cambia
+  useEffect(() => {
+    console.log('✅ formData.explanation changed:', {
+      value: formData.explanation,
+      length: formData.explanation?.length || 0,
+      hasContent: !!formData.explanation
+    });
+  }, [formData.explanation]);
   
   const handleFieldChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -185,6 +217,11 @@ const QuestionEditorPanel = ({
         }
       }
       
+      console.log('💾 Saving question with explanation:', {
+        explanationLength: formData.explanation?.length || 0,
+        explanationPreview: formData.explanation?.substring(0, 100) || 'EMPTY',
+      });
+      
       // Construir el objeto similar al QuestionModal
       const dataToSave = {
         title: formData.title,
@@ -215,6 +252,8 @@ const QuestionEditorPanel = ({
           _explanation: formData.explanation,
         }
       };
+      
+      console.log('💾 Data being saved:', dataToSave);
       
       await onSave(dataToSave);
       if (mode === 'create') {
@@ -400,7 +439,14 @@ const QuestionEditorPanel = ({
        
         <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('questions.fields.explanation')}</label>
-            <ReactQuill ref={quillRef} theme="snow" value={formData.explanation || ''} onChange={(val) => handleFieldChange('explanation', val)} modules={quillModules} />
+            <ReactQuill 
+              key={`quill-${questionId || 'new'}-${mode}`} 
+              ref={quillRef} 
+              theme="snow" 
+              value={formData.explanation || ''} 
+              onChange={(val) => handleFieldChange('explanation', val)} 
+              modules={quillModules} 
+            />
         </div>
       </main>
     </div>

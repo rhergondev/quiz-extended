@@ -104,8 +104,8 @@ const UsersManager = () => {
   const panelWidths = {
     1: ['24%'],
     2: ['24%', '72%'],
-    3: ['24%', '32%', '40%'],
-    4: ['24%', '24%', '24%', '24%']
+    3: ['20%', '12%', '64%'],
+    4: ['18%', '10%', '10%', '58%']
   };
   const widths = panelWidths[panelStack.length] || panelWidths[4];
 
@@ -179,18 +179,22 @@ const UsersManager = () => {
 
   return (
     <div className="qe-lms-admin-app h-full flex overflow-x-auto px-4 py-6 space-x-4 min-w-full">
-      {panelStack.map((panel, index) => (
-        <div 
-          key={`${panel.type}-${panel.id || panel.userId}-${index}`}
-          className="transition-all duration-300 ease-in-out h-full flex-shrink-0"
-          style={{ 
-            width: widths[index],
-            minWidth: index === 0 ? '280px' : '320px' // Ancho mínimo para cada panel
-          }}
-        >
-          {renderPanel(panel, index)}
-        </div>
-      ))}
+      {panelStack.map((panel, index) => {
+        const isLastPanel = index === panelStack.length - 1;
+        
+        return (
+          <div 
+            key={`${panel.type}-${panel.id || panel.userId}-${index}`}
+            className="transition-all duration-300 ease-in-out h-full flex-shrink-0"
+            style={{ 
+              width: widths[index],
+              minWidth: isLastPanel ? '320px' : index === 0 ? '240px' : '120px' // Columnas compactadas muy estrechas
+            }}
+          >
+            {renderPanel(panel, index)}
+          </div>
+        );
+      })}
     </div>
   );
 };

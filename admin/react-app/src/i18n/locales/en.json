@@ -49,7 +49,8 @@
   },
   "errors": {
     "fetchQuiz": "Failed to load quiz data.",
-    "saveQuiz": "Failed to save the quiz."
+    "saveQuiz": "Failed to save the quiz.",
+    "loadQuestions": "Failed to load quiz questions. Some questions may not exist or be inaccessible."
   },
   "sidebar": {
     "myDesk": "My Desk",

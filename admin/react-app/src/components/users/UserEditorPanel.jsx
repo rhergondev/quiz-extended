@@ -98,7 +98,39 @@ const UserEditorPanel = ({
       });
       
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // If context=edit fails (401/403), try without context (public data)
+        console.warn(`⚠️ Failed to load user with context=edit (${response.status}), trying without context...`);
+        
+        const fallbackResponse = await fetch(`${config.endpoints.users}/${userId}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-WP-Nonce': config.nonce,
+          },
+          credentials: 'same-origin'
+        });
+        
+        if (!fallbackResponse.ok) {
+          throw new Error(`HTTP ${fallbackResponse.status}: ${fallbackResponse.statusText}`);
+        }
+        
+        const user = await fallbackResponse.json();
+        console.log('📥 User data loaded (public context):', user);
+        
+        setUserData(user);
+        setFormData({
+          username: user.username || user.slug || '',
+          email: '', // Not available in public context
+          first_name: user.name?.split(' ')[0] || '',
+          last_name: user.name?.split(' ').slice(1).join(' ') || '',
+          roles: user.roles || ['subscriber'],
+          password: '',
+          description: user.description || '',
+          url: user.url || user.link || '',
+          nickname: user.name || user.username || user.slug || ''
+        });
+        
+        setLoading(false);
+        return;
       }
       
       const user = await response.json();
@@ -173,39 +205,37 @@ const UserEditorPanel = ({
   if (isCollapsed) {
     return (
       <div className={`bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col ${className}`}>
-        {/* Collapsed Header */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-center">
+        {/* Compact Header */}
+        <div className="p-3 border-b border-gray-200">
+          <div className="flex flex-col items-center">
             {avatarUrl ? (
               <img
                 src={avatarUrl}
                 alt={displayName}
-                className="h-12 w-12 rounded-full object-cover"
+                className="h-10 w-10 rounded-full object-cover mb-1.5"
               />
             ) : (
-              <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
-                <User className="h-6 w-6 text-gray-400" />
+              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center mb-1.5">
+                <User className="h-5 w-5 text-gray-400" />
               </div>
             )}
-          </div>
-          <div className="mt-2 text-center">
-            <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
-            <p className="text-xs text-gray-500">{formData.roles?.[0] || 'subscriber'}</p>
+            <p className="text-xs font-medium text-gray-900 truncate text-center w-full px-1 leading-tight">{displayName}</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide">{formData.roles?.[0] || 'subscriber'}</p>
           </div>
         </div>
 
-        {/* Collapsed Actions */}
-        <div className="flex-1 p-4 space-y-2">
+        {/* Compact Actions */}
+        <div className="flex-1 p-2 space-y-1.5">
           <button
             onClick={onShowEnrollments}
-            className="w-full p-2 text-left text-sm text-gray-600 hover:bg-gray-50 rounded-md flex items-center justify-center"
+            className="w-full p-2 text-sm text-gray-600 hover:bg-gray-50 rounded flex items-center justify-center"
             title="View Enrollments"
           >
             <BookOpen className="h-4 w-4" />
           </button>
           <button
             onClick={onShowProgress}
-            className="w-full p-2 text-left text-sm text-gray-600 hover:bg-gray-50 rounded-md flex items-center justify-center"
+            className="w-full p-2 text-sm text-gray-600 hover:bg-gray-50 rounded flex items-center justify-center"
             title="View Progress"
           >
             <TrendingUp className="h-4 w-4" />

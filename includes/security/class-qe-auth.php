@@ -317,13 +317,16 @@ class QE_Auth
         // Check if it's a REST request to our endpoints
         $route = $_SERVER['REQUEST_URI'] ?? '';
 
+        // Only check our custom endpoints, not core WordPress endpoints like /wp/v2/users
         if (
             strpos($route, '/wp-json/wp/v2/qe_course') === false &&
             strpos($route, '/wp-json/wp/v2/qe_lesson') === false &&
             strpos($route, '/wp-json/wp/v2/qe_quiz') === false &&
             strpos($route, '/wp-json/wp/v2/qe_question') === false &&
-            strpos($route, '/wp-json/quiz-extended/v1') === false
+            strpos($route, '/wp-json/quiz-extended/v1') === false &&
+            strpos($route, '/wp-json/qe/v1') === false
         ) {
+            // Not our endpoint, let WordPress handle authentication
             return $result;
         }
 
@@ -392,6 +395,7 @@ class QE_Auth
             '/wp/v2/qe_quiz',
             '/wp/v2/qe_question',
             '/quiz-extended/v1',
+            '/qe/v1', // User enrollments and custom endpoints
         ];
 
         foreach ($our_routes as $our_route) {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 // Hooks
@@ -35,9 +35,11 @@ const QuizzesManager = () => {
     updateFilter,
     createQuiz,
     updateQuiz,
-  } = useQuizzes({ autoFetch: true, perPage: 50 });
+    loadMoreQuizzes,
+    hasMore,
+  } = useQuizzes({ autoFetch: true, perPage: 100 });
 
-  const { courses: availableCourses, loading: coursesLoading } = useCourses({ autoFetch: true, perPage: 100 });
+  const { courses: availableCourses, loading: coursesLoading, fetchCourses } = useCourses({ autoFetch: false });
   const { options: taxonomyOptions, isLoading: isLoadingTaxonomies } = useTaxonomyOptions(['qe_category']);
 
   // ============================================================
@@ -62,6 +64,14 @@ const QuizzesManager = () => {
       await updateQuiz(selectedQuizId, quizData);
     }
   };
+
+  // Cargar cursos solo cuando sea necesario (al abrir editor o filtros)
+  useEffect(() => {
+    if ((mode === 'edit' || mode === 'create' || filters.courseId !== null) && 
+        availableCourses.length === 0 && !coursesLoading) {
+      fetchCourses(true, { perPage: 100 });
+    }
+  }, [mode, filters.courseId]);
 
   // ============================================================
   // CONFIGS PARA COMPONENTES REUTILIZABLES
@@ -110,6 +120,9 @@ const QuizzesManager = () => {
       onCreate={handleCreateNew}
       isCreating={creating}
       filters={<FilterBar searchConfig={searchConfig} filtersConfig={filtersConfig} />}
+      onLoadMore={loadMoreQuizzes}
+      hasMore={hasMore}
+      isLoadingMore={loading && quizzes.length > 0}
     >
       {loading && quizzes.length === 0 ? (
         <p className="p-4 text-center text-gray-500">{t('common.loading')}</p>

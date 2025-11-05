@@ -49,7 +49,8 @@
   },
   "errors": {
     "fetchQuiz": "Error al cargar los datos del cuestionario.",
-    "saveQuiz": "Error al guardar el cuestionario."
+    "saveQuiz": "Error al guardar el cuestionario.",
+    "loadQuestions": "Error al cargar las preguntas del cuestionario. Algunas preguntas pueden no existir o no ser accesibles."
   },
   "sidebar": {
     "myDesk": "Mi Escritorio",

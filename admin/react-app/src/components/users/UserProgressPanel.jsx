@@ -120,34 +120,37 @@ const UserProgressPanel = ({
   if (isCollapsed) {
     return (
       <div className={`bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col ${className}`}>
-        <div className="p-4 border-b border-gray-200">
-          <div className="text-center">
-            <TrendingUp className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm font-medium text-gray-900">Progress</p>
-            <p className="text-xs text-gray-500">
-              {progressData?.overall?.averageProgress || 0}% avg
-            </p>
+        {/* Compact Header */}
+        <div className="p-3 border-b border-gray-200">
+          <div className="flex flex-col items-center">
+            <TrendingUp className="h-6 w-6 text-gray-400 mb-1.5" />
+            <p className="text-xs font-medium text-gray-900 text-center leading-tight">Progress</p>
           </div>
         </div>
-        <div className="flex-1 p-4">
-          <div className="space-y-3">
-            <div className="text-center">
-              <div className="text-lg font-bold text-blue-600">
-                {progressData?.overall?.completedCourses || 0}
-              </div>
-              <div className="text-xs text-gray-500">Courses</div>
+        
+        {/* Compact Stats */}
+        <div className="flex-1 p-2 space-y-2">
+          <div className="bg-blue-50 rounded px-2 py-1.5 text-center">
+            <div className="text-2xl font-bold text-blue-600">
+              {progressData?.overall?.averageProgress || 0}<span className="text-sm">%</span>
             </div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-green-600">
-                {progressData?.overall?.certificatesEarned || 0}
-              </div>
-              <div className="text-xs text-gray-500">Certificates</div>
+            <div className="text-[10px] text-blue-700 uppercase tracking-wide">Average</div>
+          </div>
+          
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-500">Courses</span>
+              <span className="font-bold text-gray-900">{progressData?.overall?.completedCourses || 0}</span>
             </div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-purple-600">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-500">Certs</span>
+              <span className="font-bold text-gray-900">{progressData?.overall?.certificatesEarned || 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-500">Time</span>
+              <span className="font-bold text-gray-900 text-[10px]">
                 {progressData?.overall?.totalTimeSpent ? formatTime(progressData.overall.totalTimeSpent) : '0m'}
-              </div>
-              <div className="text-xs text-gray-500">Study Time</div>
+              </span>
             </div>
           </div>
         </div>

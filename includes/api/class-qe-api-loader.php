@@ -40,6 +40,13 @@ class QE_API_Loader
     private $modules = [];
 
     /**
+     * Module instances
+     * 
+     * @var array
+     */
+    private $instances = [];
+
+    /**
      * Get single instance
      *
      * @return QE_API_Loader
@@ -103,22 +110,60 @@ class QE_API_Loader
         foreach ($modules as $name => $file) {
             if ($this->load_file($file)) {
                 $this->modules[$name] = $file;
-                $this->log_info("API module loaded: {$name}");
+
+                // Instantiate the API class
+                $class_name = $this->get_class_name_from_file($file);
+                $this->log_info("Attempting to instantiate: {$class_name} from {$file}");
+
+                if ($class_name && class_exists($class_name)) {
+                    try {
+                        $this->instances[$name] = new $class_name();
+                        $this->log_info("✅ API module instantiated: {$name} ({$class_name})");
+                    } catch (Exception $e) {
+                        $this->log_error("Failed to instantiate {$class_name}: " . $e->getMessage());
+                    }
+                } else {
+                    $this->log_error("Class not found or invalid: {$class_name} for module {$name}");
+                }
             }
         }
 
         $this->log_info('All API modules loaded', [
             'count' => count($this->modules),
-            'modules' => array_keys($this->modules)
+            'modules' => array_keys($this->modules),
+            'instances' => count($this->instances)
         ]);
     }
 
     /**
-     * Load a single API file
+     * Get class name from file name
      *
-     * @param string $file Filename
-     * @return bool Success
+     * @param string $file File name (e.g., 'class-qe-quiz-attempts-api.php')
+     * @return string Class name (e.g., 'QE_Quiz_Attempts_API')
      */
+    private function get_class_name_from_file($file)
+    {
+        // Remove .php extension and 'class-' prefix
+        $file = str_replace('.php', '', $file);
+        $file = str_replace('class-', '', $file);
+
+        // Convert from kebab-case to Class_Name
+        $parts = explode('-', $file);
+        $class_name = implode('_', array_map(function ($part) {
+            // Handle acronyms: 'qe' -> 'QE', 'api' -> 'API'
+            if (in_array($part, ['qe', 'api'])) {
+                return strtoupper($part);
+            }
+            return ucfirst($part);
+        }, $parts));
+
+        return $class_name;
+    }    /**
+         * Load a single API file
+         *
+         * @param string $file Filename
+         * @return bool Success
+         */
     private function load_file($file)
     {
         $path = $this->api_dir . $file;
@@ -177,6 +222,16 @@ class QE_API_Loader
     public function get_loaded_modules()
     {
         return $this->modules;
+    }
+
+    /**
+     * Get module instances
+     *
+     * @return array Module instances
+     */
+    public function get_instances()
+    {
+        return $this->instances;
     }
 
     /**

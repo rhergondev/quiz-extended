@@ -27,6 +27,11 @@ require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-database.php';
 require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-frontend.php';
 require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-capabilities.php';
 
+// Debug routes (only in development)
+if (defined('WP_DEBUG') && WP_DEBUG) {
+    require_once QUIZ_EXTENDED_PLUGIN_DIR . 'debug-routes.php';
+}
+
 // Activation hooks
 register_activation_hook(__FILE__, ['QE_Database', 'create_tables']);
 register_activation_hook(__FILE__, ['QE_Capabilities', 'add_capabilities']);

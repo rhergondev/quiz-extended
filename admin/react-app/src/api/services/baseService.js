@@ -184,6 +184,9 @@ export const createResourceService = (resourceName, endpointKey, customOptions =
         const endpoint = getEndpoint();
         const params = new URLSearchParams();
         
+        // Solicitar contexto 'edit' para obtener todos los campos incluyendo content
+        params.append('context', 'edit');
+        
         if (options.embed !== false) {
           params.append('_embed', 'true');
         }

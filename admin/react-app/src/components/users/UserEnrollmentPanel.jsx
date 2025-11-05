@@ -53,19 +53,73 @@ const UserEnrollmentPanel = ({
 
     try {
       setLoading(true);
-      // TODO: Replace with actual API calls
-      const [userResponse, enrollmentsResponse] = await Promise.all([
-        fetch(`/wp-json/wp/v2/users/${userId}?context=edit`),
-        fetch(`/wp-json/qe/v1/users/${userId}/enrollments`)
-      ]);
-
-      const user = await userResponse.json();
-      const enrollments = await enrollmentsResponse.json();
+      
+      // Get API config for authentication
+      const { getApiConfig } = await import('../../api/config/apiConfig.js');
+      const config = getApiConfig();
+      
+      // Load user data (try context=edit first, fallback to public)
+      let user = null;
+      try {
+        const userResponse = await fetch(`/wp-json/wp/v2/users/${userId}?context=edit`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-WP-Nonce': config.nonce,
+          },
+          credentials: 'same-origin'
+        });
+        
+        if (userResponse.ok) {
+          user = await userResponse.json();
+          console.log('✅ User loaded with context=edit');
+        } else {
+          console.warn(`⚠️ Failed to load user with context=edit (${userResponse.status}), trying public context...`);
+          
+          // Fallback to public context
+          const fallbackResponse = await fetch(`/wp-json/wp/v2/users/${userId}`, {
+            headers: {
+              'Content-Type': 'application/json',
+              'X-WP-Nonce': config.nonce,
+            },
+            credentials: 'same-origin'
+          });
+          
+          if (fallbackResponse.ok) {
+            user = await fallbackResponse.json();
+            console.log('✅ User loaded with public context');
+          }
+        }
+      } catch (userError) {
+        console.warn('⚠️ Error loading user data:', userError);
+      }
+      
+      // Load enrollments with authentication
+      try {
+        const enrollmentsResponse = await fetch(`/wp-json/qe/v1/users/${userId}/enrollments`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-WP-Nonce': config.nonce,
+          },
+          credentials: 'same-origin'
+        });
+        
+        if (enrollmentsResponse.ok) {
+          const enrollments = await enrollmentsResponse.json();
+          console.log('✅ Enrollments loaded:', enrollments);
+          setUserEnrollments(Array.isArray(enrollments) ? enrollments : []);
+        } else {
+          console.error(`❌ Failed to load enrollments: ${enrollmentsResponse.status}`);
+          setUserEnrollments([]);
+        }
+      } catch (enrollmentsError) {
+        console.error('❌ Error loading enrollments:', enrollmentsError);
+        setUserEnrollments([]);
+      }
 
       setUserData(user);
-      setUserEnrollments(enrollments);
     } catch (error) {
-      console.error('Error loading user enrollments:', error);
+      console.error('❌ Error in loadUserEnrollments:', error);
+      setUserEnrollments([]);
     } finally {
       setLoading(false);
     }
@@ -119,11 +173,27 @@ const UserEnrollmentPanel = ({
       return [];
     }
     
+    // Ensure userEnrollments is an array
+    const enrollmentsArray = Array.isArray(userEnrollments) ? userEnrollments : [];
+    
+    console.log('🔍 DEBUG - Available Courses:', availableCourses);
+    console.log('🔍 DEBUG - User Enrollments:', enrollmentsArray);
+    
     return availableCourses.map(course => {
-      const enrollment = userEnrollments.find(e => e.course_id === parseInt(course.value));
+      // Parse both values as integers for comparison
+      const courseId = parseInt(course.value);
+      const enrollment = enrollmentsArray.find(e => {
+        const enrollmentCourseId = parseInt(e.course_id);
+        console.log(`🔍 Comparing course ${courseId} with enrollment ${enrollmentCourseId}:`, courseId === enrollmentCourseId);
+        return enrollmentCourseId === courseId;
+      });
+      
+      const isEnrolled = !!enrollment;
+      console.log(`📊 Course "${course.label}" (ID: ${courseId}) - Enrolled: ${isEnrolled}`, enrollment);
+      
       return {
         ...course,
-        isEnrolled: !!enrollment,
+        isEnrolled,
         enrollmentData: enrollment || null
       };
     });
@@ -172,17 +242,26 @@ const UserEnrollmentPanel = ({
   if (isCollapsed) {
     return (
       <div className={`bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col ${className}`}>
-        <div className="p-4 border-b border-gray-200">
-          <div className="text-center">
-            <BookOpen className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm font-medium text-gray-900">Enrollments</p>
-            <p className="text-xs text-gray-500">{enrollmentStats.enrolled} enrolled</p>
+        {/* Compact header */}
+        <div className="p-3 border-b border-gray-200">
+          <div className="flex flex-col items-center">
+            <BookOpen className="h-6 w-6 text-gray-400 mb-1.5" />
+            <p className="text-xs font-medium text-gray-900 text-center leading-tight">Enrollments</p>
           </div>
         </div>
-        <div className="flex-1 p-4">
-          <div className="space-y-2 text-center text-xs text-gray-500">
-            <div>{enrollmentStats.total} courses</div>
-            <div>{enrollmentStats.available} available</div>
+        
+        {/* Compact stats */}
+        <div className="flex-1 p-2 space-y-2">
+          <div className="bg-green-50 rounded px-2 py-1.5 text-center">
+            <div className="text-lg font-bold text-green-600">{enrollmentStats.enrolled}</div>
+            <div className="text-[10px] text-green-700 uppercase tracking-wide">Enrolled</div>
+          </div>
+          <div className="bg-gray-50 rounded px-2 py-1.5 text-center">
+            <div className="text-lg font-bold text-gray-600">{enrollmentStats.available}</div>
+            <div className="text-[10px] text-gray-700 uppercase tracking-wide">Available</div>
+          </div>
+          <div className="border-t border-gray-200 pt-2 text-center">
+            <div className="text-xs text-gray-500">{enrollmentStats.total} total</div>
           </div>
         </div>
       </div>
