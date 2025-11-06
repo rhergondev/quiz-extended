@@ -30,6 +30,12 @@ require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-capabilities.php';
 // Debug routes (only in development)
 if (defined('WP_DEBUG') && WP_DEBUG) {
     require_once QUIZ_EXTENDED_PLUGIN_DIR . 'debug-routes.php';
+    require_once QUIZ_EXTENDED_PLUGIN_DIR . 'verify-enrollment-routes.php';
+}
+
+// Flush rewrite rules helper (always available in admin)
+if (is_admin()) {
+    require_once QUIZ_EXTENDED_PLUGIN_DIR . 'flush-rewrite-rules.php';
 }
 
 // Activation hooks

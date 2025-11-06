@@ -24,6 +24,9 @@ class QE_User_Enrollments_API extends QE_API_Base
     {
         $this->namespace = 'qe/v1';
         $this->rest_base = 'users';
+
+        // CRITICAL: Call parent constructor to register rest_api_init hook
+        parent::__construct();
     }
 
     /**
@@ -111,9 +114,8 @@ class QE_User_Enrollments_API extends QE_API_Base
                 ], 404);
             }
 
-            // For now, return simulated enrollment data
-            // TODO: Replace with actual enrollment database queries
-            $enrollments = $this->get_simulated_enrollments($user_id);
+            // Get real enrollment data from user meta
+            $enrollments = $this->get_user_enrollments_from_meta($user_id);
 
             return new WP_REST_Response([
                 'success' => true,
@@ -220,37 +222,68 @@ class QE_User_Enrollments_API extends QE_API_Base
     }
 
     /**
-     * Get simulated enrollment data for development
+     * Get user enrollments from user meta
      *
-     * @param int $user_id
-     * @return array
+     * @param int $user_id User ID
+     * @return array Array of enrollment objects
      */
-    private function get_simulated_enrollments($user_id)
+    private function get_user_enrollments_from_meta($user_id)
     {
-        // Generate some fake enrollments for testing
-        $courses = get_posts([
-            'post_type' => 'qe_course',
-            'numberposts' => 10,
-            'post_status' => ['publish', 'draft']
-        ]);
+        global $wpdb;
+
+        // Get all user meta keys that match enrollment pattern
+        $meta_keys = $wpdb->get_col($wpdb->prepare(
+            "SELECT meta_key FROM {$wpdb->usermeta} 
+             WHERE user_id = %d 
+             AND meta_key LIKE '_enrolled_course_%%'
+             AND meta_key NOT LIKE '_enrolled_course_%%_date'
+             AND meta_key NOT LIKE '_enrolled_course_%%_order_id'",
+            $user_id
+        ));
 
         $enrollments = [];
 
-        foreach ($courses as $course) {
-            // Randomly enroll user in some courses
-            if (rand(0, 100) > 60) { // 40% chance of enrollment
-                $enrollments[] = [
-                    'id' => rand(1000, 9999),
-                    'user_id' => (int) $user_id,
-                    'course_id' => $course->ID,
-                    'course_title' => $course->post_title,
-                    'enrollment_date' => date('Y-m-d H:i:s', strtotime('-' . rand(1, 30) . ' days')),
-                    'progress' => rand(0, 100),
-                    'status' => rand(0, 100) > 20 ? 'active' : 'completed',
-                    'last_activity' => date('Y-m-d H:i:s', strtotime('-' . rand(0, 7) . ' days')),
-                    'time_spent' => rand(30, 300) // minutes
-                ];
+        foreach ($meta_keys as $meta_key) {
+            // Extract course ID from meta key (_enrolled_course_42 -> 42)
+            $course_id = str_replace('_enrolled_course_', '', $meta_key);
+
+            if (!is_numeric($course_id)) {
+                continue;
             }
+
+            $course_id = absint($course_id);
+
+            // Verify the enrollment is active
+            $is_enrolled = get_user_meta($user_id, $meta_key, true);
+            if (!$is_enrolled) {
+                continue;
+            }
+
+            // Get course details
+            $course = get_post($course_id);
+            if (!$course || $course->post_type !== 'qe_course') {
+                continue;
+            }
+
+            // Get enrollment metadata
+            $enrollment_date = get_user_meta($user_id, "_enrolled_course_{$course_id}_date", true);
+            $order_id = get_user_meta($user_id, "_enrolled_course_{$course_id}_order_id", true);
+            $progress = get_user_meta($user_id, "_course_{$course_id}_progress", true);
+            $last_activity = get_user_meta($user_id, "_course_{$course_id}_last_activity", true);
+
+            // Build enrollment object
+            $enrollments[] = [
+                'id' => $course_id, // Using course_id as enrollment ID for now
+                'user_id' => (int) $user_id,
+                'course_id' => $course_id,
+                'course_title' => $course->post_title,
+                'enrollment_date' => $enrollment_date ?: current_time('mysql'),
+                'progress' => $progress ? (int) $progress : 0,
+                'status' => $progress >= 100 ? 'completed' : 'active',
+                'last_activity' => $last_activity ?: $enrollment_date,
+                'order_id' => $order_id ? (int) $order_id : null,
+                'source' => $order_id ? 'purchase' : 'manual'
+            ];
         }
 
         return $enrollments;

@@ -243,38 +243,18 @@ export const useUsers = (options = {}) => {
     console.log('🔄 Enriching users with enrollment data for course:', courseId);
     
     try {
-      const config = getApiConfig();
+      // Import enrollment service
+      const { getUserEnrollments } = await import('../api/services/userEnrollmentService.js');
       
       // Fetch enrollment data for all users in parallel
       const enrollmentPromises = users.map(async (user) => {
         try {
-          const response = await fetch(`${config.apiUrl}/qe/v1/users/${user.id}/enrollments`, {
-            headers: {
-              'Content-Type': 'application/json',
-              'X-WP-Nonce': config.nonce,
-            },
-            credentials: 'same-origin'
-          });
-          
-          if (!response.ok) {
-            console.warn(`⚠️ Failed to fetch enrollments for user ${user.id}`);
-            return {
-              ...user,
-              enrollmentData: {
-                isEnrolled: false,
-                enrollmentDate: null,
-                progress: 0,
-                lastActivity: null
-              }
-            };
-          }
-          
-          const enrollments = await response.json();
+          const enrollments = await getUserEnrollments(user.id);
           const enrollmentsArray = Array.isArray(enrollments) ? enrollments : [];
           
           // Check if user is enrolled in the specific course
           const courseEnrollment = enrollmentsArray.find(
-            e => e.course_id === parseInt(courseId)
+            e => parseInt(e.course_id) === parseInt(courseId)
           );
           
           return {
@@ -375,26 +355,17 @@ export const useUsers = (options = {}) => {
       setUpdating(true);
       setError(null);
       
-      const config = getApiConfig();
+      // Import enrollment service
+      const { enrollUserInCourse: enrollService } = await import('../api/services/userEnrollmentService.js');
       
-      // Update user meta to enroll in course
-      const metaData = {
-        [`_enrolled_course_${courseId}`]: true,
-        [`_enrolled_course_${courseId}_date`]: new Date().toISOString(),
-        [`_course_${courseId}_progress`]: 0
-      };
-
       console.log('📝 Enrolling user in course:', { userId, courseId });
 
-      // Use WordPress REST API to update user meta
-      const response = await makeApiRequest(`${config.endpoints.users}/${userId}`, {
-        method: 'POST',
-        body: JSON.stringify({
-          meta: metaData
-        })
-      });
-
-      const updatedUser = await response.json();
+      // Use the enrollment service
+      const result = await enrollService(parseInt(userId), parseInt(courseId));
+      
+      if (result && result.success === false) {
+        throw new Error(result.error || 'Failed to enroll user');
+      }
       
       // Update users list
       setUsers(prev => prev.map(user => 
@@ -404,15 +375,15 @@ export const useUsers = (options = {}) => {
               enrollmentData: {
                 ...user.enrollmentData,
                 isEnrolled: true,
-                enrollmentDate: metaData[`_enrolled_course_${courseId}_date`],
-                progress: 0
+                enrollmentDate: result.data?.enrollment_date || new Date().toISOString(),
+                progress: result.data?.progress || 0
               }
             }
           : user
       ));
 
       console.log('✅ User enrolled successfully');
-      return updatedUser;
+      return result;
       
     } catch (err) {
       console.error('❌ Error enrolling user:', err);
@@ -429,21 +400,17 @@ export const useUsers = (options = {}) => {
       setUpdating(true);
       setError(null);
       
-      const config = getApiConfig();
+      // Import enrollment service
+      const { unenrollUserFromCourse: unenrollService } = await import('../api/services/userEnrollmentService.js');
       
       console.log('❌ Unenrolling user from course:', { userId, courseId });
 
-      // Remove enrollment meta
-      const response = await makeApiRequest(`${config.endpoints.users}/${userId}`, {
-        method: 'POST',
-        body: JSON.stringify({
-          meta: {
-            [`_enrolled_course_${courseId}`]: null
-          }
-        })
-      });
-
-      const updatedUser = await response.json();
+      // Use the unenrollment service
+      const result = await unenrollService(parseInt(userId), parseInt(courseId));
+      
+      if (result && result.success === false) {
+        throw new Error(result.error || 'Failed to unenroll user');
+      }
       
       // Update users list
       setUsers(prev => prev.map(user => 
@@ -461,7 +428,7 @@ export const useUsers = (options = {}) => {
       ));
 
       console.log('✅ User unenrolled successfully');
-      return updatedUser;
+      return result;
       
     } catch (err) {
       console.error('❌ Error unenrolling user:', err);

@@ -56,6 +56,7 @@ const UserEnrollmentPanel = ({
       
       // Get API config for authentication
       const { getApiConfig } = await import('../../api/config/apiConfig.js');
+      const { getUserEnrollments } = await import('../../api/services/userEnrollmentService.js');
       const config = getApiConfig();
       
       // Load user data (try context=edit first, fallback to public)
@@ -93,24 +94,14 @@ const UserEnrollmentPanel = ({
         console.warn('⚠️ Error loading user data:', userError);
       }
       
-      // Load enrollments with authentication
+      // Load enrollments using the enrollment service
       try {
-        const enrollmentsResponse = await fetch(`/wp-json/qe/v1/users/${userId}/enrollments`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'X-WP-Nonce': config.nonce,
-          },
-          credentials: 'same-origin'
-        });
+        const enrollments = await getUserEnrollments(userId);
+        console.log('✅ Enrollments loaded:', enrollments);
         
-        if (enrollmentsResponse.ok) {
-          const enrollments = await enrollmentsResponse.json();
-          console.log('✅ Enrollments loaded:', enrollments);
-          setUserEnrollments(Array.isArray(enrollments) ? enrollments : []);
-        } else {
-          console.error(`❌ Failed to load enrollments: ${enrollmentsResponse.status}`);
-          setUserEnrollments([]);
-        }
+        // Handle the response - could be wrapped in data property or direct array
+        const enrollmentsArray = enrollments?.data || enrollments;
+        setUserEnrollments(Array.isArray(enrollmentsArray) ? enrollmentsArray : []);
       } catch (enrollmentsError) {
         console.error('❌ Error loading enrollments:', enrollmentsError);
         setUserEnrollments([]);
@@ -129,10 +120,38 @@ const UserEnrollmentPanel = ({
   const handleEnroll = async (courseId) => {
     try {
       setUpdating(true);
+      
+      // Call the enrollment function
       await onEnrollUser?.(userId, courseId);
-      await loadUserEnrollments(); // Refresh data
+      
+      // Update local state optimistically
+      setUserEnrollments(prev => {
+        // Check if already enrolled
+        const alreadyEnrolled = prev.some(e => parseInt(e.course_id) === parseInt(courseId));
+        if (alreadyEnrolled) {
+          return prev;
+        }
+        
+        // Add new enrollment
+        return [
+          ...prev,
+          {
+            id: Date.now(),
+            user_id: userId,
+            course_id: parseInt(courseId),
+            enrollment_date: new Date().toISOString(),
+            progress: 0,
+            status: 'active',
+            last_activity: new Date().toISOString()
+          }
+        ];
+      });
+      
+      console.log('✅ User enrolled and state updated');
     } catch (error) {
       console.error('Error enrolling user:', error);
+      // Reload on error to ensure consistency
+      await loadUserEnrollments();
     } finally {
       setUpdating(false);
     }
@@ -145,10 +164,20 @@ const UserEnrollmentPanel = ({
 
     try {
       setUpdating(true);
+      
+      // Call the unenrollment function
       await onUnenrollUser?.(userId, courseId);
-      await loadUserEnrollments(); // Refresh data
+      
+      // Update local state optimistically
+      setUserEnrollments(prev => 
+        prev.filter(e => parseInt(e.course_id) !== parseInt(courseId))
+      );
+      
+      console.log('✅ User unenrolled and state updated');
     } catch (error) {
       console.error('Error unenrolling user:', error);
+      // Reload on error to ensure consistency
+      await loadUserEnrollments();
     } finally {
       setUpdating(false);
     }

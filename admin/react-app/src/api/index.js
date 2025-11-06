@@ -94,6 +94,16 @@ export {
 // Ranking Operations
 export { getQuizRanking } from './services/rankingService.js';
 
+// User Enrollment Operations
+export {
+  getUserEnrollments,
+  enrollUserInCourse,
+  unenrollUserFromCourse,
+  isUserEnrolled,
+  batchEnrollUsers,
+  enrollUserInMultipleCourses,
+  getUserEnrollmentStats
+} from './services/userEnrollmentService.js';
 
 // ============================================================
 // BATCH OPERATIONS

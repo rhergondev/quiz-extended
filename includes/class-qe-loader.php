@@ -380,28 +380,36 @@ final class QE_Loader
                 $this->loaded_components['enrollment_initialized'] = true;
             }
 
-            // Admin services (only in admin)
-            if (is_admin()) {
-                if (class_exists('QE_Admin_Menu')) {
-                    new QE_Admin_Menu();
-                    $this->loaded_components['admin_menu_initialized'] = true;
-                }
+            // CRITICAL: Force immediate loading of API modules
+            // This ensures REST API routes are registered before rest_api_init hook
+            if (class_exists('QE_API_Loader')) {
+                $api_loader = QE_API_Loader::instance();
+                // Force immediate module loading instead of waiting for plugins_loaded
+                $api_loader->load_modules();
+                $this->loaded_components['api_modules_initialized'] = true;
 
-                if (class_exists('QE_Assets')) {
-                    new QE_Assets();
-                    $this->loaded_components['admin_assets_initialized'] = true;
-                }
-
-                if (class_exists('QE_Menu_Badge')) {
-                    QE_Menu_Badge::instance();
-                    $this->loaded_components['menu_badge_initialized'] = true;
-                }
+                $this->log_info('API modules force-loaded', [
+                    'health' => $api_loader->get_health_status(),
+                    'modules' => array_keys($api_loader->get_instances())
+                ]);
             }
 
-            // Security services are auto-initialized via singleton pattern
             // API services are auto-initialized via QE_API_Loader
 
-            $this->log_info('Services initialized successfully');
+            if (class_exists('QE_Admin_Menu')) {
+                new QE_Admin_Menu();
+                $this->loaded_components['admin_menu_initialized'] = true;
+            }
+
+            if (class_exists('QE_Assets')) {
+                new QE_Assets();
+                $this->loaded_components['assets_initialized'] = true;
+            }
+
+            if (class_exists('QE_Menu_Badge')) {
+                QE_Menu_Badge::instance();
+                $this->loaded_components['menu_badge_initialized'] = true;
+            }
 
         } catch (Exception $e) {
             $this->loading_errors[] = [
@@ -409,10 +417,12 @@ final class QE_Loader
                 'message' => 'Service initialization failed: ' . $e->getMessage(),
                 'component' => 'initialization'
             ];
+            $this->log_error('Service initialization failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
-
-    // ============================================================
     // FILE LOADING HELPERS
     // ============================================================
 

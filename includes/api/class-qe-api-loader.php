@@ -47,6 +47,13 @@ class QE_API_Loader
     private $instances = [];
 
     /**
+     * Flag to track if modules have been loaded
+     * 
+     * @var bool
+     */
+    private $modules_loaded = false;
+
+    /**
      * Get single instance
      *
      * @return QE_API_Loader
@@ -66,8 +73,8 @@ class QE_API_Loader
     {
         $this->api_dir = QUIZ_EXTENDED_PLUGIN_DIR . 'includes/api/';
 
-        // Load API modules
-        add_action('init', [$this, 'load_modules'], 5);
+        // Load API modules BEFORE rest_api_init to ensure routes are registered
+        add_action('plugins_loaded', [$this, 'load_modules'], 5);
 
         // Add CORS headers if needed
         add_action('rest_api_init', [$this, 'add_cors_headers']);
@@ -78,6 +85,15 @@ class QE_API_Loader
      */
     public function load_modules()
     {
+        // Prevent double loading
+        if ($this->modules_loaded) {
+            $this->log_info('API modules already loaded, skipping...');
+            return;
+        }
+
+        // Mark as loaded at the start to prevent race conditions
+        $this->modules_loaded = true;
+
         // Check if security classes are loaded
         if (
             !class_exists('QE_Security') ||
