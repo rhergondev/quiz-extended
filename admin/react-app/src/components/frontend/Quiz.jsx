@@ -79,28 +79,37 @@ const Quiz = ({ quizId, customQuiz = null }) => {
 
         // No hay autoguardado - continuar con inicio normal
         const quizData = await getQuiz(quizId);
+        console.log('✅ Quiz data loaded:', quizData);
         setQuizInfo(quizData);
         
         const questionIds = quizData.meta?._quiz_question_ids || [];
+        console.log('📋 Question IDs from quiz:', questionIds);
         
         // 🔥 CORRECCIÓN: Cargar las preguntas específicas del quiz por sus IDs
         if (questionIds.length > 0) {
           setQuestionsLoading(true);
           try {
+            console.log(`🔍 Fetching ${questionIds.length} questions by IDs...`);
             const questions = await getQuestionsByIds(questionIds, { batchSize: 30 });
+            console.log(`✅ Questions loaded: ${questions.length}/${questionIds.length}`, questions);
+            
             // Aplicar aleatorización si está configurada
             if (quizData.meta?._randomize_questions) {
               const shuffled = [...questions].sort(() => Math.random() - 0.5);
               setQuizQuestions(shuffled);
+              console.log('🔀 Questions shuffled');
             } else {
               setQuizQuestions(questions);
+              console.log('📝 Questions set in original order');
             }
           } catch (error) {
-            console.error('Error loading quiz questions:', error);
+            console.error('❌ Error loading quiz questions:', error);
             setQuestionsError(error);
           } finally {
             setQuestionsLoading(false);
           }
+        } else {
+          console.warn('⚠️ Quiz has no question IDs');
         }
 
         const attemptResponse = await startQuizAttempt(quizId);
@@ -130,9 +139,15 @@ const Quiz = ({ quizId, customQuiz = null }) => {
 
   useEffect(() => {
       if (quizInfo && attemptId && !questionsLoading) {
+          console.log('🎯 Changing quiz state to in-progress', {
+            quizInfo: !!quizInfo,
+            attemptId,
+            questionsLoading,
+            questionsCount: quizQuestions.length
+          });
           setQuizState('in-progress');
       }
-  }, [quizInfo, attemptId, questionsLoading]);
+  }, [quizInfo, attemptId, questionsLoading, quizQuestions.length]);
 
   // Handler para resumir quiz desde autoguardado
   const handleResumeQuiz = async () => {
@@ -322,16 +337,24 @@ const Quiz = ({ quizId, customQuiz = null }) => {
     );
   }
   if (quizState === 'error' || questionsError) {
-      return <div className="text-center p-8 text-red-600">No se pudo cargar el cuestionario.</div>
+      const errorMessage = questionsError?.message || 'No se pudo cargar el cuestionario.';
+      return (
+        <div className="text-center p-8 text-red-600">
+          <p className="font-semibold mb-2">Error al cargar el cuestionario</p>
+          <p className="text-sm">{errorMessage}</p>
+        </div>
+      );
   }
   if (quizState === 'submitting') {
       return <div className="text-center p-8">Enviando respuestas...</div>
   }
   if (quizState === 'submitted') {
-      return <QuizResults result={quizResult} quizTitle={quizInfo?.title?.rendered} questions={quizQuestions} />;
+      return <QuizResults result={quizResult} quizTitle={quizInfo?.title?.rendered || quizInfo?.title} questions={quizQuestions} />;
   }
-  if (quizQuestions.length === 0 && !questionsLoading) {
-      return <div className="text-center p-8 text-gray-600">Este cuestionario no tiene preguntas.</div>
+  
+  // Solo mostrar este mensaje si el quiz está cargado pero no tiene IDs de preguntas
+  if (quizInfo && quizQuestions.length === 0 && !questionsLoading && quizInfo.meta?._quiz_question_ids?.length === 0) {
+      return <div className="text-center p-8 text-gray-600">Este cuestionario no tiene preguntas asignadas.</div>
   }
 
   const timeLimit = quizInfo?.meta?._time_limit || 0;

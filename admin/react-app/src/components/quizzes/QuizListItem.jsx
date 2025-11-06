@@ -21,10 +21,15 @@ const QuizListItem = ({ quiz, isSelected, onClick }) => {
     }
   );
 
+  // 🔥 CORRECCIÓN: Manejar tanto títulos como strings o como objetos con .rendered
+  const displayTitle = typeof quiz.title === 'string'
+    ? quiz.title
+    : (quiz.title?.rendered || t('common.untitled'));
+
   return (
     <li onClick={onClick} className={itemClasses}>
       <h3 className={clsx('font-semibold', { 'text-blue-800': isSelected, 'text-gray-900': !isSelected })}>
-        {quiz.title?.rendered || quiz.title || t('common.untitled')}
+        {displayTitle}
       </h3>
       <div className={clsx('text-sm mt-1 flex items-center space-x-4', { 'text-blue-700': isSelected, 'text-gray-500': !isSelected })}>
         <span className="flex items-center" title={t('quizzes.card.questions', { count: quiz.question_count })}>
