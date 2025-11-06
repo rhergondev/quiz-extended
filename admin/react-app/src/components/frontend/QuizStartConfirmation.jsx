@@ -61,10 +61,13 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
   const statistics = ranking?.statistics || {};
   const currentUser = ranking?.currentUser || null;
   const topUsers = ranking?.top || [];
+  const relativeUsers = ranking?.relative || [];
   
-  // Buscar la nota del usuario actual en el ranking
+  // Buscar la nota del usuario actual en el ranking (primero en top, luego en relative)
   const userInTop = topUsers.find(u => u.user_id === currentUser?.id);
-  const hasUserStats = userInTop !== null && statistics.total_users > 0;
+  const userInRelative = relativeUsers.find(u => u.user_id === currentUser?.id);
+  const userStats = userInTop || userInRelative;
+  const hasUserStats = userStats !== null && userStats !== undefined && statistics.total_users > 0;
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-8 shadow-lg max-w-5xl mx-auto space-y-6">
@@ -132,7 +135,7 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Mi Nota:</span>
                 <span className="text-lg font-bold text-blue-700">
-                  {formatScore(userInTop?.score || 0)}
+                  {formatScore(userStats?.score || 0)}
                 </span>
               </div>
               
@@ -144,7 +147,7 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
                 <span className="text-sm font-semibold text-gray-700">Mi Percentil:</span>
                 <span className="text-xl font-extrabold text-blue-600">
                   {(() => {
-                    const myScore = userInTop?.score || 0;
+                    const myScore = userStats?.score || 0;
                     const avgScore = statistics.avg_score_without_risk || 0;
                     const percentile = myScore - avgScore;
                     return `${percentile > 0 ? '+' : ''}${formatScore(percentile)}`;
@@ -178,7 +181,7 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Mi Nota:</span>
                 <span className="text-lg font-bold text-amber-700">
-                  {formatScore(userInTop?.score_with_risk || 0)}
+                  {formatScore(userStats?.score_with_risk || 0)}
                 </span>
               </div>
               
@@ -190,7 +193,7 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
                 <span className="text-sm font-semibold text-gray-700">Mi Percentil:</span>
                 <span className="text-xl font-extrabold text-amber-600">
                   {(() => {
-                    const myScore = userInTop?.score_with_risk || 0;
+                    const myScore = userStats?.score_with_risk || 0;
                     const avgScore = statistics.avg_score_with_risk || 0;
                     const percentile = myScore - avgScore;
                     return `${percentile > 0 ? '+' : ''}${formatScore(percentile)}`;

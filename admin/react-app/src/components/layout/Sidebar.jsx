@@ -27,8 +27,8 @@ const Sidebar = () => {
     { to: '/', text: t('sidebar.myDesk'), icon: Home, type: 'internal' },
     { to: '/courses', text: t('sidebar.studyPlanner'), icon: Calendar, type: 'internal' },
     { to: '/test', text: t('sidebar.test'), icon: FileText, type: 'internal' },
-    { to: `${homeUrl}/mi-cuenta/edit-account/`, text: t('sidebar.myAccount'), icon: Settings, type: 'external' },
     { to: `${homeUrl}/mi-cuenta/downloads/`, text: t('sidebar.books'), icon: BookOpen, type: 'external' },
+    { to: `${homeUrl}/mi-cuenta/edit-account/`, text: t('sidebar.myAccount'), icon: Settings, type: 'external' },
   ];
 
   // Función de clases para los links del sidebar
@@ -112,6 +112,7 @@ const Sidebar = () => {
               <a
                 key={item.to}
                 href={item.to}
+                target="_blank"
                 className={`flex items-center p-3 transition-all duration-200 rounded-lg border-[3px] border-transparent ${
                   isCollapsed ? 'justify-center' : ''
                 }`}

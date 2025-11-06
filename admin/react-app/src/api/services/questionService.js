@@ -24,6 +24,24 @@ const buildQuestionQueryParams = (options = {}) => {
     params.append('quiz_id', options.quizId.toString());
   }
 
+  // Añade filtros de taxonomía si existen y no son 'all'
+  if (options.category && options.category !== 'all') {
+    params.append('qe_category', options.category);
+  }
+
+  if (options.provider && options.provider !== 'all') {
+    params.append('qe_provider', options.provider);
+  }
+
+  // Añade otros filtros personalizados
+  if (options.type && options.type !== 'all') {
+    params.append('type', options.type);
+  }
+
+  if (options.difficulty && options.difficulty !== 'all') {
+    params.append('difficulty', options.difficulty);
+  }
+
   return params;
 };
 
