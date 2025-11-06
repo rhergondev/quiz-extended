@@ -50,16 +50,22 @@ const QuizSingleSelector = ({ value, onChange, disabled = false, onCreateNew }) 
 
   useEffect(() => {
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+    
     if (searchQuery.trim()) {
+      // Si hay búsqueda, buscar con ese término
       setIsDropdownOpen(true);
       debounceTimeoutRef.current = setTimeout(() => {
-        fetchQuizzes(true, { search: searchQuery });
+        fetchQuizzes(true, { search: searchQuery, perPage: 50 });
       }, 300);
-    } else {
-      setIsDropdownOpen(false);
+    } else if (isDropdownOpen) {
+      // Si el dropdown está abierto pero no hay búsqueda, cargar quizzes recientes
+      debounceTimeoutRef.current = setTimeout(() => {
+        fetchQuizzes(true, { perPage: 50 });
+      }, 100);
     }
+    
     return () => clearTimeout(debounceTimeoutRef.current);
-  }, [searchQuery, fetchQuizzes]);
+  }, [searchQuery, isDropdownOpen, fetchQuizzes]);
 
   const handleSelectQuiz = (quiz) => {
     setSelectedQuiz(quiz);
@@ -132,8 +138,10 @@ const QuizSingleSelector = ({ value, onChange, disabled = false, onCreateNew }) 
               {getQuizTitle(quiz)}
             </div>
           ))}
-          {!loading && searchResults.length === 0 && searchQuery && (
-            <p className="p-2 text-sm text-gray-500">No se encontraron resultados.</p>
+          {!loading && searchResults.length === 0 && (
+            <p className="p-2 text-sm text-gray-500">
+              {searchQuery ? 'No se encontraron resultados.' : 'No hay cuestionarios disponibles.'}
+            </p>
           )}
         </div>
       )}

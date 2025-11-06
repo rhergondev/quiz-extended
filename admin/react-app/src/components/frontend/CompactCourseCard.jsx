@@ -22,7 +22,7 @@ import {
 import useLessons from '../../hooks/useLessons';
 import useStudentProgress from '../../hooks/useStudentProgress';
 import useQuizAttempts from '../../hooks/useQuizAttempts';
-import useQuizzes from '../../hooks/useQuizzes';
+import useQuizzesById from '../../hooks/useQuizzesById';
 import { getApiConfig } from '../../api/config/apiConfig';
 import { makeApiRequest } from '../../api/services/baseService';
 import { getCourseLessons } from '../../api/services/courseLessonService';
@@ -85,10 +85,28 @@ const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
     autoFetch: true
   });
 
-  const { quizzes } = useQuizzes({
-    courseId: id,
-    autoFetch: true
-  });
+  // Extract all quiz IDs from lessons
+  const quizIds = useMemo(() => {
+    if (!lessons || lessons.length === 0) return [];
+    
+    const ids = new Set();
+    lessons.forEach(lesson => {
+      const steps = lesson.meta?._lesson_steps || [];
+      steps.forEach(step => {
+        if (step.type === 'quiz' && step.data?.quiz_id) {
+          ids.add(parseInt(step.data.quiz_id));
+        }
+      });
+    });
+    
+    return Array.from(ids);
+  }, [lessons]);
+
+  // Load only the quizzes that are actually used in the lessons
+  const { quizzesMap, loading: quizzesLoading, error: quizzesError } = useQuizzesById(quizIds);
+  
+  // Convert quizzesMap to array for compatibility with existing code
+  const quizzes = useMemo(() => Object.values(quizzesMap), [quizzesMap]);
 
   // Fetch course-specific question stats
   useEffect(() => {
