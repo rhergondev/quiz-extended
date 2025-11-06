@@ -4,8 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { Trophy, Loader } from 'lucide-react';
 import { getCourse } from '../../api/services/courseService';
 import { getCourseLessons } from '../../api/services/courseLessonService';
-import useLessons from '../../hooks/useLessons';
-import useQuizzesById from '../../hooks/useQuizzesById';
 import useCourseRanking from '../../hooks/useCourseRanking';
 import CourseLessonList from '../../components/frontend/CourseLessonList';
 import StepContent from '../../components/frontend/StepContent';
@@ -81,26 +79,65 @@ const CourseLessonsPage = () => {
     fetchLessons();
   }, [courseId]);
 
-  // Extract all quiz IDs from lessons
-  const quizIds = useMemo(() => {
-    if (!lessons || lessons.length === 0) return [];
-    
-    const ids = new Set();
-    lessons.forEach(lesson => {
-      const steps = lesson.meta?._lesson_steps || [];
-      steps.forEach(step => {
-        if (step.type === 'quiz' && step.data?.quiz_id) {
-          ids.add(parseInt(step.data.quiz_id));
-        }
-      });
-    });
-    
-    return Array.from(ids);
-  }, [lessons]);
+  // State for lazy-loaded quizzes
+  const [quizzesMap, setQuizzesMap] = useState({});
+  const [loadingQuizzes, setLoadingQuizzes] = useState(new Set());
 
-  // Load only the quizzes that are actually used in the lessons
-  const { quizzesMap, loading: quizzesLoading, error: quizzesError } = useQuizzesById(quizIds);
-  
+  // Function to load quizzes for a specific lesson
+  const loadQuizzesForLesson = useCallback(async (lesson) => {
+    if (!lesson?.meta?._lesson_steps) return;
+
+    const steps = lesson.meta._lesson_steps;
+    const quizIdsToLoad = steps
+      .filter(step => step.type === 'quiz' && step.data?.quiz_id)
+      .map(step => parseInt(step.data.quiz_id))
+      .filter(id => !quizzesMap[id] && !loadingQuizzes.has(id)); // Only load if not already loaded or loading
+
+    if (quizIdsToLoad.length === 0) return;
+
+    // Mark quizzes as loading
+    setLoadingQuizzes(prev => {
+      const next = new Set(prev);
+      quizIdsToLoad.forEach(id => next.add(id));
+      return next;
+    });
+
+    try {
+      // Import getOne function dynamically
+      const { getOne: getQuiz } = await import('../../api/services/quizService');
+      
+      // Fetch all quizzes in parallel
+      const promises = quizIdsToLoad.map(id => 
+        getQuiz(id).catch(err => {
+          console.error(`Failed to load quiz ${id}:`, err);
+          return null;
+        })
+      );
+
+      const results = await Promise.all(promises);
+
+      // Update quizzes map
+      setQuizzesMap(prev => {
+        const next = { ...prev };
+        results.forEach((quiz, index) => {
+          if (quiz) {
+            next[quizIdsToLoad[index]] = quiz;
+          }
+        });
+        return next;
+      });
+    } catch (error) {
+      console.error('Error loading quizzes:', error);
+    } finally {
+      // Remove from loading set
+      setLoadingQuizzes(prev => {
+        const next = new Set(prev);
+        quizIdsToLoad.forEach(id => next.delete(id));
+        return next;
+      });
+    }
+  }, [quizzesMap, loadingQuizzes]);
+
   // Convert quizzesMap to array for compatibility with existing components
   const quizzes = useMemo(() => Object.values(quizzesMap), [quizzesMap]);
   
@@ -125,14 +162,15 @@ const CourseLessonsPage = () => {
   }, [fetchedCourse]);
   
   useEffect(() => {
-    const anyError = courseError || lessonsError || quizzesError;
-    if (anyError) setError(anyError.message || 'Ocurrió un error');
-  }, [courseError, lessonsError, quizzesError]);
+    if (courseError || lessonsError) {
+      setError((courseError || lessonsError).message || 'Ocurrió un error');
+    }
+  }, [courseError, lessonsError]);
   
   // Efecto para seleccionar el primer paso por defecto O el paso/quiz especificado
   useEffect(() => {
     // Solo ejecutar una vez cuando todo esté cargado
-    if (hasInitialized || lessonsLoading || quizzesLoading || !lessons?.length) {
+    if (hasInitialized || lessonsLoading || !lessons?.length) {
       return;
     }
     
@@ -154,6 +192,9 @@ const CourseLessonsPage = () => {
           setActiveContent({ lesson: targetLesson, step: targetStep });
           setHasInitialized(true);
           
+          // Load quizzes for this lesson
+          loadQuizzesForLesson(targetLesson);
+          
           // Limpiar el estado para evitar reselección en futuras navegaciones
           window.history.replaceState({}, document.title);
           return;
@@ -164,33 +205,31 @@ const CourseLessonsPage = () => {
     // Prioridad 2: Si venimos de vuelta a un quiz específico
     const selectedQuizId = location.state?.selectedQuizId;
     
-    if (selectedQuizId && quizzesMap[selectedQuizId]) {
-      // Buscar el quiz en el map
-      const targetQuiz = quizzesMap[selectedQuizId];
+    if (selectedQuizId) {
+      // Buscar la lección que contiene este quiz
+      const associatedLesson = lessons.find(l => {
+        const hasStep = l.meta?._lesson_steps?.some(s => {
+          return s?.data?.quiz_id && parseInt(s.data.quiz_id) === parseInt(selectedQuizId);
+        });
+        return hasStep;
+      });
       
-      if (targetQuiz) {
-        // Crear un step virtual para el quiz
-        const quizStep = {
-          id: `quiz-${targetQuiz.id}`,
-          type: 'quiz',
-          quiz_id: targetQuiz.id,
-          quiz: targetQuiz
-        };
+      if (associatedLesson) {
+        const quizStep = associatedLesson.meta._lesson_steps.find(s => 
+          s?.data?.quiz_id && parseInt(s.data.quiz_id) === parseInt(selectedQuizId)
+        );
         
-        // Buscar la lección asociada
-        const associatedLesson = lessons.find(l => {
-          const hasStep = l.meta?._lesson_steps?.some(s => {
-            return s?.quiz_id && parseInt(s.quiz_id) === parseInt(targetQuiz.id);
-          });
-          return hasStep;
-        }) || lessons[0];
-        
-        setActiveContent({ lesson: associatedLesson, step: quizStep });
-        setHasInitialized(true);
-        
-        // Limpiar el estado para evitar reselección en futuras navegaciones
-        window.history.replaceState({}, document.title);
-        return;
+        if (quizStep) {
+          setActiveContent({ lesson: associatedLesson, step: quizStep });
+          setHasInitialized(true);
+          
+          // Load quizzes for this lesson
+          loadQuizzesForLesson(associatedLesson);
+          
+          // Limpiar el estado para evitar reselección en futuras navegaciones
+          window.history.replaceState({}, document.title);
+          return;
+        }
       }
     }
     
@@ -201,8 +240,11 @@ const CourseLessonsPage = () => {
     if (firstLesson && firstStep) {
       setActiveContent({ lesson: firstLesson, step: firstStep });
       setHasInitialized(true);
+      
+      // Load quizzes for the first lesson
+      loadQuizzesForLesson(firstLesson);
     }
-  }, [lessons, lessonsLoading, quizzesMap, quizzesLoading, hasInitialized, location.state]);
+  }, [lessons, lessonsLoading, hasInitialized, location.state, loadQuizzesForLesson]);
 
   // 4. Handler para la selección de pasos
   const handleSelectStep = (step, lesson) => {
@@ -216,7 +258,7 @@ const CourseLessonsPage = () => {
   };
   
   // 6. Renderizado condicional limpio
-  const isLoading = courseLoading || quizzesLoading || lessonsLoading;
+  const isLoading = courseLoading || lessonsLoading;
 
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
@@ -254,6 +296,7 @@ const CourseLessonsPage = () => {
         selectedStepId={activeContent.step?.id}
         onSelectStep={handleSelectStep}
         quizzes={quizzes}
+        onLessonExpand={loadQuizzesForLesson}
       />
 
       {/* Ranking Modal */}

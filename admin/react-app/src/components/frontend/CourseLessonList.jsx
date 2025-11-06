@@ -12,7 +12,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 
-const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep, quizzes }) => {
+const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep, quizzes, onLessonExpand }) => {
   const { t } = useTranslation();
   const [expandedLessonId, setExpandedLessonId] = useState(null);
   // ✅ Estado para controlar el colapso del panel completo
@@ -35,15 +35,26 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep, qu
     }
   };
 
-  const handleLessonClick = (lessonId) => {
+  const handleLessonClick = (lessonId, lesson) => {
     // No permitir expandir/colapsar lecciones si el panel entero está colapsado
     if (isCollapsed) return;
+    
+    const willExpand = expandedLessonId !== lessonId;
     setExpandedLessonId(prevId => (prevId === lessonId ? null : lessonId));
+    
+    // Load quizzes for this lesson when expanding
+    if (willExpand && onLessonExpand) {
+      onLessonExpand(lesson);
+    }
   };
   
   const getQuizTitle = (quizId) => {
     const quiz = quizzes.find(q => q.id === quizId);
-    return quiz ? (quiz.title.rendered || quiz.title) : t('quiz');
+    if (quiz) {
+      return quiz.title.rendered || quiz.title;
+    }
+    // Return a placeholder while quiz is loading
+    return t('quiz') || 'Cuestionario';
   };
 
   const loadingSkeleton = (
@@ -96,7 +107,7 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep, qu
                   return (
                     <li key={lesson.id} className="border-b border-gray-200">
                       <div
-                        onClick={() => handleLessonClick(lesson.id)}
+                        onClick={() => handleLessonClick(lesson.id, lesson)}
                         className={`p-4 flex justify-between items-center ${!isCollapsed ? 'cursor-pointer' : ''} ${isExpanded && !isCollapsed ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
                         title={isCollapsed ? lessonTitle : ''}
                       >

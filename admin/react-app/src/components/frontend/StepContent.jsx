@@ -66,6 +66,16 @@ const StepContent = ({ step, lesson, quizzes }) => {
         
         const quiz = quizzes.find(q => q.id === quizId);
 
+        // Show loading state if quiz is not yet loaded
+        if (!quiz) {
+          return (
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+              <span className="ml-3 text-gray-600">Cargando cuestionario...</span>
+            </div>
+          );
+        }
+
         if (!quizStarted) {
           return <QuizStartConfirmation quiz={quiz} onStartQuiz={() => setQuizStarted(true)} />;
         }

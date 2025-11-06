@@ -22,7 +22,6 @@ import {
 import useLessons from '../../hooks/useLessons';
 import useStudentProgress from '../../hooks/useStudentProgress';
 import useQuizAttempts from '../../hooks/useQuizAttempts';
-import useQuizzesById from '../../hooks/useQuizzesById';
 import { getApiConfig } from '../../api/config/apiConfig';
 import { makeApiRequest } from '../../api/services/baseService';
 import { getCourseLessons } from '../../api/services/courseLessonService';
@@ -85,25 +84,64 @@ const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
     autoFetch: true
   });
 
-  // Extract all quiz IDs from lessons
-  const quizIds = useMemo(() => {
-    if (!lessons || lessons.length === 0) return [];
-    
-    const ids = new Set();
-    lessons.forEach(lesson => {
-      const steps = lesson.meta?._lesson_steps || [];
-      steps.forEach(step => {
-        if (step.type === 'quiz' && step.data?.quiz_id) {
-          ids.add(parseInt(step.data.quiz_id));
-        }
-      });
-    });
-    
-    return Array.from(ids);
-  }, [lessons]);
+  // State for lazy-loaded quizzes
+  const [quizzesMap, setQuizzesMap] = useState({});
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
 
-  // Load only the quizzes that are actually used in the lessons
-  const { quizzesMap, loading: quizzesLoading, error: quizzesError } = useQuizzesById(quizIds);
+  // Load quizzes when modal opens and lessons are available
+  useEffect(() => {
+    const loadQuizzes = async () => {
+      if (!showTopicsModal || !lessons || lessons.length === 0 || loadingQuizzes) return;
+
+      // Extract quiz IDs from lessons
+      const ids = new Set();
+      lessons.forEach(lesson => {
+        const steps = lesson.meta?._lesson_steps || [];
+        steps.forEach(step => {
+          if (step.type === 'quiz' && step.data?.quiz_id) {
+            ids.add(parseInt(step.data.quiz_id));
+          }
+        });
+      });
+
+      const quizIdsArray = Array.from(ids);
+      
+      // Only load if we have IDs and they're not already loaded
+      const idsToLoad = quizIdsArray.filter(id => !quizzesMap[id]);
+      if (idsToLoad.length === 0) return;
+
+      setLoadingQuizzes(true);
+
+      try {
+        const { getOne: getQuiz } = await import('../../api/services/quizService');
+        
+        const promises = idsToLoad.map(id => 
+          getQuiz(id).catch(err => {
+            console.error(`Failed to load quiz ${id}:`, err);
+            return null;
+          })
+        );
+
+        const results = await Promise.all(promises);
+
+        setQuizzesMap(prev => {
+          const next = { ...prev };
+          results.forEach((quiz, index) => {
+            if (quiz) {
+              next[idsToLoad[index]] = quiz;
+            }
+          });
+          return next;
+        });
+      } catch (error) {
+        console.error('Error loading quizzes:', error);
+      } finally {
+        setLoadingQuizzes(false);
+      }
+    };
+
+    loadQuizzes();
+  }, [showTopicsModal, lessons, quizzesMap, loadingQuizzes]);
   
   // Convert quizzesMap to array for compatibility with existing code
   const quizzes = useMemo(() => Object.values(quizzesMap), [quizzesMap]);
