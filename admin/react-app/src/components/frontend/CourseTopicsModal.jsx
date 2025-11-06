@@ -239,11 +239,17 @@ const CourseTopicsModal = ({
                           let stepTitle = step.title;
                           
                           if (step.type === 'quiz' && step.data?.quiz_id) {
-                            const quizTitle = getQuizTitle(step.data.quiz_id);
-                            if (quizTitle) {
-                              stepTitle = quizTitle;
-                            } else if (!stepTitle || stepTitle.trim() === '') {
-                              stepTitle = `Cuestionario ${index + 1}`;
+                            // First priority: use quiz_title from step data (already enriched by backend)
+                            if (step.data.quiz_title) {
+                              stepTitle = step.data.quiz_title;
+                            } else {
+                              // Fallback: use getQuizTitle function
+                              const quizTitle = getQuizTitle(step.data.quiz_id);
+                              if (quizTitle) {
+                                stepTitle = quizTitle;
+                              } else if (!stepTitle || stepTitle.trim() === '') {
+                                stepTitle = `Cuestionario ${index + 1}`;
+                              }
                             }
                           } else if (!stepTitle || stepTitle.trim() === '') {
                             const typeNames = {

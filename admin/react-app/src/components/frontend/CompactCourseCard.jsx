@@ -84,68 +84,6 @@ const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
     autoFetch: true
   });
 
-  // State for lazy-loaded quizzes
-  const [quizzesMap, setQuizzesMap] = useState({});
-  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
-
-  // Load quizzes when modal opens and lessons are available
-  useEffect(() => {
-    const loadQuizzes = async () => {
-      if (!showTopicsModal || !lessons || lessons.length === 0 || loadingQuizzes) return;
-
-      // Extract quiz IDs from lessons
-      const ids = new Set();
-      lessons.forEach(lesson => {
-        const steps = lesson.meta?._lesson_steps || [];
-        steps.forEach(step => {
-          if (step.type === 'quiz' && step.data?.quiz_id) {
-            ids.add(parseInt(step.data.quiz_id));
-          }
-        });
-      });
-
-      const quizIdsArray = Array.from(ids);
-      
-      // Only load if we have IDs and they're not already loaded
-      const idsToLoad = quizIdsArray.filter(id => !quizzesMap[id]);
-      if (idsToLoad.length === 0) return;
-
-      setLoadingQuizzes(true);
-
-      try {
-        const { getOne: getQuiz } = await import('../../api/services/quizService');
-        
-        const promises = idsToLoad.map(id => 
-          getQuiz(id).catch(err => {
-            console.error(`Failed to load quiz ${id}:`, err);
-            return null;
-          })
-        );
-
-        const results = await Promise.all(promises);
-
-        setQuizzesMap(prev => {
-          const next = { ...prev };
-          results.forEach((quiz, index) => {
-            if (quiz) {
-              next[idsToLoad[index]] = quiz;
-            }
-          });
-          return next;
-        });
-      } catch (error) {
-        console.error('Error loading quizzes:', error);
-      } finally {
-        setLoadingQuizzes(false);
-      }
-    };
-
-    loadQuizzes();
-  }, [showTopicsModal, lessons, quizzesMap, loadingQuizzes]);
-  
-  // Convert quizzesMap to array for compatibility with existing code
-  const quizzes = useMemo(() => Object.values(quizzesMap), [quizzesMap]);
-
   // Fetch course-specific question stats
   useEffect(() => {
     const fetchStats = async () => {
@@ -212,13 +150,23 @@ const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
   
   // Calcular la nota media usando solo la última nota de cada quiz
   const averageScore = useMemo(() => {
-    if (!quizzes || quizzes.length === 0 || courseAttempts.length === 0) return null;
+    if (!lessons || lessons.length === 0 || courseAttempts.length === 0) return null;
     
-    // Obtener los IDs de los quizzes del curso
-    const courseQuizIds = quizzes.map(q => q.id);
+    // Extract quiz IDs from lesson steps
+    const courseQuizIds = new Set();
+    lessons.forEach(lesson => {
+      const steps = lesson.meta?._lesson_steps || [];
+      steps.forEach(step => {
+        if (step.type === 'quiz' && step.data?.quiz_id) {
+          courseQuizIds.add(parseInt(step.data.quiz_id));
+        }
+      });
+    });
+    
+    if (courseQuizIds.size === 0) return null;
     
     // Para cada quiz, obtener la última nota
-    const lastScores = courseQuizIds
+    const lastScores = Array.from(courseQuizIds)
       .map(quizId => {
         const quizAttempts = courseAttempts
           .filter(a => a.quiz_id === quizId)
@@ -231,7 +179,7 @@ const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
     if (lastScores.length === 0) return null;
     
     return Math.round(lastScores.reduce((sum, score) => sum + Number(score), 0) / lastScores.length);
-  }, [quizzes, courseAttempts]);
+  }, [lessons, courseAttempts]);
 
   // Handler para marcar/desmarcar lección
   const handleToggleLesson = async (lessonId, e) => {
@@ -272,11 +220,21 @@ const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
     }
   };
 
-  // Obtener el título de un quiz desde la base de datos
+  // Obtener el título de un quiz desde los lesson steps
   const getQuizTitle = (quizId) => {
-    if (!quizzes || quizzes.length === 0) return null;
-    const quiz = quizzes.find(q => q.id === quizId);
-    return quiz ? (quiz.title?.rendered || quiz.title) : null;
+    if (!lessons || lessons.length === 0) return null;
+    
+    // Search for the quiz in lesson steps
+    for (const lesson of lessons) {
+      const steps = lesson.meta?._lesson_steps || [];
+      for (const step of steps) {
+        if (step.type === 'quiz' && step.data?.quiz_id === quizId) {
+          return step.data.quiz_title || null;
+        }
+      }
+    }
+    
+    return null;
   };
 
   // Obtener la última nota de un quiz

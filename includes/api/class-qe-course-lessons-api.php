@@ -218,6 +218,22 @@ class QE_Course_Lessons_API extends QE_API_Base
             }
         }
 
+        // Enrich quiz steps with quiz title to avoid additional API calls
+        if (isset($processed_meta['_lesson_steps']) && is_array($processed_meta['_lesson_steps'])) {
+            foreach ($processed_meta['_lesson_steps'] as &$step) {
+                if (isset($step['type']) && $step['type'] === 'quiz' && isset($step['data']['quiz_id'])) {
+                    $quiz_id = (int) $step['data']['quiz_id'];
+                    $quiz_post = get_post($quiz_id);
+
+                    if ($quiz_post && $quiz_post->post_type === 'qe_quiz') {
+                        // Add quiz title to the step data
+                        $step['data']['quiz_title'] = $quiz_post->post_title;
+                    }
+                }
+            }
+            unset($step); // Break reference
+        }
+
         // Get featured image
         $featured_image_id = get_post_thumbnail_id($lesson_id);
         $featured_image_url = $featured_image_id ? wp_get_attachment_image_url($featured_image_id, 'full') : null;

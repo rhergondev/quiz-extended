@@ -228,6 +228,7 @@ class QE_Lesson_Meta
                                 'additionalProperties' => true,
                                 'properties' => [
                                     'quiz_id' => ['type' => 'integer'],
+                                    'quiz_title' => ['type' => 'string'],
                                     'url' => ['type' => 'string'],
                                     'video_url' => ['type' => 'string'],
                                     'video_id' => ['type' => 'integer'],

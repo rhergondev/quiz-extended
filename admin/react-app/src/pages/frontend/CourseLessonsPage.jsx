@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Trophy, Loader } from 'lucide-react';
@@ -78,68 +78,6 @@ const CourseLessonsPage = () => {
 
     fetchLessons();
   }, [courseId]);
-
-  // State for lazy-loaded quizzes
-  const [quizzesMap, setQuizzesMap] = useState({});
-  const [loadingQuizzes, setLoadingQuizzes] = useState(new Set());
-
-  // Function to load quizzes for a specific lesson
-  const loadQuizzesForLesson = useCallback(async (lesson) => {
-    if (!lesson?.meta?._lesson_steps) return;
-
-    const steps = lesson.meta._lesson_steps;
-    const quizIdsToLoad = steps
-      .filter(step => step.type === 'quiz' && step.data?.quiz_id)
-      .map(step => parseInt(step.data.quiz_id))
-      .filter(id => !quizzesMap[id] && !loadingQuizzes.has(id)); // Only load if not already loaded or loading
-
-    if (quizIdsToLoad.length === 0) return;
-
-    // Mark quizzes as loading
-    setLoadingQuizzes(prev => {
-      const next = new Set(prev);
-      quizIdsToLoad.forEach(id => next.add(id));
-      return next;
-    });
-
-    try {
-      // Import getOne function dynamically
-      const { getOne: getQuiz } = await import('../../api/services/quizService');
-      
-      // Fetch all quizzes in parallel
-      const promises = quizIdsToLoad.map(id => 
-        getQuiz(id).catch(err => {
-          console.error(`Failed to load quiz ${id}:`, err);
-          return null;
-        })
-      );
-
-      const results = await Promise.all(promises);
-
-      // Update quizzes map
-      setQuizzesMap(prev => {
-        const next = { ...prev };
-        results.forEach((quiz, index) => {
-          if (quiz) {
-            next[quizIdsToLoad[index]] = quiz;
-          }
-        });
-        return next;
-      });
-    } catch (error) {
-      console.error('Error loading quizzes:', error);
-    } finally {
-      // Remove from loading set
-      setLoadingQuizzes(prev => {
-        const next = new Set(prev);
-        quizIdsToLoad.forEach(id => next.delete(id));
-        return next;
-      });
-    }
-  }, [quizzesMap, loadingQuizzes]);
-
-  // Convert quizzesMap to array for compatibility with existing components
-  const quizzes = useMemo(() => Object.values(quizzesMap), [quizzesMap]);
   
   // Ranking hook
   const { 
@@ -192,9 +130,6 @@ const CourseLessonsPage = () => {
           setActiveContent({ lesson: targetLesson, step: targetStep });
           setHasInitialized(true);
           
-          // Load quizzes for this lesson
-          loadQuizzesForLesson(targetLesson);
-          
           // Limpiar el estado para evitar reselección en futuras navegaciones
           window.history.replaceState({}, document.title);
           return;
@@ -223,9 +158,6 @@ const CourseLessonsPage = () => {
           setActiveContent({ lesson: associatedLesson, step: quizStep });
           setHasInitialized(true);
           
-          // Load quizzes for this lesson
-          loadQuizzesForLesson(associatedLesson);
-          
           // Limpiar el estado para evitar reselección en futuras navegaciones
           window.history.replaceState({}, document.title);
           return;
@@ -240,11 +172,8 @@ const CourseLessonsPage = () => {
     if (firstLesson && firstStep) {
       setActiveContent({ lesson: firstLesson, step: firstStep });
       setHasInitialized(true);
-      
-      // Load quizzes for the first lesson
-      loadQuizzesForLesson(firstLesson);
     }
-  }, [lessons, lessonsLoading, hasInitialized, location.state, loadQuizzesForLesson]);
+  }, [lessons, lessonsLoading, hasInitialized, location.state]);
 
   // 4. Handler para la selección de pasos
   const handleSelectStep = (step, lesson) => {
@@ -284,8 +213,7 @@ const CourseLessonsPage = () => {
 
         <StepContent 
           lesson={activeContent.lesson} 
-          step={activeContent.step} 
-          quizzes={quizzes}
+          step={activeContent.step}
         />
       </div>
 
@@ -295,8 +223,6 @@ const CourseLessonsPage = () => {
         isLoading={lessonsLoading}
         selectedStepId={activeContent.step?.id}
         onSelectStep={handleSelectStep}
-        quizzes={quizzes}
-        onLessonExpand={loadQuizzesForLesson}
       />
 
       {/* Ranking Modal */}

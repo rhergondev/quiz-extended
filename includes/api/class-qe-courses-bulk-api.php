@@ -199,6 +199,22 @@ class QE_Courses_Bulk_API extends QE_API_Base
             $lesson_steps = is_array($lesson_steps) ? $lesson_steps : [];
         }
 
+        // Enrich quiz steps with quiz title to avoid additional API calls
+        if (is_array($lesson_steps)) {
+            foreach ($lesson_steps as &$step) {
+                if (isset($step['type']) && $step['type'] === 'quiz' && isset($step['data']['quiz_id'])) {
+                    $quiz_id = (int) $step['data']['quiz_id'];
+                    $quiz_post = get_post($quiz_id);
+
+                    if ($quiz_post && $quiz_post->post_type === 'qe_quiz') {
+                        // Add quiz title to the step data
+                        $step['data']['quiz_title'] = $quiz_post->post_title;
+                    }
+                }
+            }
+            unset($step); // Break reference
+        }
+
         $quiz_ids = get_post_meta($lesson_id, '_quiz_ids', true);
         if (!is_array($quiz_ids)) {
             $quiz_ids = maybe_unserialize($quiz_ids);

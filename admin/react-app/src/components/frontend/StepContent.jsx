@@ -13,7 +13,7 @@ const stepIcons = {
   default: <BookOpen className="w-5 h-5 text-gray-500" />,
 };
 
-const StepContent = ({ step, lesson, quizzes }) => {
+const StepContent = ({ step, lesson }) => {
   const [quizStarted, setQuizStarted] = useState(false);
 
   useEffect(() => {
@@ -63,21 +63,16 @@ const StepContent = ({ step, lesson, quizzes }) => {
         if (!quizId) {
           return <p>Error: No se ha especificado un ID de cuestionario para este paso.</p>;
         }
-        
-        const quiz = quizzes.find(q => q.id === quizId);
-
-        // Show loading state if quiz is not yet loaded
-        if (!quiz) {
-          return (
-            <div className="flex items-center justify-center p-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
-              <span className="ml-3 text-gray-600">Cargando cuestionario...</span>
-            </div>
-          );
-        }
 
         if (!quizStarted) {
-          return <QuizStartConfirmation quiz={quiz} onStartQuiz={() => setQuizStarted(true)} />;
+          // Create a simple quiz object with the title from the step data
+          const quizInfo = {
+            id: quizId,
+            title: {
+              rendered: stepData.quiz_title || step.data?.quiz_title || 'Cuestionario'
+            }
+          };
+          return <QuizStartConfirmation quiz={quizInfo} onStartQuiz={() => setQuizStarted(true)} />;
         }
         return <Quiz quizId={quizId} />;
       
@@ -102,15 +97,18 @@ const StepContent = ({ step, lesson, quizzes }) => {
     );
   }
 
-  const getQuizTitle = (quizId) => {
-    if (!quizzes || quizzes.length === 0) return 'Cuestionario';
-    const quiz = quizzes.find(q => q.id === quizId);
-    return quiz ? (quiz.title.rendered || quiz.title) : 'Cuestionario';
+  const getQuizTitle = (quizId, stepData) => {
+    // Use quiz_title from step data if available
+    if (stepData.quiz_title) {
+      return stepData.quiz_title;
+    }
+    // Fallback
+    return 'Cuestionario';
   };
 
   // Obtener quiz_id de múltiples ubicaciones posibles
   const quizIdForTitle = step.type === 'quiz' ? (step.data?.quiz_id || step.quiz_id) : null;
-  const stepTitle = step.type === 'quiz' ? getQuizTitle(quizIdForTitle) : step.title;
+  const stepTitle = step.type === 'quiz' ? getQuizTitle(quizIdForTitle, step.data || {}) : step.title;
 
  return (
     <div className="flex-grow lg:w-full bg-gray-100 h-[100%] overflow-y-auto">

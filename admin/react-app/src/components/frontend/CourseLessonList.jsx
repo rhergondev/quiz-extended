@@ -12,7 +12,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 
-const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep, quizzes, onLessonExpand }) => {
+const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep }) => {
   const { t } = useTranslation();
   const [expandedLessonId, setExpandedLessonId] = useState(null);
   // ✅ Estado para controlar el colapso del panel completo
@@ -35,26 +35,19 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep, qu
     }
   };
 
-  const handleLessonClick = (lessonId, lesson) => {
+  const handleLessonClick = (lessonId) => {
     // No permitir expandir/colapsar lecciones si el panel entero está colapsado
     if (isCollapsed) return;
-    
-    const willExpand = expandedLessonId !== lessonId;
     setExpandedLessonId(prevId => (prevId === lessonId ? null : lessonId));
-    
-    // Load quizzes for this lesson when expanding
-    if (willExpand && onLessonExpand) {
-      onLessonExpand(lesson);
-    }
   };
   
-  const getQuizTitle = (quizId) => {
-    const quiz = quizzes.find(q => q.id === quizId);
-    if (quiz) {
-      return quiz.title.rendered || quiz.title;
+  const getStepTitle = (step) => {
+    // For quiz steps, use the quiz_title from the step data if available
+    if (step.type === 'quiz' && step.data?.quiz_title) {
+      return step.data.quiz_title;
     }
-    // Return a placeholder while quiz is loading
-    return t('quiz') || 'Cuestionario';
+    // Otherwise use the step title
+    return step.title || t('untitled');
   };
 
   const loadingSkeleton = (
@@ -107,7 +100,7 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep, qu
                   return (
                     <li key={lesson.id} className="border-b border-gray-200">
                       <div
-                        onClick={() => handleLessonClick(lesson.id, lesson)}
+                        onClick={() => handleLessonClick(lesson.id)}
                         className={`p-4 flex justify-between items-center ${!isCollapsed ? 'cursor-pointer' : ''} ${isExpanded && !isCollapsed ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
                         title={isCollapsed ? lessonTitle : ''}
                       >
@@ -127,7 +120,7 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep, qu
                         <ul className="bg-white">
                           {steps.map((step) => {
                             const isSelected = step.id === selectedStepId;
-                            const title = step.type === 'quiz' ? getQuizTitle(step.data.quiz_id) : step.title;
+                            const title = getStepTitle(step);
                             return (
                               <li 
                                 key={step.id}
