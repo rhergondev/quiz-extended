@@ -33,11 +33,20 @@ class QE_Settings_API extends QE_API_Base
     private $default_settings = [
         'score_format' => 'percentage', // 'percentage' or 'base10'
         'theme' => [
-            'primary' => '#3b82f6',     // Blue
-            'secondary' => '#8b5cf6',   // Purple
-            'accent' => '#f59e0b',      // Amber
-            'background' => '#ffffff',  // White
-            'dark_mode' => false
+            'light' => [
+                'primary' => '#3b82f6',     // Blue
+                'secondary' => '#8b5cf6',   // Purple
+                'accent' => '#f59e0b',      // Amber
+                'background' => '#ffffff',  // White
+                'text' => '#111827'         // Dark gray
+            ],
+            'dark' => [
+                'primary' => '#60a5fa',     // Light Blue
+                'secondary' => '#a78bfa',   // Light Purple
+                'accent' => '#fbbf24',      // Light Amber
+                'background' => '#1f2937',  // Dark gray
+                'text' => '#f9fafb'         // Light gray
+            ]
         ]
     ];
 
@@ -177,9 +186,15 @@ class QE_Settings_API extends QE_API_Base
             $settings = get_option($this->option_name, $this->default_settings);
             $theme = $settings['theme'] ?? $this->default_settings['theme'];
 
+            // Detectar si el usuario prefiere modo oscuro
+            $is_dark_mode = $this->detect_dark_mode_preference();
+
             return rest_ensure_response([
                 'success' => true,
-                'data' => $theme
+                'data' => [
+                    'theme' => $theme,
+                    'is_dark_mode' => $is_dark_mode
+                ]
             ]);
         } catch (Exception $e) {
             return new WP_Error(
@@ -188,6 +203,31 @@ class QE_Settings_API extends QE_API_Base
                 ['status' => 500, 'error' => $e->getMessage()]
             );
         }
+    }
+
+    /**
+     * Detect if user prefers dark mode
+     * Checks WordPress admin color scheme and returns dark mode preference
+     *
+     * @return bool True if dark mode is preferred
+     */
+    private function detect_dark_mode_preference()
+    {
+        // Check if user is logged in
+        if (!is_user_logged_in()) {
+            // For non-logged users, check if a cookie or session exists
+            // This will be handled by JavaScript on the frontend
+            return false;
+        }
+
+        // Get current user's color scheme
+        $user_id = get_current_user_id();
+        $color_scheme = get_user_meta($user_id, 'admin_color', true);
+
+        // WordPress dark color schemes: 'midnight', 'coffee', 'ectoplasm', etc.
+        $dark_schemes = ['midnight', 'coffee', 'ectoplasm', 'ocean', 'modern'];
+
+        return in_array($color_scheme, $dark_schemes);
     }
 
     /**
@@ -226,28 +266,45 @@ class QE_Settings_API extends QE_API_Base
             if (isset($new_values['theme'])) {
                 $theme = $new_values['theme'];
 
-                // Validate color format (hex)
-                $color_fields = ['primary', 'secondary', 'accent', 'background'];
-                foreach ($color_fields as $field) {
-                    if (isset($theme[$field])) {
-                        if (!preg_match('/^#[0-9A-F]{6}$/i', $theme[$field])) {
-                            return new WP_Error(
-                                'invalid_color',
-                                "Color inválido para {$field}. Use formato hexadecimal (#RRGGBB)",
-                                ['status' => 400]
-                            );
+                // Validate color format (hex) for both light and dark modes
+                $color_fields = ['primary', 'secondary', 'accent', 'background', 'text'];
+
+                foreach (['light', 'dark'] as $mode) {
+                    if (isset($theme[$mode])) {
+                        foreach ($color_fields as $field) {
+                            if (isset($theme[$mode][$field])) {
+                                if (!preg_match('/^#[0-9A-F]{6}$/i', $theme[$mode][$field])) {
+                                    return new WP_Error(
+                                        'invalid_color',
+                                        "Color inválido para {$mode}.{$field}. Use formato hexadecimal (#RRGGBB)",
+                                        ['status' => 400]
+                                    );
+                                }
+                            }
                         }
                     }
                 }
 
-                // Validate dark_mode
-                if (isset($theme['dark_mode'])) {
-                    $theme['dark_mode'] = (bool) $theme['dark_mode'];
-                }
-
                 // Merge with existing theme settings
                 $current_theme = $current_settings['theme'] ?? $this->default_settings['theme'];
-                $new_values['theme'] = array_merge($current_theme, $theme);
+
+                // Merge light mode colors
+                if (isset($theme['light'])) {
+                    $current_theme['light'] = array_merge(
+                        $current_theme['light'] ?? $this->default_settings['theme']['light'],
+                        $theme['light']
+                    );
+                }
+
+                // Merge dark mode colors
+                if (isset($theme['dark'])) {
+                    $current_theme['dark'] = array_merge(
+                        $current_theme['dark'] ?? $this->default_settings['theme']['dark'],
+                        $theme['dark']
+                    );
+                }
+
+                $new_values['theme'] = $current_theme;
             }
 
             // Merge with current settings

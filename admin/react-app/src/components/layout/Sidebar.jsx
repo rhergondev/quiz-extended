@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  Home, Calendar, FileText, BookOpen, Video, User, LogOut, ChevronLeft, ChevronRight, Menu, X
+  Home, Calendar, FileText, BookOpen, Video, User, LogOut, ChevronLeft, ChevronRight, Menu, X, Settings
 } from 'lucide-react';
 import useUserInbox from '../../hooks/useUserInbox';
 
@@ -21,11 +21,14 @@ const Sidebar = () => {
   const userName = window.qe_data?.user?.name;
   const userEmail = window.qe_data?.user?.email;
   const logoutUrl = window.qe_data?.logout_url;
+  const homeUrl = window.qe_data?.home_url || '';
 
   const menuItems = [
-    { to: '/', text: t('sidebar.myDesk'), icon: Home },
-    { to: '/courses', text: t('sidebar.studyPlanner'), icon: Calendar },
-    { to: '/test', text: t('sidebar.test'), icon: FileText },
+    { to: '/', text: t('sidebar.myDesk'), icon: Home, type: 'internal' },
+    { to: '/courses', text: t('sidebar.studyPlanner'), icon: Calendar, type: 'internal' },
+    { to: '/test', text: t('sidebar.test'), icon: FileText, type: 'internal' },
+    { to: `${homeUrl}/mi-cuenta/edit-account/`, text: t('sidebar.myAccount'), icon: Settings, type: 'external' },
+    { to: `${homeUrl}/mi-cuenta/downloads/`, text: t('sidebar.books'), icon: BookOpen, type: 'external' },
   ];
 
   // Función de clases para los links del sidebar
@@ -102,48 +105,97 @@ const Sidebar = () => {
       </div>
       
       <nav className="flex-1 px-2 space-y-2">
-        {menuItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end
-            className={getLinkClassName}
-            style={({ isActive }) => getLinkStyle(isActive)}
-            onMouseEnter={(e) => {
-              const isActive = e.currentTarget.getAttribute('aria-current') === 'page';
-              handleLinkHover(e, true, isActive);
-            }}
-            onMouseLeave={(e) => {
-              const isActive = e.currentTarget.getAttribute('aria-current') === 'page';
-              handleLinkHover(e, false, isActive);
-            }}
-            title={isCollapsed ? item.text : ''}
-            onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
-          >
-            {({ isActive }) => (
-              <div className="flex items-center relative">
-                <item.icon 
-                  className="w-6 h-6" 
-                  style={{ color: isActive ? '#ffffff' : 'currentColor' }}
-                />
-                {!isCollapsed && (
-                  <span 
-                    className="ml-4 text-lg" 
+        {menuItems.map((item) => {
+          // Para links externos, usar elemento <a>
+          if (item.type === 'external') {
+            return (
+              <a
+                key={item.to}
+                href={item.to}
+                className={`flex items-center p-3 transition-all duration-200 rounded-lg border-[3px] border-transparent ${
+                  isCollapsed ? 'justify-center' : ''
+                }`}
+                style={{
+                  backgroundColor: 'transparent',
+                  color: 'var(--qe-primary)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+                  e.currentTarget.style.borderColor = 'var(--qe-secondary)';
+                  e.currentTarget.style.color = '#ffffff';
+                  e.currentTarget.style.boxShadow = 'inset 0 0 0 3px #ffffff';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = 'transparent';
+                  e.currentTarget.style.color = 'var(--qe-primary)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+                title={isCollapsed ? item.text : ''}
+                onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
+              >
+                <div className="flex items-center relative">
+                  <item.icon 
+                    className="w-6 h-6" 
+                    style={{ color: 'currentColor' }}
+                  />
+                  {!isCollapsed && (
+                    <span 
+                      className="ml-4 text-lg" 
+                      style={{ color: 'currentColor' }}
+                    >
+                      {item.text}
+                    </span>
+                  )}
+                </div>
+              </a>
+            );
+          }
+          
+          // Para links internos, usar NavLink
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end
+              className={getLinkClassName}
+              style={({ isActive }) => getLinkStyle(isActive)}
+              onMouseEnter={(e) => {
+                const isActive = e.currentTarget.getAttribute('aria-current') === 'page';
+                handleLinkHover(e, true, isActive);
+              }}
+              onMouseLeave={(e) => {
+                const isActive = e.currentTarget.getAttribute('aria-current') === 'page';
+                handleLinkHover(e, false, isActive);
+              }}
+              title={isCollapsed ? item.text : ''}
+              onClick={() => isMobileMenuOpen && setIsMobileMenuOpen(false)}
+            >
+              {({ isActive }) => (
+                <div className="flex items-center relative">
+                  <item.icon 
+                    className="w-6 h-6" 
                     style={{ color: isActive ? '#ffffff' : 'currentColor' }}
-                  >
-                    {item.text}
-                  </span>
-                )}
-                {/* Show badge next to "Mi Escritorio" if there are unread messages */}
-                {item.to === '/' && unreadCount > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full animate-pulse">
-                    {unreadCount}
-                  </span>
-                )}
-              </div>
-            )}
-          </NavLink>
-        ))}
+                  />
+                  {!isCollapsed && (
+                    <span 
+                      className="ml-4 text-lg" 
+                      style={{ color: isActive ? '#ffffff' : 'currentColor' }}
+                    >
+                      {item.text}
+                    </span>
+                  )}
+                  {/* Show badge next to "Mi Escritorio" if there are unread messages */}
+                  {item.to === '/' && unreadCount > 0 && (
+                    <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full animate-pulse">
+                      {unreadCount}
+                    </span>
+                  )}
+                </div>
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
 
       <div className="p-4 mt-auto">

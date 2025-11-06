@@ -138,11 +138,23 @@ const settingsService = {
       return {
         success: true,
         data: {
-          primary: '#3b82f6',
-          secondary: '#8b5cf6',
-          accent: '#f59e0b',
-          background: '#ffffff',
-          dark_mode: false
+          theme: {
+            light: {
+              primary: '#3b82f6',
+              secondary: '#8b5cf6',
+              accent: '#f59e0b',
+              background: '#ffffff',
+              text: '#111827'
+            },
+            dark: {
+              primary: '#60a5fa',
+              secondary: '#a78bfa',
+              accent: '#fbbf24',
+              background: '#1f2937',
+              text: '#f9fafb'
+            }
+          },
+          is_dark_mode: false
         }
       };
     }

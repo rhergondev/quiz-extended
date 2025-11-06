@@ -84,7 +84,7 @@ const QuizResultsSummary = ({ quizId = null, maxResults = null, showCourseColumn
   };
 
   return (
-    <div className="rounded-lg shadow-sm border qe-border-primary" style={{ backgroundColor: 'var(--qe-bg-card)' }}>
+    <div className="rounded-lg shadow-sm border qe-border-primary pt-4" style={{ backgroundColor: 'var(--qe-bg-card)' }}>
       {!quizId && (
         <div className="px-4 pt-4 pb-3 border-b qe-border-primary mx-4 mb-4">
           <div className="flex items-center gap-3">

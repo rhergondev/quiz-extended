@@ -13,23 +13,40 @@ const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState('general');
   const [scoreFormat, setScoreFormat] = useState('percentage');
   const [theme, setTheme] = useState({
-    primary: '#3b82f6',
-    secondary: '#8b5cf6',
-    accent: '#f59e0b',
-    background: '#ffffff',
-    text: '#111827',
-    dark_mode: false
+    light: {
+      primary: '#3b82f6',
+      secondary: '#8b5cf6',
+      accent: '#f59e0b',
+      background: '#ffffff',
+      text: '#111827'
+    },
+    dark: {
+      primary: '#60a5fa',
+      secondary: '#a78bfa',
+      accent: '#fbbf24',
+      background: '#1f2937',
+      text: '#f9fafb'
+    }
   });
+  const [previewMode, setPreviewMode] = useState('light');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
   const defaultTheme = {
-    primary: '#3b82f6',
-    secondary: '#8b5cf6',
-    accent: '#f59e0b',
-    background: '#ffffff',
-    text: '#111827',
-    dark_mode: false
+    light: {
+      primary: '#3b82f6',
+      secondary: '#8b5cf6',
+      accent: '#f59e0b',
+      background: '#ffffff',
+      text: '#111827'
+    },
+    dark: {
+      primary: '#60a5fa',
+      secondary: '#a78bfa',
+      accent: '#fbbf24',
+      background: '#1f2937',
+      text: '#f9fafb'
+    }
   };
 
   // Cargar la configuración actual al montar
@@ -39,7 +56,23 @@ const SettingsPage = () => {
         const settings = await settingsService.getSettings();
         setScoreFormat(settings.score_format || 'percentage');
         if (settings.theme) {
-          setTheme(settings.theme);
+          // Verificar si es el nuevo formato
+          if (settings.theme.light && settings.theme.dark) {
+            setTheme(settings.theme);
+          } else {
+            // Migrar formato antiguo
+            const migratedTheme = {
+              light: {
+                primary: settings.theme.primary || defaultTheme.light.primary,
+                secondary: settings.theme.secondary || defaultTheme.light.secondary,
+                accent: settings.theme.accent || defaultTheme.light.accent,
+                background: settings.theme.background || defaultTheme.light.background,
+                text: settings.theme.text || defaultTheme.light.text
+              },
+              dark: defaultTheme.dark
+            };
+            setTheme(migratedTheme);
+          }
         }
       } catch (error) {
         console.error('Error loading settings:', error);
@@ -75,12 +108,14 @@ const SettingsPage = () => {
     }
   };
 
-  const handleColorChange = (colorKey, value) => {
-    setTheme(prev => ({ ...prev, [colorKey]: value }));
-  };
-
-  const handleDarkModeToggle = () => {
-    setTheme(prev => ({ ...prev, dark_mode: !prev.dark_mode }));
+  const handleColorChange = (mode, colorKey, value) => {
+    setTheme(prev => ({
+      ...prev,
+      [mode]: {
+        ...prev[mode],
+        [colorKey]: value
+      }
+    }));
   };
 
   const handleResetTheme = () => {
@@ -373,7 +408,8 @@ const SettingsPage = () => {
                     Personalización del Tema
                   </h2>
                   <p className="text-gray-600">
-                    Configura los colores y el tema de la interfaz
+                    Configura los colores para el modo claro y oscuro. El plugin detectará automáticamente 
+                    la preferencia del usuario desde el sistema o WordPress.
                   </p>
                 </div>
                 <button
@@ -385,112 +421,153 @@ const SettingsPage = () => {
                 </button>
               </div>
 
-              {/* Dark Mode Toggle */}
+              {/* Mode Selector for Preview */}
               <div className="mb-8 p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {theme.dark_mode ? (
-                      <Moon className="w-5 h-5 text-gray-700" />
-                    ) : (
-                      <Sun className="w-5 h-5 text-yellow-500" />
-                    )}
+                    <Palette className="w-5 h-5 text-gray-700" />
                     <div>
-                      <h3 className="font-medium text-gray-900">Modo Oscuro</h3>
+                      <h3 className="font-medium text-gray-900">Modo de Previsualización</h3>
                       <p className="text-sm text-gray-600">
-                        Activa el tema oscuro para reducir la fatiga visual
+                        Elige qué modo quieres editar y previsualizar
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={handleDarkModeToggle}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      theme.dark_mode ? 'qe-toggle-active' : 'qe-toggle-inactive'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        theme.dark_mode ? 'translate-x-6' : 'translate-x-1'
+                  <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-gray-200">
+                    <button
+                      onClick={() => setPreviewMode('light')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                        previewMode === 'light'
+                          ? 'qe-bg-primary qe-text-on-primary'
+                          : 'text-gray-600 hover:bg-gray-100'
                       }`}
-                    />
-                  </button>
+                    >
+                      <Sun className="w-4 h-4" />
+                      Modo Claro
+                    </button>
+                    <button
+                      onClick={() => setPreviewMode('dark')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                        previewMode === 'dark'
+                          ? 'qe-bg-primary qe-text-on-primary'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Moon className="w-4 h-4" />
+                      Modo Oscuro
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Color Pickers */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <ColorPicker
-                  label="Color Principal"
-                  description="Color primario de la interfaz"
-                  value={theme.primary}
-                  onChange={(value) => handleColorChange('primary', value)}
-                />
-                <ColorPicker
-                  label="Color Secundario"
-                  description="Color para elementos secundarios"
-                  value={theme.secondary}
-                  onChange={(value) => handleColorChange('secondary', value)}
-                />
-                <ColorPicker
-                  label="Color de Acento"
-                  description="Color para destacar elementos"
-                  value={theme.accent}
-                  onChange={(value) => handleColorChange('accent', value)}
-                />
-                <ColorPicker
-                  label="Color de Fondo"
-                  description="Color de fondo de la interfaz"
-                  value={theme.background}
-                  onChange={(value) => handleColorChange('background', value)}
-                />
-                <ColorPicker
-                  label="Color de Texto"
-                  description="Color principal del texto"
-                  value={theme.text}
-                  onChange={(value) => handleColorChange('text', value)}
-                />
+              {/* Color Pickers for Selected Mode */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  {previewMode === 'light' ? (
+                    <>
+                      <Sun className="w-5 h-5 text-yellow-500" />
+                      Colores del Modo Claro
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="w-5 h-5 text-indigo-500" />
+                      Colores del Modo Oscuro
+                    </>
+                  )}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <ColorPicker
+                    label="Color Principal"
+                    description="Color primario de la interfaz"
+                    value={theme[previewMode].primary}
+                    onChange={(value) => handleColorChange(previewMode, 'primary', value)}
+                  />
+                  <ColorPicker
+                    label="Color Secundario"
+                    description="Color para elementos secundarios"
+                    value={theme[previewMode].secondary}
+                    onChange={(value) => handleColorChange(previewMode, 'secondary', value)}
+                  />
+                  <ColorPicker
+                    label="Color de Acento"
+                    description="Color para destacar elementos"
+                    value={theme[previewMode].accent}
+                    onChange={(value) => handleColorChange(previewMode, 'accent', value)}
+                  />
+                  <ColorPicker
+                    label="Color de Fondo"
+                    description="Color de fondo de la interfaz"
+                    value={theme[previewMode].background}
+                    onChange={(value) => handleColorChange(previewMode, 'background', value)}
+                  />
+                  <ColorPicker
+                    label="Color de Texto"
+                    description="Color principal del texto"
+                    value={theme[previewMode].text}
+                    onChange={(value) => handleColorChange(previewMode, 'text', value)}
+                  />
+                </div>
               </div>
 
               {/* Preview Section */}
-              <div className="p-6 bg-gray-50 rounded-lg border border-gray-200">
-                <h3 className="text-sm font-medium text-gray-700 mb-4">Vista Previa</h3>
+              <div 
+                className="p-6 rounded-lg border-2"
+                style={{ 
+                  backgroundColor: theme[previewMode].background,
+                  borderColor: theme[previewMode].primary
+                }}
+              >
+                <h3 
+                  className="text-sm font-medium mb-4"
+                  style={{ color: theme[previewMode].text }}
+                >
+                  Vista Previa - Modo {previewMode === 'light' ? 'Claro' : 'Oscuro'}
+                </h3>
                 <div className="flex gap-3 flex-wrap">
                   <div
                     className="px-4 py-2 rounded-lg text-white font-medium"
-                    style={{ backgroundColor: theme.primary }}
+                    style={{ backgroundColor: theme[previewMode].primary }}
                   >
                     Botón Principal
                   </div>
                   <div
                     className="px-4 py-2 rounded-lg text-white font-medium"
-                    style={{ backgroundColor: theme.secondary }}
+                    style={{ backgroundColor: theme[previewMode].secondary }}
                   >
                     Botón Secundario
                   </div>
                   <div
                     className="px-4 py-2 rounded-lg text-white font-medium"
-                    style={{ backgroundColor: theme.accent }}
+                    style={{ backgroundColor: theme[previewMode].accent }}
                   >
                     Botón de Acento
                   </div>
                   <div
                     className="px-4 py-2 rounded-lg border-2 font-medium"
                     style={{
-                      backgroundColor: theme.background,
-                      borderColor: theme.primary,
-                      color: theme.primary
+                      backgroundColor: theme[previewMode].background,
+                      borderColor: theme[previewMode].primary,
+                      color: theme[previewMode].text
                     }}
                   >
-                    Fondo
+                    Texto de Ejemplo
                   </div>
-                  <div
-                    className="px-4 py-2 rounded-lg border font-medium"
-                    style={{
-                      backgroundColor: theme.background,
-                      borderColor: '#e5e7eb',
-                      color: theme.text
-                    }}
-                  >
-                    Texto Principal
+                </div>
+              </div>
+
+              {/* Info about automatic detection */}
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <Sun className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-medium text-blue-900 mb-1">Detección Automática</h4>
+                    <p className="text-sm text-blue-800">
+                      El plugin detectará automáticamente si el usuario prefiere el modo oscuro basándose en:
+                    </p>
+                    <ul className="text-sm text-blue-800 mt-2 ml-4 list-disc space-y-1">
+                      <li>La configuración de esquema de color del panel de WordPress</li>
+                      <li>La preferencia del sistema operativo del usuario (prefers-color-scheme)</li>
+                    </ul>
                   </div>
                 </div>
               </div>

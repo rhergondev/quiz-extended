@@ -6,9 +6,11 @@ import {
   HelpCircle, 
   Clock, 
   CheckCircle, 
-  Target
+  Target,
+  TrendingUp
 } from 'lucide-react';
 import { useScoreFormat } from '../../contexts/ScoreFormatContext';
+import { useQuizRanking } from '../../hooks/useQuizRanking';
 import QuizResultsSummary from './dashboard/QuizResultsSummary';
 import QEButton from '../common/QEButton';
 
@@ -23,6 +25,9 @@ const StatItem = ({ icon: Icon, label, value }) => (
 const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
   const navigate = useNavigate();
   const { formatScore } = useScoreFormat();
+  
+  // Obtener estadísticas del ranking
+  const { ranking, isLoading: rankingLoading } = useQuizRanking(quiz?.id);
 
   if (!quiz) {
     return (
@@ -52,6 +57,15 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
 
   const difficultyConfig = getDifficultyConfig(difficulty);
 
+  // Estadísticas del quiz - Separadas por sin riesgo y con riesgo
+  const statistics = ranking?.statistics || {};
+  const currentUser = ranking?.currentUser || null;
+  const topUsers = ranking?.top || [];
+  
+  // Buscar la nota del usuario actual en el ranking
+  const userInTop = topUsers.find(u => u.user_id === currentUser?.id);
+  const hasUserStats = userInTop !== null && statistics.total_users > 0;
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-8 shadow-lg max-w-5xl mx-auto space-y-6">
       {/* Header */}
@@ -65,7 +79,7 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
         </p>
       </div>
 
-      {/* Barra de información del cuestionario - AMPLIADA */}
+      {/* Barra de información del cuestionario */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left bg-gray-50 p-6 rounded-lg border border-gray-200">
         <StatItem
           icon={HelpCircle}
@@ -91,8 +105,118 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
         </div>
       </div>
 
+      {/* Estadísticas del Quiz - Dos tarjetas: Sin Riesgo y Con Riesgo */}
+      {hasUserStats && !rankingLoading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Tarjeta SIN RIESGO */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-lg border-2 border-blue-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+                Sin Riesgo
+              </h3>
+              <div className="p-2 bg-white rounded-lg shadow-sm">
+                <TrendingUp className="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {/* Media UA */}
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Media UA:</span>
+                <span className="text-lg font-bold text-gray-800">
+                  {formatScore(statistics.avg_score_without_risk || 0)}
+                </span>
+              </div>
+              
+              {/* Mi Nota */}
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Mi Nota:</span>
+                <span className="text-lg font-bold text-blue-700">
+                  {formatScore(userInTop?.score || 0)}
+                </span>
+              </div>
+              
+              {/* Separador */}
+              <div className="border-t border-blue-200 my-2"></div>
+              
+              {/* Mi Percentil */}
+              <div className="flex justify-between items-center bg-white bg-opacity-60 p-2 rounded">
+                <span className="text-sm font-semibold text-gray-700">Mi Percentil:</span>
+                <span className="text-xl font-extrabold text-blue-600">
+                  {(() => {
+                    const myScore = userInTop?.score || 0;
+                    const avgScore = statistics.avg_score_without_risk || 0;
+                    const percentile = myScore - avgScore;
+                    return `${percentile > 0 ? '+' : ''}${formatScore(percentile)}`;
+                  })()}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Tarjeta CON RIESGO */}
+          <div className="bg-gradient-to-br from-yellow-50 to-amber-50 p-6 rounded-lg border-2 border-yellow-300 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+                Con Riesgo
+              </h3>
+              <div className="p-2 bg-white rounded-lg shadow-sm">
+                <Target className="w-5 h-5 text-amber-600" />
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {/* Media UA */}
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Media UA:</span>
+                <span className="text-lg font-bold text-gray-800">
+                  {formatScore(statistics.avg_score_with_risk || 0)}
+                </span>
+              </div>
+              
+              {/* Mi Nota */}
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Mi Nota:</span>
+                <span className="text-lg font-bold text-amber-700">
+                  {formatScore(userInTop?.score_with_risk || 0)}
+                </span>
+              </div>
+              
+              {/* Separador */}
+              <div className="border-t border-yellow-200 my-2"></div>
+              
+              {/* Mi Percentil */}
+              <div className="flex justify-between items-center bg-white bg-opacity-60 p-2 rounded">
+                <span className="text-sm font-semibold text-gray-700">Mi Percentil:</span>
+                <span className="text-xl font-extrabold text-amber-600">
+                  {(() => {
+                    const myScore = userInTop?.score_with_risk || 0;
+                    const avgScore = statistics.avg_score_with_risk || 0;
+                    const percentile = myScore - avgScore;
+                    return `${percentile > 0 ? '+' : ''}${formatScore(percentile)}`;
+                  })()}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Botón de Inicio - ANTES de los intentos */}
+      <div className="text-center pt-2">
+        <QEButton
+          onClick={onStartQuiz}
+          variant="primary"
+          className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-white font-bold text-lg rounded-xl shadow-lg transform hover:-translate-y-0.5"
+          style={{ background: 'linear-gradient(to right, var(--qe-primary), var(--qe-secondary))' }}
+        >
+          <PlayCircle className="w-6 h-6 mr-2" />
+          Comenzar Cuestionario
+        </QEButton>
+      </div>
+
       {/* Tabla de Últimos Intentos */}
-      <div className="mt-6">
+      <div className="pt-2 border-t border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-gray-800">
             Mis Últimos Intentos
@@ -114,19 +238,6 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
           maxResults={5} 
           showCourseColumn={false}
         />
-      </div>
-
-      {/* Botón de Inicio */}
-      <div className="text-center pt-6">
-        <QEButton
-          onClick={onStartQuiz}
-          variant="primary"
-          className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-white font-bold text-lg rounded-xl shadow-lg transform hover:-translate-y-0.5"
-          style={{ background: 'linear-gradient(to right, var(--qe-primary), var(--qe-secondary))' }}
-        >
-          <PlayCircle className="w-6 h-6 mr-2" />
-          Comenzar Cuestionario
-        </QEButton>
       </div>
     </div>
   );

@@ -6,21 +6,40 @@ import settingsService from '../api/services/settingsService';
 
 const ThemeSettingsPage = () => {
   const [theme, setTheme] = useState({
-    primary: '#3b82f6',
-    secondary: '#8b5cf6',
-    accent: '#f59e0b',
-    background: '#ffffff',
-    dark_mode: false
+    light: {
+      primary: '#3b82f6',
+      secondary: '#8b5cf6',
+      accent: '#f59e0b',
+      background: '#ffffff',
+      text: '#111827'
+    },
+    dark: {
+      primary: '#60a5fa',
+      secondary: '#a78bfa',
+      accent: '#fbbf24',
+      background: '#1f2937',
+      text: '#f9fafb'
+    }
   });
+  const [previewMode, setPreviewMode] = useState('light');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const defaultTheme = {
-    primary: '#3b82f6',
-    secondary: '#8b5cf6',
-    accent: '#f59e0b',
-    background: '#ffffff',
-    dark_mode: false
+    light: {
+      primary: '#3b82f6',
+      secondary: '#8b5cf6',
+      accent: '#f59e0b',
+      background: '#ffffff',
+      text: '#111827'
+    },
+    dark: {
+      primary: '#60a5fa',
+      secondary: '#a78bfa',
+      accent: '#fbbf24',
+      background: '#1f2937',
+      text: '#f9fafb'
+    }
   };
 
   useEffect(() => {
@@ -31,7 +50,23 @@ const ThemeSettingsPage = () => {
     try {
       const settings = await settingsService.getSettings();
       if (settings.theme) {
-        setTheme(settings.theme);
+        // Verificar si es el nuevo formato
+        if (settings.theme.light && settings.theme.dark) {
+          setTheme(settings.theme);
+        } else {
+          // Migrar formato antiguo
+          const migratedTheme = {
+            light: {
+              primary: settings.theme.primary || defaultTheme.light.primary,
+              secondary: settings.theme.secondary || defaultTheme.light.secondary,
+              accent: settings.theme.accent || defaultTheme.light.accent,
+              background: settings.theme.background || defaultTheme.light.background,
+              text: settings.theme.text || defaultTheme.light.text
+            },
+            dark: defaultTheme.dark
+          };
+          setTheme(migratedTheme);
+        }
       }
     } catch (error) {
       console.error('Error loading theme:', error);
@@ -41,12 +76,14 @@ const ThemeSettingsPage = () => {
     }
   };
 
-  const handleColorChange = (colorKey, value) => {
-    setTheme(prev => ({ ...prev, [colorKey]: value }));
-  };
-
-  const handleDarkModeToggle = () => {
-    setTheme(prev => ({ ...prev, dark_mode: !prev.dark_mode }));
+  const handleColorChange = (mode, colorKey, value) => {
+    setTheme(prev => ({
+      ...prev,
+      [mode]: {
+        ...prev[mode],
+        [colorKey]: value
+      }
+    }));
   };
 
   const handleSave = async () => {
@@ -125,7 +162,7 @@ const ThemeSettingsPage = () => {
                   Configuración de Tema
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">
-                  Personaliza los colores del frontend para evitar conflictos con tu tema de WordPress
+                  Personaliza los colores para modo claro y oscuro. El plugin detectará automáticamente la preferencia del usuario.
                 </p>
               </div>
             </div>
@@ -134,107 +171,155 @@ const ThemeSettingsPage = () => {
 
         {/* Body */}
         <div className="p-6 space-y-6">
-          {/* Dark Mode Toggle */}
+          {/* Mode Selector for Preview */}
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex items-center gap-3">
-              {theme.dark_mode ? (
-                <Moon className="w-6 h-6 text-blue-600" />
-              ) : (
-                <Sun className="w-6 h-6 text-amber-500" />
-              )}
+              <Palette className="w-6 h-6 text-blue-600" />
               <div>
-                <h3 className="font-semibold text-gray-900">Modo Oscuro</h3>
+                <h3 className="font-semibold text-gray-900">Modo de Edición</h3>
                 <p className="text-sm text-gray-500">
-                  Activa el modo oscuro para todo el frontend del plugin
+                  Selecciona qué modo quieres configurar
                 </p>
               </div>
             </div>
-            <button
-              onClick={handleDarkModeToggle}
-              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                theme.dark_mode ? 'qe-toggle-active' : 'qe-toggle-inactive'
-              }`}
-            >
-              <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                  theme.dark_mode ? 'translate-x-7' : 'translate-x-1'
+            <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-gray-200">
+              <button
+                onClick={() => setPreviewMode('light')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                  previewMode === 'light'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
                 }`}
-              />
-            </button>
+              >
+                <Sun className="w-4 h-4" />
+                Claro
+              </button>
+              <button
+                onClick={() => setPreviewMode('dark')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                  previewMode === 'dark'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <Moon className="w-4 h-4" />
+                Oscuro
+              </button>
+            </div>
           </div>
 
           {/* Color Pickers */}
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Palette className="w-5 h-5" />
-              Colores Personalizados
+              {previewMode === 'light' ? (
+                <>
+                  <Sun className="w-5 h-5 text-yellow-500" />
+                  Colores del Modo Claro
+                </>
+              ) : (
+                <>
+                  <Moon className="w-5 h-5 text-indigo-500" />
+                  Colores del Modo Oscuro
+                </>
+              )}
             </h3>
 
             <ColorPicker
               label="Color Primario"
               description="Usado en botones principales, enlaces y elementos destacados"
-              value={theme.primary}
-              onChange={(value) => handleColorChange('primary', value)}
+              value={theme[previewMode].primary}
+              onChange={(value) => handleColorChange(previewMode, 'primary', value)}
             />
 
             <ColorPicker
               label="Color Secundario"
               description="Usado en elementos secundarios y acentos alternativos"
-              value={theme.secondary}
-              onChange={(value) => handleColorChange('secondary', value)}
+              value={theme[previewMode].secondary}
+              onChange={(value) => handleColorChange(previewMode, 'secondary', value)}
             />
 
             <ColorPicker
               label="Color de Acento"
               description="Usado para alertas, notificaciones y elementos de atención"
-              value={theme.accent}
-              onChange={(value) => handleColorChange('accent', value)}
+              value={theme[previewMode].accent}
+              onChange={(value) => handleColorChange(previewMode, 'accent', value)}
             />
 
             <ColorPicker
               label="Color de Fondo"
               description="Color de fondo principal de las tarjetas y contenedores"
-              value={theme.background}
-              onChange={(value) => handleColorChange('background', value)}
+              value={theme[previewMode].background}
+              onChange={(value) => handleColorChange(previewMode, 'background', value)}
+            />
+
+            <ColorPicker
+              label="Color de Texto"
+              description="Color principal del texto"
+              value={theme[previewMode].text}
+              onChange={(value) => handleColorChange(previewMode, 'text', value)}
             />
           </div>
 
           {/* Preview */}
-          <div className="mt-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Vista Previa</h3>
+          <div 
+            className="mt-8 p-6 rounded-lg border-2"
+            style={{ 
+              backgroundColor: theme[previewMode].background,
+              borderColor: theme[previewMode].primary
+            }}
+          >
+            <h3 
+              className="text-lg font-semibold mb-4"
+              style={{ color: theme[previewMode].text }}
+            >
+              Vista Previa - Modo {previewMode === 'light' ? 'Claro' : 'Oscuro'}
+            </h3>
             <div className="grid grid-cols-2 gap-4">
               <button
-                style={{ backgroundColor: theme.primary }}
+                style={{ backgroundColor: theme[previewMode].primary }}
                 className="px-4 py-2 text-white rounded font-medium hover:opacity-90 transition-opacity"
               >
                 Botón Primario
               </button>
               <button
-                style={{ backgroundColor: theme.secondary }}
+                style={{ backgroundColor: theme[previewMode].secondary }}
                 className="px-4 py-2 text-white rounded font-medium hover:opacity-90 transition-opacity"
               >
                 Botón Secundario
               </button>
               <button
-                style={{ backgroundColor: theme.accent }}
+                style={{ backgroundColor: theme[previewMode].accent }}
                 className="px-4 py-2 text-white rounded font-medium hover:opacity-90 transition-opacity"
               >
                 Botón de Acento
               </button>
               <div
-                style={{ backgroundColor: theme.background }}
-                className="px-4 py-2 text-gray-900 rounded border-2 border-gray-300 text-center font-medium"
+                style={{ 
+                  backgroundColor: theme[previewMode].background,
+                  color: theme[previewMode].text,
+                  borderColor: theme[previewMode].primary
+                }}
+                className="px-4 py-2 rounded border-2 text-center font-medium"
               >
-                Tarjeta
+                Texto de Ejemplo
               </div>
             </div>
           </div>
 
           {/* Note */}
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <strong>Nota:</strong> Los colores de éxito (verde) y error (rojo) se mantienen fijos para consistencia visual y accesibilidad.
-            </p>
+            <div className="flex items-start gap-3">
+              <Sun className="w-5 h-5 text-blue-600 mt-0.5" />
+              <div>
+                <p className="text-sm text-blue-800">
+                  <strong>Detección Automática:</strong> El plugin detectará automáticamente si el usuario prefiere el modo oscuro basándose en:
+                </p>
+                <ul className="text-sm text-blue-800 mt-2 ml-4 list-disc space-y-1">
+                  <li>La configuración de esquema de color del panel de WordPress</li>
+                  <li>La preferencia del sistema operativo (prefers-color-scheme)</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
 

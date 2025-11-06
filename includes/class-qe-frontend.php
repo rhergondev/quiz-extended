@@ -317,6 +317,7 @@ class QE_Frontend
                 'api_url' => $api_url_base,
                 'nonce' => wp_create_nonce('wp_rest'),
                 'lms_url' => get_permalink($this->lms_page_id),
+                'home_url' => home_url(),
                 'user' => $user_data,
                 'logout_url' => wp_logout_url(home_url()),
                 'logoUrl' => $logo_url,
