@@ -325,7 +325,10 @@ class QE_Quiz_Attempts_API extends QE_API_Base
 
         // Añadir el campo "passed" a cada intento
         foreach ($results as $result) {
-            $passing_score = isset($result->passing_score) ? (int) $result->passing_score : 70;
+            // Sistema Base 10: passing_score por defecto es 7.0 (equivalente a 70%)
+            $passing_score_raw = isset($result->passing_score) ? floatval($result->passing_score) : 7.0;
+            // Si parece estar en 0-100, convertir a 0-10
+            $passing_score = $passing_score_raw > 10 ? ($passing_score_raw / 10) : $passing_score_raw;
             $result->passed = (float) $result->score >= $passing_score;
         }
 
@@ -430,7 +433,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 'attempt_id' => $attempt_id,
                 'quiz' => [
                     'id' => $quiz_id,
-                    'title' => $quiz->post_title,
+                    'title' => html_entity_decode($quiz->post_title, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
                     'instructions' => $quiz_settings['instructions'],
                     'time_limit' => $quiz_settings['time_limit'],
                     'randomize_questions' => $quiz_settings['randomize'],
@@ -857,7 +860,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
 
             $questions[] = [
                 'id' => $question_post->ID,
-                'title' => $question_post->post_title,
+                'title' => html_entity_decode($question_post->post_title, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
                 'content' => $question_post->post_content,
                 'type' => get_post_meta($question_id, '_question_type', true),
                 'options' => $formatted_options,
@@ -1019,16 +1022,21 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             );
         }
 
-        // Calcular puntuaciones finales como porcentajes
+        // Calcular puntuaciones finales en escala 0-10 (sistema nuevo)
         $total_possible_points = $total_questions > 0 ? $total_questions : 1;
 
-        $score = round(($earned_points_hypothetical / $total_possible_points) * 100, 2);
+        // Calculamos directamente en 0-10 (no multiplicamos por 100)
+        $score = round(($earned_points_hypothetical / $total_possible_points) * 10, 2);
         $score = max(0, $score);
 
-        $score_with_risk = round(($earned_points_actual / $total_possible_points) * 100, 2);
+        $score_with_risk = round(($earned_points_actual / $total_possible_points) * 10, 2);
         $score_with_risk = max(0, $score_with_risk);
 
-        $passing_score = absint(get_post_meta($attempt->quiz_id, '_passing_score', true) ?: 50);
+        // Nota de aprobación también en escala 0-10 (5.0 = 50% de antes)
+        $passing_score_raw = absint(get_post_meta($attempt->quiz_id, '_passing_score', true) ?: 5);
+        // Si el valor guardado parece estar en 0-100, convertir a 0-10
+        $passing_score = $passing_score_raw > 10 ? ($passing_score_raw / 10) : $passing_score_raw;
+
         // La aprobación se basa en la puntuación real (score_with_risk)
         $passed = $score_with_risk >= $passing_score;
 
@@ -1280,11 +1288,13 @@ class QE_Quiz_Attempts_API extends QE_API_Base
         }
 
         $total_possible_points = $total_questions > 0 ? $total_questions : 1;
-        $score = max(0, round(($earned_points_hypothetical / $total_possible_points) * 100, 2));
-        $score_with_risk = max(0, round(($earned_points_actual / $total_possible_points) * 100, 2));
 
-        // Para cuestionarios "soft", asumimos un 70% para aprobar por defecto
-        $passing_score = 70;
+        // Calculamos directamente en 0-10 (no multiplicamos por 100)
+        $score = max(0, round(($earned_points_hypothetical / $total_possible_points) * 10, 2));
+        $score_with_risk = max(0, round(($earned_points_actual / $total_possible_points) * 10, 2));
+
+        // Para cuestionarios "soft", asumimos un 5.0 (50% en el sistema antiguo) para aprobar por defecto
+        $passing_score = 5.0;
         $passed = $score_with_risk >= $passing_score;
 
         return [

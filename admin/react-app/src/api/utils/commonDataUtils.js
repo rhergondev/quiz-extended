@@ -35,6 +35,19 @@ export const VALID_BOOLEAN_VALUES = {
 // ============================================================
 
 /**
+ * Decode HTML entities (converts &#8211; to –, &amp; to &, etc.)
+ * @param {string} str - String with HTML entities
+ * @returns {string} Decoded string
+ */
+const decodeHTMLEntities = (str) => {
+  if (typeof str !== 'string') return str;
+  
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = str;
+  return textarea.value;
+};
+
+/**
  * Sanitize string field
  * @param {*} value - String value
  * @param {string} defaultValue - Default value if invalid (default: '')
@@ -44,7 +57,8 @@ export const sanitizeString = (value, defaultValue = '') => {
   if (value === null || value === undefined) {
     return defaultValue;
   }
-  return String(value).trim();
+  // Decode HTML entities like &#8211; (en-dash), &amp; (ampersand), etc.
+  return decodeHTMLEntities(String(value).trim());
 };
 
 /**

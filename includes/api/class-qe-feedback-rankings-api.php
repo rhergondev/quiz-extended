@@ -293,8 +293,9 @@ class QE_Feedback_Rankings_API extends QE_API_Base
     {
         $quiz_id = (int) $request['quiz_id'];
         $users = $request->get_param('users');
-        $min_score = (int) $request->get_param('min_score') ?: 70;
-        $max_score = (int) $request->get_param('max_score') ?: 100;
+        // Sistema Base 10: scores en 0-10 (7.0 = 70% del sistema antiguo)
+        $min_score = (float) $request->get_param('min_score') ?: 7.0;
+        $max_score = (float) $request->get_param('max_score') ?: 10.0;
 
         if (empty($users) || !is_array($users)) {
             return $this->error_response('bad_request', 'La lista de usuarios es inválida.', 400);

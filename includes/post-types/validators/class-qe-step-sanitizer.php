@@ -127,10 +127,14 @@ class QE_Step_Sanitizer
             }
         }
 
-        // Passing score (0-100)
+        // Passing score (Base 10: 0-10, donde 7.0 = 70%)
         if (isset($data['passing_score'])) {
-            $score = absint($data['passing_score']);
-            $sanitized['passing_score'] = min(100, max(0, $score));
+            $score = floatval($data['passing_score']);
+            // Si parece estar en 0-100, convertir a 0-10
+            if ($score > 10) {
+                $score = $score / 10;
+            }
+            $sanitized['passing_score'] = min(10, max(0, $score));
         }
 
         // Max attempts (0 = unlimited)

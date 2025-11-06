@@ -278,14 +278,20 @@ class QE_Meta_Validator
                 }
             }
 
-            // Validate passing score
+            // Validate passing score (Base 10: 0-10)
             if (isset($meta['_passing_score'])) {
-                $passing_score = absint($meta['_passing_score']);
+                $passing_score = floatval($meta['_passing_score']);
 
-                if ($passing_score > 100 || $passing_score < 0) {
+                // Si parece estar en 0-100, convertir a 0-10 automáticamente
+                if ($passing_score > 10) {
+                    $passing_score = $passing_score / 10;
+                    $meta['_passing_score'] = $passing_score; // Actualizar el valor
+                }
+
+                if ($passing_score > 10 || $passing_score < 0) {
                     return new WP_Error(
                         'invalid_passing_score',
-                        __('Passing score must be between 0 and 100', 'quiz-extended'),
+                        __('Passing score must be between 0 and 10 (e.g., 7.0 = 70%)', 'quiz-extended'),
                         ['status' => 400]
                     );
                 }

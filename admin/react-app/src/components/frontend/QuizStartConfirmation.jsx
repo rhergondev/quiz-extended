@@ -6,14 +6,8 @@ import {
   HelpCircle, 
   Clock, 
   CheckCircle, 
-  TrendingUp, 
-  Users,
-  Award,
-  Target,
-  TrendingDown,
-  Minus
+  Target
 } from 'lucide-react';
-import { useQuizRanking } from '../../hooks/useQuizRanking';
 import { useScoreFormat } from '../../contexts/ScoreFormatContext';
 import QuizResultsSummary from './dashboard/QuizResultsSummary';
 import QEButton from '../common/QEButton';
@@ -28,7 +22,6 @@ const StatItem = ({ icon: Icon, label, value }) => (
 
 const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
   const navigate = useNavigate();
-  const { ranking, loading, error } = useQuizRanking(quiz?.id);
   const { formatScore } = useScoreFormat();
 
   if (!quiz) {
@@ -46,34 +39,6 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
     passing_score = 0,
     difficulty = null
   } = quiz;
-
-  const statistics = ranking?.statistics;
-  const currentUser = ranking?.currentUser;
-
-  // Buscar los datos completos del usuario actual en top o relative
-  const currentUserId = currentUser?.id;
-  let currentUserData = null;
-  
-  if (currentUserId && ranking) {
-    // Buscar en top
-    currentUserData = ranking.top?.find(u => u.user_id === currentUserId);
-    // Si no está en top, buscar en relative
-    if (!currentUserData) {
-      currentUserData = ranking.relative?.find(u => u.user_id === currentUserId);
-    }
-  }
-
-  // Calcular mi nota (último intento)
-  const myLastScore = currentUserData?.score || 0;
-  const myLastScoreWithRisk = currentUserData?.score_with_risk || 0;
-
-  // Calcular percentil (diferencia con la media)
-  const percentileWithoutRisk = statistics?.avg_score_without_risk 
-    ? myLastScore - statistics.avg_score_without_risk 
-    : 0;
-  const percentileWithRisk = statistics?.avg_score_with_risk 
-    ? myLastScoreWithRisk - statistics.avg_score_with_risk 
-    : 0;
 
   // Obtener etiqueta y color de dificultad
   const getDifficultyConfig = (diff) => {
@@ -125,136 +90,6 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
           </span>
         </div>
       </div>
-
-      {/* Estadísticas - SIN RIESGO */}
-      {statistics && statistics.total_users > 0 && !loading && currentUser && (
-        <div className="space-y-4">
-          <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-            <div className="flex items-center justify-center mb-4">
-              <TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
-              <h3 className="text-base font-bold text-gray-800">
-                Estadísticas Sin Riesgo
-              </h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Media UA */}
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-blue-100">
-                <div className="flex items-center justify-center mb-2">
-                  <Users className="w-4 h-4 mr-1 text-blue-600" />
-                  <div className="text-gray-600 text-xs font-medium">Media UA</div>
-                </div>
-                <div className="text-blue-600 font-bold text-center text-2xl">
-                  {formatScore(statistics.avg_score_without_risk)}
-                </div>
-                <div className="text-center text-xs text-gray-500 mt-1">
-                  {statistics.total_users} usuarios
-                </div>
-              </div>
-
-              {/* Mi Nota */}
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-green-100">
-                <div className="flex items-center justify-center mb-2">
-                  <Award className="w-4 h-4 mr-1 text-green-600" />
-                  <div className="text-gray-600 text-xs font-medium">Mi Nota</div>
-                </div>
-                <div className="text-green-600 font-bold text-center text-2xl">
-                  {formatScore(myLastScore)}
-                </div>
-                <div className="text-center text-xs text-gray-500 mt-1">
-                  Último intento
-                </div>
-              </div>
-
-              {/* Mi Percentil */}
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-purple-100">
-                <div className="flex items-center justify-center mb-2">
-                  {percentileWithoutRisk > 0 ? (
-                    <TrendingUp className="w-4 h-4 mr-1 text-purple-600" />
-                  ) : percentileWithoutRisk < 0 ? (
-                    <TrendingDown className="w-4 h-4 mr-1 text-purple-600" />
-                  ) : (
-                    <Minus className="w-4 h-4 mr-1 text-purple-600" />
-                  )}
-                  <div className="text-gray-600 text-xs font-medium">Mi Percentil</div>
-                </div>
-                <div className={`font-bold text-center text-2xl ${
-                  percentileWithoutRisk > 0 ? 'text-green-600' : 
-                  percentileWithoutRisk < 0 ? 'text-red-600' : 
-                  'text-gray-600'
-                }`}>
-                  {percentileWithoutRisk > 0 ? '+' : ''}{percentileWithoutRisk.toFixed(1)}
-                </div>
-                <div className="text-center text-xs text-gray-500 mt-1">
-                  vs. media
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Estadísticas - CON RIESGO */}
-          <div className="p-6 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200">
-            <div className="flex items-center justify-center mb-4">
-              <TrendingUp className="w-5 h-5 mr-2 text-orange-600" />
-              <h3 className="text-base font-bold text-gray-800">
-                Estadísticas Con Riesgo
-              </h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Media UA */}
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-orange-100">
-                <div className="flex items-center justify-center mb-2">
-                  <Users className="w-4 h-4 mr-1 text-orange-600" />
-                  <div className="text-gray-600 text-xs font-medium">Media UA</div>
-                </div>
-                <div className="text-orange-600 font-bold text-center text-2xl">
-                  {formatScore(statistics.avg_score_with_risk)}
-                </div>
-                <div className="text-center text-xs text-gray-500 mt-1">
-                  {statistics.total_users} usuarios
-                </div>
-              </div>
-
-              {/* Mi Nota */}
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-green-100">
-                <div className="flex items-center justify-center mb-2">
-                  <Award className="w-4 h-4 mr-1 text-green-600" />
-                  <div className="text-gray-600 text-xs font-medium">Mi Nota</div>
-                </div>
-                <div className="text-green-600 font-bold text-center text-2xl">
-                  {formatScore(myLastScoreWithRisk)}
-                </div>
-                <div className="text-center text-xs text-gray-500 mt-1">
-                  Último intento
-                </div>
-              </div>
-
-              {/* Mi Percentil */}
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-purple-100">
-                <div className="flex items-center justify-center mb-2">
-                  {percentileWithRisk > 0 ? (
-                    <TrendingUp className="w-4 h-4 mr-1 text-purple-600" />
-                  ) : percentileWithRisk < 0 ? (
-                    <TrendingDown className="w-4 h-4 mr-1 text-purple-600" />
-                  ) : (
-                    <Minus className="w-4 h-4 mr-1 text-purple-600" />
-                  )}
-                  <div className="text-gray-600 text-xs font-medium">Mi Percentil</div>
-                </div>
-                <div className={`font-bold text-center text-2xl ${
-                  percentileWithRisk > 0 ? 'text-green-600' : 
-                  percentileWithRisk < 0 ? 'text-red-600' : 
-                  'text-gray-600'
-                }`}>
-                  {percentileWithRisk > 0 ? '+' : ''}{percentileWithRisk.toFixed(1)}
-                </div>
-                <div className="text-center text-xs text-gray-500 mt-1">
-                  vs. media
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Tabla de Últimos Intentos */}
       <div className="mt-6">

@@ -37,7 +37,7 @@ const DEFAULT_QUIZ_META = {
   _quiz_type: 'standard',
   _difficulty_level: 'intermediate',
   _quiz_category: '',
-  _passing_score: 70,
+  _passing_score: 7.0, // Sistema Base 10: 7.0 = 70%
   _time_limit: 0,
   _max_attempts: 0,
   _randomize_questions: false,
@@ -213,16 +213,26 @@ export const transformQuizDataForApi = (quizData) => {
     transformed.meta._quiz_category = sanitizeString(quizData.meta._quiz_category);
   }
 
-  // Passing Score (percentage 0-100)
+  // Passing Score (Base 10: 0-10, donde 7.0 = 70%)
   if (quizData._passing_score !== undefined) {
-    transformed.meta._passing_score = sanitizeInteger(quizData._passing_score, 70, 0);
-    transformed.meta._passing_score = Math.min(transformed.meta._passing_score, 100);
+    transformed.meta._passing_score = parseFloat(quizData._passing_score) || 7.0;
+    // Si parece estar en 0-100, convertir a 0-10
+    if (transformed.meta._passing_score > 10) {
+      transformed.meta._passing_score = transformed.meta._passing_score / 10;
+    }
+    transformed.meta._passing_score = Math.min(Math.max(transformed.meta._passing_score, 0), 10);
   } else if (quizData.passingScore !== undefined) {
-    transformed.meta._passing_score = sanitizeInteger(quizData.passingScore, 70, 0);
-    transformed.meta._passing_score = Math.min(transformed.meta._passing_score, 100);
+    transformed.meta._passing_score = parseFloat(quizData.passingScore) || 7.0;
+    if (transformed.meta._passing_score > 10) {
+      transformed.meta._passing_score = transformed.meta._passing_score / 10;
+    }
+    transformed.meta._passing_score = Math.min(Math.max(transformed.meta._passing_score, 0), 10);
   } else if (quizData.meta?._passing_score !== undefined) {
-    transformed.meta._passing_score = sanitizeInteger(quizData.meta._passing_score, 70, 0);
-    transformed.meta._passing_score = Math.min(transformed.meta._passing_score, 100);
+    transformed.meta._passing_score = parseFloat(quizData.meta._passing_score) || 7.0;
+    if (transformed.meta._passing_score > 10) {
+      transformed.meta._passing_score = transformed.meta._passing_score / 10;
+    }
+    transformed.meta._passing_score = Math.min(Math.max(transformed.meta._passing_score, 0), 10);
   }
 
   // Time Limit (minutes, 0 = unlimited)
@@ -427,10 +437,10 @@ export const validateQuizData = (quizData) => {
     errors.push(`Invalid difficulty level. Must be one of: ${VALID_DIFFICULTY_LEVELS.join(', ')}`);
   }
 
-  // Passing Score validation (0-100)
+  // Passing Score validation (Base 10: 0-10)
   const passingScore = meta._passing_score || quizData.passingScore;
   if (passingScore !== undefined) {
-    const scoreError = validateRange(passingScore, 0, 100, 'Passing score');
+    const scoreError = validateRange(passingScore, 0, 10, 'Passing score');
     if (scoreError) errors.push(scoreError);
   }
 
@@ -541,7 +551,8 @@ export const calculateQuizDifficulty = (quiz) => {
   let difficultyScore = 0;
 
   // Passing score impact (0-40 points)
-  difficultyScore += (sanitized.meta._passing_score / 100) * 40;
+  // Sistema Base 10: passing_score está en 0-10, normalizar a 0-1 para el cálculo
+  difficultyScore += (sanitized.meta._passing_score / 10) * 40;
 
   // Time limit impact (0-30 points)
   if (sanitized.meta._time_limit > 0) {

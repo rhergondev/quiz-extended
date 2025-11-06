@@ -112,7 +112,7 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
       courseId: '',
       qe_category: [],
       difficulty_level: 'medium',
-      passing_score: '70',
+      passing_score: '7.0', // Sistema Base 10: 7.0 = 70%
       time_limit: '',
       max_attempts: '',
       randomize_questions: false,
@@ -153,7 +153,7 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
             courseId: meta._course_id?.toString() || '',
             qe_category: Array.isArray(quizData.qe_category) ? quizData.qe_category.map(String) : [],
             difficulty_level: meta._difficulty_level || 'medium',
-            passing_score: meta._passing_score?.toString() || '70',
+            passing_score: meta._passing_score?.toString() || '7.0', // Sistema Base 10
             time_limit: meta._time_limit?.toString() || '',
             max_attempts: meta._max_attempts?.toString() || '',
             randomize_questions: meta._randomize_questions || false,
@@ -317,7 +317,17 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('quizzes.form.passingScore')}</label>
-            <input type="number" min="0" max="100" value={formData.passing_score || ''} onChange={(e) => handleFieldChange('passing_score', e.target.value)} className="w-full input border-gray-300 rounded-md"/>
+            <input 
+              type="number" 
+              min="0" 
+              max="10" 
+              step="0.1"
+              value={formData.passing_score || ''} 
+              onChange={(e) => handleFieldChange('passing_score', e.target.value)} 
+              className="w-full input border-gray-300 rounded-md"
+              placeholder="7.0"
+            />
+            <p className="text-xs text-gray-500 mt-1">Base 10: 0-10 (ej: 7.0 = 70%)</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('quizzes.form.timeLimit')}</label>
