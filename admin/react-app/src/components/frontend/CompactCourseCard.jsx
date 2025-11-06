@@ -29,7 +29,7 @@ import { getCourseLessons } from '../../api/services/courseLessonService';
 import CourseTopicsModal from './CourseTopicsModal';
 import CourseRankingModal from './CourseRankingModal';
 
-const CompactCourseCard = ({ course }) => {
+const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
   const { id, title, excerpt, content, _embedded } = course;
   const [showTopicsModal, setShowTopicsModal] = useState(false);
   const [showRankingModal, setShowRankingModal] = useState(false);
@@ -45,9 +45,10 @@ const CompactCourseCard = ({ course }) => {
   const [loadingStats, setLoadingStats] = useState(false);
   
   // Fetch lessons using the new course-specific endpoint
+  // Only fetch when modal is opened to improve performance
   useEffect(() => {
     const fetchLessons = async () => {
-      if (!id) return;
+      if (!id || !showTopicsModal) return;
       
       setLessonsLoading(true);
       try {
@@ -70,7 +71,7 @@ const CompactCourseCard = ({ course }) => {
     };
 
     fetchLessons();
-  }, [id]);
+  }, [id, showTopicsModal]); // Only fetch when modal opens
   
   const { 
     completedItems, 
@@ -139,7 +140,8 @@ const CompactCourseCard = ({ course }) => {
   }
   
   // Progreso de lecciones
-  const totalLessons = lessons?.length || 0;
+  // Use the lessonCount prop if provided (from bulk fetch), otherwise fallback to local lessons
+  const totalLessons = lessonCount !== undefined ? lessonCount : (lessons?.length || 0);
   const completedLessons = completedItems?.filter(item => item.content_type === 'lesson')?.length || 0;
   const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 

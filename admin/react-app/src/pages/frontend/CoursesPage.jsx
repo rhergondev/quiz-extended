@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader, AlertTriangle, Inbox } from 'lucide-react';
 import useCourses from '../../hooks/useCourses';
+import useCoursesLessons from '../../hooks/useCoursesLessons';
 import CompactCourseCard from '../../components/frontend/CompactCourseCard';
 
 const PageState = ({ icon: Icon, title, message }) => (
@@ -17,6 +18,15 @@ const CoursesPage = () => {
   const { courses, loading, error } = useCourses({ 
     autoFetch: true,
     _embed: true 
+  });
+
+  // Extract course IDs for bulk lesson fetch
+  const courseIds = useMemo(() => courses.map(course => course.id), [courses]);
+
+  // Fetch lesson counts for all courses in a single request
+  const { countsMap: lessonCounts, loading: lessonCountsLoading } = useCoursesLessons(courseIds, {
+    enabled: courseIds.length > 0,
+    countsOnly: true
   });
 
   const renderContent = () => {
@@ -35,7 +45,12 @@ const CoursesPage = () => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {courses.map(course => (
-          <CompactCourseCard key={course.id} course={course} />
+          <CompactCourseCard 
+            key={course.id} 
+            course={course}
+            lessonCount={lessonCounts[course.id]}
+            lessonCountLoading={lessonCountsLoading}
+          />
         ))}
       </div>
     );

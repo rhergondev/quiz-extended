@@ -23,7 +23,11 @@ const CoursesManager = () => {
   const [panelStack, setPanelStack] = useState([{ type: 'courseList' }]);
 
   // --- HOOKS DE DATOS ---
-  const coursesHook = useCourses({ autoFetch: true, perPage: 100 });
+  const coursesHook = useCourses({ 
+    autoFetch: true, 
+    perPage: 50,
+    debounceMs: 300 
+  });
   const lessonsHook = useLessons({ autoFetch: false });
   const quizzesHook = useQuizzes({ autoFetch: false });
   const { options: taxonomyOptions, refetch: refetchTaxonomies } = useTaxonomyOptions(['qe_category']);
@@ -124,8 +128,8 @@ const CoursesManager = () => {
                       createButtonText={t('courses.addNew')}
                       onCreate={handleCreateNewCourse}
                       isCreating={coursesHook.creating}
-                      onLoadMore={coursesHook.loadMore}
-                      hasMore={coursesHook.pagination?.hasMore}
+                      onLoadMore={coursesHook.loadMoreCourses}
+                      hasMore={coursesHook.hasMore}
                       isLoadingMore={coursesHook.loading && (coursesHook.courses?.length || 0) > 0}
                       filters={<FilterBar searchConfig={searchConfig} filtersConfig={filtersConfig} />}
                   >

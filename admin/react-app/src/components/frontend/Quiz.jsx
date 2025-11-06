@@ -1,7 +1,7 @@
 import React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { getQuiz } from '../../api/services/quizService';
-import { getQuestionsByIds } from '../../api/services/questionService';
+import useQuizQuestions from '../../hooks/useQuizQuestions';
 // 🔥 IMPORTAMOS LA NUEVA FUNCIÓN
 import { startQuizAttempt, submitQuizAttempt, calculateCustomQuizResult } from '../../api/services/quizAttemptService';
 import Question from './Question';
@@ -9,7 +9,7 @@ import QuizSidebar from './QuizSidebar';
 import Timer from './Timer';
 import QuizResults from './QuizResults';
 import DrawingCanvas from './DrawingCanvas';
-import { PenTool } from 'lucide-react';
+import { PenTool, Loader } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useQuizAutosave from '../../hooks/useQuizAutosave';
 import quizAutosaveService from '../../api/services/quizAutosaveService';
@@ -17,101 +17,81 @@ import QuizRecoveryModal from '../quizzes/QuizRecoveryModal';
 
 const Quiz = ({ quizId, customQuiz = null }) => {
   const [quizInfo, setQuizInfo] = useState(null);
-  const [quizQuestions, setQuizQuestions] = useState([]);
+  const [questionIds, setQuestionIds] = useState([]);
   const [userAnswers, setUserAnswers] = useState({});
   const [riskedAnswers, setRiskedAnswers] = useState([]);
   const [quizState, setQuizState] = useState('loading');
   const [attemptId, setAttemptId] = useState(null);
   const [quizResult, setQuizResult] = useState(null);
-  const [startTime, setStartTime] = useState(null); // Para calcular la duración
-  const [isDrawingMode, setIsDrawingMode] = useState(false); // Estado para el modo dibujo
-  const [timeRemaining, setTimeRemaining] = useState(null); // Tiempo restante del timer
-  const [autosaveData, setAutosaveData] = useState(null); // Datos de autoguardado recuperados
-  const [showRecoveryModal, setShowRecoveryModal] = useState(false); // Modal de recuperación
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0); // Índice de pregunta actual
-  const [questionsLoading, setQuestionsLoading] = useState(false);
-  const [questionsError, setQuestionsError] = useState(null);
+  const [startTime, setStartTime] = useState(null);
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(null);
+  const [autosaveData, setAutosaveData] = useState(null);
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const { theme } = useTheme();
+
+  // Use optimized hook for lazy loading questions
+  const { 
+    questions: quizQuestions, 
+    loading: questionsLoading, 
+    error: questionsError,
+    checkPrefetch,
+    hasMore: hasMoreQuestions,
+    loadedCount,
+    totalCount: totalQuestions
+  } = useQuizQuestions(questionIds, {
+    enabled: quizState === 'in-progress' || quizState === 'loading',
+    initialBatchSize: 10,
+    prefetchThreshold: 3,
+    batchSize: 10,
+    randomize: quizInfo?.meta?._randomize_questions || false
+  });
+
+  // Auto-prefetch questions as user progresses
+  useEffect(() => {
+    if (quizState === 'in-progress' && currentQuestionIndex >= 0) {
+      checkPrefetch(currentQuestionIndex);
+    }
+  }, [currentQuestionIndex, quizState, checkPrefetch]);
 
   useEffect(() => {
     const fetchAndStartQuiz = async () => {
-      setStartTime(Date.now()); // Iniciar cronómetro al cargar
+      setStartTime(Date.now());
+      
       if (customQuiz) {
         setQuizInfo(customQuiz);
-        const questionIds = customQuiz.meta?._quiz_question_ids || [];
-        
-        // Cargar preguntas específicas del quiz personalizado
-        if (questionIds.length > 0) {
-          setQuestionsLoading(true);
-          try {
-            const questions = await getQuestionsByIds(questionIds, { batchSize: 30 });
-            // Aplicar aleatorización si está configurada
-            if (customQuiz.meta?._randomize_questions) {
-              const shuffled = [...questions].sort(() => Math.random() - 0.5);
-              setQuizQuestions(shuffled);
-            } else {
-              setQuizQuestions(questions);
-            }
-          } catch (error) {
-            console.error('Error loading custom quiz questions:', error);
-            setQuestionsError(error);
-          } finally {
-            setQuestionsLoading(false);
-          }
-        }
-        setAttemptId('custom-attempt'); // ID de intento simulado
+        const ids = customQuiz.meta?._quiz_question_ids || [];
+        setQuestionIds(ids); // Set IDs, let hook handle loading
+        setAttemptId('custom-attempt');
         return;
       }
       
       if (!quizId) return;
 
       try {
-        // Verificar si hay autoguardado antes de iniciar nuevo intento
+        // Check for autosave
         const savedProgress = await quizAutosaveService.getQuizAutosave(quizId);
         
         if (savedProgress) {
-          // Hay progreso guardado - mostrar modal de recuperación
           setAutosaveData(savedProgress);
           setShowRecoveryModal(true);
-          setQuizState('awaiting-recovery'); // Estado especial esperando decisión del usuario
+          setQuizState('awaiting-recovery');
           return;
         }
 
-        // No hay autoguardado - continuar con inicio normal
+        // Load quiz data
         const quizData = await getQuiz(quizId);
         console.log('✅ Quiz data loaded:', quizData);
         setQuizInfo(quizData);
         
-        const questionIds = quizData.meta?._quiz_question_ids || [];
-        console.log('📋 Question IDs from quiz:', questionIds);
+        const ids = quizData.meta?._quiz_question_ids || [];
+        console.log('📋 Question IDs from quiz:', ids);
         
-        // 🔥 CORRECCIÓN: Cargar las preguntas específicas del quiz por sus IDs
-        if (questionIds.length > 0) {
-          setQuestionsLoading(true);
-          try {
-            console.log(`🔍 Fetching ${questionIds.length} questions by IDs...`);
-            const questions = await getQuestionsByIds(questionIds, { batchSize: 30 });
-            console.log(`✅ Questions loaded: ${questions.length}/${questionIds.length}`, questions);
-            
-            // Aplicar aleatorización si está configurada
-            if (quizData.meta?._randomize_questions) {
-              const shuffled = [...questions].sort(() => Math.random() - 0.5);
-              setQuizQuestions(shuffled);
-              console.log('🔀 Questions shuffled');
-            } else {
-              setQuizQuestions(questions);
-              console.log('📝 Questions set in original order');
-            }
-          } catch (error) {
-            console.error('❌ Error loading quiz questions:', error);
-            setQuestionsError(error);
-          } finally {
-            setQuestionsLoading(false);
-          }
-        } else {
-          console.warn('⚠️ Quiz has no question IDs');
-        }
+        // Set question IDs - useQuizQuestions hook will handle lazy loading
+        setQuestionIds(ids);
 
+        // Start attempt
         const attemptResponse = await startQuizAttempt(quizId);
         if (attemptResponse.attempt_id) {
           setAttemptId(attemptResponse.attempt_id);
@@ -138,23 +118,23 @@ const Quiz = ({ quizId, customQuiz = null }) => {
   });
 
   useEffect(() => {
-      if (quizInfo && attemptId && !questionsLoading) {
+      if (quizInfo && attemptId && loadedCount > 0) {
           console.log('🎯 Changing quiz state to in-progress', {
             quizInfo: !!quizInfo,
             attemptId,
             questionsLoading,
-            questionsCount: quizQuestions.length
+            loadedCount,
+            totalQuestions
           });
           setQuizState('in-progress');
       }
-  }, [quizInfo, attemptId, questionsLoading, quizQuestions.length]);
+  }, [quizInfo, attemptId, questionsLoading, loadedCount, totalQuestions]);
 
   // Handler para resumir quiz desde autoguardado
   const handleResumeQuiz = async () => {
     if (!autosaveData) return;
 
     try {
-      // Restaurar el estado guardado
       const savedQuizData = typeof autosaveData.quiz_data === 'string' 
         ? JSON.parse(autosaveData.quiz_data) 
         : autosaveData.quiz_data;
@@ -165,21 +145,8 @@ const Quiz = ({ quizId, customQuiz = null }) => {
 
       setQuizInfo(savedQuizData);
       
-      const questionIds = savedQuizData.meta?._quiz_question_ids || [];
-      
-      // Cargar preguntas específicas del quiz guardado
-      if (questionIds.length > 0) {
-        setQuestionsLoading(true);
-        try {
-          const questions = await getQuestionsByIds(questionIds, { batchSize: 30 });
-          setQuizQuestions(questions);
-        } catch (error) {
-          console.error('Error loading quiz questions on resume:', error);
-          setQuestionsError(error);
-        } finally {
-          setQuestionsLoading(false);
-        }
-      }
+      const ids = savedQuizData.meta?._quiz_question_ids || [];
+      setQuestionIds(ids); // Let hook handle loading
       
       setUserAnswers(savedAnswers);
       setCurrentQuestionIndex(autosaveData.current_question_index || 0);
@@ -199,34 +166,13 @@ const Quiz = ({ quizId, customQuiz = null }) => {
     if (!quizId) return;
 
     try {
-      // Eliminar autoguardado
       await quizAutosaveService.deleteAutosave(quizId);
       
-      // Iniciar quiz normalmente
       const quizData = await getQuiz(quizId);
       setQuizInfo(quizData);
       
-      const questionIds = quizData.meta?._quiz_question_ids || [];
-      
-      // Cargar preguntas específicas del quiz
-      if (questionIds.length > 0) {
-        setQuestionsLoading(true);
-        try {
-          const questions = await getQuestionsByIds(questionIds, { batchSize: 30 });
-          // Aplicar aleatorización si está configurada
-          if (quizData.meta?._randomize_questions) {
-            const shuffled = [...questions].sort(() => Math.random() - 0.5);
-            setQuizQuestions(shuffled);
-          } else {
-            setQuizQuestions(questions);
-          }
-        } catch (error) {
-          console.error('Error loading quiz questions on restart:', error);
-          setQuestionsError(error);
-        } finally {
-          setQuestionsLoading(false);
-        }
-      }
+      const ids = quizData.meta?._quiz_question_ids || [];
+      setQuestionIds(ids); // Let hook handle loading
 
       const attemptResponse = await startQuizAttempt(quizId);
       if (attemptResponse.attempt_id) {
@@ -353,7 +299,7 @@ const Quiz = ({ quizId, customQuiz = null }) => {
   }
   
   // Solo mostrar este mensaje si el quiz está cargado pero no tiene IDs de preguntas
-  if (quizInfo && quizQuestions.length === 0 && !questionsLoading && quizInfo.meta?._quiz_question_ids?.length === 0) {
+  if (quizInfo && quizQuestions.length === 0 && !questionsLoading && questionIds.length === 0) {
       return <div className="text-center p-8 text-gray-600">Este cuestionario no tiene preguntas asignadas.</div>
   }
 
@@ -405,6 +351,14 @@ const Quiz = ({ quizId, customQuiz = null }) => {
             showRiskSelector={true}
           />
         ))}
+        
+        {/* Loading indicator for lazy loading */}
+        {questionsLoading && hasMoreQuestions && (
+          <div className="flex items-center justify-center p-8 text-gray-500">
+            <Loader className="w-6 h-6 animate-spin mr-2" />
+            <span>Cargando más preguntas... ({loadedCount}/{totalQuestions})</span>
+          </div>
+        )}
       </main>
 
       {/* Columna de la Barra Lateral y Reloj */}
@@ -415,6 +369,9 @@ const Quiz = ({ quizId, customQuiz = null }) => {
               userAnswers={userAnswers}
               riskedAnswers={riskedAnswers}
               onSubmit={handleSubmit}
+              loadingMore={questionsLoading}
+              loadedCount={loadedCount}
+              totalCount={totalQuestions}
             />
             <Timer
                 durationMinutes={timeLimit}

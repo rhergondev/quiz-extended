@@ -31,7 +31,11 @@ const LessonsManager = () => {
   });
 
   // --- OBTENCIÓN DE DATOS ---
-  const lessonsHook = useLessons({ autoFetch: true, perPage: 100 });
+  const lessonsHook = useLessons({ 
+    autoFetch: true, 
+    perPage: 50,
+    debounceMs: 300 
+  });
   const coursesHook = useCourses({ autoFetch: false });
   const quizzesHook = useQuizzes({ autoFetch: false });
 

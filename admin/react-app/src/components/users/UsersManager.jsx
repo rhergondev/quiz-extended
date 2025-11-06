@@ -22,7 +22,11 @@ const UsersManager = () => {
   const [panelStack, setPanelStack] = useState([{ type: 'userList' }]);
 
   // --- HOOKS DE DATOS ---
-  const usersHook = useUsers({ autoFetch: true, perPage: 50 });
+  const usersHook = useUsers({ 
+    autoFetch: true, 
+    perPage: 50,
+    debounceMs: 300 // Reducir el debounce para búsqueda más responsiva
+  });
   const coursesHook = useCourses({ autoFetch: true });
   const { options: taxonomyOptions, refetch: refetchTaxonomies } = useTaxonomyOptions(['qe_category']);
 
@@ -70,10 +74,14 @@ const UsersManager = () => {
 
   const searchConfig = useMemo(() => ({
     value: usersHook.filters?.search || '',
-    onChange: (e) => usersHook.updateFilter('search', e.target.value),
+    onChange: (e) => {
+      const newValue = e.target.value;
+      // Actualizar el filtro
+      usersHook.setFilters?.(prev => ({ ...prev, search: newValue }));
+    },
     placeholder: 'Search users...',
     isLoading: usersHook.loading,
-  }), [usersHook.filters, usersHook.loading]);
+  }), [usersHook.filters, usersHook.loading, usersHook.setFilters]);
 
   const filtersConfig = useMemo(() => {
     if (!usersHook.filters) return [];
@@ -81,19 +89,23 @@ const UsersManager = () => {
       {
         label: 'Role',
         value: usersHook.filters.role || 'all',
-        onChange: (value) => usersHook.updateFilter('role', value),
+        onChange: (value) => {
+          usersHook.setFilters?.(prev => ({ ...prev, role: value === 'all' ? null : value }));
+        },
         options: roleOptions,
         isLoading: false,
       },
       {
         label: 'Course',
         value: usersHook.filters.courseId || 'all',
-        onChange: (value) => usersHook.updateFilter('courseId', value),
+        onChange: (value) => {
+          usersHook.setFilters?.(prev => ({ ...prev, courseId: value === 'all' ? null : value }));
+        },
         options: [{ value: 'all', label: 'All Courses' }, ...courseOptionsForEnrollments],
         isLoading: coursesHook.loading,
       },
     ];
-  }, [usersHook.filters, roleOptions, courseOptionsForEnrollments, coursesHook.loading]);
+  }, [usersHook.filters, usersHook.setFilters, roleOptions, courseOptionsForEnrollments, coursesHook.loading]);
 
   // --- LÓGICA DE RENDERIZADO ---
   const isInitialLoading = !usersHook.filters || !usersHook.computed;
@@ -118,11 +130,14 @@ const UsersManager = () => {
         return (
           <ListPanel
             title="Users"
-            itemCount={usersHook.computed.totalUsers || 0}
+            itemCount={usersHook.pagination?.total || usersHook.computed.totalUsers || 0}
             createButtonText="Add User"
             onCreate={handleCreateNewUser}
             isCreating={usersHook.updating}
             filters={<FilterBar searchConfig={searchConfig} filtersConfig={filtersConfig} />}
+            onLoadMore={usersHook.loadMoreUsers}
+            hasMore={usersHook.hasMore}
+            isLoadingMore={usersHook.loading && usersHook.users.length > 0}
           >
             {(usersHook.users || []).map(user => (
               <UserListItem 

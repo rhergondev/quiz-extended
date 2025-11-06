@@ -37,7 +37,11 @@ const QuizzesManager = () => {
     updateQuiz,
     loadMoreQuizzes,
     hasMore,
-  } = useQuizzes({ autoFetch: true, perPage: 100 });
+  } = useQuizzes({ 
+    autoFetch: true, 
+    perPage: 50,
+    debounceMs: 300 
+  });
 
   const { courses: availableCourses, loading: coursesLoading, fetchCourses } = useCourses({ autoFetch: false });
   const { options: taxonomyOptions, isLoading: isLoadingTaxonomies } = useTaxonomyOptions(['qe_category']);

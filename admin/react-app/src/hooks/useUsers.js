@@ -708,6 +708,7 @@ export const useUsers = (options = {}) => {
     hasMore,
     filters,
     computed,
+    setFilters, // Export setFilters
 
     // Methods
     getUser,

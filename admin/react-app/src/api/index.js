@@ -33,6 +33,12 @@ export {
   getPublishedCourses
 } from './services/courseService.js';
 
+// Course Bulk Operations (Optimized)
+export {
+  getBulkCourseLessons,
+  getBulkLessonCounts
+} from './services/coursesBulkService.js';
+
 // Lesson Operations
 export {
   getLessons,

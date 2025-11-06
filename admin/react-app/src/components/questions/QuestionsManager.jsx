@@ -25,7 +25,11 @@ const QuestionsManager = () => {
   const [mode, setMode] = useState('view');
 
   // --- HOOKS DE DATOS ---
-  const questionsHook = useQuestions({ autoFetch: true, perPage: 100 });
+  const questionsHook = useQuestions({ 
+    autoFetch: true, 
+    perPage: 50,
+    debounceMs: 300 
+  });
   const lessonsHook = useLessons({ autoFetch: false }); // Solo cargar cuando sea necesario
   const quizzesHook = useQuizzes({ autoFetch: false }); // Solo cargar cuando sea necesario
   const coursesHook = useCourses({ autoFetch: false }); // Solo cargar cuando sea necesario
