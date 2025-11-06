@@ -275,6 +275,10 @@ class QE_Course_Lessons_API extends QE_API_Base
     {
         // Must be authenticated
         if (!is_user_logged_in()) {
+            $this->log_error('Course lessons access denied: not logged in', [
+                'course_id' => $request->get_param('course_id')
+            ]);
+
             return new WP_Error(
                 'rest_forbidden',
                 __('You must be logged in to view course lessons.', 'quiz-extended'),
@@ -283,8 +287,35 @@ class QE_Course_Lessons_API extends QE_API_Base
         }
 
         $course_id = absint($request->get_param('course_id'));
+        $user_id = get_current_user_id();
+
+        // Log attempt
+        $this->log_info('Checking course lessons access', [
+            'course_id' => $course_id,
+            'user_id' => $user_id,
+            'user_roles' => wp_get_current_user()->roles,
+            'is_admin' => current_user_can('administrator'),
+            'can_manage_lms' => current_user_can('manage_lms'),
+            'can_edit_courses' => current_user_can('edit_qe_courses'),
+        ]);
 
         // Use base class method to check course access (includes enrollment verification)
-        return $this->check_course_access($course_id);
+        $access_check = $this->check_course_access($course_id);
+
+        if (is_wp_error($access_check)) {
+            $this->log_error('Course lessons access denied', [
+                'course_id' => $course_id,
+                'user_id' => $user_id,
+                'error_code' => $access_check->get_error_code(),
+                'error_message' => $access_check->get_error_message()
+            ]);
+        } else {
+            $this->log_info('Course lessons access granted', [
+                'course_id' => $course_id,
+                'user_id' => $user_id
+            ]);
+        }
+
+        return $access_check;
     }
 }

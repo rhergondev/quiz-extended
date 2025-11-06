@@ -210,13 +210,35 @@ class QE_Auth
      */
     public function can_view_course($course_id)
     {
-        // Admins and instructors can view all
-        if (current_user_can('manage_lms') || current_user_can('view_courses')) {
+        $user_id = get_current_user_id();
+
+        // Debug logging
+        error_log('[QE Auth] can_view_course called - Course ID: ' . $course_id . ', User ID: ' . $user_id);
+        error_log('[QE Auth] User capabilities check:');
+        error_log('  - administrator: ' . (current_user_can('administrator') ? 'YES' : 'NO'));
+        error_log('  - manage_lms: ' . (current_user_can('manage_lms') ? 'YES' : 'NO'));
+        error_log('  - view_courses: ' . (current_user_can('view_courses') ? 'YES' : 'NO'));
+        error_log('  - edit_qe_courses: ' . (current_user_can('edit_qe_courses') ? 'YES' : 'NO'));
+        error_log('  - edit_courses: ' . (current_user_can('edit_courses') ? 'YES' : 'NO'));
+
+        // Admins, instructors and users with viewing capabilities can view all
+        if (
+            current_user_can('administrator')
+            || current_user_can('manage_lms')
+            || current_user_can('view_courses')
+            || current_user_can('edit_qe_courses')
+            || current_user_can('edit_courses')
+        ) {
+            error_log('[QE Auth] Access GRANTED by capability');
             return true;
         }
 
         // Check if user is enrolled
-        return $this->is_user_enrolled($course_id);
+        $is_enrolled = $this->is_user_enrolled($course_id);
+        error_log('[QE Auth] Checking enrollment: ' . ($is_enrolled ? 'YES' : 'NO'));
+        error_log('[QE Auth] Final result: ' . ($is_enrolled ? 'GRANTED' : 'DENIED'));
+
+        return $is_enrolled;
     }
 
     /**
