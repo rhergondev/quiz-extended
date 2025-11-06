@@ -149,13 +149,17 @@ export const transformQuizDataForApi = (quizData) => {
   
   transformed.meta = {};
 
-  // Course ID (relationship)
-  if (quizData._course_id !== undefined) {
-    transformed.meta._course_id = sanitizeOptionalInteger(quizData._course_id, 1);
-  } else if (quizData.courseId !== undefined) {
-    transformed.meta._course_id = sanitizeOptionalInteger(quizData.courseId, 1);
-  } else if (quizData.meta?._course_id !== undefined) {
-    transformed.meta._course_id = sanitizeOptionalInteger(quizData.meta._course_id, 1);
+  // Course ID (relationship) - Solo incluir si NO es "0", 0, "", null o undefined
+  const courseIdValue = quizData._course_id || quizData.courseId || quizData.meta?._course_id;
+  if (courseIdValue !== undefined && 
+      courseIdValue !== null && 
+      courseIdValue !== '' && 
+      courseIdValue !== '0' && 
+      courseIdValue !== 0) {
+    const courseIdInt = sanitizeOptionalInteger(courseIdValue, 1);
+    if (courseIdInt && courseIdInt > 0) {
+      transformed.meta._course_id = courseIdInt;
+    }
   }
 
   // Quiz Type

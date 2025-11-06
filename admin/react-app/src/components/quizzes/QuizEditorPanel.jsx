@@ -224,21 +224,28 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
     setIsSaving(true);
     setError(null);
     try {
+      // 🔥 CAMBIO: Construir meta sin incluir _course_id si es "0" o vacío
+      const meta = {
+        _difficulty_level: formData.difficulty_level,
+        _passing_score: formData.passing_score,
+        _time_limit: formData.time_limit === '' ? 0 : parseInt(formData.time_limit, 10),
+        _max_attempts: formData.max_attempts === '' ? 0 : parseInt(formData.max_attempts, 10),
+        _randomize_questions: formData.randomize_questions,
+        _show_results: formData.show_results,
+        _enable_negative_scoring: formData.enable_negative_scoring,
+        _quiz_question_ids: formData.questionIds,
+      };
+      
+      // Solo incluir _course_id si tiene un valor válido (no "0", no "")
+      if (formData.courseId && formData.courseId !== '' && formData.courseId !== '0') {
+        meta._course_id = formData.courseId;
+      }
+      
       const quizDataForApi = {
         title: formData.title,
         content: formData.content,
         status: formData.status,
-        meta: {
-          _course_id: formData.courseId,
-          _difficulty_level: formData.difficulty_level,
-          _passing_score: formData.passing_score,
-          _time_limit: formData.time_limit === '' ? 0 : parseInt(formData.time_limit, 10),
-          _max_attempts: formData.max_attempts === '' ? 0 : parseInt(formData.max_attempts, 10),
-          _randomize_questions: formData.randomize_questions,
-          _show_results: formData.show_results,
-          _enable_negative_scoring: formData.enable_negative_scoring,
-          _quiz_question_ids: formData.questionIds,
-        },
+        meta,
         qe_category: formData.qe_category.map(id => parseInt(id, 10)).filter(id => !isNaN(id) && id > 0),
       };
       await onSave(quizDataForApi);

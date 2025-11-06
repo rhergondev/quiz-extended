@@ -223,10 +223,29 @@ const QuestionEditorPanel = ({
       });
       
       // Construir el objeto similar al QuestionModal
+      // 🔥 CAMBIO: Construir meta sin incluir IDs inválidos
+      const meta = {
+        _question_type: formData.type,
+        _difficulty_level: formData.difficulty,
+        _points: 1, // Siempre 1
+        _points_incorrect: calculatedPointsIncorrect, // Calculado
+        _question_options: formData.options,
+        _quiz_ids: formData.quizIds,
+        _explanation: formData.explanation,
+      };
+      
+      // Solo incluir _question_lesson si tiene un valor válido
+      if (formData.lessonId && formData.lessonId !== '' && formData.lessonId !== '0') {
+        meta._question_lesson = parseInt(formData.lessonId);
+      }
+      
+      // Solo incluir _course_id si tiene un valor válido
+      if (formData.courseId && formData.courseId !== '' && formData.courseId !== '0') {
+        meta._course_id = parseInt(formData.courseId);
+      }
+      
       const dataToSave = {
         title: formData.title,
-        status: formData.status,
-        content: formData.explanation,
         type: formData.type,
         difficulty: formData.difficulty,
         points: '1', // Siempre 1 punto por defecto
@@ -240,17 +259,7 @@ const QuestionEditorPanel = ({
         qe_category: formData.category ? [parseInt(formData.category)] : [],
         qe_provider: formData.provider ? [parseInt(formData.provider)] : [],
         // Meta con los campos necesarios
-        meta: {
-          _question_type: formData.type,
-          _difficulty_level: formData.difficulty,
-          _points: 1, // Siempre 1
-          _points_incorrect: calculatedPointsIncorrect, // Calculado
-          _question_options: formData.options,
-          _quiz_ids: formData.quizIds,
-          _question_lesson: formData.lessonId ? parseInt(formData.lessonId) : 0,
-          _course_id: formData.courseId ? parseInt(formData.courseId) : 0,
-          _explanation: formData.explanation,
-        }
+        meta
       };
       
       console.log('💾 Data being saved:', dataToSave);

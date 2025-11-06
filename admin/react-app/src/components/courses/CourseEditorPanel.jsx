@@ -10,6 +10,7 @@ import clsx from 'clsx';
 
 import { getOne as getCourse } from '../../api/services/courseService';
 import { createTaxonomyTerm } from '../../api/services/taxonomyService';
+import { getCourseLessons } from '../../api/services/courseLessonService';
 import useLessons from '../../hooks/useLessons';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
 import Tabs from '../common/layout/Tabs';
@@ -55,9 +56,10 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
   
   const [isSelectorModalOpen, setIsSelectorModalOpen] = useState(false); // Estado para el modal
 
-  useEffect(() => {
-    setLessons(fetchedLessons);
-  }, [fetchedLessons]);
+  // No longer needed - we'll fetch lessons directly from the course endpoint
+  // useEffect(() => {
+  //   setLessons(fetchedLessons);
+  // }, [fetchedLessons]);
 
   const resetForm = useCallback(() => {
     setFormData({
@@ -90,15 +92,28 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
             _start_date: meta._start_date || '',
             _end_date: meta._end_date || '',
           });
-          fetchLessons(true, { courseId: courseId });
-        } catch (err) { setError('Failed to load course data.'); }
-        finally { setIsLoading(false); }
+          
+          // Fetch lessons using the new course-specific endpoint
+          try {
+            const lessonsResult = await getCourseLessons(courseId, { perPage: 100 });
+            setLessons(lessonsResult.data || []);
+            console.log(`✅ Loaded ${lessonsResult.data?.length || 0} lessons for course ${courseId}`);
+          } catch (lessonErr) {
+            console.error('Failed to load lessons:', lessonErr);
+            setLessons([]);
+          }
+          
+        } catch (err) { 
+          setError('Failed to load course data.'); 
+        } finally { 
+          setIsLoading(false); 
+        }
       } else if (mode === 'create') {
         resetForm();
       }
     };
     fetchCourseData();
-  }, [courseId, mode, resetForm, fetchLessons]);
+  }, [courseId, mode, resetForm]);
   
   const handleFieldChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));

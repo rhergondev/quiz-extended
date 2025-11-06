@@ -63,8 +63,29 @@ export const transformQuestionDataForApi = (questionData) => {
 
   transformed.meta = {};
   
-  transformed.meta._course_id = sanitizeInteger(questionData.courseId, 0);
-  transformed.meta._question_lesson = sanitizeInteger(questionData.lessonId, 0);
+  // 🔥 CAMBIO: Solo incluir _course_id si tiene un valor válido (no "0", no 0, no "")
+  if (questionData.courseId !== undefined && 
+      questionData.courseId !== null && 
+      questionData.courseId !== '' && 
+      questionData.courseId !== '0' && 
+      questionData.courseId !== 0) {
+    const courseIdInt = sanitizeInteger(questionData.courseId, 0);
+    if (courseIdInt > 0) {
+      transformed.meta._course_id = courseIdInt;
+    }
+  }
+  
+  // 🔥 CAMBIO: Solo incluir _question_lesson si tiene un valor válido
+  if (questionData.lessonId !== undefined && 
+      questionData.lessonId !== null && 
+      questionData.lessonId !== '' && 
+      questionData.lessonId !== '0' && 
+      questionData.lessonId !== 0) {
+    const lessonIdInt = sanitizeInteger(questionData.lessonId, 0);
+    if (lessonIdInt > 0) {
+      transformed.meta._question_lesson = lessonIdInt;
+    }
+  }
   
   transformed.meta._quiz_ids = sanitizeIdArray(questionData.quizIds);
   transformed.meta._explanation = sanitizeString(questionData.explanation || questionData.content || '');

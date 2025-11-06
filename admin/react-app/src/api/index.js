@@ -105,6 +105,13 @@ export {
   getUserEnrollmentStats
 } from './services/userEnrollmentService.js';
 
+// Course Lesson Operations (custom endpoint)
+export {
+  getCourseLessons,
+  getCourseLessonsCount,
+  courseHasLessons
+} from './services/courseLessonService.js';
+
 // ============================================================
 // BATCH OPERATIONS
 // ============================================================

@@ -117,9 +117,22 @@ export const transformLessonDataForApi = (lessonData) => {
 
   transformed.meta = {};
 
-  if (lessonData.courseId !== undefined) {
-    transformed.meta._course_id = sanitizeOptionalInteger(lessonData.courseId, 1);
+  // 🔥 CAMBIO: Solo agregar _course_id si se proporciona explícitamente
+  // Las lecciones pueden existir sin curso asignado (usadas en múltiples cursos)
+  // Verifica tanto courseId como meta._course_id
+  // "0" o 0 significa "sin curso" en los selects HTML
+  const courseIdValue = lessonData.courseId || lessonData.meta?._course_id;
+  if (courseIdValue !== undefined && 
+      courseIdValue !== null && 
+      courseIdValue !== '' && 
+      courseIdValue !== '0' && 
+      courseIdValue !== 0) {
+    const courseIdInt = sanitizeOptionalInteger(courseIdValue, 1);
+    if (courseIdInt && courseIdInt > 0) {
+      transformed.meta._course_id = courseIdInt;
+    }
   }
+  
   if (lessonData.lessonOrder !== undefined) {
     transformed.meta._lesson_order = sanitizeInteger(lessonData.lessonOrder, 1, 0);
   }
@@ -133,15 +146,30 @@ export const transformLessonDataForApi = (lessonData) => {
   if (lessonData.description !== undefined) {
     transformed.meta._lesson_description = sanitizeString(lessonData.description);
   }
-  if (lessonData.steps !== undefined) {
-    transformed.meta._lesson_steps = sanitizeLessonSteps(lessonData.steps);
+  
+  // 🔥 CAMBIO: Soportar steps en múltiples ubicaciones
+  const stepsValue = lessonData.steps || lessonData.meta?._lesson_steps;
+  if (stepsValue !== undefined) {
+    transformed.meta._lesson_steps = sanitizeLessonSteps(stepsValue);
+    console.log('🔄 Steps being saved:', transformed.meta._lesson_steps);
   }
 
-
-  transformed.meta = {
-    ...DEFAULT_LESSON_META,
+  // 🔥 CAMBIO: No incluir _course_id del DEFAULT si no se proporcionó uno válido
+  // El orden es importante: defaults primero, luego valores proporcionados
+  const { _course_id: defaultCourseId, ...defaultMetaWithoutCourseId } = DEFAULT_LESSON_META;
+  
+  // Primero defaults, luego sobrescribir con valores proporcionados
+  const finalMeta = {
+    ...defaultMetaWithoutCourseId,
     ...transformed.meta
   };
+  
+  // Si no hay steps proporcionados, usar array vacío del default
+  if (!finalMeta._lesson_steps || !Array.isArray(finalMeta._lesson_steps)) {
+    finalMeta._lesson_steps = [];
+  }
+  
+  transformed.meta = finalMeta;
 
   console.log('🔄 transformLessonDataForApi - Output:', transformed);
   return transformed;
@@ -243,12 +271,22 @@ export const validateLessonData = (lessonData) => {
     errors.push(`Invalid status. Must be one of: ${VALID_LESSON_STATUSES.join(', ')}`);
   }
   
+  // 🔥 CAMBIO: course_id es OPCIONAL (lecciones pueden estar en múltiples cursos)
+  // La relación curso-lección se gestiona desde el curso con _lesson_ids
   const meta = lessonData.meta || lessonData;
   const courseId = meta._course_id || lessonData.courseId;
-  if (!courseId) {
-    errors.push('Course ID is required');
-  } else if (parseInt(courseId) <= 0) {
-    errors.push('Course ID must be a positive number');
+  
+  // 🔍 DEBUG: Ver qué valor tiene courseId
+  console.log('🔍 validateLessonData - courseId:', courseId, 'type:', typeof courseId);
+  
+  // Solo validar si courseId existe, no es vacío/null/undefined Y NO ES "0"
+  // "0" significa "sin curso seleccionado" en los selects HTML
+  if (courseId !== null && courseId !== undefined && courseId !== '' && courseId !== '0' && courseId !== 0) {
+    const courseIdNum = parseInt(courseId, 10);
+    console.log('🔍 validateLessonData - courseIdNum:', courseIdNum, 'isNaN:', isNaN(courseIdNum));
+    if (isNaN(courseIdNum) || courseIdNum <= 0) {
+      errors.push('Course ID must be a positive number if provided');
+    }
   }
 
   const completionCriteria = meta._completion_criteria || lessonData.completionCriteria;

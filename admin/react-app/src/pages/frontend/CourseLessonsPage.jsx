@@ -3,6 +3,7 @@ import { useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Trophy, Loader } from 'lucide-react';
 import { getCourse } from '../../api/services/courseService';
+import { getCourseLessons } from '../../api/services/courseLessonService';
 import useLessons from '../../hooks/useLessons';
 import useQuizzes from '../../hooks/useQuizzes';
 import useCourseRanking from '../../hooks/useCourseRanking';
@@ -44,17 +45,41 @@ const CourseLessonsPage = () => {
 
   // 1. Gestión de estado centralizada
   const [course, setCourse] = useState(null);
+  const [lessons, setLessons] = useState([]);
+  const [lessonsLoading, setLessonsLoading] = useState(false);
+  const [lessonsError, setLessonsError] = useState(null);
   const [activeContent, setActiveContent] = useState({ lesson: null, step: null });
   const [error, setError] = useState(null);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [showRankingModal, setShowRankingModal] = useState(false);
 
-  // 2. Uso de hooks de datos
-  const { lessons, loading: lessonsLoading, error: lessonsError } = useLessons({ 
-    courseId, 
-    autoFetch: !!courseId,
-    perPage: 100
-  });
+  // 2. Fetch lessons using the new course-specific endpoint
+  useEffect(() => {
+    const fetchLessons = async () => {
+      if (!courseId) return;
+      
+      setLessonsLoading(true);
+      setLessonsError(null);
+      try {
+        // Convert courseId to integer (it comes as string from useParams)
+        const courseIdInt = parseInt(courseId, 10);
+        if (isNaN(courseIdInt)) {
+          throw new Error('Invalid course ID');
+        }
+        
+        const result = await getCourseLessons(courseIdInt, { perPage: 100 });
+        setLessons(result.data || []);
+      } catch (error) {
+        console.error('Error fetching lessons:', error);
+        setLessonsError(error.message || 'Failed to load lessons');
+        setLessons([]);
+      } finally {
+        setLessonsLoading(false);
+      }
+    };
+
+    fetchLessons();
+  }, [courseId]);
 
   const { quizzes, loading: quizzesLoading, error: quizzesError } = useQuizzes({ 
     perPage: 100, 

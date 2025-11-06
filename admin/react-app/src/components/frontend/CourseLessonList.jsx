@@ -90,17 +90,20 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep, qu
                 {lessons.map((lesson) => {
                   const isExpanded = expandedLessonId === lesson.id;
                   const steps = lesson.meta?._lesson_steps || [];
+                  // Extract title properly from API response
+                  const lessonTitle = lesson.title?.rendered || lesson.title || 'Sin título';
+                  
                   return (
                     <li key={lesson.id} className="border-b border-gray-200">
                       <div
                         onClick={() => handleLessonClick(lesson.id)}
                         className={`p-4 flex justify-between items-center ${!isCollapsed ? 'cursor-pointer' : ''} ${isExpanded && !isCollapsed ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
-                        title={isCollapsed ? lesson.title : ''}
+                        title={isCollapsed ? lessonTitle : ''}
                       >
                         <div className={`flex items-center space-x-3 ${isCollapsed ? 'justify-center w-full' : ''}`}>
                           <BookOpen className="w-5 h-5 text-indigo-600 flex-shrink-0" />
                           {/* ✅ Título de la lección condicional */}
-                          {!isCollapsed && <span className="text-sm font-bold text-gray-800">{lesson.title}</span>}
+                          {!isCollapsed && <span className="text-sm font-bold text-gray-800">{lessonTitle}</span>}
                         </div>
                         {/* ✅ Icono de expandir/colapsar lección condicional */}
                         {!isCollapsed && steps.length > 0 && (

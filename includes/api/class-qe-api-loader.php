@@ -120,6 +120,7 @@ class QE_API_Loader
             'quiz-autosave' => 'class-qe-quiz-autosave-api.php',
             'user-stats' => 'class-qe-user-stats-api.php',
             'user-enrollments' => 'class-qe-user-enrollments-api.php',
+            'course-lessons' => 'class-qe-course-lessons-api.php',
             'debug' => 'class-qe-debug-api.php'
         ];
 

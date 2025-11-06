@@ -214,11 +214,19 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
     setError(null);
     try {
       const stepsForApi = formData.steps.map(({ id, ...rest }) => rest);
+      
+      // 🔥 CAMBIO: Solo incluir _course_id si tiene un valor válido
+      // "0" o "" significa "sin curso seleccionado"
+      const meta = { _lesson_steps: stepsForApi };
+      if (formData.courseId && formData.courseId !== '' && formData.courseId !== '0') {
+        meta._course_id = formData.courseId;
+      }
+      
       const lessonDataForApi = {
         title: formData.title,
         content: formData.content,
         status: formData.status,
-        meta: { _course_id: formData.courseId, _lesson_steps: stepsForApi },
+        meta,
       };
       await onSave(lessonDataForApi);
     } catch (err) { setError(err.message || 'Failed to save the lesson.'); } finally { setIsSaving(false); }

@@ -25,6 +25,7 @@ import useQuizAttempts from '../../hooks/useQuizAttempts';
 import useQuizzes from '../../hooks/useQuizzes';
 import { getApiConfig } from '../../api/config/apiConfig';
 import { makeApiRequest } from '../../api/services/baseService';
+import { getCourseLessons } from '../../api/services/courseLessonService';
 import CourseTopicsModal from './CourseTopicsModal';
 import CourseRankingModal from './CourseRankingModal';
 
@@ -33,6 +34,8 @@ const CompactCourseCard = ({ course }) => {
   const [showTopicsModal, setShowTopicsModal] = useState(false);
   const [showRankingModal, setShowRankingModal] = useState(false);
   const [expandedLessons, setExpandedLessons] = useState({});
+  const [lessons, setLessons] = useState([]);
+  const [lessonsLoading, setLessonsLoading] = useState(false);
   const [stats, setStats] = useState({
     totalQuestions: 0,
     correctAnswers: 0,
@@ -41,12 +44,33 @@ const CompactCourseCard = ({ course }) => {
   });
   const [loadingStats, setLoadingStats] = useState(false);
   
-  // Hooks para datos
-  const { lessons, loading: lessonsLoading } = useLessons({ 
-    courseId: id, 
-    autoFetch: true,
-    perPage: 100
-  });
+  // Fetch lessons using the new course-specific endpoint
+  useEffect(() => {
+    const fetchLessons = async () => {
+      if (!id) return;
+      
+      setLessonsLoading(true);
+      try {
+        // Ensure id is an integer
+        const courseIdInt = typeof id === 'number' ? id : parseInt(id, 10);
+        if (isNaN(courseIdInt)) {
+          console.error('Invalid course ID:', id);
+          setLessons([]);
+          return;
+        }
+        
+        const result = await getCourseLessons(courseIdInt, { perPage: 100 });
+        setLessons(result.data || []);
+      } catch (error) {
+        console.error('Error fetching lessons:', error);
+        setLessons([]);
+      } finally {
+        setLessonsLoading(false);
+      }
+    };
+
+    fetchLessons();
+  }, [id]);
   
   const { 
     completedItems, 
