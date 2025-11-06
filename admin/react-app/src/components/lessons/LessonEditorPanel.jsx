@@ -192,12 +192,26 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
   };
 
   const addStep = (type) => {
-    const newStep = { id: `step-${Date.now()}`, title: `Nuevo Paso (${type})`, type: type, data: {} };
-    handleFieldChange('steps', [...(formData.steps || []), newStep]);
+    const currentSteps = formData.steps || [];
+    const newOrder = currentSteps.length; // El nuevo order será el siguiente índice
+    const newStep = { 
+      id: `step-${Date.now()}`, 
+      title: `Nuevo Paso (${type})`, 
+      type: type, 
+      order: newOrder,
+      data: {} 
+    };
+    handleFieldChange('steps', [...currentSteps, newStep]);
   };
 
   const removeStep = (index) => {
-    handleFieldChange('steps', formData.steps.filter((_, i) => i !== index));
+    const filteredSteps = formData.steps.filter((_, i) => i !== index);
+    // Recalcular el orden después de eliminar
+    const stepsWithUpdatedOrder = filteredSteps.map((step, idx) => ({
+      ...step,
+      order: idx
+    }));
+    handleFieldChange('steps', stepsWithUpdatedOrder);
   };
 
   const handleDragEnd = (event) => {
@@ -205,7 +219,15 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
     if (active.id !== over?.id) {
       const oldIndex = formData.steps.findIndex(s => s.id === active.id);
       const newIndex = formData.steps.findIndex(s => s.id === over.id);
-      handleFieldChange('steps', arrayMove(formData.steps, oldIndex, newIndex));
+      const reorderedSteps = arrayMove(formData.steps, oldIndex, newIndex);
+      
+      // Recalcular el campo 'order' basado en la nueva posición
+      const stepsWithUpdatedOrder = reorderedSteps.map((step, index) => ({
+        ...step,
+        order: index
+      }));
+      
+      handleFieldChange('steps', stepsWithUpdatedOrder);
     }
   };
 
@@ -213,7 +235,11 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
     setIsSaving(true);
     setError(null);
     try {
-      const stepsForApi = formData.steps.map(({ id, ...rest }) => rest);
+      // Recalcular el orden secuencial antes de guardar y eliminar el id temporal
+      const stepsForApi = formData.steps.map(({ id, ...rest }, index) => ({
+        ...rest,
+        order: index
+      }));
       
       // 🔥 CAMBIO: Solo incluir _course_id si tiene un valor válido
       // "0" o "" significa "sin curso seleccionado"

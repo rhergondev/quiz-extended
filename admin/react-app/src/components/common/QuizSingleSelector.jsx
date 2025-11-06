@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, X, Plus } from 'lucide-react';
 import useQuizzes from '../../hooks/useQuizzes';
+import { getOne as getQuiz } from '../../api/services/quizService';
 
 const QuizSingleSelector = ({ value, onChange, disabled = false, onCreateNew }) => {
   const { t } = useTranslation();
@@ -9,19 +10,31 @@ const QuizSingleSelector = ({ value, onChange, disabled = false, onCreateNew }) 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { quizzes: searchResults, loading, fetchQuizzes } = useQuizzes({ autoFetch: false });
   const [selectedQuiz, setSelectedQuiz] = useState(null);
+  const [loadingSelected, setLoadingSelected] = useState(false);
   const containerRef = useRef(null);
   const debounceTimeoutRef = useRef(null);
 
-  const { quizzes: allQuizzes } = useQuizzes({ autoFetch: true, perPage: 100 });
-
+  // Cargar el quiz seleccionado por ID cuando cambia el value
   useEffect(() => {
-    if (value && allQuizzes.length > 0) {
-      const found = allQuizzes.find(q => q.id === value);
-      setSelectedQuiz(found || null);
-    } else if (!value) {
-      setSelectedQuiz(null);
-    }
-  }, [value, allQuizzes]);
+    const loadSelectedQuiz = async () => {
+      if (value) {
+        setLoadingSelected(true);
+        try {
+          const quiz = await getQuiz(value);
+          setSelectedQuiz(quiz);
+        } catch (error) {
+          console.error('Error loading selected quiz:', error);
+          setSelectedQuiz(null);
+        } finally {
+          setLoadingSelected(false);
+        }
+      } else {
+        setSelectedQuiz(null);
+      }
+    };
+
+    loadSelectedQuiz();
+  }, [value]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -61,6 +74,14 @@ const QuizSingleSelector = ({ value, onChange, disabled = false, onCreateNew }) 
   };
   
   const getQuizTitle = (quiz) => quiz?.title?.rendered || quiz?.title || 'Cuestionario sin título';
+
+  if (loadingSelected) {
+    return (
+      <div className="flex items-center justify-center p-2 bg-gray-100 border rounded-md">
+        <p className="text-sm text-gray-500">Cargando...</p>
+      </div>
+    );
+  }
 
   if (selectedQuiz) {
     return (

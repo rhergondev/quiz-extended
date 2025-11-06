@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Trophy, Loader } from 'lucide-react';
 import { getCourse } from '../../api/services/courseService';
 import { getCourseLessons } from '../../api/services/courseLessonService';
 import useLessons from '../../hooks/useLessons';
-import useQuizzes from '../../hooks/useQuizzes';
+import useQuizzesById from '../../hooks/useQuizzesById';
 import useCourseRanking from '../../hooks/useCourseRanking';
 import CourseLessonList from '../../components/frontend/CourseLessonList';
 import StepContent from '../../components/frontend/StepContent';
@@ -81,10 +81,28 @@ const CourseLessonsPage = () => {
     fetchLessons();
   }, [courseId]);
 
-  const { quizzes, loading: quizzesLoading, error: quizzesError } = useQuizzes({ 
-    perPage: 100, 
-    autoFetch: true 
-  });
+  // Extract all quiz IDs from lessons
+  const quizIds = useMemo(() => {
+    if (!lessons || lessons.length === 0) return [];
+    
+    const ids = new Set();
+    lessons.forEach(lesson => {
+      const steps = lesson.meta?._lesson_steps || [];
+      steps.forEach(step => {
+        if (step.type === 'quiz' && step.data?.quiz_id) {
+          ids.add(parseInt(step.data.quiz_id));
+        }
+      });
+    });
+    
+    return Array.from(ids);
+  }, [lessons]);
+
+  // Load only the quizzes that are actually used in the lessons
+  const { quizzesMap, loading: quizzesLoading, error: quizzesError } = useQuizzesById(quizIds);
+  
+  // Convert quizzesMap to array for compatibility with existing components
+  const quizzes = useMemo(() => Object.values(quizzesMap), [quizzesMap]);
   
   // Ranking hook
   const { 
@@ -146,9 +164,9 @@ const CourseLessonsPage = () => {
     // Prioridad 2: Si venimos de vuelta a un quiz específico
     const selectedQuizId = location.state?.selectedQuizId;
     
-    if (selectedQuizId && quizzes?.length > 0) {
-      // Buscar el quiz en la lista
-      const targetQuiz = quizzes.find(q => parseInt(q.id) === parseInt(selectedQuizId));
+    if (selectedQuizId && quizzesMap[selectedQuizId]) {
+      // Buscar el quiz en el map
+      const targetQuiz = quizzesMap[selectedQuizId];
       
       if (targetQuiz) {
         // Crear un step virtual para el quiz
@@ -184,7 +202,7 @@ const CourseLessonsPage = () => {
       setActiveContent({ lesson: firstLesson, step: firstStep });
       setHasInitialized(true);
     }
-  }, [lessons, lessonsLoading, quizzes, quizzesLoading, hasInitialized, location.state]);
+  }, [lessons, lessonsLoading, quizzesMap, quizzesLoading, hasInitialized, location.state]);
 
   // 4. Handler para la selección de pasos
   const handleSelectStep = (step, lesson) => {
