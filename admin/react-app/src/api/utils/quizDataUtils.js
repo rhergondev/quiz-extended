@@ -349,6 +349,9 @@ export const sanitizeQuizData = (quizData) => {
     slug: quizData.slug || '',
     author: quizData.author || 0,
 
+    // 🔥 AÑADIDO: Taxonomías en el nivel raíz (formato WordPress REST API)
+    qe_category: Array.isArray(quizData.qe_category) ? quizData.qe_category : [],
+
     // Meta fields (with defaults)
     meta: {
       ...DEFAULT_QUIZ_META,

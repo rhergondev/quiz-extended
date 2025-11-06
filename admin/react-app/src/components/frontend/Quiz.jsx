@@ -1,7 +1,7 @@
 import React from 'react';
 import { useState, useEffect, useMemo } from 'react';
-import { useQuestions } from '../../hooks/useQuestions';
 import { getQuiz } from '../../api/services/quizService';
+import { getQuestionsByIds } from '../../api/services/questionService';
 // 🔥 IMPORTAMOS LA NUEVA FUNCIÓN
 import { startQuizAttempt, submitQuizAttempt, calculateCustomQuizResult } from '../../api/services/quizAttemptService';
 import Question from './Question';
@@ -17,7 +17,7 @@ import QuizRecoveryModal from '../quizzes/QuizRecoveryModal';
 
 const Quiz = ({ quizId, customQuiz = null }) => {
   const [quizInfo, setQuizInfo] = useState(null);
-  const [questionIds, setQuestionIds] = useState([]);
+  const [quizQuestions, setQuizQuestions] = useState([]);
   const [userAnswers, setUserAnswers] = useState({});
   const [riskedAnswers, setRiskedAnswers] = useState([]);
   const [quizState, setQuizState] = useState('loading');
@@ -29,20 +29,36 @@ const Quiz = ({ quizId, customQuiz = null }) => {
   const [autosaveData, setAutosaveData] = useState(null); // Datos de autoguardado recuperados
   const [showRecoveryModal, setShowRecoveryModal] = useState(false); // Modal de recuperación
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0); // Índice de pregunta actual
+  const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [questionsError, setQuestionsError] = useState(null);
   const { theme } = useTheme();
-
-  const {
-    questions: allQuestions,
-    loading: questionsLoading,
-    error: questionsError
-  } = useQuestions({ perPage: 100, autoFetch: true });
 
   useEffect(() => {
     const fetchAndStartQuiz = async () => {
       setStartTime(Date.now()); // Iniciar cronómetro al cargar
       if (customQuiz) {
         setQuizInfo(customQuiz);
-        setQuestionIds(customQuiz.meta?._quiz_question_ids || []);
+        const questionIds = customQuiz.meta?._quiz_question_ids || [];
+        
+        // Cargar preguntas específicas del quiz personalizado
+        if (questionIds.length > 0) {
+          setQuestionsLoading(true);
+          try {
+            const questions = await getQuestionsByIds(questionIds, { batchSize: 30 });
+            // Aplicar aleatorización si está configurada
+            if (customQuiz.meta?._randomize_questions) {
+              const shuffled = [...questions].sort(() => Math.random() - 0.5);
+              setQuizQuestions(shuffled);
+            } else {
+              setQuizQuestions(questions);
+            }
+          } catch (error) {
+            console.error('Error loading custom quiz questions:', error);
+            setQuestionsError(error);
+          } finally {
+            setQuestionsLoading(false);
+          }
+        }
         setAttemptId('custom-attempt'); // ID de intento simulado
         return;
       }
@@ -64,7 +80,28 @@ const Quiz = ({ quizId, customQuiz = null }) => {
         // No hay autoguardado - continuar con inicio normal
         const quizData = await getQuiz(quizId);
         setQuizInfo(quizData);
-        setQuestionIds(quizData.meta?._quiz_question_ids || []);
+        
+        const questionIds = quizData.meta?._quiz_question_ids || [];
+        
+        // 🔥 CORRECCIÓN: Cargar las preguntas específicas del quiz por sus IDs
+        if (questionIds.length > 0) {
+          setQuestionsLoading(true);
+          try {
+            const questions = await getQuestionsByIds(questionIds, { batchSize: 30 });
+            // Aplicar aleatorización si está configurada
+            if (quizData.meta?._randomize_questions) {
+              const shuffled = [...questions].sort(() => Math.random() - 0.5);
+              setQuizQuestions(shuffled);
+            } else {
+              setQuizQuestions(questions);
+            }
+          } catch (error) {
+            console.error('Error loading quiz questions:', error);
+            setQuestionsError(error);
+          } finally {
+            setQuestionsLoading(false);
+          }
+        }
 
         const attemptResponse = await startQuizAttempt(quizId);
         if (attemptResponse.attempt_id) {
@@ -80,15 +117,6 @@ const Quiz = ({ quizId, customQuiz = null }) => {
     fetchAndStartQuiz();
   }, [quizId, customQuiz]);
 
-  const quizQuestions = useMemo(() => {
-    if (questionsLoading || questionIds.length === 0) return [];
-    const orderedQuestions = questionIds.map(id => allQuestions.find(q => q.id === id)).filter(Boolean);
-    
-    // Shuffle questions randomly for display only
-    const shuffled = [...orderedQuestions].sort(() => Math.random() - 0.5);
-    return shuffled;
-  }, [questionIds, allQuestions, questionsLoading]);
-
   // Hook de autoguardado - se activa cuando cambian las respuestas
   const { clearAutosave } = useQuizAutosave({
     quizId: quizId,
@@ -101,10 +129,10 @@ const Quiz = ({ quizId, customQuiz = null }) => {
   });
 
   useEffect(() => {
-      if (quizInfo && attemptId && !questionsLoading && (quizQuestions.length > 0 || questionIds.length === 0)) {
+      if (quizInfo && attemptId && !questionsLoading) {
           setQuizState('in-progress');
       }
-  }, [quizInfo, attemptId, questionsLoading, quizQuestions, questionIds]);
+  }, [quizInfo, attemptId, questionsLoading]);
 
   // Handler para resumir quiz desde autoguardado
   const handleResumeQuiz = async () => {
@@ -121,7 +149,23 @@ const Quiz = ({ quizId, customQuiz = null }) => {
         : autosaveData.answers;
 
       setQuizInfo(savedQuizData);
-      setQuestionIds(savedQuizData.meta?._quiz_question_ids || []);
+      
+      const questionIds = savedQuizData.meta?._quiz_question_ids || [];
+      
+      // Cargar preguntas específicas del quiz guardado
+      if (questionIds.length > 0) {
+        setQuestionsLoading(true);
+        try {
+          const questions = await getQuestionsByIds(questionIds, { batchSize: 30 });
+          setQuizQuestions(questions);
+        } catch (error) {
+          console.error('Error loading quiz questions on resume:', error);
+          setQuestionsError(error);
+        } finally {
+          setQuestionsLoading(false);
+        }
+      }
+      
       setUserAnswers(savedAnswers);
       setCurrentQuestionIndex(autosaveData.current_question_index || 0);
       setTimeRemaining(autosaveData.time_remaining);
@@ -146,7 +190,28 @@ const Quiz = ({ quizId, customQuiz = null }) => {
       // Iniciar quiz normalmente
       const quizData = await getQuiz(quizId);
       setQuizInfo(quizData);
-      setQuestionIds(quizData.meta?._quiz_question_ids || []);
+      
+      const questionIds = quizData.meta?._quiz_question_ids || [];
+      
+      // Cargar preguntas específicas del quiz
+      if (questionIds.length > 0) {
+        setQuestionsLoading(true);
+        try {
+          const questions = await getQuestionsByIds(questionIds, { batchSize: 30 });
+          // Aplicar aleatorización si está configurada
+          if (quizData.meta?._randomize_questions) {
+            const shuffled = [...questions].sort(() => Math.random() - 0.5);
+            setQuizQuestions(shuffled);
+          } else {
+            setQuizQuestions(questions);
+          }
+        } catch (error) {
+          console.error('Error loading quiz questions on restart:', error);
+          setQuestionsError(error);
+        } finally {
+          setQuestionsLoading(false);
+        }
+      }
 
       const attemptResponse = await startQuizAttempt(quizId);
       if (attemptResponse.attempt_id) {
@@ -240,7 +305,7 @@ const Quiz = ({ quizId, customQuiz = null }) => {
       }
   };
 
-  if (quizState === 'loading' || (questionIds.length > 0 && questionsLoading)) {
+  if (quizState === 'loading' || questionsLoading) {
     return <div className="text-center p-8">Cargando cuestionario...</div>;
   }
   if (quizState === 'awaiting-recovery') {

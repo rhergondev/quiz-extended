@@ -133,11 +133,22 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
         try {
           console.log('🔍 Fetching quiz data for ID:', quizId);
           const quizData = await getQuiz(quizId);
+          console.log('📦 Quiz data received:', quizData);
           const meta = quizData.meta || {};
           
+          // 🔥 CORRECCIÓN: title y content ya vienen sanitizados como strings desde la API
+          // Si vienen como objetos con .rendered, usar eso; si no, usar el valor directo
+          const titleValue = typeof quizData.title === 'string' 
+            ? quizData.title 
+            : (quizData.title?.rendered || '');
+          
+          const contentValue = typeof quizData.content === 'string'
+            ? quizData.content
+            : (quizData.content?.rendered || meta._quiz_instructions || '');
+          
           setFormData({
-            title: quizData.title?.rendered || '',
-            content: quizData.content?.rendered || meta._quiz_instructions || '',
+            title: titleValue,
+            content: contentValue,
             status: quizData.status || 'publish',
             courseId: meta._course_id?.toString() || '',
             qe_category: Array.isArray(quizData.qe_category) ? quizData.qe_category.map(String) : [],
@@ -150,6 +161,8 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
             enable_negative_scoring: meta._enable_negative_scoring || false,
             questionIds: meta._quiz_question_ids || [],
           });
+
+          console.log('✅ Form data set:', { title: titleValue, category: quizData.qe_category });
 
           // Cargar las preguntas específicas del quiz por sus IDs
           const questionIds = meta._quiz_question_ids || [];
