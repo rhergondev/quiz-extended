@@ -79,27 +79,14 @@ const CourseLessonsPage = () => {
     fetchLessons();
   }, [courseId]);
 
-  // 3. Sort lessons by _lesson_order and sort steps within each lesson by order
+  // 3. Process lessons - keep API order but sort steps within each lesson
   const sortedLessons = useMemo(() => {
     if (!lessons || lessons.length === 0) return [];
     
-    // Sort lessons by _lesson_order (ascending), then by title if orders are equal
-    const lessonsSorted = [...lessons].sort((a, b) => {
-      const orderA = parseInt(a.meta?._lesson_order) || 0;
-      const orderB = parseInt(b.meta?._lesson_order) || 0;
-      
-      if (orderA !== orderB) {
-        return orderA - orderB;
-      }
-      
-      // If orders are equal, sort alphabetically
-      const titleA = (a.title?.rendered || a.title || '').toLowerCase();
-      const titleB = (b.title?.rendered || b.title || '').toLowerCase();
-      return titleA.localeCompare(titleB);
-    });
-    
-    // Sort steps within each lesson by their order field
-    return lessonsSorted.map(lesson => {
+    // ✅ NO reordenamos las lecciones, la API ya las devuelve en el orden correcto
+    // según el array _lesson_ids del curso (usando orderby => 'post__in')
+    // Solo ordenamos los steps dentro de cada lección
+    return lessons.map(lesson => {
       if (!lesson.meta?._lesson_steps || lesson.meta._lesson_steps.length === 0) {
         return lesson;
       }
