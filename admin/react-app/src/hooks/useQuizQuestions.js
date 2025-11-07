@@ -14,22 +14,23 @@ import { getQuestionsByIds } from '../api/services/questionService';
 
 /**
  * Hook to load quiz questions with lazy loading optimization
+ * 🔥 HARD LIMIT: Maximum 100 questions per quiz
  * 
- * @param {number[]} questionIds - Array of all question IDs in the quiz
+ * @param {number[]} questionIds - Array of all question IDs in the quiz (max 100)
  * @param {Object} options - Options
  * @param {boolean} options.enabled - Enable auto-fetch (default: true)
- * @param {number} options.initialBatchSize - Number of questions to load initially (default: 20)
- * @param {number} options.prefetchThreshold - Load next batch when this many questions remain (default: 5)
- * @param {number} options.batchSize - Size of each additional batch (default: 20)
+ * @param {number} options.initialBatchSize - Number of questions to load initially (default: 100)
+ * @param {number} options.prefetchThreshold - Load next batch when this many questions remain (default: 10)
+ * @param {number} options.batchSize - Size of each additional batch (default: 100)
  * @param {boolean} options.randomize - Randomize question order (default: false)
  * @returns {Object} { questions, loading, error, progress, hasMore, loadMore }
  */
 export const useQuizQuestions = (questionIds, options = {}) => {
   const {
     enabled = true,
-    initialBatchSize = 20, // 🔥 INCREASED: Load 20 questions initially instead of 10
-    prefetchThreshold = 5, // 🔥 INCREASED: Prefetch when 5 questions remain instead of 3
-    batchSize = 20, // 🔥 INCREASED: Load 20 questions per batch instead of 10
+    initialBatchSize = 100, // 🔥 HARD LIMIT: Load up to 100 questions at once
+    prefetchThreshold = 10,
+    batchSize = 100, // 🔥 HARD LIMIT: Max 100 questions per batch
     randomize = false
   } = options;
 
@@ -47,11 +48,18 @@ export const useQuizQuestions = (questionIds, options = {}) => {
 
   useEffect(() => {
     if (questionIds && questionIds.length > 0) {
+      // 🔥 HARD LIMIT: Enforce maximum 100 questions
+      const limitedIds = questionIds.slice(0, 100);
+      
+      if (questionIds.length > 100) {
+        console.warn(`⚠️ Quiz has ${questionIds.length} questions. Limiting to first 100 questions.`);
+      }
+      
       if (randomize) {
-        const shuffled = [...questionIds].sort(() => Math.random() - 0.5);
+        const shuffled = [...limitedIds].sort(() => Math.random() - 0.5);
         setOrderedIds(shuffled);
       } else {
-        setOrderedIds(questionIds);
+        setOrderedIds(limitedIds);
       }
     }
   }, [questionIds, randomize]);

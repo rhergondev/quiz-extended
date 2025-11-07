@@ -42,9 +42,9 @@ const Quiz = ({ quizId, customQuiz = null }) => {
     totalCount: totalQuestions
   } = useQuizQuestions(questionIds, {
     enabled: quizState === 'in-progress' || quizState === 'loading',
-    initialBatchSize: 20, // 🔥 OPTIMIZED: Load 20 questions initially
-    prefetchThreshold: 5, // 🔥 OPTIMIZED: Prefetch when 5 questions remain
-    batchSize: 20, // 🔥 OPTIMIZED: Load 20 questions per batch
+    initialBatchSize: 100, // 🔥 HARD LIMIT: Load up to 100 questions at once
+    prefetchThreshold: 10,
+    batchSize: 100,
     randomize: quizInfo?.meta?._randomize_questions || false
   });
 
