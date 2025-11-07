@@ -21,16 +21,24 @@ const LegendItem = ({ color, text }) => (
 
 const QuizSidebar = ({ 
   questions, 
+  questionIds = [],
+  totalCount = null,
   userAnswers, 
   riskedAnswers, 
   onQuestionSelect, 
-  onSubmit 
+  onSubmit,
+  loadingMore = false,
+  loadedCount = 0
 }) => {
   
   const answeredCount = Object.keys(userAnswers).length;
   const riskedCount = riskedAnswers.length;
-  const unansweredCount = questions.length - answeredCount;
+  const effectiveTotal = totalCount !== null ? totalCount : (questions ? questions.length : (questionIds ? questionIds.length : 0));
+  const unansweredCount = Math.max(0, effectiveTotal - answeredCount);
   const impugnedCount = 0;
+  
+  // 🔥 NEW: Calculate loading progress
+  const loadingProgress = effectiveTotal > 0 ? Math.round((loadedCount / effectiveTotal) * 100) : 100;
 
   const scrollToQuestion = (index) => {
     const element = document.getElementById(`quiz-question-${index + 1}`);
@@ -55,6 +63,22 @@ const QuizSidebar = ({
     <div className="sticky top-4 w-full">
       <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
         
+        {/* 🔥 NEW: Loading progress indicator */}
+        {loadingMore && loadingProgress < 100 && (
+          <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between text-xs text-blue-700 mb-1">
+              <span>Cargando preguntas...</span>
+              <span className="font-bold">{loadedCount}/{effectiveTotal}</span>
+            </div>
+            <div className="w-full bg-blue-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${loadingProgress}%` }}
+              ></div>
+            </div>
+          </div>
+        )}
+        
         <div className="flex justify-around items-center mb-4 p-2 bg-gray-50 rounded-lg">
             {/* CAMBIO: Usando la nueva clase 'bg-primary' */}
             <LegendItem color="bg-primary border-primary" text="Contestada" />
@@ -70,14 +94,19 @@ const QuizSidebar = ({
         </div>
 
         <div className="grid grid-cols-10 gap-1.5 mb-6">
-          {questions.map((question, index) => {
-            const isAnswered = userAnswers.hasOwnProperty(question.id);
-            const isRisked = riskedAnswers.includes(question.id);
+          {Array.from({ length: effectiveTotal }).map((_, index) => {
+            const qId = questionIds && questionIds[index] ? questionIds[index] : (questions && questions[index] ? questions[index].id : `unloaded-${index}`);
+            const isLoaded = questions && questions[index]; // Check if question is loaded
+            const isAnswered = userAnswers.hasOwnProperty(qId);
+            const isRisked = riskedAnswers.includes(qId);
             const isImpugned = false; 
 
             let style = '';
             
-            if (isImpugned) {
+            if (!isLoaded) {
+              // 🔥 NEW: Placeholder style for unloaded questions
+              style = 'bg-gray-100 border-2 border-gray-300 text-gray-400 cursor-wait';
+            } else if (isImpugned) {
               style = 'bg-gray-400 text-black border-gray-400';
             } else if (isRisked) {
               // CAMBIO: Usando 'text-primary'
@@ -92,9 +121,10 @@ const QuizSidebar = ({
 
             return (
               <div
-                key={question.id}
-                onClick={() => scrollToQuestion(index)}
-                className={`w-full h-7 rounded text-xs font-bold transition-colors flex items-center justify-center cursor-pointer hover:opacity-80 ${style}`}
+                key={qId}
+                onClick={() => isLoaded && scrollToQuestion(index)}
+                className={`w-full h-7 rounded text-xs font-bold transition-colors flex items-center justify-center ${isLoaded ? 'cursor-pointer hover:opacity-80' : 'cursor-wait'} ${style}`}
+                title={!isLoaded ? 'Cargando pregunta...' : undefined}
               >
                 {index + 1}
               </div>

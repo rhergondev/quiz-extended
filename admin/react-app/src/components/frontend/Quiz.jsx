@@ -2,6 +2,7 @@ import React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { getQuiz } from '../../api/services/quizService';
 import useQuizQuestions from '../../hooks/useQuizQuestions';
+import { getQuestionsByIds } from '../../api/services/questionService';
 // 🔥 IMPORTAMOS LA NUEVA FUNCIÓN
 import { startQuizAttempt, submitQuizAttempt, calculateCustomQuizResult } from '../../api/services/quizAttemptService';
 import Question from './Question';
@@ -23,6 +24,7 @@ const Quiz = ({ quizId, customQuiz = null }) => {
   const [quizState, setQuizState] = useState('loading');
   const [attemptId, setAttemptId] = useState(null);
   const [quizResult, setQuizResult] = useState(null);
+  const [finalQuestions, setFinalQuestions] = useState([]); // Full question list used for results
   const [startTime, setStartTime] = useState(null);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(null);
@@ -42,9 +44,9 @@ const Quiz = ({ quizId, customQuiz = null }) => {
     totalCount: totalQuestions
   } = useQuizQuestions(questionIds, {
     enabled: quizState === 'in-progress' || quizState === 'loading',
-    initialBatchSize: 100, // 🔥 HARD LIMIT: Load up to 100 questions at once
-    prefetchThreshold: 10,
-    batchSize: 100,
+    initialBatchSize: 50, // 🔥 OPTIMIZED: Load 50 questions initially (consistent batches)
+    prefetchThreshold: 5, // 🔥 OPTIMIZED: Prefetch when 5 questions remain
+    batchSize: 50, // 🔥 OPTIMIZED: Load 50 questions per batch (supports 100+ questions)
     randomize: quizInfo?.meta?._randomize_questions || false
   });
 
@@ -223,8 +225,20 @@ const Quiz = ({ quizId, customQuiz = null }) => {
 
       console.log('📊 Estado de respuestas antes de formatear:', userAnswers);
       console.log('📋 Preguntas del cuestionario:', quizQuestions.map(q => ({ id: q.id, title: q.title })));
+      // Ensure we submit answers for ALL questions in the quiz (not only the ones already loaded)
+      let questionsForSubmission = quizQuestions;
+      if (questionIds && questionIds.length > quizQuestions.length) {
+        try {
+          // Fetch missing questions in batches
+          questionsForSubmission = await getQuestionsByIds(questionIds, { batchSize: 50 });
+          console.log(`📥 Fetched ${questionsForSubmission.length} questions for submission`);
+        } catch (err) {
+          console.warn('⚠️ Failed to fetch all questions before submit, falling back to loaded questions', err);
+          questionsForSubmission = quizQuestions;
+        }
+      }
 
-      const formattedAnswers = quizQuestions.map(q => {
+      const formattedAnswers = questionsForSubmission.map(q => {
         const hasAnswer = userAnswers.hasOwnProperty(q.id);
         const answerGiven = hasAnswer ? userAnswers[q.id] : null;
         console.log(`❓ Pregunta ${q.id}:`, { hasAnswer, answerGiven, isRisked: riskedAnswers.includes(q.id) });
@@ -257,6 +271,9 @@ const Quiz = ({ quizId, customQuiz = null }) => {
           if (quizId && !customQuiz) {
             await clearAutosave();
           }
+
+          // Save the full question list we used for results display
+          setFinalQuestions(questionsForSubmission || quizQuestions);
 
           setQuizResult(result);
           setQuizState('submitted');
@@ -295,7 +312,8 @@ const Quiz = ({ quizId, customQuiz = null }) => {
       return <div className="text-center p-8">Enviando respuestas...</div>
   }
   if (quizState === 'submitted') {
-      return <QuizResults result={quizResult} quizTitle={quizInfo?.title?.rendered || quizInfo?.title} questions={quizQuestions} />;
+    const resultsQuestions = finalQuestions && finalQuestions.length > 0 ? finalQuestions : quizQuestions;
+    return <QuizResults result={quizResult} quizTitle={quizInfo?.title?.rendered || quizInfo?.title} questions={resultsQuestions} />;
   }
   
   // Solo mostrar este mensaje si el quiz está cargado pero no tiene IDs de preguntas
@@ -366,12 +384,13 @@ const Quiz = ({ quizId, customQuiz = null }) => {
         <div className="sticky top-4 space-y-4">
             <QuizSidebar
               questions={quizQuestions}
+              questionIds={questionIds}
+              totalCount={totalQuestions}
               userAnswers={userAnswers}
               riskedAnswers={riskedAnswers}
               onSubmit={handleSubmit}
               loadingMore={questionsLoading}
               loadedCount={loadedCount}
-              totalCount={totalQuestions}
             />
             <Timer
                 durationMinutes={timeLimit}

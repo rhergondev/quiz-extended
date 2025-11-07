@@ -6,11 +6,11 @@ import ResultsSidebar from '../ResultsSidebar';
 import { useTranslation } from 'react-i18next';
 
 const QuizResultsRecover = ({ result, quizTitle, questions }) => {
+  const { t } = useTranslation();
+
   if (!result) {
     return <div className="text-center p-8">{t('quizzes.loadingResults')}</div>;
   }
-
-  const { t } = useTranslation();
 
   const { detailed_results } = result;
 
@@ -18,7 +18,7 @@ const QuizResultsRecover = ({ result, quizTitle, questions }) => {
     <div className="flex flex-col lg:flex-row-reverse gap-8 items-start p-4 max-w-screen-2xl mx-auto lg:h-[calc(100vh-100px)]">
 
       {/* --- COLUMNA DERECHA: SIDEBAR DE RESULTADOS --- */}
-      <ResultsSidebar result={result} />
+  <ResultsSidebar result={result} questions={questions} />
 
       {/* --- COLUMNA IZQUIERDA: REVISIÓN DETALLADA (con scroll interno) --- */}
       <main className="flex-grow w-full lg:overflow-y-auto lg:pr-4">

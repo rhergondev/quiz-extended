@@ -14,23 +14,24 @@ import { getQuestionsByIds } from '../api/services/questionService';
 
 /**
  * Hook to load quiz questions with lazy loading optimization
- * 🔥 HARD LIMIT: Maximum 100 questions per quiz
+ * 🔥 OPTIMIZED: Consistent 50-question batches for reliable loading
+ * Supports quizzes up to 100 questions (2 batches)
  * 
- * @param {number[]} questionIds - Array of all question IDs in the quiz (max 100)
+ * @param {number[]} questionIds - Array of all question IDs in the quiz
  * @param {Object} options - Options
  * @param {boolean} options.enabled - Enable auto-fetch (default: true)
- * @param {number} options.initialBatchSize - Number of questions to load initially (default: 100)
- * @param {number} options.prefetchThreshold - Load next batch when this many questions remain (default: 10)
- * @param {number} options.batchSize - Size of each additional batch (default: 100)
+ * @param {number} options.initialBatchSize - Number of questions to load initially (default: 50)
+ * @param {number} options.prefetchThreshold - Load next batch when this many questions remain (default: 5)
+ * @param {number} options.batchSize - Size of each additional batch (default: 50)
  * @param {boolean} options.randomize - Randomize question order (default: false)
  * @returns {Object} { questions, loading, error, progress, hasMore, loadMore }
  */
 export const useQuizQuestions = (questionIds, options = {}) => {
   const {
     enabled = true,
-    initialBatchSize = 100, // 🔥 HARD LIMIT: Load up to 100 questions at once
-    prefetchThreshold = 10,
-    batchSize = 100, // 🔥 HARD LIMIT: Max 100 questions per batch
+    initialBatchSize = 50, // 🔥 OPTIMIZED: 50 questions per batch (consistent)
+    prefetchThreshold = 5, // 🔥 OPTIMIZED: Prefetch when 5 questions remain
+    batchSize = 50, // 🔥 OPTIMIZED: 50 questions per batch (consistent)
     randomize = false
   } = options;
 
@@ -48,18 +49,11 @@ export const useQuizQuestions = (questionIds, options = {}) => {
 
   useEffect(() => {
     if (questionIds && questionIds.length > 0) {
-      // 🔥 HARD LIMIT: Enforce maximum 100 questions
-      const limitedIds = questionIds.slice(0, 100);
-      
-      if (questionIds.length > 100) {
-        console.warn(`⚠️ Quiz has ${questionIds.length} questions. Limiting to first 100 questions.`);
-      }
-      
       if (randomize) {
-        const shuffled = [...limitedIds].sort(() => Math.random() - 0.5);
+        const shuffled = [...questionIds].sort(() => Math.random() - 0.5);
         setOrderedIds(shuffled);
       } else {
-        setOrderedIds(limitedIds);
+        setOrderedIds(questionIds);
       }
     }
   }, [questionIds, randomize]);
@@ -90,8 +84,8 @@ export const useQuizQuestions = (questionIds, options = {}) => {
     try {
       console.log(`📥 Loading questions batch: ${startIndex}-${startIndex + newIds.length} (${newIds.length} questions)`);
       
-      // 🔥 OPTIMIZED: Use optimized batch loading (100 questions per API call)
-      const loadedQuestions = await getQuestionsByIds(newIds, { batchSize: 100 });
+      // 🔥 OPTIMIZED: Use consistent 50-question batches for API calls
+      const loadedQuestions = await getQuestionsByIds(newIds, { batchSize: 50 });
       
       // Mark as loaded
       newIds.forEach(id => loadedIdsRef.current.add(id));
