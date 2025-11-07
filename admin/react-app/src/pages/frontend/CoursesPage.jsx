@@ -29,8 +29,29 @@ const CoursesPage = () => {
     countsOnly: true
   });
 
+  // Sort courses by position (if available), then by title alphabetically
+  const sortedCourses = useMemo(() => {
+    if (!courses || courses.length === 0) return [];
+    
+    return [...courses].sort((a, b) => {
+      // Get position values (default to 0 if not set)
+      const positionA = parseInt(a.meta?._course_position) || 0;
+      const positionB = parseInt(b.meta?._course_position) || 0;
+      
+      // If positions are different, sort by position (ascending)
+      if (positionA !== positionB) {
+        return positionA - positionB;
+      }
+      
+      // If positions are the same, sort alphabetically by title
+      const titleA = (a.title?.rendered || a.title || '').toLowerCase();
+      const titleB = (b.title?.rendered || b.title || '').toLowerCase();
+      return titleA.localeCompare(titleB);
+    });
+  }, [courses]);
+
   const renderContent = () => {
-    if (loading && courses.length === 0) {
+    if (loading && sortedCourses.length === 0) {
       return <PageState icon={Loader} title={t('courses.loadingCourses')} message={t('common.processing')} />;
     }
   
@@ -38,13 +59,13 @@ const CoursesPage = () => {
       return <PageState icon={AlertTriangle} title={t('notifications.error')} message={error} />;
     }
     
-    if (!courses || courses.length === 0) {
+    if (!sortedCourses || sortedCourses.length === 0) {
       return <PageState icon={Inbox} title={t('courses.noCourses')} message={t('courses.noCoursesDescription')} />;
     }
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {courses.map(course => (
+        {sortedCourses.map(course => (
           <CompactCourseCard 
             key={course.id} 
             course={course}

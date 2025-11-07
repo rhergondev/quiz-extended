@@ -193,7 +193,7 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
 
   const addStep = (type) => {
     const currentSteps = formData.steps || [];
-    const newOrder = currentSteps.length; // El nuevo order será el siguiente índice
+    const newOrder = currentSteps.length + 1; // El nuevo order será el siguiente índice (comenzando desde 1)
     const newStep = { 
       id: `step-${Date.now()}`, 
       title: `Nuevo Paso (${type})`, 
@@ -206,28 +206,31 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
 
   const removeStep = (index) => {
     const filteredSteps = formData.steps.filter((_, i) => i !== index);
-    // Recalcular el orden después de eliminar
+    // Recalcular el orden después de eliminar (comenzando desde 1)
     const stepsWithUpdatedOrder = filteredSteps.map((step, idx) => ({
       ...step,
-      order: idx
+      order: idx + 1
     }));
     handleFieldChange('steps', stepsWithUpdatedOrder);
   };
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (active.id !== over?.id) {
+    if (over && active.id !== over.id) {
       const oldIndex = formData.steps.findIndex(s => s.id === active.id);
       const newIndex = formData.steps.findIndex(s => s.id === over.id);
-      const reorderedSteps = arrayMove(formData.steps, oldIndex, newIndex);
       
-      // Recalcular el campo 'order' basado en la nueva posición
-      const stepsWithUpdatedOrder = reorderedSteps.map((step, index) => ({
-        ...step,
-        order: index
-      }));
-      
-      handleFieldChange('steps', stepsWithUpdatedOrder);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reorderedSteps = arrayMove(formData.steps, oldIndex, newIndex);
+        
+        // Recalcular el campo 'order' basado en la nueva posición
+        const stepsWithUpdatedOrder = reorderedSteps.map((step, index) => ({
+          ...step,
+          order: index + 1  // Comenzar desde 1 en lugar de 0
+        }));
+        
+        handleFieldChange('steps', stepsWithUpdatedOrder);
+      }
     }
   };
 
@@ -235,10 +238,10 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
     setIsSaving(true);
     setError(null);
     try {
-      // Recalcular el orden secuencial antes de guardar y eliminar el id temporal
+      // Recalcular el orden secuencial antes de guardar y eliminar el id temporal (comenzando desde 1)
       const stepsForApi = formData.steps.map(({ id, ...rest }, index) => ({
         ...rest,
-        order: index
+        order: index + 1
       }));
       
       // 🔥 CAMBIO: Solo incluir _course_id si tiene un valor válido

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Trophy, Loader } from 'lucide-react';
@@ -78,6 +78,47 @@ const CourseLessonsPage = () => {
 
     fetchLessons();
   }, [courseId]);
+
+  // 3. Sort lessons by _lesson_order and sort steps within each lesson by order
+  const sortedLessons = useMemo(() => {
+    if (!lessons || lessons.length === 0) return [];
+    
+    // Sort lessons by _lesson_order (ascending), then by title if orders are equal
+    const lessonsSorted = [...lessons].sort((a, b) => {
+      const orderA = parseInt(a.meta?._lesson_order) || 0;
+      const orderB = parseInt(b.meta?._lesson_order) || 0;
+      
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      
+      // If orders are equal, sort alphabetically
+      const titleA = (a.title?.rendered || a.title || '').toLowerCase();
+      const titleB = (b.title?.rendered || b.title || '').toLowerCase();
+      return titleA.localeCompare(titleB);
+    });
+    
+    // Sort steps within each lesson by their order field
+    return lessonsSorted.map(lesson => {
+      if (!lesson.meta?._lesson_steps || lesson.meta._lesson_steps.length === 0) {
+        return lesson;
+      }
+      
+      const sortedSteps = [...lesson.meta._lesson_steps].sort((a, b) => {
+        const orderA = parseInt(a.order) || 0;
+        const orderB = parseInt(b.order) || 0;
+        return orderA - orderB;
+      });
+      
+      return {
+        ...lesson,
+        meta: {
+          ...lesson.meta,
+          _lesson_steps: sortedSteps
+        }
+      };
+    });
+  }, [lessons]);
   
   // Ranking hook
   const { 
@@ -94,7 +135,7 @@ const CourseLessonsPage = () => {
     error: courseError 
   } = useCourseData(courseId);
 
-  // 3. Lógica de efectos consolidada
+  // 4. Lógica de efectos consolidada
   useEffect(() => {
     if (fetchedCourse) setCourse(fetchedCourse);
   }, [fetchedCourse]);
@@ -108,7 +149,7 @@ const CourseLessonsPage = () => {
   // Efecto para seleccionar el primer paso por defecto O el paso/quiz especificado
   useEffect(() => {
     // Solo ejecutar una vez cuando todo esté cargado
-    if (hasInitialized || lessonsLoading || !lessons?.length) {
+    if (hasInitialized || lessonsLoading || !sortedLessons?.length) {
       return;
     }
     
@@ -118,7 +159,7 @@ const CourseLessonsPage = () => {
     
     if (selectedLessonId !== undefined && selectedStepIndex !== undefined) {
       // Buscar la lección específica
-      const targetLesson = lessons.find(l => parseInt(l.id) === parseInt(selectedLessonId));
+      const targetLesson = sortedLessons.find(l => parseInt(l.id) === parseInt(selectedLessonId));
       
       if (targetLesson && targetLesson.meta?._lesson_steps) {
         const steps = targetLesson.meta._lesson_steps;
@@ -142,7 +183,7 @@ const CourseLessonsPage = () => {
     
     if (selectedQuizId) {
       // Buscar la lección que contiene este quiz
-      const associatedLesson = lessons.find(l => {
+      const associatedLesson = sortedLessons.find(l => {
         const hasStep = l.meta?._lesson_steps?.some(s => {
           return s?.data?.quiz_id && parseInt(s.data.quiz_id) === parseInt(selectedQuizId);
         });
@@ -166,32 +207,32 @@ const CourseLessonsPage = () => {
     }
     
     // Comportamiento por defecto: seleccionar el primer paso
-    const firstLesson = lessons[0];
+    const firstLesson = sortedLessons[0];
     const firstStep = firstLesson?.meta?._lesson_steps?.[0];
     
     if (firstLesson && firstStep) {
       setActiveContent({ lesson: firstLesson, step: firstStep });
       setHasInitialized(true);
     }
-  }, [lessons, lessonsLoading, hasInitialized, location.state]);
+  }, [sortedLessons, lessonsLoading, hasInitialized, location.state]);
 
-  // 4. Handler para la selección de pasos
+  // 5. Handler para la selección de pasos
   const handleSelectStep = (step, lesson) => {
     setActiveContent({ step, lesson });
   };
 
-  // 5. Handler para abrir el ranking
+  // 6. Handler para abrir el ranking
   const handleOpenRanking = async () => {
     setShowRankingModal(true);
     await refetchRanking(); // Fetch ranking data when opening modal
   };
   
-  // 6. Renderizado condicional limpio
+  // 7. Renderizado condicional limpio
   const isLoading = courseLoading || lessonsLoading;
 
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
-  if (!course || !lessons || lessons.length === 0) return <EmptyState />;
+  if (!course || !sortedLessons || sortedLessons.length === 0) return <EmptyState />;
 
   return (
     // ✅ Fondo gris y maquetación corregida (lista a la izquierda, contenido a la derecha)
@@ -219,7 +260,7 @@ const CourseLessonsPage = () => {
 
       {/* Panel lateral de lecciones */}
       <CourseLessonList 
-        lessons={lessons} 
+        lessons={sortedLessons} 
         isLoading={lessonsLoading}
         selectedStepId={activeContent.step?.id}
         onSelectStep={handleSelectStep}

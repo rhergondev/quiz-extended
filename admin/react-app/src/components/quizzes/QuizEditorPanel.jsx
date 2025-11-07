@@ -224,12 +224,15 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
   
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (active.id !== over?.id) {
+    if (over && active.id !== over.id) {
       const oldIndex = selectedQuestions.findIndex(q => q.id === active.id);
       const newIndex = selectedQuestions.findIndex(q => q.id === over.id);
-      const newOrder = arrayMove(selectedQuestions, oldIndex, newIndex);
-      setSelectedQuestions(newOrder);
-      handleFieldChange('questionIds', newOrder.map(q => q.id));
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove(selectedQuestions, oldIndex, newIndex);
+        setSelectedQuestions(newOrder);
+        handleFieldChange('questionIds', newOrder.map(q => q.id));
+      }
     }
   };
 

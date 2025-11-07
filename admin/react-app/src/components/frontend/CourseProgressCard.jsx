@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, CheckCircle2, Circle, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
 import useLessons from '../../hooks/useLessons';
@@ -15,6 +15,25 @@ const CourseProgressCard = ({ course }) => {
     autoFetch: true,
     perPage: 100
   });
+
+  // Sort lessons by _lesson_order
+  const sortedLessons = useMemo(() => {
+    if (!lessons || lessons.length === 0) return [];
+    
+    return [...lessons].sort((a, b) => {
+      const orderA = parseInt(a.meta?._lesson_order) || 0;
+      const orderB = parseInt(b.meta?._lesson_order) || 0;
+      
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      
+      // If orders are equal, sort alphabetically
+      const titleA = (a.title?.rendered || a.title || '').toLowerCase();
+      const titleB = (b.title?.rendered || b.title || '').toLowerCase();
+      return titleA.localeCompare(titleB);
+    });
+  }, [lessons]);
   
   const { 
     progress, 
@@ -34,7 +53,7 @@ const CourseProgressCard = ({ course }) => {
   const renderedExcerpt = (excerpt?.rendered || excerpt || '').replace(/<[^>]+>/g, '');
   
   // Progreso de lecciones - CORREGIDO
-  const totalLessons = lessons?.length || 0;
+  const totalLessons = sortedLessons?.length || 0;
   const completedLessons = completedItems?.filter(item => item.content_type === 'lesson')?.length || 0;
   const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
@@ -187,9 +206,9 @@ const CourseProgressCard = ({ course }) => {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="mt-2 text-sm">Cargando lecciones...</p>
               </div>
-            ) : lessons && lessons.length > 0 ? (
+            ) : sortedLessons && sortedLessons.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
-                {lessons.map((lesson) => {
+                {sortedLessons.map((lesson) => {
                   const completed = isCompleted(lesson.id, 'lesson');
                   return (
                     <div 

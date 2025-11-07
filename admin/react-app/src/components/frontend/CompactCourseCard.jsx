@@ -71,6 +71,47 @@ const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
 
     fetchLessons();
   }, [id, showTopicsModal]); // Only fetch when modal opens
+
+  // Sort lessons by _lesson_order and steps within each lesson by order
+  const sortedLessons = useMemo(() => {
+    if (!lessons || lessons.length === 0) return [];
+    
+    // Sort lessons by _lesson_order (ascending), then by title if orders are equal
+    const lessonsSorted = [...lessons].sort((a, b) => {
+      const orderA = parseInt(a.meta?._lesson_order) || 0;
+      const orderB = parseInt(b.meta?._lesson_order) || 0;
+      
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      
+      // If orders are equal, sort alphabetically
+      const titleA = (a.title?.rendered || a.title || '').toLowerCase();
+      const titleB = (b.title?.rendered || b.title || '').toLowerCase();
+      return titleA.localeCompare(titleB);
+    });
+    
+    // Sort steps within each lesson by their order field
+    return lessonsSorted.map(lesson => {
+      if (!lesson.meta?._lesson_steps || lesson.meta._lesson_steps.length === 0) {
+        return lesson;
+      }
+      
+      const sortedSteps = [...lesson.meta._lesson_steps].sort((a, b) => {
+        const orderA = parseInt(a.order) || 0;
+        const orderB = parseInt(b.order) || 0;
+        return orderA - orderB;
+      });
+      
+      return {
+        ...lesson,
+        meta: {
+          ...lesson.meta,
+          _lesson_steps: sortedSteps
+        }
+      };
+    });
+  }, [lessons]);
   
   const { 
     completedItems, 
@@ -134,8 +175,8 @@ const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
   }
   
   // Progreso de lecciones
-  // Use the lessonCount prop if provided (from bulk fetch), otherwise fallback to local lessons
-  const totalLessons = lessonCount !== undefined ? lessonCount : (lessons?.length || 0);
+  // Use the lessonCount prop if provided (from bulk fetch), otherwise fallback to sorted lessons
+  const totalLessons = lessonCount !== undefined ? lessonCount : (sortedLessons?.length || 0);
   const completedLessons = completedItems?.filter(item => item.content_type === 'lesson')?.length || 0;
   const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
@@ -372,7 +413,7 @@ const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
         onClose={() => setShowTopicsModal(false)}
         courseId={id}
         courseTitle={renderedTitle}
-        lessons={lessons}
+        lessons={sortedLessons}
         isCompleted={isCompleted}
         markComplete={markComplete}
         unmarkComplete={unmarkComplete}

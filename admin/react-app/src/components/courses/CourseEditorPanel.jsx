@@ -185,10 +185,13 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (active.id !== over?.id) {
+    if (over && active.id !== over.id) {
       const oldIndex = lessons.findIndex(l => l.id === active.id);
       const newIndex = lessons.findIndex(l => l.id === over.id);
-      setLessons(prev => arrayMove(prev, oldIndex, newIndex));
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        setLessons(prev => arrayMove(prev, oldIndex, newIndex));
+      }
     }
   };
 
