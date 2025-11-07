@@ -337,10 +337,18 @@ export const batchUpdateLessonOrder = async (lessonOrders) => {
       await processSingleItem(
         id,
         async (lessonId) => {
-          // Update both menu_order (native WP field) and _lesson_order (meta field)
+          // Get current lesson data first to avoid validation errors
+          const currentLesson = await getLesson(lessonId);
+          if (!currentLesson) {
+            throw new Error(`Lesson ${lessonId} not found`);
+          }
+
+          // Update with menu_order and _lesson_order, keeping existing data
           return updateLesson(lessonId, {
+            ...currentLesson,
             menu_order: order, // WordPress native field for ordering
             meta: {
+              ...currentLesson.meta,
               _lesson_order: order.toString()
             }
           });
