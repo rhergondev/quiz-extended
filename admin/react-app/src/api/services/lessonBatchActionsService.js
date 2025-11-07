@@ -337,8 +337,9 @@ export const batchUpdateLessonOrder = async (lessonOrders) => {
       await processSingleItem(
         id,
         async (lessonId) => {
-          // Update only the _lesson_order meta field
+          // Update both menu_order (native WP field) and _lesson_order (meta field)
           return updateLesson(lessonId, {
+            menu_order: order, // WordPress native field for ordering
             meta: {
               _lesson_order: order.toString()
             }

@@ -4,6 +4,7 @@ import { GraduationCap, BookOpen } from 'lucide-react';
 import useCourses from '../../../hooks/useCourses';
 import useStudentProgress from '../../../hooks/useStudentProgress';
 import useLessons from '../../../hooks/useLessons';
+import { isUserAdmin } from '../../../utils/userUtils';
 
 // Componente separado para cada curso que usa el hook correctamente
 const CourseProgressItem = ({ course }) => {
@@ -84,11 +85,15 @@ const CourseProgressItem = ({ course }) => {
 };
 
 const CourseProgressWidget = () => {
+  // 🎯 Check if user is admin to determine if we should filter by enrollment
+  const userIsAdmin = isUserAdmin();
+  
   const { courses, loading, error } = useCourses({ 
     autoFetch: true,
     _embed: true,
     perPage: 3, // Solo mostrar 3 cursos más recientes
-    status: 'publish' // 🎯 Frontend: solo cursos publicados
+    status: 'publish', // 🎯 Frontend: solo cursos publicados
+    enrolledOnly: !userIsAdmin // 🎯 Solo mostrar cursos matriculados si NO es admin
   });
 
   if (error) {
