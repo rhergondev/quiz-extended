@@ -28,12 +28,12 @@ import { getCourseLessons } from '../../api/services/courseLessonService';
 import CourseTopicsModal from './CourseTopicsModal';
 import CourseRankingModal from './CourseRankingModal';
 
-const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
+const CompactCourseCard = ({ course, lessonCount, lessonCountLoading, initialLessons = [] }) => {
   const { id, title, excerpt, content, _embedded } = course;
   const [showTopicsModal, setShowTopicsModal] = useState(false);
   const [showRankingModal, setShowRankingModal] = useState(false);
   const [expandedLessons, setExpandedLessons] = useState({});
-  const [lessons, setLessons] = useState([]);
+  const [lessons, setLessons] = useState(initialLessons); // 🎯 OPTIMIZED: Use pre-loaded lessons
   const [lessonsLoading, setLessonsLoading] = useState(false);
   const [stats, setStats] = useState({
     totalQuestions: 0,
@@ -43,11 +43,19 @@ const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
   });
   const [loadingStats, setLoadingStats] = useState(false);
   
+  // 🎯 OPTIMIZED: Update lessons when initialLessons change
+  useEffect(() => {
+    if (initialLessons && initialLessons.length > 0) {
+      setLessons(initialLessons);
+    }
+  }, [initialLessons]);
+  
   // Fetch lessons using the new course-specific endpoint
-  // Only fetch when modal is opened to improve performance
+  // 🎯 OPTIMIZED: Only fetch if we don't have lessons from the bulk request
   useEffect(() => {
     const fetchLessons = async () => {
-      if (!id || !showTopicsModal) return;
+      // Skip if no ID, modal is closed, or we already have lessons
+      if (!id || !showTopicsModal || (lessons && lessons.length > 0)) return;
       
       setLessonsLoading(true);
       try {
@@ -59,6 +67,7 @@ const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
           return;
         }
         
+        console.log(`📚 Fetching lessons individually for course ${courseIdInt} (not in bulk response)`);
         const result = await getCourseLessons(courseIdInt, { perPage: 100 });
         setLessons(result.data || []);
       } catch (error) {
@@ -70,7 +79,7 @@ const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
     };
 
     fetchLessons();
-  }, [id, showTopicsModal]); // Only fetch when modal opens
+  }, [id, showTopicsModal, lessons?.length]); // 🎯 Added lessons.length dependency
 
   // Sort lessons by _lesson_order and steps within each lesson by order
   const sortedLessons = useMemo(() => {

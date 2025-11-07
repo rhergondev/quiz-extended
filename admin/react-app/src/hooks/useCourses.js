@@ -23,7 +23,8 @@ import * as courseService from '../api/services/courseService';
  * @param {string} options.status - Status filter
  * @param {boolean} options.enrolledOnly - Filter to show only enrolled courses
  * @param {boolean} options.autoFetch - Auto-fetch on mount (default: true)
- * @param {number} options.perPage - Items per page (default: 20)
+ * @param {number} options.perPage - Items per page (default: 100 - optimized for admin listings)
+ * @param {boolean} options.embed - Include embedded data (author, media) (default: false - optimized)
  * @returns {Object} Course state and methods
  */
 export const useCourses = (options = {}) => {
@@ -34,7 +35,8 @@ export const useCourses = (options = {}) => {
     status = null,
     enrolledOnly = false,
     autoFetch = true,
-    perPage = 20
+    perPage = 100, // 🎯 OPTIMIZED: Increased default to reduce pagination requests
+    embed = false // 🎯 OPTIMIZED: Disabled by default to reduce data transfer
   } = options;
 
   // ============================================================
@@ -234,7 +236,8 @@ const computedValuesCalculator = useMemo(() => (courses) => {
       category,
       difficulty,
       status: status || 'publish', // 🎯 Por defecto solo cursos publicados (seguros para frontend)
-      enrolledOnly // 🎯 NEW: Filtro de enrollment
+      enrolledOnly, // 🎯 NEW: Filtro de enrollment
+      embed // 🎯 OPTIMIZED: Control de embedded data
     },
     debounceMs: 500,
     autoFetch,

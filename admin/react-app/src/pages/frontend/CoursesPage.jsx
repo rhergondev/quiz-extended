@@ -30,10 +30,10 @@ const CoursesPage = () => {
   // Extract course IDs for bulk lesson fetch
   const courseIds = useMemo(() => courses.map(course => course.id), [courses]);
 
-  // Fetch lesson counts for all courses in a single request
-  const { countsMap: lessonCounts, loading: lessonCountsLoading } = useCoursesLessons(courseIds, {
+  // 🎯 OPTIMIZED: Fetch lessons AND counts for all courses in a single request
+  const { lessonsMap, countsMap: lessonCounts, loading: lessonCountsLoading } = useCoursesLessons(courseIds, {
     enabled: courseIds.length > 0,
-    countsOnly: true
+    includeContent: true // Fetch full lesson data to avoid individual requests
   });
 
   // Sort courses by position (if available), then by title alphabetically
@@ -78,6 +78,7 @@ const CoursesPage = () => {
             course={course}
             lessonCount={lessonCounts[course.id]}
             lessonCountLoading={lessonCountsLoading}
+            initialLessons={lessonsMap[course.id]?.lessons || []} // 🎯 OPTIMIZED: Pass pre-loaded lessons
           />
         ))}
       </div>

@@ -81,7 +81,7 @@ const buildQueryParams = (options = {}) => {
     search = '',
     orderBy = 'date',
     order = 'desc',
-    embed = true,
+    embed = false, // 🎯 OPTIMIZED: Changed default to false to avoid unnecessary data
     status,
     category,
     difficulty,
