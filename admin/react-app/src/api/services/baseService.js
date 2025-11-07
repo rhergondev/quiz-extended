@@ -81,7 +81,12 @@ const buildQueryParams = (options = {}) => {
     search = '',
     orderBy = 'date',
     order = 'desc',
-    embed = true
+    embed = true,
+    status,
+    category,
+    difficulty,
+    courseId,
+    quizId
   } = options;
 
   const params = new URLSearchParams({
@@ -97,6 +102,31 @@ const buildQueryParams = (options = {}) => {
 
   if (search && search.trim()) {
     params.append('search', search.trim());
+  }
+
+  // Add status filter if provided
+  if (status) {
+    params.append('status', status);
+  }
+
+  // Add category filter if provided
+  if (category) {
+    params.append('qe_category', category);
+  }
+
+  // Add difficulty filter if provided
+  if (difficulty) {
+    params.append('qe_difficulty', difficulty);
+  }
+
+  // Add course_id filter if provided (for lessons)
+  if (courseId) {
+    params.append('course_id', courseId.toString());
+  }
+
+  // Add quiz_id filter if provided (for questions)
+  if (quizId) {
+    params.append('quiz_id', quizId.toString());
   }
 
   return params;
