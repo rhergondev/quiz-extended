@@ -19,6 +19,45 @@ import ResourceSelectorModal from '../common/ResourceSelectorModal'; // Importam
 
 const getCourseTitle = (course) => course?.title?.rendered || course?.title || 'Curso sin título';
 
+// Status badge component
+const StatusBadge = ({ status }) => {
+  const statusConfig = {
+    publish: {
+      label: 'Publicado',
+      bgColor: 'bg-green-100',
+      textColor: 'text-green-800',
+      dotColor: 'bg-green-500'
+    },
+    draft: {
+      label: 'Borrador',
+      bgColor: 'bg-yellow-100',
+      textColor: 'text-yellow-800',
+      dotColor: 'bg-yellow-500'
+    },
+    private: {
+      label: 'Privado',
+      bgColor: 'bg-orange-100',
+      textColor: 'text-orange-800',
+      dotColor: 'bg-orange-500'
+    },
+    pending: {
+      label: 'Pendiente',
+      bgColor: 'bg-blue-100',
+      textColor: 'text-blue-800',
+      dotColor: 'bg-blue-500'
+    }
+  };
+
+  const config = statusConfig[status] || statusConfig.draft;
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${config.bgColor} ${config.textColor}`}>
+      <span className={`w-2 h-2 rounded-full ${config.dotColor}`}></span>
+      {config.label}
+    </span>
+  );
+};
+
 const SortableLessonItem = ({ lesson, onRemove }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: lesson.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
@@ -209,6 +248,26 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
                 : "text-xl font-semibold border-b pb-2 border-gray-200"
         )}
       />
+
+      {/* Status Selector */}
+      <div className="flex-shrink-0">
+        <label className="block text-sm font-medium text-gray-700 mb-2">Estado del Curso</label>
+        <div className="flex items-center gap-3">
+          <select 
+            value={formData.status || 'publish'} 
+            onChange={(e) => handleFieldChange('status', e.target.value)} 
+            className="flex-1 input border-gray-300 rounded-md"
+          >
+            <option value="publish">Publicado</option>
+            <option value="draft">Borrador</option>
+            <option value="private">Privado</option>
+          </select>
+          <StatusBadge status={formData.status || 'publish'} />
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          Los cursos en borrador o privados no se mostrarán en el frontend para los estudiantes
+        </p>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-shrink-0">
         <div>
@@ -317,9 +376,14 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
         )}>
           <div className={clsx("font-bold text-gray-800", { "transform -rotate-90 whitespace-nowrap text-sm tracking-wider uppercase": isCollapsed })}>
               {isCollapsed ? getCourseTitle(formData) : (
-                  <div>
-                      <h3 className="text-lg">{panelTitle}</h3>
-                      {mode === 'edit' && <p className="text-xs font-normal text-gray-500">{getCourseTitle(formData)}</p>}
+                  <div className="flex items-center gap-3">
+                      <div>
+                          <h3 className="text-lg">{panelTitle}</h3>
+                          {mode === 'edit' && <p className="text-xs font-normal text-gray-500">{getCourseTitle(formData)}</p>}
+                      </div>
+                      {mode === 'edit' && formData.status && (
+                          <StatusBadge status={formData.status} />
+                      )}
                   </div>
               )}
           </div>

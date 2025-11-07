@@ -155,8 +155,8 @@ const LessonsManager = () => {
           createButtonText="Crear Lección"
           onCreate={handleCreateNew}
           isCreating={lessonsHook.creating}
-          onLoadMore={lessonsHook.loadMore}
-          hasMore={lessonsHook.pagination?.hasMore}
+          onLoadMore={lessonsHook.loadMoreLessons}
+          hasMore={lessonsHook.hasMore}
           isLoadingMore={lessonsHook.loading && (lessonsHook.lessons?.length || 0) > 0}
           filters={<FilterBar searchConfig={searchConfig} filtersConfig={filtersConfig} />}
         >
