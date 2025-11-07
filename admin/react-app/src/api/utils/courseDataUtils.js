@@ -278,6 +278,15 @@ export const transformCourseDataForApi = (courseData) => {
     transformed.meta._lesson_ids = sanitizeIdArray(courseData.meta._lesson_ids);
   }
 
+  // Lesson Order Map (lesson_id => position)
+  if (courseData._lesson_order_map !== undefined) {
+    transformed.meta._lesson_order_map = courseData._lesson_order_map;
+  } else if (courseData.lessonOrderMap !== undefined) {
+    transformed.meta._lesson_order_map = courseData.lessonOrderMap;
+  } else if (courseData.meta?._lesson_order_map !== undefined) {
+    transformed.meta._lesson_order_map = courseData.meta._lesson_order_map;
+  }
+
   // Instructor ID
   if (courseData._instructor_id !== undefined) {
     transformed.meta._instructor_id = sanitizeOptionalInteger(courseData._instructor_id, 1);

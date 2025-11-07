@@ -1,24 +1,26 @@
 /**
  * useLessons - Lesson Management Hook (Refactored)
  * 
- * Uses useResource for base functionality
+ * Uses useResource for base functionality when fetching all lessons
+ * Uses dedicated course lessons endpoint when filtering by courseId
  * Extended with lesson-specific features
  * 
  * @package QuizExtended
  * @subpackage Hooks
- * @version 2.0.0
+ * @version 2.1.0
  */
 
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useResource } from './useResource';
 import * as lessonService from '../api/services/lessonService';
+import { getCourseLessons } from '../api/services/courseLessonService';
 
 /**
  * Lesson management hook
  * 
  * @param {Object} options - Configuration options
  * @param {string} options.search - Search term
- * @param {number} options.courseId - Course ID filter
+ * @param {number} options.courseId - Course ID filter (uses optimized endpoint if provided)
  * @param {string} options.lessonType - Lesson type filter
  * @param {string} options.status - Status filter
  * @param {boolean} options.autoFetch - Auto-fetch on mount (default: true)
@@ -35,8 +37,53 @@ export const useLessons = (options = {}) => {
     perPage = 20
   } = options;
 
+  // State for course-specific lessons (when courseId is provided)
+  const [courseLessons, setCourseLessons] = useState([]);
+  const [courseLoading, setCourseLoading] = useState(false);
+  const [courseError, setCourseError] = useState(null);
+  const [coursePagination, setCoursePagination] = useState(null);
+
+  // Determine if we should use the course-specific endpoint
+  const useCourseEndpoint = Boolean(courseId);
+
   // ============================================================
-  // DATA PROCESSOR
+  // COURSE-SPECIFIC LESSON FETCHING
+  // ============================================================
+
+  const fetchCourseLessons = useCallback(async () => {
+    if (!courseId) return;
+
+    setCourseLoading(true);
+    setCourseError(null);
+    
+    try {
+      console.log(`📚 useLessons: Fetching lessons for course ${courseId} using optimized endpoint`);
+      const result = await getCourseLessons(parseInt(courseId, 10), {
+        perPage: perPage,
+        status: status || 'publish,draft,private'
+      });
+      
+      console.log(`✅ useLessons: Received ${result.data?.length || 0} lessons in correct order`);
+      setCourseLessons(result.data || []);
+      setCoursePagination(result.pagination);
+    } catch (error) {
+      console.error(`❌ useLessons: Error fetching course lessons:`, error);
+      setCourseError(error);
+      setCourseLessons([]);
+    } finally {
+      setCourseLoading(false);
+    }
+  }, [courseId, perPage, status]);
+
+  // Auto-fetch course lessons when courseId changes
+  useEffect(() => {
+    if (useCourseEndpoint && autoFetch) {
+      fetchCourseLessons();
+    }
+  }, [useCourseEndpoint, autoFetch, fetchCourseLessons]);
+
+  // ============================================================
+  // DATA PROCESSOR (for generic lesson fetching)
   // ============================================================
   
   /**
@@ -67,6 +114,11 @@ export const useLessons = (options = {}) => {
       has_prerequisites: Array.isArray(lesson.meta?._prerequisite_lessons) && lesson.meta._prerequisite_lessons.length > 0
     };
   }, []);
+
+  // Process course lessons with the same enhancer
+  const processedCourseLessons = useMemo(() => {
+    return courseLessons.map(dataProcessor);
+  }, [courseLessons, dataProcessor]);
 
   // ============================================================
   // COMPUTED VALUES CALCULATOR
@@ -140,44 +192,87 @@ export const useLessons = (options = {}) => {
     };
   }, []);
 
+  // Computed values for course lessons
+  const courseComputed = useMemo(() => {
+    return computedValuesCalculator(processedCourseLessons);
+  }, [processedCourseLessons, computedValuesCalculator]);
+
   // ============================================================
-  // USE BASE RESOURCE HOOK
+  // USE BASE RESOURCE HOOK (for non-course-specific fetching)
   // ============================================================
   
   const {
-    items: lessons,
-    loading,
+    items: genericLessons,
+    loading: genericLoading,
     creating,
     updating,
     deleting,
-    error,
-    pagination,
-    computed,
+    error: genericError,
+    pagination: genericPagination,
+    computed: genericComputed,
     filters,
     updateFilter,
     resetFilters,
     setFilters,
-    fetchItems: fetchLessons,
-    loadMore: loadMoreLessons,
+    fetchItems: fetchGenericLessons,
+    loadMore: loadMoreGenericLessons,
     createItem: createLesson,
     updateItem: updateLesson,
     deleteItem: deleteLesson,
     duplicateItem: duplicateLesson,
-    refresh,
-    hasMore
+    refresh: refreshGeneric,
+    hasMore: genericHasMore
   } = useResource({
     service: lessonService,
     resourceName: 'lesson',
     initialFilters: {
       search,
-      courseId,
+      courseId: useCourseEndpoint ? null : courseId, // Only pass courseId if NOT using course endpoint
       lessonType,
       status: status || 'publish,draft,private'
     },
     dataProcessor,
     computedValuesCalculator,
+    autoFetch: useCourseEndpoint ? false : autoFetch, // Don't auto-fetch if using course endpoint
     ...options
   });
+
+  // ============================================================
+  // UNIFIED INTERFACE
+  // ============================================================
+
+  // Return course-specific data if using course endpoint, otherwise generic data
+  const lessons = useCourseEndpoint ? processedCourseLessons : genericLessons;
+  const loading = useCourseEndpoint ? courseLoading : genericLoading;
+  const error = useCourseEndpoint ? courseError : genericError;
+  const pagination = useCourseEndpoint ? coursePagination : genericPagination;
+  const computed = useCourseEndpoint ? courseComputed : genericComputed;
+  const hasMore = useCourseEndpoint ? false : genericHasMore; // Course endpoint returns all at once
+
+  const refresh = useCallback(() => {
+    if (useCourseEndpoint) {
+      return fetchCourseLessons();
+    } else {
+      return refreshGeneric();
+    }
+  }, [useCourseEndpoint, fetchCourseLessons, refreshGeneric]);
+
+  const fetchLessons = useCallback((options) => {
+    if (useCourseEndpoint) {
+      return fetchCourseLessons();
+    } else {
+      return fetchGenericLessons(options);
+    }
+  }, [useCourseEndpoint, fetchCourseLessons, fetchGenericLessons]);
+
+  const loadMoreLessons = useCallback(() => {
+    if (useCourseEndpoint) {
+      console.warn('⚠️  loadMore is not supported when filtering by courseId');
+      return Promise.resolve();
+    } else {
+      return loadMoreGenericLessons();
+    }
+  }, [useCourseEndpoint, loadMoreGenericLessons]);
 
   // ============================================================
   // LESSON-SPECIFIC METHODS

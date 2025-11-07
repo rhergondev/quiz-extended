@@ -11,7 +11,6 @@ import clsx from 'clsx';
 import { getOne as getCourse } from '../../api/services/courseService';
 import { createTaxonomyTerm } from '../../api/services/taxonomyService';
 import { getCourseLessons } from '../../api/services/courseLessonService';
-import { batchUpdateLessonOrder } from '../../api/services/lessonBatchActionsService';
 import useLessons from '../../hooks/useLessons';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
 import Tabs from '../common/layout/Tabs';
@@ -187,24 +186,6 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
         }
       };
       await onSave(dataToSave);
-      
-      // 3. OPTIONAL: Update menu_order as fallback for backward compatibility
-      // This ensures existing systems that rely on menu_order still work
-      if (lessons.length > 0) {
-        const lessonOrders = lessons.map((lesson, index) => ({
-          id: lesson.id,
-          order: index + 1
-        }));
-        
-        try {
-          console.log('📋 Updating menu_order fallback for backward compatibility');
-          await batchUpdateLessonOrder(lessonOrders);
-          console.log('✅ menu_order fallback updated successfully');
-        } catch (orderError) {
-          console.warn('⚠️  Failed to update menu_order fallback (non-critical):', orderError);
-          // Don't fail the entire save if menu_order update fails
-        }
-      }
       
       if (mode === 'create') {
         onCancel();

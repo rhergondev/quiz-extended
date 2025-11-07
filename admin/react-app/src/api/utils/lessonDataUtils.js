@@ -112,7 +112,7 @@ export const transformLessonDataForApi = (lessonData) => {
     content: sanitizeString(lessonData.content || ''),
     excerpt: sanitizeString(lessonData.description || ''),
     status: sanitizePostStatus(lessonData.status, 'publish'), // Siempre publicar
-    menu_order: sanitizeInteger(lessonData.lessonOrder || 1, 1, 0)
+    menu_order: sanitizeInteger(lessonData.menu_order || lessonData.lessonOrder || 1, 1, 0)
   };
 
   transformed.meta = {};
