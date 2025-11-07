@@ -18,18 +18,18 @@ import { getQuestionsByIds } from '../api/services/questionService';
  * @param {number[]} questionIds - Array of all question IDs in the quiz
  * @param {Object} options - Options
  * @param {boolean} options.enabled - Enable auto-fetch (default: true)
- * @param {number} options.initialBatchSize - Number of questions to load initially (default: 10)
- * @param {number} options.prefetchThreshold - Load next batch when this many questions remain (default: 3)
- * @param {number} options.batchSize - Size of each additional batch (default: 10)
+ * @param {number} options.initialBatchSize - Number of questions to load initially (default: 20)
+ * @param {number} options.prefetchThreshold - Load next batch when this many questions remain (default: 5)
+ * @param {number} options.batchSize - Size of each additional batch (default: 20)
  * @param {boolean} options.randomize - Randomize question order (default: false)
  * @returns {Object} { questions, loading, error, progress, hasMore, loadMore }
  */
 export const useQuizQuestions = (questionIds, options = {}) => {
   const {
     enabled = true,
-    initialBatchSize = 10,
-    prefetchThreshold = 3,
-    batchSize = 10,
+    initialBatchSize = 20, // 🔥 INCREASED: Load 20 questions initially instead of 10
+    prefetchThreshold = 5, // 🔥 INCREASED: Prefetch when 5 questions remain instead of 3
+    batchSize = 20, // 🔥 INCREASED: Load 20 questions per batch instead of 10
     randomize = false
   } = options;
 
@@ -82,8 +82,8 @@ export const useQuizQuestions = (questionIds, options = {}) => {
     try {
       console.log(`📥 Loading questions batch: ${startIndex}-${startIndex + newIds.length} (${newIds.length} questions)`);
       
-      // Load questions with larger batch size for better performance
-      const loadedQuestions = await getQuestionsByIds(newIds, { batchSize: 30 });
+      // 🔥 OPTIMIZED: Use optimized batch loading (100 questions per API call)
+      const loadedQuestions = await getQuestionsByIds(newIds, { batchSize: 100 });
       
       // Mark as loaded
       newIds.forEach(id => loadedIdsRef.current.add(id));

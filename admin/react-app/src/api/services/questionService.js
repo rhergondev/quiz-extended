@@ -313,10 +313,11 @@ export const bulkCreateQuestions = async (questionsData) => {
 
 /**
  * Get multiple questions by their IDs
- * Fetches questions in batches to avoid overwhelming the API
+ * 🔥 OPTIMIZED: Uses WordPress 'include' parameter for efficient batch loading
+ * Fetches questions in batches using a single API call per batch
  * @param {Array<number>} questionIds - Array of question IDs
  * @param {Object} options - Additional options
- * @param {number} options.batchSize - Number of questions to fetch per batch (default: 20)
+ * @param {number} options.batchSize - Number of questions to fetch per batch (default: 100)
  * @returns {Promise<Array>} Array of questions (maintains order of input IDs)
  */
 export const getQuestionsByIds = async (questionIds, options = {}) => {
@@ -324,7 +325,7 @@ export const getQuestionsByIds = async (questionIds, options = {}) => {
     return [];
   }
 
-  const batchSize = options.batchSize || 20;
+  const batchSize = options.batchSize || 100; // 🔥 Increased default batch size
   const validIds = questionIds.filter(id => Number.isInteger(id) && id > 0);
   
   if (validIds.length === 0) {
@@ -334,30 +335,51 @@ export const getQuestionsByIds = async (questionIds, options = {}) => {
   console.log(`📝 Fetching ${validIds.length} questions by IDs (batch size: ${batchSize})...`);
 
   try {
-    // Divide los IDs en lotes para no sobrecargar la API
-    const batches = [];
-    for (let i = 0; i < validIds.length; i += batchSize) {
-      batches.push(validIds.slice(i, i + batchSize));
+    const config = window.qe_data || {};
+    if (!config.endpoints || !config.endpoints.questions) {
+      throw new Error('Questions endpoint not configured');
     }
 
-    // Procesa cada lote en paralelo
-    const batchPromises = batches.map(async (batchIds) => {
-      const fetchPromises = batchIds.map(id => 
-        getOne(id).catch(error => {
-          console.warn(`⚠️ Failed to fetch question ${id}:`, error.message);
-          return null; // Retorna null si falla, para mantener la estructura
-        })
-      );
-      return Promise.all(fetchPromises);
-    });
+    const endpoint = config.endpoints.questions;
+    const allQuestions = [];
 
-    const batchResults = await Promise.all(batchPromises);
-    const allQuestions = batchResults.flat().filter(Boolean); // Elimina los null
+    // 🔥 OPTIMIZATION: Divide IDs into batches and use 'include' parameter
+    for (let i = 0; i < validIds.length; i += batchSize) {
+      const batchIds = validIds.slice(i, i + batchSize);
+      
+      // Build URL with include parameter - WordPress REST API supports this
+      const params = new URLSearchParams({
+        include: batchIds.join(','),
+        per_page: batchSize.toString(),
+        context: 'edit', // Get full data including content
+        orderby: 'include', // Maintain order of IDs
+      });
 
-    // Crea un mapa para acceso rápido por ID
-    const questionsMap = new Map(allQuestions.map(q => [q.id, q]));
+      const url = `${endpoint}?${params.toString()}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': config.nonce,
+        },
+        credentials: 'same-origin',
+      });
 
-    // Mantiene el orden de los IDs originales
+      if (!response.ok) {
+        throw new Error(`API Error ${response.status}: ${response.statusText}`);
+      }
+
+      const batchQuestions = await response.json();
+      allQuestions.push(...batchQuestions);
+      
+      console.log(`✅ Loaded batch ${Math.floor(i / batchSize) + 1}: ${batchQuestions.length} questions`);
+    }
+
+    // Sanitize all questions
+    const sanitizedQuestions = allQuestions.map(sanitizeQuestionData);
+
+    // Create map for quick access and maintain original order
+    const questionsMap = new Map(sanitizedQuestions.map(q => [q.id, q]));
     const orderedQuestions = validIds
       .map(id => questionsMap.get(id))
       .filter(Boolean);

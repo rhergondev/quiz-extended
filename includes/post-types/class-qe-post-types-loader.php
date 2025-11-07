@@ -369,6 +369,9 @@ class QE_Post_Types_Loader
         add_filter('rest_qe_quiz_collection_params', [$this, 'add_collection_params'], 10, 1);
         add_filter('rest_qe_question_collection_params', [$this, 'add_collection_params'], 10, 1);
 
+        // 🔥 NEW: Increase max per_page limit for questions to support large quizzes
+        add_filter('rest_qe_question_collection_params', [$this, 'increase_question_per_page_limit'], 20, 1);
+
         // REST API authentication
         add_filter('rest_pre_dispatch', [$this, 'handle_rest_authentication'], 10, 3);
 
@@ -551,6 +554,22 @@ class QE_Post_Types_Loader
             'sanitize_callback' => 'rest_sanitize_boolean',
         ];
 
+        return $params;
+    }
+
+    /**
+     * Increase max per_page limit for questions
+     * This allows loading large quizzes with 100+ questions
+     *
+     * @param array $params Collection parameters
+     * @return array Modified parameters
+     */
+    public function increase_question_per_page_limit($params)
+    {
+        if (isset($params['per_page'])) {
+            // Increase max from 100 (WordPress default) to 500
+            $params['per_page']['maximum'] = 500;
+        }
         return $params;
     }
 

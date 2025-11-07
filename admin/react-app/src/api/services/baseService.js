@@ -77,11 +77,12 @@ const makeApiRequest = async (url, options = {}) => {
 const buildQueryParams = (options = {}) => {
   const {
     page = 1,
-    perPage = 20,
+    perPage = 50, // 🔥 BALANCED: 50 items per page - good balance for lists
     search = '',
     orderBy = 'date',
     order = 'desc',
     embed = false, // 🎯 OPTIMIZED: Changed default to false to avoid unnecessary data
+    fields = null, // 🔥 NEW: Allow specifying specific fields to return
     status,
     category,
     difficulty,
@@ -99,6 +100,11 @@ const buildQueryParams = (options = {}) => {
 
   if (embed) {
     params.append('_embed', 'true');
+  }
+
+  // 🔥 NEW: Add _fields parameter to limit data transfer
+  if (fields && Array.isArray(fields)) {
+    params.append('_fields', fields.join(','));
   }
 
   if (search && search.trim()) {

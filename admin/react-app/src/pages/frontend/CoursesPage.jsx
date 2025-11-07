@@ -22,7 +22,7 @@ const CoursesPage = () => {
   
   const { courses, loading, error } = useCourses({ 
     autoFetch: true,
-    _embed: true,
+    embed: true, // 🔥 FIX: Changed from _embed to embed (correct parameter name)
     status: 'publish', // 🎯 Frontend solo muestra cursos publicados
     enrolledOnly: !userIsAdmin // 🎯 Solo mostrar cursos matriculados si NO es admin
   });
