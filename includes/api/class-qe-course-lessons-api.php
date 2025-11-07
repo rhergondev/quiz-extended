@@ -121,17 +121,28 @@ class QE_Course_Lessons_API extends QE_API_Base
             // Query lessons by IDs
             $offset = ($page - 1) * $per_page;
 
+            // 🔍 DEBUG: Log the lesson_ids array to verify order
+            $this->log_info("Fetching lessons for course {$course_id}", [
+                'lesson_ids_order' => $lesson_ids,
+                'lesson_ids_count' => count($lesson_ids)
+            ]);
+
+            // Get the subset of lesson IDs for this page
+            $page_lesson_ids = array_slice($lesson_ids, $offset, $per_page);
+
             $args = [
                 'post_type' => 'qe_lesson',
-                'post__in' => $lesson_ids,
+                'post__in' => $page_lesson_ids,
                 'orderby' => 'post__in', // Maintain order from _lesson_ids
                 'posts_per_page' => $per_page,
-                'offset' => $offset,
-                'post_status' => $statuses
+                'post_status' => $statuses,
+                'ignore_sticky_posts' => true, // Prevent sticky posts from affecting order
             ];
 
             $query = new WP_Query($args);
-            $lessons = [];
+
+            // ✅ SOLUCIÓN: Crear un mapa de lecciones por ID y luego ordenarlas manualmente
+            $lessons_map = [];
 
             if ($query->have_posts()) {
                 while ($query->have_posts()) {
@@ -141,11 +152,28 @@ class QE_Course_Lessons_API extends QE_API_Base
                     // Get lesson data in REST format
                     $lesson_data = $this->prepare_lesson_for_response($lesson_id);
                     if ($lesson_data) {
-                        $lessons[] = $lesson_data;
+                        $lessons_map[$lesson_id] = $lesson_data;
                     }
                 }
                 wp_reset_postdata();
             }
+
+            // ✅ Ordenar manualmente según el orden de $page_lesson_ids
+            $lessons = [];
+            foreach ($page_lesson_ids as $lesson_id) {
+                if (isset($lessons_map[$lesson_id])) {
+                    $lessons[] = $lessons_map[$lesson_id];
+                }
+            }
+
+            // 🔍 DEBUG: Log the returned lesson IDs to verify order was maintained
+            $returned_ids = array_map(function ($l) {
+                return $l['id']; }, $lessons);
+            $this->log_info("Lessons fetched and ordered", [
+                'expected_order' => $page_lesson_ids,
+                'returned_ids_order' => $returned_ids,
+                'matches_input_order' => ($returned_ids === $page_lesson_ids)
+            ]);
 
             // Calculate pagination
             $total = count($lesson_ids);
