@@ -36,7 +36,10 @@ const LessonsManager = () => {
     perPage: 50,
     debounceMs: 300 
   });
-  const coursesHook = useCourses({ autoFetch: false });
+  const coursesHook = useCourses({ 
+    autoFetch: false,
+    status: 'publish,draft,private' // 🎯 Admin: mostrar todos los estados
+  });
   const quizzesHook = useQuizzes({ autoFetch: false });
 
   // --- LAZY LOADING: Cargar cursos y quizzes solo cuando sea necesario ---

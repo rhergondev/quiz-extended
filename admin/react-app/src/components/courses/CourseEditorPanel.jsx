@@ -167,7 +167,7 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
         title: formData.title,
         content: formData.content,
         status: formData.status,
-        featured_media: formData.featured_image_id,
+        featured_media: formData.featured_image_id || 0,
         qe_category: formData.qe_category,
         meta: {
           _course_duration: formData.duration,
@@ -209,8 +209,14 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
         title: 'Seleccionar Imagen Destacada',
         buttonText: 'Usar esta imagen'
       });
+      
+      if (!media) {
+        return;
+      }
+      
       if (media && media.id && media.url) {
-        handleFieldChange('featured_image_id', media.id);
+        const mediaId = parseInt(media.id, 10);
+        handleFieldChange('featured_image_id', mediaId);
         handleFieldChange('featured_image_url', media.url);
       }
     } catch (error) {

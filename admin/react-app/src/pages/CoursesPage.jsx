@@ -52,7 +52,7 @@ const CoursesPage = () => {
     search: searchTerm,
     type: selectedType !== 'all' ? selectedType : null,
     category: selectedCategory !== 'all' ? selectedCategory : null,
-    status: selectedStatus !== 'all' ? selectedStatus : null,
+    status: selectedStatus !== 'all' ? selectedStatus : 'publish,draft,private', // 🎯 Admin: mostrar todos por defecto
     autoFetch: true
   });
 

@@ -86,7 +86,8 @@ const buildQueryParams = (options = {}) => {
     category,
     difficulty,
     courseId,
-    quizId
+    quizId,
+    enrolledOnly
   } = options;
 
   const params = new URLSearchParams({
@@ -127,6 +128,11 @@ const buildQueryParams = (options = {}) => {
   // Add quiz_id filter if provided (for questions)
   if (quizId) {
     params.append('quiz_id', quizId.toString());
+  }
+
+  // 🎯 NEW: Add enrolled_only filter if provided
+  if (enrolledOnly === true || enrolledOnly === 'true') {
+    params.append('enrolled_only', 'true');
   }
 
   return params;
@@ -253,15 +259,12 @@ export const createResourceService = (resourceName, endpointKey, customOptions =
 
         const endpoint = getEndpoint();
         const transformedData = transformer(data);
-
-        console.log(`📝 Creating ${resourceName}:`, transformedData);
         
         const response = await makeApiRequest(endpoint, {
           method: 'POST',
           body: JSON.stringify(transformedData)
         });
         
-        console.log(`✅ ${resourceName} created:`, response.data.id);
         return sanitizer(response.data);
         
       } catch (error) {
@@ -289,8 +292,6 @@ export const createResourceService = (resourceName, endpointKey, customOptions =
 
         const endpoint = getEndpoint();
         const transformedData = transformer(data);
-
-        console.log(`✏️ Updating ${resourceName} ${id}:`, transformedData);
         
         const url = `${endpoint}/${id}`;
         const response = await makeApiRequest(url, {
@@ -298,7 +299,6 @@ export const createResourceService = (resourceName, endpointKey, customOptions =
           body: JSON.stringify(transformedData)
         });
         
-        console.log(`✅ ${resourceName} updated:`, id);
         return sanitizer(response.data);
         
       } catch (error) {

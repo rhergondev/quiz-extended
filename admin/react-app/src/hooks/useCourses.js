@@ -21,6 +21,7 @@ import * as courseService from '../api/services/courseService';
  * @param {string} options.category - Category filter
  * @param {string} options.difficulty - Difficulty filter
  * @param {string} options.status - Status filter
+ * @param {boolean} options.enrolledOnly - Filter to show only enrolled courses
  * @param {boolean} options.autoFetch - Auto-fetch on mount (default: true)
  * @param {number} options.perPage - Items per page (default: 20)
  * @returns {Object} Course state and methods
@@ -31,6 +32,7 @@ export const useCourses = (options = {}) => {
     category = null,
     difficulty = null,
     status = null,
+    enrolledOnly = false,
     autoFetch = true,
     perPage = 20
   } = options;
@@ -231,7 +233,8 @@ const computedValuesCalculator = useMemo(() => (courses) => {
       search,
       category,
       difficulty,
-      status: status || 'publish,draft,private'
+      status: status || 'publish', // 🎯 Por defecto solo cursos publicados (seguros para frontend)
+      enrolledOnly // 🎯 NEW: Filtro de enrollment
     },
     debounceMs: 500,
     autoFetch,

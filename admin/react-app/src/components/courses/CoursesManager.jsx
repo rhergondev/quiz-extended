@@ -26,7 +26,8 @@ const CoursesManager = () => {
   const coursesHook = useCourses({ 
     autoFetch: true, 
     perPage: 50,
-    debounceMs: 300 
+    debounceMs: 300,
+    status: 'publish,draft,private' // 🎯 Admin muestra todos los estados
   });
   const lessonsHook = useLessons({ autoFetch: false });
   const quizzesHook = useQuizzes({ autoFetch: false });

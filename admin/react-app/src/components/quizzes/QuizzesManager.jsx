@@ -43,7 +43,10 @@ const QuizzesManager = () => {
     debounceMs: 300 
   });
 
-  const { courses: availableCourses, loading: coursesLoading, fetchCourses } = useCourses({ autoFetch: false });
+  const { courses: availableCourses, loading: coursesLoading, fetchCourses } = useCourses({ 
+    autoFetch: false,
+    status: 'publish,draft,private' // 🎯 Admin: mostrar todos los estados
+  });
   const { options: taxonomyOptions, isLoading: isLoadingTaxonomies } = useTaxonomyOptions(['qe_category']);
 
   // ============================================================

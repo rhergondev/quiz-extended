@@ -87,7 +87,8 @@ const CourseProgressWidget = () => {
   const { courses, loading, error } = useCourses({ 
     autoFetch: true,
     _embed: true,
-    perPage: 3 // Solo mostrar 3 cursos más recientes
+    perPage: 3, // Solo mostrar 3 cursos más recientes
+    status: 'publish' // 🎯 Frontend: solo cursos publicados
   });
 
   if (error) {

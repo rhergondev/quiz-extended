@@ -301,6 +301,12 @@ class QE_Frontend
                 'id' => $current_user->ID,
                 'email' => $current_user->user_email,
                 'name' => $current_user->display_name,
+                'roles' => $current_user->roles, // 🎯 NEW: Add user roles
+                'capabilities' => [
+                    'manage_options' => current_user_can('manage_options'), // Admin capability
+                    'edit_courses' => current_user_can('edit_qe_courses'),
+                    'edit_lessons' => current_user_can('edit_qe_lessons'),
+                ]
             ];
         }
 

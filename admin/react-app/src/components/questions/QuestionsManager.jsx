@@ -32,7 +32,10 @@ const QuestionsManager = () => {
   });
   const lessonsHook = useLessons({ autoFetch: false }); // Solo cargar cuando sea necesario
   const quizzesHook = useQuizzes({ autoFetch: false }); // Solo cargar cuando sea necesario
-  const coursesHook = useCourses({ autoFetch: false }); // Solo cargar cuando sea necesario
+  const coursesHook = useCourses({ 
+    autoFetch: false,
+    status: 'publish,draft,private' // 🎯 Admin: mostrar todos los estados
+  }); // Solo cargar cuando sea necesario
   // CORRECCIÓN: Añadimos 'qe_provider' para que el hook lo cargue
   const { options: taxonomyOptions, isLoading: isLoadingTaxonomies, refetch: refetchTaxonomies } = useTaxonomyOptions(['qe_category', 'qe_provider']);
 

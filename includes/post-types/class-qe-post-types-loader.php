@@ -428,6 +428,27 @@ class QE_Post_Types_Loader
     {
         $meta_query = $args['meta_query'] ?? [];
 
+        // 🎯 NEW: Filter by user enrollment (only show enrolled courses)
+        if ($request->get_param('enrolled_only') === 'true' || $request->get_param('enrolled_only') === true) {
+            $current_user_id = get_current_user_id();
+
+            if ($current_user_id > 0) {
+                // Get user's enrolled course IDs
+                $enrolled_courses = $this->get_user_enrolled_courses($current_user_id);
+
+                if (!empty($enrolled_courses)) {
+                    // Filter to only show enrolled courses
+                    $args['post__in'] = $enrolled_courses;
+                } else {
+                    // User has no enrollments, return empty result
+                    $args['post__in'] = [0]; // No posts will match ID 0
+                }
+            } else {
+                // Not logged in, return empty result
+                $args['post__in'] = [0];
+            }
+        }
+
         // Filter by course_id
         if ($request->get_param('course_id')) {
             $meta_query[] = [
@@ -463,6 +484,40 @@ class QE_Post_Types_Loader
     }
 
     /**
+     * Get user's enrolled course IDs
+     *
+     * @param int $user_id User ID
+     * @return array Array of course IDs
+     */
+    private function get_user_enrolled_courses($user_id)
+    {
+        global $wpdb;
+
+        // Get all user meta keys that match enrollment pattern
+        $meta_keys = $wpdb->get_col($wpdb->prepare(
+            "SELECT meta_key FROM {$wpdb->usermeta} 
+             WHERE user_id = %d 
+             AND meta_key LIKE '_enrolled_course_%%'
+             AND meta_key NOT LIKE '_enrolled_course_%%_date'
+             AND meta_key NOT LIKE '_enrolled_course_%%_order_id'",
+            $user_id
+        ));
+
+        $course_ids = [];
+
+        foreach ($meta_keys as $meta_key) {
+            // Extract course ID from meta key (_enrolled_course_42 -> 42)
+            $course_id = str_replace('_enrolled_course_', '', $meta_key);
+
+            if (is_numeric($course_id)) {
+                $course_ids[] = absint($course_id);
+            }
+        }
+
+        return $course_ids;
+    }
+
+    /**
      * Add collection parameters to REST API
      *
      * @param array $params Existing parameters
@@ -486,6 +541,14 @@ class QE_Post_Types_Loader
             'description' => __('Filter by difficulty level', 'quiz-extended'),
             'type' => 'string',
             'sanitize_callback' => 'sanitize_text_field',
+        ];
+
+        // 🎯 NEW: Add enrolled_only parameter
+        $params['enrolled_only'] = [
+            'description' => __('Filter to show only courses the current user is enrolled in', 'quiz-extended'),
+            'type' => 'boolean',
+            'default' => false,
+            'sanitize_callback' => 'rest_sanitize_boolean',
         ];
 
         return $params;

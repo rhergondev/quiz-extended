@@ -316,11 +316,15 @@ const SortableStepItem = ({ step, onUpdate, onRemove, isViewMode, stepTypes, t }
 
   const imageHandler = useCallback(async () => {
     try {
-      const imageUrl = await openMediaSelector();
-      if (imageUrl && quillRef.current) {
+      const media = await openMediaSelector({
+        title: 'Seleccionar imagen',
+        buttonText: 'Insertar imagen',
+        type: 'image'
+      });
+      if (media && media.url && quillRef.current) {
         const quillEditor = quillRef.current.getEditor();
         const range = quillEditor.getSelection(true);
-        quillEditor.insertEmbed(range.index, 'image', imageUrl);
+        quillEditor.insertEmbed(range.index, 'image', media.url);
         quillEditor.setSelection(range.index + 1);
       }
     } catch (error) {

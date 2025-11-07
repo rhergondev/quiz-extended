@@ -96,8 +96,6 @@ export const VALID_PRODUCT_TYPES = ['free', 'paid'];
  * @returns {Object} Formatted data for WordPress REST API
  */
 export const transformCourseDataForApi = (courseData) => {
-  console.log('🔄 transformCourseDataForApi - Input:', courseData);
-
   // ============================================================
   // ROOT LEVEL FIELDS (WordPress standard)
   // ============================================================
@@ -121,7 +119,10 @@ export const transformCourseDataForApi = (courseData) => {
   // ============================================================
   
   if (courseData.featured_media !== undefined) {
-    transformed.featured_media = sanitizeOptionalInteger(courseData.featured_media, 1);
+    // Featured media puede ser 0 (sin imagen) o un ID válido (>= 1)
+    // No usar sanitizeOptionalInteger porque rechaza valores < 1
+    const mediaId = parseInt(courseData.featured_media);
+    transformed.featured_media = (isNaN(mediaId) || mediaId < 0) ? 0 : mediaId;
   }
 
   // ============================================================
@@ -317,7 +318,6 @@ export const transformCourseDataForApi = (courseData) => {
     ...transformed.meta
   };
 
-  console.log('🔄 transformCourseDataForApi - Output:', transformed);
   return transformed;
 };
 

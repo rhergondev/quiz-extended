@@ -27,7 +27,10 @@ const UsersManager = () => {
     perPage: 50,
     debounceMs: 300 // Reducir el debounce para búsqueda más responsiva
   });
-  const coursesHook = useCourses({ autoFetch: true });
+  const coursesHook = useCourses({ 
+    autoFetch: true,
+    status: 'publish,draft,private' // 🎯 Admin: mostrar todos los estados
+  });
   const { options: taxonomyOptions, refetch: refetchTaxonomies } = useTaxonomyOptions(['qe_category']);
 
   // --- MANEJADORES DE LA PILA DE PANELES ---

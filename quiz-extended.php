@@ -31,7 +31,11 @@ require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-capabilities.php';
 if (defined('WP_DEBUG') && WP_DEBUG) {
     require_once QUIZ_EXTENDED_PLUGIN_DIR . 'debug-routes.php';
     require_once QUIZ_EXTENDED_PLUGIN_DIR . 'verify-enrollment-routes.php';
+    require_once QUIZ_EXTENDED_PLUGIN_DIR . 'debug-featured-media-rest.php';
 }
+
+// Force featured media save (always active)
+require_once QUIZ_EXTENDED_PLUGIN_DIR . 'force-featured-media.php';
 
 // Flush rewrite rules helper (always available in admin)
 if (is_admin()) {

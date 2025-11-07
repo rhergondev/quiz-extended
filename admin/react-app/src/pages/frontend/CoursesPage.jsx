@@ -4,6 +4,7 @@ import { Loader, AlertTriangle, Inbox } from 'lucide-react';
 import useCourses from '../../hooks/useCourses';
 import useCoursesLessons from '../../hooks/useCoursesLessons';
 import CompactCourseCard from '../../components/frontend/CompactCourseCard';
+import { isUserAdmin } from '../../utils/userUtils'; // 🎯 NEW: Import user utility
 
 const PageState = ({ icon: Icon, title, message }) => (
   <div className="text-center py-16">
@@ -15,9 +16,15 @@ const PageState = ({ icon: Icon, title, message }) => (
 
 const CoursesPage = () => {
   const { t } = useTranslation();
+  
+  // 🎯 Check if user is admin to determine if we should filter by enrollment
+  const userIsAdmin = isUserAdmin();
+  
   const { courses, loading, error } = useCourses({ 
     autoFetch: true,
-    _embed: true 
+    _embed: true,
+    status: 'publish', // 🎯 Frontend solo muestra cursos publicados
+    enrolledOnly: !userIsAdmin // 🎯 Solo mostrar cursos matriculados si NO es admin
   });
 
   // Extract course IDs for bulk lesson fetch
