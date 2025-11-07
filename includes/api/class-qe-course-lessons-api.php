@@ -118,20 +118,48 @@ class QE_Course_Lessons_API extends QE_API_Base
             // Parse status parameter
             $statuses = array_map('trim', explode(',', $status_param));
 
-            // Query lessons by IDs using menu_order for sorting
+            // ✅ NEW: Get lesson order map (preferred method)
+            $lesson_order_map = get_post_meta($course_id, '_lesson_order_map', true);
+
+            // Query lessons by IDs with proper ordering
             $offset = ($page - 1) * $per_page;
 
-            // ✅ Use menu_order from wp_posts table for dynamic ordering
             $args = [
                 'post_type' => 'qe_lesson',
                 'post__in' => $lesson_ids,
-                'orderby' => 'menu_order',
-                'order' => 'ASC',
                 'posts_per_page' => $per_page,
                 'offset' => $offset,
                 'post_status' => $statuses,
                 'ignore_sticky_posts' => true,
             ];
+
+            // ✅ Use lesson_order_map if available (new method), otherwise fallback to menu_order
+            if (is_array($lesson_order_map) && !empty($lesson_order_map)) {
+                // Sort lesson_ids according to the order map BEFORE querying
+                usort($lesson_ids, function ($a, $b) use ($lesson_order_map) {
+                    $order_a = isset($lesson_order_map[(string) $a]) ? $lesson_order_map[(string) $a] : 9999;
+                    $order_b = isset($lesson_order_map[(string) $b]) ? $lesson_order_map[(string) $b] : 9999;
+                    return $order_a - $order_b;
+                });
+
+                // Use 'post__in' ordering to preserve the sorted order
+                $args['post__in'] = $lesson_ids;
+                $args['orderby'] = 'post__in';
+
+                $this->log_info("Using _lesson_order_map for lesson ordering", [
+                    'course_id' => $course_id,
+                    'lesson_count' => count($lesson_ids)
+                ]);
+            } else {
+                // Fallback to menu_order (legacy behavior)
+                $args['orderby'] = 'menu_order';
+                $args['order'] = 'ASC';
+
+                $this->log_info("Using menu_order fallback for lesson ordering", [
+                    'course_id' => $course_id,
+                    'lesson_count' => count($lesson_ids)
+                ]);
+            }
 
             $query = new WP_Query($args);
 

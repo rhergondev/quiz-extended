@@ -162,7 +162,15 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // 1. Save course data
+      // 1. Generate lesson order map from the lessons array
+      const lessonOrderMap = {};
+      lessons.forEach((lesson, index) => {
+        lessonOrderMap[lesson.id.toString()] = index + 1; // Position starts from 1
+      });
+      
+      console.log('📋 Saving course with lesson order map:', lessonOrderMap);
+      
+      // 2. Save course data with both _lesson_ids and _lesson_order_map
       const dataToSave = {
         title: formData.title,
         content: formData.content,
@@ -172,6 +180,7 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
         meta: {
           _course_duration: formData.duration,
           _lesson_ids: lessons.map(l => l.id),
+          _lesson_order_map: lessonOrderMap, // ✅ NEW: Single source of truth for order
           _course_position: parseInt(formData._course_position) || 0,
           _start_date: formData._start_date || '',
           _end_date: formData._end_date || '',
@@ -179,20 +188,21 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
       };
       await onSave(dataToSave);
       
-      // 2. Update lesson order for all lessons in the course
+      // 3. OPTIONAL: Update menu_order as fallback for backward compatibility
+      // This ensures existing systems that rely on menu_order still work
       if (lessons.length > 0) {
         const lessonOrders = lessons.map((lesson, index) => ({
           id: lesson.id,
-          order: index + 1 // Order starts from 1
+          order: index + 1
         }));
         
         try {
-          console.log('📋 Updating lesson order:', lessonOrders);
+          console.log('📋 Updating menu_order fallback for backward compatibility');
           await batchUpdateLessonOrder(lessonOrders);
-          console.log('✅ Lesson order updated successfully');
+          console.log('✅ menu_order fallback updated successfully');
         } catch (orderError) {
-          console.error('❌ Failed to update lesson order:', orderError);
-          // Don't fail the entire save if order update fails
+          console.warn('⚠️  Failed to update menu_order fallback (non-critical):', orderError);
+          // Don't fail the entire save if menu_order update fails
         }
       }
       

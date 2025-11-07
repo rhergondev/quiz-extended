@@ -246,6 +246,24 @@ class QE_Course_Meta
             'sanitize_callback' => [$this, 'sanitize_id_array'],
             'auth_callback' => [$this, 'auth_callback'],
         ]);
+
+        // ✅ NEW: Lesson order mapping - maps lesson ID to position
+        register_post_meta($this->post_type, '_lesson_order_map', [
+            'show_in_rest' => [
+                'schema' => [
+                    'description' => __('Map of lesson IDs to their order positions', 'quiz-extended'),
+                    'type' => 'object',
+                    'additionalProperties' => [
+                        'type' => 'integer'
+                    ]
+                ]
+            ],
+            'single' => true,
+            'type' => 'object',
+            'description' => __('Lesson order mapping (lesson_id => position)', 'quiz-extended'),
+            'sanitize_callback' => [$this, 'sanitize_lesson_order_map'],
+            'auth_callback' => [$this, 'auth_callback'],
+        ]);
     }
 
     /**
@@ -428,7 +446,7 @@ class QE_Course_Meta
     }
 
     /**
-     * Sanitize array of IDs
+     * Sanitize ID array
      *
      * @param array $value Array of IDs
      * @return array Sanitized array of IDs
@@ -443,6 +461,38 @@ class QE_Course_Meta
         $sanitized = array_filter($sanitized);
 
         return array_values(array_unique($sanitized));
+    }
+
+    /**
+     * Sanitize lesson order map
+     * Validates and sanitizes the lesson ID to position mapping
+     *
+     * @param mixed $value Lesson order map object/array
+     * @return array Sanitized associative array (lesson_id => position)
+     */
+    public function sanitize_lesson_order_map($value)
+    {
+        // Accept both objects and arrays from REST API
+        if (is_object($value)) {
+            $value = (array) $value;
+        }
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $sanitized = [];
+        foreach ($value as $lesson_id => $position) {
+            $clean_id = absint($lesson_id);
+            $clean_position = absint($position);
+
+            // Only add valid entries (both ID and position must be positive)
+            if ($clean_id > 0 && $clean_position > 0) {
+                $sanitized[(string) $clean_id] = $clean_position;
+            }
+        }
+
+        return $sanitized;
     }
 
     // ============================================================
