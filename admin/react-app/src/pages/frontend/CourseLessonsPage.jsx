@@ -66,6 +66,7 @@ const CourseLessonsPage = () => {
         }
         
         const result = await getCourseLessons(courseIdInt, { perPage: 100 });
+        console.log('🔍 DEBUG: Lecciones recibidas de la API (orden original):', result.data?.map(l => ({ id: l.id, title: l.title?.rendered || l.title })));
         setLessons(result.data || []);
       } catch (error) {
         console.error('Error fetching lessons:', error);
@@ -83,10 +84,12 @@ const CourseLessonsPage = () => {
   const sortedLessons = useMemo(() => {
     if (!lessons || lessons.length === 0) return [];
     
+    console.log('🔍 DEBUG: Estado de lessons antes de procesar:', lessons.map(l => ({ id: l.id, title: l.title?.rendered || l.title, _lesson_order: l.meta?._lesson_order })));
+    
     // ✅ NO reordenamos las lecciones, la API ya las devuelve en el orden correcto
     // según el array _lesson_ids del curso (usando orderby => 'post__in')
     // Solo ordenamos los steps dentro de cada lección
-    return lessons.map(lesson => {
+    const processed = lessons.map(lesson => {
       if (!lesson.meta?._lesson_steps || lesson.meta._lesson_steps.length === 0) {
         return lesson;
       }
@@ -105,6 +108,10 @@ const CourseLessonsPage = () => {
         }
       };
     });
+    
+    console.log('🔍 DEBUG: Lecciones procesadas (orden final):', processed.map(l => ({ id: l.id, title: l.title?.rendered || l.title })));
+    
+    return processed;
   }, [lessons]);
   
   // Ranking hook

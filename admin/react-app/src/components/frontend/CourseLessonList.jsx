@@ -18,6 +18,20 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep }) 
   // ✅ Estado para controlar el colapso del panel completo
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  // 🔍 DEBUG: Log para ver el orden de las lecciones recibidas
+  useEffect(() => {
+    if (lessons && lessons.length > 0) {
+      console.log('🔍 DEBUG CourseLessonList: Orden de lecciones recibidas:', 
+        lessons.map((l, idx) => ({ 
+          index: idx, 
+          id: l.id, 
+          title: l.title?.rendered || l.title,
+          _lesson_order: l.meta?._lesson_order 
+        }))
+      );
+    }
+  }, [lessons]);
+
   useEffect(() => {
     if (selectedStepId && !expandedLessonId) {
       const lessonWithStep = lessons.find(l => l.meta?._lesson_steps?.some(s => s.id === selectedStepId));

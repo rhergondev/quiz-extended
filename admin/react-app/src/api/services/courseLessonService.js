@@ -59,6 +59,7 @@ export const getCourseLessons = async (courseId, options = {}) => {
 
     console.log('📦 Raw API Result:', result);
     console.log('📚 Lessons data:', result.data);
+    console.log('🔍 DEBUG: Orden de IDs recibidos de la API:', result.data.data?.map(l => l.id));
     console.log(`✅ Retrieved ${result.data.data?.length || 0} lessons for course ${courseId}`);
     
     return {
