@@ -16,7 +16,11 @@ import {
   MapPin,
   Phone,
   Globe,
-  Edit3
+  Edit3,
+  UserPlus,
+  UserMinus,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import QEButton from '../common/QEButton';
@@ -55,11 +59,16 @@ const UserEditorPanel = ({
   const [showPassword, setShowPassword] = useState(false);
   const [userData, setUserData] = useState(null);
   const [activeTab, setActiveTab] = useState('general');
+  const [userEnrollments, setUserEnrollments] = useState([]);
+  const [loadingEnrollments, setLoadingEnrollments] = useState(false);
+  const [availableCourses, setAvailableCourses] = useState([]);
 
   // --- EFFECTS ---
   useEffect(() => {
     if (mode === 'edit' && userId && userId !== 'new') {
       loadUserData();
+      loadUserEnrollments();
+      loadAvailableCourses();
     } else {
       // Reset form for new user
       setFormData({
@@ -155,6 +164,48 @@ const UserEditorPanel = ({
     }
   };
 
+  // --- LOAD ENROLLMENTS ---
+  const loadUserEnrollments = async () => {
+    if (!userId || userId === 'new') return;
+
+    try {
+      setLoadingEnrollments(true);
+      const { getUserEnrollments } = await import('../../api/services/userEnrollmentService.js');
+      const enrollments = await getUserEnrollments(userId);
+      const enrollmentsArray = enrollments?.data || enrollments;
+      setUserEnrollments(Array.isArray(enrollmentsArray) ? enrollmentsArray : []);
+    } catch (error) {
+      console.error('❌ Error loading enrollments:', error);
+      setUserEnrollments([]);
+    } finally {
+      setLoadingEnrollments(false);
+    }
+  };
+
+  // --- LOAD AVAILABLE COURSES ---
+  const loadAvailableCourses = async () => {
+    try {
+      const { getApiConfig } = await import('../../api/config/apiConfig.js');
+      const config = getApiConfig();
+      
+      const response = await fetch(`${config.apiUrl}/wp/v2/qe_course?per_page=100&status=publish,draft,private`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': config.nonce,
+        },
+        credentials: 'same-origin'
+      });
+      
+      if (response.ok) {
+        const courses = await response.json();
+        setAvailableCourses(courses);
+      }
+    } catch (error) {
+      console.error('❌ Error loading courses:', error);
+      setAvailableCourses([]);
+    }
+  };
+
   // --- EVENT HANDLERS ---
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -178,6 +229,37 @@ const UserEditorPanel = ({
 
   const handleCancel = () => {
     onCancel?.();
+  };
+
+  // --- ENROLLMENT HANDLERS ---
+  const handleEnroll = async (courseId) => {
+    try {
+      const { enrollUserInCourse } = await import('../../api/services/userEnrollmentService.js');
+      await enrollUserInCourse(userId, courseId);
+      
+      // Actualizar enrollments localmente
+      await loadUserEnrollments();
+    } catch (error) {
+      console.error('Error enrolling user:', error);
+      alert('Failed to enroll user. Please try again.');
+    }
+  };
+
+  const handleUnenroll = async (courseId) => {
+    if (!confirm('Are you sure you want to unenroll this user from the course?')) {
+      return;
+    }
+
+    try {
+      const { unenrollUserFromCourse } = await import('../../api/services/userEnrollmentService.js');
+      await unenrollUserFromCourse(userId, courseId);
+      
+      // Actualizar enrollments localmente
+      await loadUserEnrollments();
+    } catch (error) {
+      console.error('Error unenrolling user:', error);
+      alert('Failed to unenroll user. Please try again.');
+    }
   };
 
   // --- COMPUTED VALUES ---
@@ -562,21 +644,145 @@ const UserEditorPanel = ({
         {activeTab === 'enrollments' && !isNewUser && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">Course Enrollments</h3>
-              <QEButton
-                onClick={onShowEnrollments}
-                variant="ghost"
-                size="sm"
-                className="flex items-center"
-              >
-                <BookOpen className="h-4 w-4 mr-2" />
-                Manage Enrollments
-              </QEButton>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">Course Enrollments</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Manage user enrollment in courses
+                </p>
+              </div>
             </div>
             
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-sm text-gray-500">Enrollment details will be shown here...</p>
-            </div>
+            {loadingEnrollments ? (
+              <div className="flex items-center justify-center py-12">
+                <LoadingSpinner size="lg" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {availableCourses.length === 0 ? (
+                  <div className="text-center py-12 bg-gray-50 rounded-lg">
+                    <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 font-medium">No courses available</p>
+                  </div>
+                ) : (
+                  availableCourses.map((course) => {
+                    const enrollment = userEnrollments.find(
+                      e => parseInt(e.course_id) === parseInt(course.id)
+                    );
+                    const isEnrolled = !!enrollment;
+                    const courseTitle = course.title?.rendered || course.title || 'Untitled Course';
+
+                    return (
+                      <div
+                        key={course.id}
+                        className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h4 className="font-medium text-gray-900">{courseTitle}</h4>
+                              {isEnrolled ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Enrolled
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Not Enrolled
+                                </span>
+                              )}
+                            </div>
+
+                            {isEnrolled && enrollment && (
+                              <div className="space-y-2">
+                                <div className="flex items-center text-xs text-gray-500 space-x-4">
+                                  <span className="flex items-center">
+                                    <Calendar className="h-3 w-3 mr-1" />
+                                    Enrolled {new Date(enrollment.enrollment_date).toLocaleDateString()}
+                                  </span>
+                                  {enrollment.last_activity && (
+                                    <span className="flex items-center">
+                                      <Clock className="h-3 w-3 mr-1" />
+                                      Last activity {new Date(enrollment.last_activity).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {enrollment.progress !== undefined && (
+                                  <div className="space-y-1">
+                                    <div className="flex items-center justify-between text-xs">
+                                      <span className="text-gray-600 flex items-center">
+                                        <TrendingUp className="h-3 w-3 mr-1" />
+                                        Progress
+                                      </span>
+                                      <span className="font-medium">{enrollment.progress}%</span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                      <div
+                                        className="qe-bg-accent h-2 rounded-full transition-all duration-300"
+                                        style={{ width: `${enrollment.progress}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="ml-4">
+                            {isEnrolled ? (
+                              <QEButton
+                                onClick={() => handleUnenroll(course.id)}
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                              >
+                                <UserMinus className="h-4 w-4 mr-1" />
+                                Unenroll
+                              </QEButton>
+                            ) : (
+                              <QEButton
+                                onClick={() => handleEnroll(course.id)}
+                                variant="ghost"
+                                size="sm"
+                                className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                              >
+                                <UserPlus className="h-4 w-4 mr-1" />
+                                Enroll
+                              </QEButton>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {/* Stats Summary */}
+            {!loadingEnrollments && availableCourses.length > 0 && (
+              <div className="mt-6 grid grid-cols-3 gap-4">
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {availableCourses.length}
+                  </div>
+                  <div className="text-xs text-blue-800">Total Courses</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {userEnrollments.length}
+                  </div>
+                  <div className="text-xs text-green-800">Enrolled</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-gray-600">
+                    {availableCourses.length - userEnrollments.length}
+                  </div>
+                  <div className="text-xs text-gray-800">Available</div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

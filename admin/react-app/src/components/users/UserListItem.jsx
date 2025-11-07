@@ -9,7 +9,9 @@ import {
   TrendingUp,
   Eye,
   UserCheck,
-  Crown
+  Crown,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -19,7 +21,9 @@ import { useTheme } from '../../contexts/ThemeContext';
 const UserListItem = ({
   user,
   isSelected = false,
+  isChecked = false,
   onClick,
+  onToggleSelect,
   onShowEnrollments,
   onShowProgress,
   className = ''
@@ -89,6 +93,11 @@ const UserListItem = ({
     onClick?.(user);
   };
 
+  const handleCheckboxClick = (e) => {
+    e.stopPropagation();
+    onToggleSelect?.(user.id, !isChecked);
+  };
+
   const handleEnrollmentsClick = (e) => {
     e.stopPropagation();
     onShowEnrollments?.(user.id);
@@ -113,8 +122,23 @@ const UserListItem = ({
       `}
       onClick={handleClick}
     >
+      {/* Checkbox for Batch Selection */}
+      <div className="absolute top-2 left-2 z-10">
+        <button
+          onClick={handleCheckboxClick}
+          className="p-1 hover:bg-gray-100 rounded transition-colors"
+          title={isChecked ? "Deselect user" : "Select user"}
+        >
+          {isChecked ? (
+            <CheckSquare className="h-4 w-4 text-blue-600" />
+          ) : (
+            <Square className="h-4 w-4 text-gray-400" />
+          )}
+        </button>
+      </div>
+
       {/* Header with Avatar and Basic Info */}
-      <div className="flex items-start space-x-3 mb-3">
+      <div className="flex items-start space-x-3 mb-3 ml-6">{/* Added ml-6 to make room for checkbox */}
         {/* Avatar */}
         <div className="flex-shrink-0">
           {avatarUrl ? (

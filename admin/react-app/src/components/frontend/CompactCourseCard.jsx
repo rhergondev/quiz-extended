@@ -318,11 +318,6 @@ const CompactCourseCard = ({ course, lessonCount, lessonCountLoading }) => {
             className="text-2xl font-bold qe-text-primary line-clamp-2 mb-2"
             dangerouslySetInnerHTML={{ __html: renderedTitle }}
           />
-          {renderedExcerpt && (
-            <p className="text-sm qe-text-secondary line-clamp-3">
-              {renderedExcerpt}
-            </p>
-          )}
         </div>
 
         {/* Barra de progreso */}
