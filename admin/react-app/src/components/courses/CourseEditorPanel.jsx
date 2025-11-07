@@ -11,6 +11,7 @@ import clsx from 'clsx';
 import { getOne as getCourse } from '../../api/services/courseService';
 import { createTaxonomyTerm } from '../../api/services/taxonomyService';
 import { getCourseLessons } from '../../api/services/courseLessonService';
+import { batchUpdateLessonOrder } from '../../api/services/lessonBatchActionsService';
 import useLessons from '../../hooks/useLessons';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
 import Tabs from '../common/layout/Tabs';
@@ -161,6 +162,7 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      // 1. Save course data
       const dataToSave = {
         title: formData.title,
         content: formData.content,
@@ -176,6 +178,24 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
         }
       };
       await onSave(dataToSave);
+      
+      // 2. Update lesson order for all lessons in the course
+      if (lessons.length > 0) {
+        const lessonOrders = lessons.map((lesson, index) => ({
+          id: lesson.id,
+          order: index + 1 // Order starts from 1
+        }));
+        
+        try {
+          console.log('📋 Updating lesson order:', lessonOrders);
+          await batchUpdateLessonOrder(lessonOrders);
+          console.log('✅ Lesson order updated successfully');
+        } catch (orderError) {
+          console.error('❌ Failed to update lesson order:', orderError);
+          // Don't fail the entire save if order update fails
+        }
+      }
+      
       if (mode === 'create') {
         onCancel();
       }

@@ -305,6 +305,60 @@ export const batchUpdateLessonContentType = async (lessonIds, newContentType) =>
 };
 
 /**
+ * Batch update lesson order
+ * Updates the _lesson_order meta field for multiple lessons
+ * @param {Array<{id: number, order: number}>} lessonOrders - Array of objects with lesson ID and new order
+ * @returns {Promise<Object>} Batch operation results
+ */
+export const batchUpdateLessonOrder = async (lessonOrders) => {
+  try {
+    if (!Array.isArray(lessonOrders) || lessonOrders.length === 0) {
+      throw new Error('Lesson orders array is required and cannot be empty');
+    }
+
+    // Validate each item has id and order
+    for (const item of lessonOrders) {
+      if (!item.id || !Number.isInteger(item.id) || item.id <= 0) {
+        throw new Error(`Invalid lesson ID: ${item.id}`);
+      }
+      if (item.order === undefined || !Number.isInteger(item.order) || item.order < 1) {
+        throw new Error(`Invalid order for lesson ${item.id}: ${item.order}. Order must be >= 1`);
+      }
+    }
+
+    const results = createBatchResults(lessonOrders.length, { 
+      operation: 'updateOrder',
+      lessonOrders 
+    });
+
+    console.log(`🔄 Starting batch order update of ${lessonOrders.length} lessons...`);
+
+    for (const { id, order } of lessonOrders) {
+      await processSingleItem(
+        id,
+        async (lessonId) => {
+          // Update only the _lesson_order meta field
+          return updateLesson(lessonId, {
+            meta: {
+              _lesson_order: order.toString()
+            }
+          });
+        },
+        results,
+        'update order'
+      );
+    }
+
+    logBatchCompletion('update order', results);
+    return results;
+
+  } catch (error) {
+    console.error('❌ Batch update lesson order failed:', error);
+    throw error;
+  }
+};
+
+/**
  * Execute multiple batch operations in sequence
  * @param {Array<Object>} operations - Array of batch operations to execute
  * @param {string} operations[].type - Operation type ('delete', 'updateStatus', etc.)
@@ -345,6 +399,9 @@ export const executeBatchLessonOperations = async (operations) => {
           break;
         case 'updateContentType':
           result = await batchUpdateLessonContentType(operation.lessonIds, operation.params);
+          break;
+        case 'updateOrder':
+          result = await batchUpdateLessonOrder(operation.params);
           break;
         default:
           throw new Error(`Unsupported operation type: ${operation.type}`);
