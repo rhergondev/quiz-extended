@@ -9,6 +9,7 @@
 ## 🎯 Problema Resuelto
 
 Anteriormente, el orden de las lecciones en un curso se gestionaba de forma fragmentada:
+
 - El curso almacenaba solo un array de IDs (`_lesson_ids`)
 - El orden real se guardaba en el campo `menu_order` de cada lección individual
 - Esto requería múltiples escrituras (batch operations) y consultas
@@ -30,6 +31,7 @@ _lesson_order_map: {
 ```
 
 ### Ventajas:
+
 - ✅ **Una sola escritura**: Todo se guarda en el curso
 - ✅ **Una sola lectura**: No hay que consultar cada lección
 - ✅ **Fuente única de verdad**: El curso controla el orden completamente
@@ -43,11 +45,13 @@ _lesson_order_map: {
 ### 1. Backend - PHP
 
 #### `includes/post-types/meta/class-qe-course-meta.php`
+
 - ✅ Añadido nuevo meta field `_lesson_order_map`
 - ✅ Añadido método `sanitize_lesson_order_map()` para validación
 - ✅ Registrado en REST API con schema apropiado
 
 #### `includes/api/class-qe-course-lessons-api.php`
+
 - ✅ Modificado `get_course_lessons()` para usar `_lesson_order_map` preferentemente
 - ✅ Fallback automático a `menu_order` si el mapa no existe (backward compatible)
 - ✅ Logging mejorado para debugging
@@ -55,6 +59,7 @@ _lesson_order_map: {
 ### 2. Frontend - React
 
 #### `admin/react-app/src/components/courses/CourseEditorPanel.jsx`
+
 - ✅ Modificado `handleSave()` para generar `_lesson_order_map` automáticamente
 - ✅ Mantiene actualización de `menu_order` como fallback opcional
 - ✅ Logging mejorado en consola
@@ -62,6 +67,7 @@ _lesson_order_map: {
 ### 3. Script de Migración
 
 #### `migrate-lesson-order-map.php`
+
 - ✅ Script opcional con interfaz visual
 - ✅ Migra todos los cursos existentes a la vez
 - ✅ Modo "Dry Run" para preview sin cambios
@@ -73,15 +79,19 @@ _lesson_order_map: {
 ## 🚀 Cómo Usar
 
 ### Opción 1: Migración Automática (Recomendado)
+
 **No necesitas hacer nada especial.** Cada vez que edites y guardes un curso en CourseManager:
+
 1. El sistema generará automáticamente el `_lesson_order_map`
 2. Las lecciones se mostrarán en el orden correcto
 3. La migración ocurre de forma progresiva y segura
 
 ### Opción 2: Migración Manual (Opcional)
+
 Si prefieres migrar todos los cursos de una vez:
 
 1. **Accede al script** (solo administradores):
+
    ```
    https://tu-sitio.com/wp-content/plugins/quiz-extended/migrate-lesson-order-map.php
    ```
@@ -101,6 +111,7 @@ Si prefieres migrar todos los cursos de una vez:
 ### Comprobar que funciona correctamente:
 
 1. **En el backend:**
+
    ```php
    // Ver el orden de un curso
    $order_map = get_post_meta($course_id, '_lesson_order_map', true);
@@ -109,6 +120,7 @@ Si prefieres migrar todos los cursos de una vez:
    ```
 
 2. **En el frontend:**
+
    - Abre cualquier curso en CourseManager
    - Arrastra las lecciones para cambiar el orden
    - Guarda el curso
@@ -134,12 +146,12 @@ Si prefieres migrar todos los cursos de una vez:
 
 ### 📊 Comportamiento del Sistema:
 
-| Situación | Comportamiento |
-|-----------|---------------|
-| Curso nuevo guardado | ✅ Crea `_lesson_order_map` automáticamente |
-| Curso existente sin mapa | ✅ Usa `menu_order` como fallback |
-| Curso editado y guardado | ✅ Genera/actualiza `_lesson_order_map` |
-| Curso con mapa corrupto | ✅ Fallback a `menu_order` |
+| Situación                | Comportamiento                              |
+| ------------------------ | ------------------------------------------- |
+| Curso nuevo guardado     | ✅ Crea `_lesson_order_map` automáticamente |
+| Curso existente sin mapa | ✅ Usa `menu_order` como fallback           |
+| Curso editado y guardado | ✅ Genera/actualiza `_lesson_order_map`     |
+| Curso con mapa corrupto  | ✅ Fallback a `menu_order`                  |
 
 ---
 
@@ -148,12 +160,14 @@ Si prefieres migrar todos los cursos de una vez:
 ### Las lecciones no aparecen en el orden correcto:
 
 1. **Verifica que el curso tiene el mapa:**
+
    ```php
    $map = get_post_meta($course_id, '_lesson_order_map', true);
    var_dump($map); // Debería ser un array asociativo
    ```
 
 2. **Fuerza la regeneración:**
+
    - Abre el curso en CourseManager
    - Reordena una lección (aunque sea mínimamente)
    - Guarda
@@ -176,6 +190,7 @@ Si prefieres migrar todos los cursos de una vez:
 ## 📚 Estructura de Datos
 
 ### Antes (Problemático):
+
 ```javascript
 // En el curso:
 {
@@ -189,6 +204,7 @@ Lesson 57401: { menu_order: 3 }
 ```
 
 ### Ahora (Mejorado):
+
 ```javascript
 // En el curso (fuente única de verdad):
 {
@@ -211,6 +227,7 @@ Lesson 57411: { menu_order: 1 }  // Se actualiza pero no es crítico
 ### Al crear nuevas funciones que usen el orden de lecciones:
 
 1. **Primero intenta usar `_lesson_order_map`:**
+
    ```php
    $order_map = get_post_meta($course_id, '_lesson_order_map', true);
    if (!empty($order_map) && is_array($order_map)) {
@@ -222,6 +239,7 @@ Lesson 57411: { menu_order: 1 }  // Se actualiza pero no es crítico
    ```
 
 2. **Siempre ten un fallback a `menu_order`:**
+
    ```php
    else {
        // Fallback
@@ -233,7 +251,7 @@ Lesson 57411: { menu_order: 1 }  // Se actualiza pero no es crítico
    ```javascript
    const lessonOrderMap = {};
    lessons.forEach((lesson, index) => {
-       lessonOrderMap[lesson.id.toString()] = index + 1;
+     lessonOrderMap[lesson.id.toString()] = index + 1;
    });
    ```
 
@@ -258,6 +276,7 @@ Lesson 57411: { menu_order: 1 }  // Se actualiza pero no es crítico
 ## 📞 Soporte
 
 Si encuentras algún problema con esta implementación:
+
 1. Revisa este documento primero
 2. Verifica los logs en la consola del navegador
 3. Comprueba los logs de WordPress/PHP
