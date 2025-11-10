@@ -33,7 +33,7 @@ const Quiz = ({ quizId, customQuiz = null }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const { theme } = useTheme();
 
-  // Use optimized hook for lazy loading questions
+  // Use paginated hook for loading questions
   const { 
     questions: quizQuestions, 
     loading: questionsLoading, 
@@ -42,12 +42,12 @@ const Quiz = ({ quizId, customQuiz = null }) => {
     loadMore,
     hasMore: hasMoreQuestions,
     loadedCount,
-    totalCount: totalQuestions
+    totalCount: totalQuestions,
+    currentPage
   } = useQuizQuestions(questionIds, {
     enabled: quizState === 'in-progress' || quizState === 'loading',
-    initialBatchSize: 50, // 🔥 OPTIMIZED: Load 50 questions initially (consistent batches)
-    prefetchThreshold: 5, // 🔥 OPTIMIZED: Prefetch when 5 questions remain
-    batchSize: 50, // 🔥 OPTIMIZED: Load 50 questions per batch (supports 100+ questions)
+    questionsPerPage: 50, // 🔥 PAGINATION: 50 questions per page
+    prefetchThreshold: 5, // 🔥 PAGINATION: Prefetch when 5 questions from end of current page
     randomize: quizInfo?.meta?._randomize_questions || false
   });
 

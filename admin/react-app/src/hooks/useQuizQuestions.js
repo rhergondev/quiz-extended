@@ -1,48 +1,45 @@
 /**
  * useQuizQuestions Hook
  * 
- * Optimized hook for loading quiz questions with lazy loading
- * Loads questions in batches as the user progresses through the quiz
+ * Paginated hook for loading quiz questions
+ * Uses standard WordPress REST pagination instead of include parameter
  * 
  * @package QuizExtended
  * @subpackage Hooks
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getQuestionsByIds } from '../api/services/questionService';
 
 /**
- * Hook to load quiz questions with lazy loading optimization
- * 🔥 OPTIMIZED: Consistent 50-question batches for reliable loading
- * Supports quizzes up to 100 questions (2 batches)
+ * Hook to load quiz questions with pagination
+ * 🔥 NEW: Uses proper REST API pagination (page 1, page 2, etc.)
+ * Works reliably with WordPress pagination limits
  * 
  * @param {number[]} questionIds - Array of all question IDs in the quiz
  * @param {Object} options - Options
  * @param {boolean} options.enabled - Enable auto-fetch (default: true)
- * @param {number} options.initialBatchSize - Number of questions to load initially (default: 50)
- * @param {number} options.prefetchThreshold - Load next batch when this many questions remain (default: 5)
- * @param {number} options.batchSize - Size of each additional batch (default: 50)
+ * @param {number} options.questionsPerPage - Questions per page (default: 50)
+ * @param {number} options.prefetchThreshold - Load next page when this many questions remain (default: 5)
  * @param {boolean} options.randomize - Randomize question order (default: false)
  * @returns {Object} { questions, loading, error, progress, hasMore, loadMore }
  */
 export const useQuizQuestions = (questionIds, options = {}) => {
   const {
     enabled = true,
-    initialBatchSize = 50, // 🔥 OPTIMIZED: 50 questions per batch (consistent)
-    prefetchThreshold = 5, // 🔥 OPTIMIZED: Prefetch when 5 questions remain
-    batchSize = 50, // 🔥 OPTIMIZED: 50 questions per batch (consistent)
+    questionsPerPage = 50, // 🔥 50 questions per page
+    prefetchThreshold = 5,
     randomize = false
   } = options;
 
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(0);
   const [loadedCount, setLoadedCount] = useState(0);
   
   // Use ref to track loading state to prevent duplicate requests
   const isLoadingRef = useRef(false);
-  const loadedIdsRef = useRef(new Set());
 
   // Randomize question IDs once if needed
   const [orderedIds, setOrderedIds] = useState([]);
@@ -59,21 +56,20 @@ export const useQuizQuestions = (questionIds, options = {}) => {
   }, [questionIds, randomize]);
 
   /**
-   * Load a batch of questions
+   * Load a page of questions using WordPress REST pagination
    */
-  const loadBatch = useCallback(async (startIndex, count) => {
+  const loadPage = useCallback(async (pageNumber) => {
     if (isLoadingRef.current) {
       console.log('⏸️ Already loading, skipping duplicate request');
       return [];
     }
 
-    const idsToLoad = orderedIds.slice(startIndex, startIndex + count);
+    const startIndex = (pageNumber - 1) * questionsPerPage;
+    const endIndex = Math.min(startIndex + questionsPerPage, orderedIds.length);
+    const idsToLoad = orderedIds.slice(startIndex, endIndex);
     
-    // Filter out already loaded IDs
-    const newIds = idsToLoad.filter(id => !loadedIdsRef.current.has(id));
-    
-    if (newIds.length === 0) {
-      console.log('✅ All requested questions already loaded');
+    if (idsToLoad.length === 0) {
+      console.log('✅ No more questions to load');
       return [];
     }
 
@@ -82,54 +78,80 @@ export const useQuizQuestions = (questionIds, options = {}) => {
     setError(null);
 
     try {
-      console.log(`📥 Loading questions batch: ${startIndex}-${startIndex + newIds.length} (${newIds.length} questions)`);
+      console.log(`📥 Loading page ${pageNumber} (${idsToLoad.length} questions, IDs: ${startIndex + 1}-${endIndex})`);
       
-      // 🔥 OPTIMIZED: Use consistent 50-question batches for API calls
-      const loadedQuestions = await getQuestionsByIds(newIds, { batchSize: 50 });
+      // Fetch questions using standard WordPress REST pagination
+      const config = window.qe_data || {};
+      if (!config.endpoints || !config.endpoints.questions) {
+        throw new Error('Questions endpoint not configured');
+      }
+
+      const endpoint = config.endpoints.questions;
+      const params = new URLSearchParams({
+        include: idsToLoad.join(','),
+        per_page: questionsPerPage.toString(),
+        page: '1', // We're already slicing by our own logic, so always page 1
+        orderby: 'include', // Maintain order
+        context: 'edit'
+      });
+
+      const url = `${endpoint}?${params.toString()}`;
       
-      // Mark as loaded
-      newIds.forEach(id => loadedIdsRef.current.add(id));
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': config.nonce,
+        },
+        credentials: 'same-origin',
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error ${response.status}: ${response.statusText}`);
+      }
+
+      const loadedQuestions = await response.json();
       
       // Append to existing questions
       setQuestions(prev => [...prev, ...loadedQuestions]);
       setLoadedCount(prev => prev + loadedQuestions.length);
+      setCurrentPage(pageNumber);
       
-      console.log(`✅ Loaded ${loadedQuestions.length} questions. Total: ${loadedIdsRef.current.size}/${orderedIds.length}`);
+      console.log(`✅ Loaded page ${pageNumber}: ${loadedQuestions.length} questions. Total: ${loadedCount + loadedQuestions.length}/${orderedIds.length}`);
       
       return loadedQuestions;
     } catch (err) {
-      console.error('❌ Error loading question batch:', err);
+      console.error('❌ Error loading question page:', err);
       setError(err.message || 'Failed to load questions');
       return [];
     } finally {
       isLoadingRef.current = false;
       setLoading(false);
     }
-  }, [orderedIds]);
+  }, [orderedIds, questionsPerPage, loadedCount]);
 
   /**
-   * Load initial batch
+   * Load initial page
    */
-  const loadInitialBatch = useCallback(async () => {
-    if (!enabled || orderedIds.length === 0) return;
+  const loadInitialPage = useCallback(async () => {
+    if (!enabled || orderedIds.length === 0 || currentPage > 0) return;
     
-    console.log(`🚀 Loading initial batch of ${initialBatchSize} questions...`);
-    await loadBatch(0, initialBatchSize);
-  }, [enabled, orderedIds, initialBatchSize, loadBatch]);
+    console.log(`🚀 Loading initial page (${questionsPerPage} questions)...`);
+    await loadPage(1);
+  }, [enabled, orderedIds.length, currentPage, questionsPerPage, loadPage]);
 
   /**
-   * Load more questions (next batch)
+   * Load next page
    */
   const loadMore = useCallback(async () => {
-    const currentCount = loadedIdsRef.current.size;
-    if (currentCount >= orderedIds.length) {
+    if (loadedCount >= orderedIds.length) {
       console.log('✅ All questions already loaded');
       return;
     }
 
-    console.log(`📥 Loading more questions... (${currentCount}/${orderedIds.length} loaded)`);
-    await loadBatch(currentCount, batchSize);
-  }, [orderedIds, batchSize, loadBatch]);
+    const nextPage = currentPage + 1;
+    console.log(`📥 Loading page ${nextPage}... (${loadedCount}/${orderedIds.length} loaded)`);
+    await loadPage(nextPage);
+  }, [orderedIds.length, currentPage, loadedCount, loadPage]);
 
   /**
    * Auto-prefetch when approaching the end of loaded questions
@@ -139,17 +161,17 @@ export const useQuizQuestions = (questionIds, options = {}) => {
     const hasMore = loadedCount < orderedIds.length;
     
     if (hasMore && remaining <= prefetchThreshold && !isLoadingRef.current) {
-      console.log(`🔄 Auto-prefetching next batch (${remaining} questions remaining)`);
+      console.log(`🔄 Auto-prefetching next page (${remaining} questions remaining)`);
       loadMore();
     }
   }, [loadedCount, orderedIds.length, prefetchThreshold, loadMore]);
 
-  // Load initial batch on mount
+  // Load initial page on mount
   useEffect(() => {
-    if (enabled && orderedIds.length > 0 && loadedIdsRef.current.size === 0) {
-      loadInitialBatch();
+    if (enabled && orderedIds.length > 0 && currentPage === 0) {
+      loadInitialPage();
     }
-  }, [enabled, orderedIds.length, loadInitialBatch]);
+  }, [enabled, orderedIds.length, currentPage, loadInitialPage]);
 
   // Progress calculation
   const progress = orderedIds.length > 0 
@@ -167,7 +189,8 @@ export const useQuizQuestions = (questionIds, options = {}) => {
     loadMore,
     checkPrefetch,
     totalCount: orderedIds.length,
-    loadedCount
+    loadedCount,
+    currentPage
   };
 };
 
