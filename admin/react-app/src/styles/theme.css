@@ -62,16 +62,34 @@ button.qe-btn-primary:hover {
   background-color: var(--qe-primary-hover) !important;
 }
 
+.qe-btn-primary:disabled,
+button.qe-btn-primary:disabled {
+  background-color: #9ca3af !important;
+  cursor: not-allowed !important;
+  opacity: 0.6 !important;
+}
+
 .qe-btn-secondary,
 button.qe-btn-secondary {
-  background-color: var(--qe-secondary) !important;
-  color: white !important;
-  border: none !important;
+  background-color: transparent !important;
+  color: var(--qe-primary) !important;
+  border: 2px solid var(--qe-primary) !important;
 }
 
 .qe-btn-secondary:hover,
 button.qe-btn-secondary:hover {
-  background-color: var(--qe-secondary-hover) !important;
+  background-color: var(--qe-primary-light) !important;
+  border-color: var(--qe-primary-hover) !important;
+  color: var(--qe-primary-hover) !important;
+}
+
+.qe-btn-secondary:disabled,
+button.qe-btn-secondary:disabled {
+  background-color: transparent !important;
+  color: #9ca3af !important;
+  border-color: #d1d5db !important;
+  cursor: not-allowed !important;
+  opacity: 0.6 !important;
 }
 
 .qe-btn-accent,
@@ -97,6 +115,47 @@ button.qe-btn-ghost {
 button.qe-btn-ghost:hover {
   background-color: var(--qe-accent) !important;
   color: white !important;
+}
+
+.qe-btn-success,
+button.qe-btn-success {
+  background-color: #10b981 !important;
+  color: white !important;
+  border: none !important;
+}
+
+.qe-btn-success:hover,
+button.qe-btn-success:hover {
+  background-color: #059669 !important;
+}
+
+.qe-btn-success:disabled,
+button.qe-btn-success:disabled {
+  background-color: #9ca3af !important;
+  cursor: not-allowed !important;
+  opacity: 0.6 !important;
+}
+
+/* Tamaños de botones */
+.qe-btn-sm,
+button.qe-btn-sm {
+  padding: 0.375rem 0.75rem !important;
+  font-size: 0.875rem !important;
+  line-height: 1.25rem !important;
+}
+
+.qe-btn-md,
+button.qe-btn-md {
+  padding: 0.5rem 1rem !important;
+  font-size: 1rem !important;
+  line-height: 1.5rem !important;
+}
+
+.qe-btn-lg,
+button.qe-btn-lg {
+  padding: 0.75rem 1.5rem !important;
+  font-size: 1.125rem !important;
+  line-height: 1.75rem !important;
 }
 
 .qe-text-primary {

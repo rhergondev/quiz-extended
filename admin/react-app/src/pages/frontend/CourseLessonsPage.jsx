@@ -249,6 +249,9 @@ const CourseLessonsPage = () => {
         <StepContent 
           lesson={activeContent.lesson} 
           step={activeContent.step}
+          lessons={sortedLessons}
+          onNavigate={handleSelectStep}
+          courseId={parseInt(courseId, 10)}
         />
       </div>
 

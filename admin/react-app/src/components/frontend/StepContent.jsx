@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, PlayCircle, FileText, CheckSquare, File } from 'lucide-react'; // Importa el icono de File
+import { BookOpen, PlayCircle, FileText, CheckSquare, File, ChevronLeft, ChevronRight, Check, Circle } from 'lucide-react';
 import Quiz from './Quiz';
 import QuizStartConfirmation from './QuizStartConfirmation';
 import PdfStep from './PdfStep';
 import { getEmbedUrl } from '../../api/utils/videoUtils';
+import useStudentProgress from '../../hooks/useStudentProgress';
 
 const stepIcons = {
   video: <PlayCircle className="w-5 h-5 text-blue-500" />,
@@ -13,12 +14,204 @@ const stepIcons = {
   default: <BookOpen className="w-5 h-5 text-gray-500" />,
 };
 
-const StepContent = ({ step, lesson }) => {
+const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId }) => {
   const [quizStarted, setQuizStarted] = useState(false);
+  
+  // Debug: Log props on mount and change
+  useEffect(() => {
+    console.log('🔍 StepContent props:', { 
+      step: step?.id, 
+      lesson: lesson?.id, 
+      lessonsCount: lessons?.length, 
+      courseId,
+      hasOnNavigate: !!onNavigate 
+    });
+  }, [step, lesson, lessons, courseId, onNavigate]);
+  
+  // Hook para manejar el progreso del estudiante
+  const { 
+    isCompleted, 
+    markComplete, 
+    unmarkComplete, 
+    loading: progressLoading,
+    completedItems
+  } = useStudentProgress(courseId, true);
+
+  // Debug: Log completed items
+  useEffect(() => {
+    console.log('🔍 Completed items:', completedItems);
+  }, [completedItems]);
 
   useEffect(() => {
     setQuizStarted(false);
   }, [step]);
+
+  // 🎯 Lógica de navegación entre pasos
+  const getCurrentStepInfo = () => {
+    if (!lesson || !step || !lessons || lessons.length === 0) {
+      return { currentLessonIndex: -1, currentStepIndex: -1, steps: [] };
+    }
+
+    const currentLessonIndex = lessons.findIndex(l => l.id === lesson.id);
+    const steps = lesson.meta?._lesson_steps || [];
+    
+    // 🔥 IMPORTANTE: Los steps se identifican por índice, no por ID
+    // Buscamos el paso actual comparando por referencia o por todas sus propiedades
+    const currentStepIndex = steps.findIndex(s => {
+      // Si tienen ID y coinciden
+      if (s.id && step.id && s.id === step.id) return true;
+      
+      // Si son el mismo objeto (referencia)
+      if (s === step) return true;
+      
+      // Comparación profunda: mismo tipo y mismos datos
+      if (s.type === step.type) {
+        const sData = JSON.stringify(s.data || {});
+        const stepData = JSON.stringify(step.data || {});
+        if (sData === stepData) return true;
+      }
+      
+      return false;
+    });
+
+    console.log('🔍 getCurrentStepInfo:', { 
+      currentLessonIndex, 
+      currentStepIndex, 
+      lessonId: lesson.id,
+      stepType: step.type,
+      totalSteps: steps.length 
+    });
+
+    return { currentLessonIndex, currentStepIndex, steps };
+  };
+
+  const getNavigationInfo = () => {
+    const { currentLessonIndex, currentStepIndex, steps } = getCurrentStepInfo();
+    
+    if (currentLessonIndex === -1 || currentStepIndex === -1) {
+      return { hasPrev: false, hasNext: false, prevLesson: null, prevStep: null, nextLesson: null, nextStep: null };
+    }
+    
+    let prevLesson = null;
+    let prevStep = null;
+    let nextLesson = null;
+    let nextStep = null;
+    let hasPrev = false;
+    let hasNext = false;
+
+    // Verificar paso anterior
+    if (currentStepIndex > 0) {
+      // Hay paso anterior en la misma lección
+      prevLesson = lesson;
+      prevStep = steps[currentStepIndex - 1];
+      hasPrev = true;
+    } else if (currentLessonIndex > 0) {
+      // Ir al último paso de la lección anterior
+      const previousLesson = lessons[currentLessonIndex - 1];
+      const previousSteps = previousLesson.meta?._lesson_steps || [];
+      if (previousSteps.length > 0) {
+        prevLesson = previousLesson;
+        prevStep = previousSteps[previousSteps.length - 1];
+        hasPrev = true;
+      }
+    }
+
+    // Verificar paso siguiente
+    if (currentStepIndex < steps.length - 1) {
+      // Hay paso siguiente en la misma lección
+      nextLesson = lesson;
+      nextStep = steps[currentStepIndex + 1];
+      hasNext = true;
+    } else if (currentLessonIndex < lessons.length - 1) {
+      // Ir al primer paso de la siguiente lección
+      const followingLesson = lessons[currentLessonIndex + 1];
+      const followingSteps = followingLesson.meta?._lesson_steps || [];
+      if (followingSteps.length > 0) {
+        nextLesson = followingLesson;
+        nextStep = followingSteps[0];
+        hasNext = true;
+      }
+    }
+
+    return { hasPrev, hasNext, prevLesson, prevStep, nextLesson, nextStep };
+  };
+
+  const handlePrevious = () => {
+    const { hasPrev, prevLesson, prevStep } = getNavigationInfo();
+    console.log('🔍 DEBUG handlePrevious:', { hasPrev, prevLesson, prevStep });
+    if (hasPrev && prevStep && prevLesson && onNavigate) {
+      onNavigate(prevStep, prevLesson);
+    }
+  };
+
+  const handleNext = () => {
+    const { hasNext, nextLesson, nextStep } = getNavigationInfo();
+    console.log('🔍 DEBUG handleNext:', { hasNext, nextLesson, nextStep });
+    if (hasNext && nextStep && nextLesson && onNavigate) {
+      onNavigate(nextStep, nextLesson);
+    }
+  };
+
+  // 🎯 Manejar marcar/desmarcar como completado
+  const handleToggleComplete = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!lesson || !step || !courseId) {
+      console.warn('⚠️ Missing required data:', { lesson, step, courseId });
+      return;
+    }
+
+    try {
+      const { currentStepIndex } = getCurrentStepInfo();
+      
+      if (currentStepIndex === -1) {
+        console.error('❌ Could not find current step index');
+        return;
+      }
+      
+      console.log('🔍 DEBUG Toggle Complete:', { 
+        lessonId: lesson.id, 
+        stepIndex: currentStepIndex, 
+        stepId: step.id 
+      });
+      
+      const isStepCompleted = isCompleted(lesson.id, 'step', lesson.id, currentStepIndex);
+      console.log('🔍 Current completion status:', isStepCompleted);
+      
+      if (isStepCompleted) {
+        await unmarkComplete(lesson.id, 'step', lesson.id, currentStepIndex);
+        console.log('✅ Step unmarked as complete');
+      } else {
+        await markComplete(lesson.id, 'step', lesson.id, currentStepIndex);
+        console.log('✅ Step marked as complete');
+      }
+    } catch (error) {
+      console.error('❌ Error toggling step completion:', error);
+    }
+  };
+
+  // Calcular el estado de completado y navegación
+  const navigationInfo = getNavigationInfo();
+  const { currentStepIndex } = getCurrentStepInfo();
+  const isStepCompleted = lesson && step && courseId && currentStepIndex !== -1
+    ? isCompleted(lesson.id, 'step', lesson.id, currentStepIndex)
+    : false;
+
+  // 🎯 Calcular progreso de la lección actual
+  const getLessonProgress = () => {
+    if (!lesson || !courseId) return { completed: 0, total: 0 };
+    
+    const steps = lesson.meta?._lesson_steps || [];
+    const total = steps.length;
+    const completed = steps.filter((_, index) => 
+      isCompleted(lesson.id, 'step', lesson.id, index)
+    ).length;
+    
+    return { completed, total };
+  };
+
+  const lessonProgress = getLessonProgress();
 
   const renderStepContent = (step) => {
     if (!step || !step.type) {
@@ -112,12 +305,131 @@ const StepContent = ({ step, lesson }) => {
 
  return (
     <div className="flex-grow lg:w-full bg-gray-100 h-[100%] overflow-y-auto">
-      <div className="mb-6 px-6 pt-6">
-        <p className="text-sm text-indigo-600 font-semibold">{lesson.title.rendered}</p>
-        <h1 className="text-3xl font-bold text-gray-800 mt-1">{stepTitle}</h1>
+      {/* Header compacto con título y progreso */}
+      <div className="sticky top-0 bg-white shadow-sm z-10 px-6 py-3 border-b">
+        {/* Primera fila: Nombre de lección + Título del paso */}
+        <div className="flex items-center justify-between gap-4 mb-2">
+          <div className="flex-1 min-w-0 flex items-baseline gap-3">
+            <p className="text-sm qe-text-primary font-semibold flex-shrink-0">
+              {lesson.title.rendered}
+            </p>
+            <span className="text-gray-400">•</span>
+            <h1 className="text-xl font-bold text-gray-800 truncate">{stepTitle}</h1>
+          </div>
+        </div>
+
+        {/* Segunda fila: Progreso a la izquierda + Botones de navegación a la derecha */}
+        <div className="flex items-center justify-between gap-4">
+          {/* Mini-tracker de progreso de la lección */}
+          <div className="flex items-center gap-3 flex-1">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="qe-text-primary font-medium">Progreso:</span>
+              <span className="font-semibold qe-text-primary">
+                {lessonProgress.completed} / {lessonProgress.total}
+              </span>
+            </div>
+            
+            {/* Barra de progreso */}
+            <div className="flex-1 max-w-xs bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div 
+                className="h-full transition-all duration-300 rounded-full"
+                style={{ 
+                  width: `${lessonProgress.total > 0 ? (lessonProgress.completed / lessonProgress.total) * 100 : 0}%`,
+                  backgroundColor: 'var(--qe-primary)'
+                }}
+              />
+            </div>
+            
+            {/* Porcentaje */}
+            <span className="text-sm font-medium text-gray-600">
+              {lessonProgress.total > 0 
+                ? Math.round((lessonProgress.completed / lessonProgress.total) * 100) 
+                : 0}%
+            </span>
+          </div>
+
+          {/* Botones de navegación */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Botón Anterior */}
+            <button
+              onClick={handlePrevious}
+              disabled={!navigationInfo.hasPrev}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: navigationInfo.hasPrev ? 'var(--qe-primary)' : '#9ca3af' }}
+              onMouseEnter={(e) => {
+                if (navigationInfo.hasPrev) {
+                  e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (navigationInfo.hasPrev) {
+                  e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+                }
+              }}
+              title="Paso anterior"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Anterior</span>
+            </button>
+
+            {/* Botón Marcar como Completado */}
+            <button
+              onClick={handleToggleComplete}
+              disabled={progressLoading}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: isStepCompleted ? '#10b981' : 'var(--qe-primary)' }}
+              onMouseEnter={(e) => {
+                if (!progressLoading) {
+                  e.currentTarget.style.backgroundColor = isStepCompleted ? '#059669' : 'var(--qe-accent)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!progressLoading) {
+                  e.currentTarget.style.backgroundColor = isStepCompleted ? '#10b981' : 'var(--qe-primary)';
+                }
+              }}
+              title={isStepCompleted ? "Marcar como no completado" : "Marcar como completado"}
+            >
+              {isStepCompleted ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span className="hidden md:inline">Completado</span>
+                </>
+              ) : (
+                <>
+                  <Circle className="w-4 h-4" />
+                  <span className="hidden md:inline">Completar</span>
+                </>
+              )}
+            </button>
+
+            {/* Botón Siguiente */}
+            <button
+              onClick={handleNext}
+              disabled={!navigationInfo.hasNext}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: navigationInfo.hasNext ? 'var(--qe-primary)' : '#9ca3af' }}
+              onMouseEnter={(e) => {
+                if (navigationInfo.hasNext) {
+                  e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (navigationInfo.hasNext) {
+                  e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+                }
+              }}
+              title="Siguiente paso"
+            >
+              <span className="hidden sm:inline">Siguiente</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="border-t pt-6 px-6 pb-6">
+      {/* Contenido del paso */}
+      <div className="pt-6 px-6 pb-6">
         {renderStepContent(step)}
       </div>
     </div>

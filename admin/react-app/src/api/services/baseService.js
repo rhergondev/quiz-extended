@@ -226,8 +226,14 @@ export const createResourceService = (resourceName, endpointKey, customOptions =
         const endpoint = getEndpoint();
         const params = new URLSearchParams();
         
-        // Solicitar contexto 'edit' para obtener todos los campos incluyendo content
-        params.append('context', 'edit');
+        // 🔥 FIX: Solo usar context=edit si se especifica explícitamente
+        // Por defecto usamos context=view que está disponible para todos los usuarios
+        if (options.context === 'edit') {
+          params.append('context', 'edit');
+        } else {
+          // context=view es el default y no hace falta especificarlo, pero lo hacemos explícito
+          params.append('context', 'view');
+        }
         
         if (options.embed !== false) {
           params.append('_embed', 'true');
@@ -242,6 +248,30 @@ export const createResourceService = (resourceName, endpointKey, customOptions =
         
       } catch (error) {
         console.error(`❌ Error fetching ${resourceName} ${id}:`, error);
+        
+        // 🔥 Si falla con 403 y estábamos usando context=edit, intentar con context=view
+        if ((error.message.includes('403') || error.message.includes('401')) && options.context === 'edit') {
+          console.warn(`⚠️ Access denied with context=edit, retrying with context=view for ${resourceName} ${id}`);
+          
+          try {
+            const endpoint = getEndpoint();
+            const params = new URLSearchParams();
+            params.append('context', 'view');
+            
+            if (options.embed !== false) {
+              params.append('_embed', 'true');
+            }
+            
+            const retryUrl = `${endpoint}/${id}?${params.toString()}`;
+            console.log(`🔄 Retry GET ${resourceName}:`, retryUrl);
+            
+            const retryResponse = await makeApiRequest(retryUrl);
+            return sanitizer(retryResponse.data);
+          } catch (retryError) {
+            console.error(`❌ Retry also failed for ${resourceName} ${id}:`, retryError);
+            throw retryError;
+          }
+        }
         
         if (error.message.includes('404')) {
           return null;
