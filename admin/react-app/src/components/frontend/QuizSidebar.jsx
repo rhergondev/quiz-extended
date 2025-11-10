@@ -28,7 +28,9 @@ const QuizSidebar = ({
   onQuestionSelect, 
   onSubmit,
   loadingMore = false,
-  loadedCount = 0
+  loadedCount = 0,
+  hasMore = false,
+  onLoadMore = null
 }) => {
   
   const answeredCount = Object.keys(userAnswers).length;
@@ -131,6 +133,20 @@ const QuizSidebar = ({
             );
           })}
         </div>
+
+        {/* Manual fallback: cargar más preguntas si hay más y la prefetch falló */}
+        {hasMore && (
+          <div className="mb-4">
+            <button
+              onClick={() => { if (onLoadMore) onLoadMore(); }}
+              disabled={loadingMore}
+              aria-label="Cargar más preguntas"
+              className={`w-full px-4 py-2 rounded-md font-medium transition-all ${loadingMore ? 'bg-gray-300 text-gray-600 cursor-wait' : 'bg-white border-2 border-primary text-primary hover:opacity-90'}`}
+            >
+              {loadingMore ? 'Cargando...' : 'Cargar más preguntas'}
+            </button>
+          </div>
+        )}
 
         <button
           onClick={onSubmit}

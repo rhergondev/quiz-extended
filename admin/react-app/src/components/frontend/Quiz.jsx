@@ -39,6 +39,7 @@ const Quiz = ({ quizId, customQuiz = null }) => {
     loading: questionsLoading, 
     error: questionsError,
     checkPrefetch,
+    loadMore,
     hasMore: hasMoreQuestions,
     loadedCount,
     totalCount: totalQuestions
@@ -56,6 +57,15 @@ const Quiz = ({ quizId, customQuiz = null }) => {
       checkPrefetch(currentQuestionIndex);
     }
   }, [currentQuestionIndex, quizState, checkPrefetch]);
+
+  // 🔥 NEW: Auto-prefetch based on answered questions count
+  useEffect(() => {
+    if (quizState === 'in-progress' && Object.keys(userAnswers).length > 0) {
+      const answeredCount = Object.keys(userAnswers).length;
+      // Trigger prefetch when user has answered enough questions
+      checkPrefetch(answeredCount);
+    }
+  }, [userAnswers, quizState, checkPrefetch]);
 
   useEffect(() => {
     const fetchAndStartQuiz = async () => {
@@ -388,9 +398,28 @@ const Quiz = ({ quizId, customQuiz = null }) => {
               totalCount={totalQuestions}
               userAnswers={userAnswers}
               riskedAnswers={riskedAnswers}
-              onSubmit={handleSubmit}
-              loadingMore={questionsLoading}
-              loadedCount={loadedCount}
+                onSubmit={handleSubmit}
+                loadingMore={questionsLoading}
+                loadedCount={loadedCount}
+                hasMore={hasMoreQuestions}
+                onLoadMore={() => {
+                  // Manual fallback to trigger loading the next batch
+                  console.log('🖱️ Manual load more requested');
+                  // call loadMore from hook if available via checkPrefetch fallback
+                  // useQuizQuestions exposes loadMore via its return; call via checkPrefetch with a negative index to force
+                  // But we have loadMore directly available from the hook; call checkPrefetch with large index to prompt loadMore
+                  // Simpler: call checkPrefetch with loadedCount to let hook decide
+                  try {
+                    if (typeof loadMore === 'function') {
+                      loadMore();
+                    } else {
+                      // fallback to checkPrefetch if loadMore isn't available
+                      checkPrefetch(loadedCount);
+                    }
+                  } catch (e) {
+                    console.warn('Manual loadMore fallback triggered', e);
+                  }
+                }}
             />
             <Timer
                 durationMinutes={timeLimit}

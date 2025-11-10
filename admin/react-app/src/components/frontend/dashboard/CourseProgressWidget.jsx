@@ -90,7 +90,7 @@ const CourseProgressWidget = () => {
   
   const { courses, loading, error } = useCourses({ 
     autoFetch: true,
-    _embed: true,
+    embed: true,
     perPage: 3, // Solo mostrar 3 cursos más recientes
     status: 'publish', // 🎯 Frontend: solo cursos publicados
     enrolledOnly: !userIsAdmin // 🎯 Solo mostrar cursos matriculados si NO es admin
