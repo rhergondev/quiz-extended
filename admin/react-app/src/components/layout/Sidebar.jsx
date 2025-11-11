@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  Home, Calendar, FileText, BookOpen, Video, User, LogOut, ChevronLeft, ChevronRight, Menu, X, Settings
+  Home, Calendar, FileText, BookOpen, Video, User, LogOut, ChevronLeft, ChevronRight, Menu, X, Settings, BarChart3, CalendarClock
 } from 'lucide-react';
 import useUserInbox from '../../hooks/useUserInbox';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -30,6 +30,8 @@ const Sidebar = () => {
     { to: '/', text: t('sidebar.myDesk'), icon: Home, type: 'internal' },
     { to: '/courses', text: t('sidebar.studyPlanner'), icon: Calendar, type: 'internal' },
     { to: '/test', text: t('sidebar.test'), icon: FileText, type: 'internal' },
+    { to: '/statistics', text: t('sidebar.statistics'), icon: BarChart3, type: 'internal' },
+    { to: `${homeUrl}/clases/`, text: t('sidebar.onlineClasses'), icon: CalendarClock, type: 'external' },
     { to: `${homeUrl}/mi-cuenta/downloads/`, text: t('sidebar.books'), icon: BookOpen, type: 'external' },
     { to: `${homeUrl}/mi-cuenta/edit-account/`, text: t('sidebar.myAccount'), icon: Settings, type: 'external' },
   ];

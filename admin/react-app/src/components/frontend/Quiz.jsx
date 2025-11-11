@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getQuiz } from '../../api/services/quizService';
 import useQuizQuestions from '../../hooks/useQuizQuestions';
 import { getQuestionsByIds } from '../../api/services/questionService';
@@ -10,13 +10,27 @@ import QuizSidebar from './QuizSidebar';
 import Timer from './Timer';
 import QuizResults from './QuizResults';
 import DrawingCanvas from './DrawingCanvas';
-import { PenTool, Loader } from 'lucide-react';
+import { Loader } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useQuizAutosave from '../../hooks/useQuizAutosave';
 import quizAutosaveService from '../../api/services/quizAutosaveService';
 import QuizRecoveryModal from '../quizzes/QuizRecoveryModal';
 
-const Quiz = ({ quizId, customQuiz = null, onQuizComplete }) => {
+const Quiz = ({ 
+  quizId, 
+  customQuiz = null, 
+  onQuizComplete, 
+  isDrawingMode, 
+  setIsDrawingMode, 
+  isDrawingEnabled, 
+  setIsDrawingEnabled, 
+  showDrawingToolbar, 
+  setShowDrawingToolbar,
+  drawingTool,
+  drawingColor,
+  drawingLineWidth,
+  onClearCanvas
+}) => {
   const [quizInfo, setQuizInfo] = useState(null);
   const [questionIds, setQuestionIds] = useState([]);
   const [userAnswers, setUserAnswers] = useState({});
@@ -26,12 +40,12 @@ const Quiz = ({ quizId, customQuiz = null, onQuizComplete }) => {
   const [quizResult, setQuizResult] = useState(null);
   const [finalQuestions, setFinalQuestions] = useState([]); // Full question list used for results
   const [startTime, setStartTime] = useState(null);
-  const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [autosaveData, setAutosaveData] = useState(null);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const { getColor } = useTheme();
+  const questionsContainerRef = useRef(null);
 
   // Use paginated hook for loading questions
   const { 
@@ -362,38 +376,31 @@ const Quiz = ({ quizId, customQuiz = null, onQuizComplete }) => {
   const timeLimit = quizInfo?.meta?._time_limit || 0;
 
   return (
-    <div className="w-full max-w-screen-2xl mx-auto p-4 flex flex-col lg:flex-row gap-8 h-[100%] relative">
-      {/* Botón flotante para activar modo dibujo - Arriba a la derecha */}
-      <button
-        onClick={() => setIsDrawingMode(!isDrawingMode)}
-        className="fixed top-6 right-6 z-40 p-3 rounded-full shadow-lg transition-all duration-300 text-white"
-        style={{
-          backgroundColor: isDrawingMode ? '#dc2626' : getColor('primary', '#3b82f6'),
-          transform: isDrawingMode ? 'rotate(45deg)' : 'rotate(0deg)'
-        }}
-        onMouseEnter={(e) => {
-          if (!isDrawingMode) e.currentTarget.style.transform = 'scale(1.1)';
-        }}
-        onMouseLeave={(e) => {
-          if (!isDrawingMode) e.currentTarget.style.transform = 'scale(1)';
-        }}
-        title={isDrawingMode ? 'Desactivar herramientas de dibujo' : 'Activar herramientas de dibujo'}
-      >
-        <PenTool 
-          className="w-6 h-6 transition-transform duration-300" 
-          style={{ transform: isDrawingMode ? 'rotate(-45deg)' : 'rotate(0deg)' }}
-        />
-      </button>
-
-      {/* Canvas de dibujo */}
-      <DrawingCanvas 
-        isActive={isDrawingMode} 
-        onClose={() => setIsDrawingMode(false)} 
-      />
-
-      {/* Columna de Preguntas (con scroll interno) */}
-      <main className="w-full lg:w-2/3 lg:overflow-y-auto lg:pr-4">
-        {quizQuestions.map((question, index) => (
+    <div className="h-full flex flex-col" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
+      <div className="flex-1 overflow-hidden p-6">
+        <div className="w-full max-w-screen-2xl mx-auto flex flex-col lg:flex-row gap-8 h-full">
+          {/* Columna de Preguntas (con scroll interno y canvas de dibujo) */}
+          <main ref={questionsContainerRef} className="w-full lg:w-2/3 lg:overflow-y-auto lg:pr-4 relative">
+            {/* Canvas de dibujo relativo al contenedor */}
+            {isDrawingMode && (
+              <DrawingCanvas 
+                isActive={isDrawingMode}
+                isDrawingEnabled={isDrawingEnabled}
+                tool={drawingTool}
+                color={drawingColor}
+                lineWidth={drawingLineWidth}
+                onClose={() => {
+                  setIsDrawingMode(false);
+                  setIsDrawingEnabled(false);
+                  setShowDrawingToolbar(false);
+                }}
+                onClear={onClearCanvas}
+                containerRef={questionsContainerRef}
+                showToolbar={false}
+              />
+            )}
+            
+            {quizQuestions.map((question, index) => (
           <Question
             key={question.id}
             question={question}
@@ -458,6 +465,8 @@ const Quiz = ({ quizId, customQuiz = null, onQuizComplete }) => {
             />
         </div>
       </aside>
+        </div>
+      </div>
     </div>
   );
 };

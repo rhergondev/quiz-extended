@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { GraduationCap, BookOpen } from 'lucide-react';
+import { useTheme } from '../../../contexts/ThemeContext';
 import useCourses from '../../../hooks/useCourses';
 import useStudentProgress from '../../../hooks/useStudentProgress';
 import useLessons from '../../../hooks/useLessons';
@@ -24,10 +25,10 @@ const CourseProgressItem = ({ course }) => {
   const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
   return (
-    <div className="qe-bg-primary-light rounded-lg p-3 border qe-border-primary hover:shadow-md transition-shadow">
+    <div className="qe-bg-primary-light rounded-lg p-3 border qe-border-primary hover:shadow-lg transition-all">
       <div className="flex items-center gap-3">
         {/* Image */}
-        <div className="w-16 h-16 flex-shrink-0 rounded overflow-hidden">
+        <div className="w-14 h-14 flex-shrink-0 rounded overflow-hidden">
           {imageUrl ? (
             <img 
               src={imageUrl} 
@@ -36,7 +37,7 @@ const CourseProgressItem = ({ course }) => {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: 'var(--qe-primary)' }}>
-              <BookOpen className="w-6 h-6 text-white" />
+              <BookOpen className="w-5 h-5 text-white" />
             </div>
           )}
         </div>
@@ -85,6 +86,8 @@ const CourseProgressItem = ({ course }) => {
 };
 
 const CourseProgressWidget = () => {
+  const { getColor } = useTheme();
+  
   // 🎯 Check if user is admin to determine if we should filter by enrollment
   const userIsAdmin = isUserAdmin();
   
@@ -98,32 +101,42 @@ const CourseProgressWidget = () => {
 
   if (error) {
     return (
-      <div className="rounded-lg shadow-sm border qe-border-primary p-4" style={{ backgroundColor: 'var(--qe-bg-card)' }}>
+      <div 
+        className="rounded-xl shadow-lg border-2 p-6" 
+        style={{ 
+          backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
+          borderColor: getColor('primary', '#3b82f6')
+        }}
+      >
         <p className="text-sm qe-text-error">Error al cargar cursos</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg shadow-sm border qe-border-primary h-full flex flex-col" style={{ backgroundColor: 'var(--qe-bg-card)' }}>
+    <div 
+      className="p-6 rounded-xl shadow-lg border-2 h-full flex flex-col" 
+      style={{ 
+        backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
+        borderColor: getColor('primary', '#3b82f6')
+      }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 pb-3 border-b qe-border-primary mx-4 mb-3">
+      <div className="flex items-center justify-between mb-4 pb-4 border-b-2" style={{ borderColor: getColor('primary', '#3b82f6') + '30' }}>
         <div className="flex items-center gap-3">
-          <div className="p-2 qe-bg-primary-light rounded-lg flex items-center justify-center">
-            <GraduationCap className="w-5 h-5 qe-text-primary" />
-          </div>
-          <h2 className="text-lg font-bold qe-text-primary flex items-center">Mis Cursos</h2>
+          <GraduationCap className="w-6 h-6" style={{ color: getColor('primary', '#3b82f6') }} />
+          <h2 className="text-xl font-bold qe-text-primary">Mis Cursos</h2>
         </div>
 
         <Link
           to="/courses"
           className="px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-all"
-          style={{ backgroundColor: 'var(--qe-primary)' }}
+          style={{ backgroundColor: getColor('primary', '#3b82f6') }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+            e.currentTarget.style.backgroundColor = getColor('accent', '#f59e0b');
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+            e.currentTarget.style.backgroundColor = getColor('primary', '#3b82f6');
           }}
         >
           Ver todos
@@ -131,10 +144,13 @@ const CourseProgressWidget = () => {
       </div>
 
       {/* Content */}
-      <div className="p-4 pt-0 flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         {loading && courses.length === 0 ? (
           <div className="text-center py-8 qe-text-secondary">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 qe-border-primary mx-auto mb-2"></div>
+            <div 
+              className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-2"
+              style={{ borderColor: getColor('primary', '#3b82f6') }}
+            ></div>
             <p className="text-sm">Cargando cursos...</p>
           </div>
         ) : courses.length === 0 ? (

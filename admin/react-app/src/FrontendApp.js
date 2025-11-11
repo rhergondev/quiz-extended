@@ -17,6 +17,7 @@ import QuizLibraryPage from './pages/frontend/QuizLibraryPage';
 import PracticeModePage from './pages/frontend/PracticeModePage';
 import TestPage from './pages/frontend/TestPage';
 import TestHistoryPage from './pages/frontend/TestHistoryPage';
+import StatisticsPage from './pages/frontend/StatisticsPage';
 
 function FrontendApp() {
   return (
@@ -33,6 +34,7 @@ function FrontendApp() {
               <Route path="test/practice" element={<PracticeModePage />} />
               <Route path="test/library" element={<QuizLibraryPage />} />
               <Route path="test/history" element={<TestHistoryPage />} />
+              <Route path="statistics" element={<StatisticsPage />} />
               <Route path="quiz/:quizId" element={<QuizDetailPage />} />
               <Route path="quiz-generator" element={<QuizGeneratorPage />} />
             </Route>

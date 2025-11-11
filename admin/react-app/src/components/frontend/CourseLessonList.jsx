@@ -6,19 +6,16 @@ import {
   CheckSquare, 
   ChevronDown, 
   ChevronUp,
-  ChevronLeft,
-  ChevronRight
+  X
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 
 
-const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep }) => {
+const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep, isOpen, onClose }) => {
   const { t } = useTranslation();
-  const { getColor, isDarkMode } = useTheme(); // Usar getColor con fallback
+  const { getColor } = useTheme();
   const [expandedLessonId, setExpandedLessonId] = useState(null);
-  // ✅ Estado para controlar el colapso del panel completo
-  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // 🔍 DEBUG: Log para ver el orden de las lecciones recibidas
   useEffect(() => {
@@ -52,9 +49,13 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep }) 
   };
 
   const handleLessonClick = (lessonId) => {
-    // No permitir expandir/colapsar lecciones si el panel entero está colapsado
-    if (isCollapsed) return;
     setExpandedLessonId(prevId => (prevId === lessonId ? null : lessonId));
+  };
+
+  const handleStepClick = (step, lesson) => {
+    onSelectStep(step, lesson);
+    // Cerrar el modal después de seleccionar un paso
+    if (onClose) onClose();
   };
   
   const getStepTitle = (step) => {
@@ -68,7 +69,7 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep }) 
 
   const loadingSkeleton = (
     <div className="p-4 animate-pulse">
-      {!isCollapsed && <div className="h-6 bg-gray-300 rounded w-3/4 mb-6"></div>}
+      <div className="h-6 bg-gray-300 rounded w-3/4 mb-6"></div>
       <div className="space-y-4">
         <div className="h-5 bg-gray-300 rounded w-full"></div>
         <div className="h-5 bg-gray-300 rounded w-5/6"></div>
@@ -77,92 +78,120 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep }) 
     </div>
   );
 
+  // Si no está abierto, no renderizar nada
+  if (!isOpen) return null;
+
   return (
-    // ✅ El ancho del panel es dinámico y se mantiene responsive
-    <aside className={`transition-all duration-300 flex-shrink-0 ${isCollapsed ? 'w-24' : 'lg:w-80 w-full'}`} style={{ backgroundColor: getColor('background', '#ffffff') }}>
-
-      <div className="h-[100%]">
-        <div className="h-full flex flex-col">
-          {/* ✅ Cabecera con título condicional y botón de colapso */}
-          <div className={`p-4 border-b border-gray-200 flex-shrink-0 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-            {!isCollapsed && (
-              <h2 className="text-xl font-semibold text-gray-800">
-                {t('courses.courseContent')}
-              </h2>
-            )}
-            <div
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            role="button"
-            tabIndex="0"
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsCollapsed(!isCollapsed); }}
-            title={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
-            className="text-primary hover:text-accent transition-colors cursor-pointer"
-          >
-              {isCollapsed ? <ChevronLeft size={24}/> : <ChevronRight size={24}/>}
-            </div >
+    <>
+      {/* Overlay oscuro de fondo */}
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        {/* Modal centrado tipo widget */}
+        <div 
+          className="w-full max-w-4xl max-h-[85vh] rounded-xl shadow-lg border-2 flex flex-col"
+          style={{ 
+            backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
+            borderColor: getColor('primary', '#3b82f6')
+          }}
+          onClick={(e) => e.stopPropagation()} // Evitar cerrar al hacer clic dentro del modal
+        >
+          {/* Header del modal */}
+          <div className="p-6 border-b-2 flex items-center justify-between flex-shrink-0" style={{ borderColor: getColor('primary', '#3b82f6') + '30' }}>
+            <h2 className="text-2xl font-bold qe-text-primary">
+              {t('courses.courseContent')}
+            </h2>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg transition-all"
+              style={{ backgroundColor: getColor('primary', '#3b82f6') + '15' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = getColor('primary', '#3b82f6') + '25';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = getColor('primary', '#3b82f6') + '15';
+              }}
+              title="Cerrar"
+            >
+              <X className="w-6 h-6" style={{ color: getColor('primary', '#3b82f6') }} />
+            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
-            {isLoading ? (
-              loadingSkeleton
-            ) : lessons && lessons.length > 0 ? (
-              <ul>
-                {lessons.map((lesson) => {
-                  const isExpanded = expandedLessonId === lesson.id;
-                  const steps = lesson.meta?._lesson_steps || [];
-                  // Extract title properly from API response
-                  const lessonTitle = lesson.title?.rendered || lesson.title || 'Sin título';
-                  
-                  return (
-                    <li key={lesson.id} className="border-b border-gray-200">
-                      <div
-                        onClick={() => handleLessonClick(lesson.id)}
-                        className={`p-4 flex justify-between items-center ${!isCollapsed ? 'cursor-pointer' : ''} ${isExpanded && !isCollapsed ? 'bg-gray-200 bg-opacity-50' : 'hover:bg-gray-200 hover:bg-opacity-30'}`}
-                        title={isCollapsed ? lessonTitle : ''}
-                      >
-                        <div className={`flex items-center space-x-3 ${isCollapsed ? 'justify-center w-full' : ''}`}>
-                          <BookOpen className="w-5 h-5 text-indigo-600 flex-shrink-0" />
-                          {/* ✅ Título de la lección condicional */}
-                          {!isCollapsed && <span className="text-sm font-bold text-gray-800">{lessonTitle}</span>}
-                        </div>
-                        {/* ✅ Icono de expandir/colapsar lección condicional */}
-                        {!isCollapsed && steps.length > 0 && (
-                           isExpanded ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />
-                        )}
+          {/* Contenido del modal con scroll */}
+          <div className="flex-1 overflow-y-auto p-6">
+          {isLoading ? (
+            loadingSkeleton
+          ) : lessons && lessons.length > 0 ? (
+            <ul className="space-y-3 max-w-3xl mx-auto">
+              {lessons.map((lesson) => {
+                const isExpanded = expandedLessonId === lesson.id;
+                const steps = lesson.meta?._lesson_steps || [];
+                const lessonTitle = lesson.title?.rendered || lesson.title || 'Sin título';
+                
+                return (
+                  <li key={lesson.id} className="rounded-lg overflow-hidden border-2" style={{ borderColor: getColor('primary', '#3b82f6') + '30' }}>
+                    <div
+                      onClick={() => handleLessonClick(lesson.id)}
+                      className="p-4 flex justify-between items-center cursor-pointer transition-all hover:bg-gray-100"
+                      style={{ backgroundColor: isExpanded ? getColor('primary', '#3b82f6') + '10' : 'transparent' }}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <BookOpen className="w-5 h-5 flex-shrink-0" style={{ color: getColor('primary', '#3b82f6') }} />
+                        <span className="text-sm font-bold qe-text-primary">{lessonTitle}</span>
                       </div>
-                      
-                      {/* ✅ Los pasos solo se muestran si la lección está expandida Y el panel NO está colapsado */}
-                      {isExpanded && !isCollapsed && steps.length > 0 && (
-                        <ul className="bg-white bg-opacity-70">
-                          {steps.map((step) => {
-                            const isSelected = step.id === selectedStepId;
-                            const title = getStepTitle(step);
-                            return (
-                              <li 
-                                key={step.id}
-                                onClick={() => onSelectStep(step, lesson)}
-                                className={`flex items-center space-x-2 py-3 px-4 border-l-4 transition-colors cursor-pointer ${isSelected ? 'border-blue-500 bg-blue-100 bg-opacity-70' : 'border-transparent hover:bg-gray-100 hover:bg-opacity-50'}`}
-                                style={{ paddingLeft: '2rem' }}
-                              >
-                                {getStepIcon(step.type)}
-                                <span className={`text-sm ${isSelected ? 'font-semibold text-blue-800' : 'text-gray-600'}`}>{title}</span>
-                              </li>
-                            );
-                          })}
-                        </ul>
+                      {steps.length > 0 && (
+                        isExpanded ? 
+                          <ChevronUp className="w-5 h-5" style={{ color: getColor('primary', '#3b82f6') }} /> : 
+                          <ChevronDown className="w-5 h-5 qe-text-secondary" />
                       )}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              // ✅ Mensaje de "no hay lecciones" condicional
-              !isCollapsed && <p className="p-4 text-gray-500">{t('noLessonsForCourse')}</p>
-            )}
-          </div>
+                    </div>
+                    
+                    {isExpanded && steps.length > 0 && (
+                      <ul className="bg-white bg-opacity-50">
+                        {steps.map((step) => {
+                          const isSelected = step.id === selectedStepId;
+                          const title = getStepTitle(step);
+                          return (
+                            <li 
+                              key={step.id}
+                              onClick={() => handleStepClick(step, lesson)}
+                              className="flex items-center space-x-2 py-3 px-6 border-l-4 transition-all cursor-pointer hover:bg-gray-50"
+                              style={{ 
+                                borderLeftColor: isSelected ? getColor('primary', '#3b82f6') : 'transparent',
+                                backgroundColor: isSelected ? getColor('primary', '#3b82f6') + '15' : 'transparent'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isSelected) {
+                                  e.currentTarget.style.backgroundColor = getColor('primary', '#3b82f6') + '08';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isSelected) {
+                                  e.currentTarget.style.backgroundColor = 'transparent';
+                                }
+                              }}
+                            >
+                              {getStepIcon(step.type)}
+                              <span className={`text-sm ${isSelected ? 'font-semibold qe-text-primary' : 'qe-text-secondary'}`}>
+                                {title}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="p-4 qe-text-secondary text-center">{t('noLessonsForCourse')}</p>
+          )}
+        </div>
         </div>
       </div>
-    </aside>
+    </>
   );
 };
 

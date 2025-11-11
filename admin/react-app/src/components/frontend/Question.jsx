@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Trash2, ChevronDown, ChevronUp, Info, TrendingDown } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const Question = ({ 
   question, 
@@ -19,6 +20,7 @@ const Question = ({
 }) => {
   const [showExplanation, setShowExplanation] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const { getColor } = useTheme();
 
   if (!question) {
     return null;
@@ -60,12 +62,19 @@ const Question = ({
   };
 
   return (
-    <div id={`quiz-question-${displayIndex}`} className="bg-white border border-gray-200 rounded-lg mb-6 shadow-sm scroll-mt-6">
-      <div className="p-6">
+    <div 
+      id={`quiz-question-${displayIndex}`} 
+      className="p-6 rounded-xl shadow-lg border-2 mb-6 scroll-mt-6"
+      style={{ 
+        backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
+        borderColor: getColor('primary', '#3b82f6')
+      }}
+    >
+      <div>
         {/* Número de pregunta y título */}
         <div className="mb-6">
           <h3 
-            className="text-base text-gray-800 font-medium"
+            className="text-base qe-text-primary font-medium"
             dangerouslySetInnerHTML={{ __html: `${displayIndex}. ${questionTitle || ''}` }}
           />
         </div>

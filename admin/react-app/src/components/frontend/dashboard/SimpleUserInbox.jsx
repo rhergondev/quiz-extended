@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, ChevronLeft, ChevronRight, Search, Trash2, RefreshCw, X } from 'lucide-react';
+import { useTheme } from '../../../contexts/ThemeContext';
 import useUserInbox from '../../../hooks/useUserInbox';
 
 const SimpleUserInbox = () => {
+  const { getColor } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -83,14 +85,18 @@ const SimpleUserInbox = () => {
   };
 
   return (
-    <div className="rounded-lg h-full flex flex-col shadow-sm border qe-border-primary" style={{ backgroundColor: 'var(--qe-bg-card)' }}>
+    <div 
+      className="rounded-xl h-full flex flex-col shadow-lg border-2" 
+      style={{ 
+        backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
+        borderColor: getColor('primary', '#3b82f6')
+      }}
+    >
       {/* Header compacto con contador y controles */}
-      <div className="flex items-center justify-between p-4 pb-3 border-b qe-border-primary mx-4">
+      <div className="flex items-center justify-between p-6 pb-4 border-b-2" style={{ borderColor: getColor('primary', '#3b82f6') + '30' }}>
         <div className="flex items-center gap-3">
-          <div className="p-2 qe-bg-primary-light rounded-lg flex items-center justify-center">
-            <Mail className="w-5 h-5 qe-text-primary" />
-          </div>
-          <h2 className="text-lg font-bold qe-text-primary flex items-center">Mensajes</h2>
+          <Mail className="w-6 h-6" style={{ color: getColor('primary', '#3b82f6') }} />
+          <h2 className="text-xl font-bold qe-text-primary">Mensajes</h2>
         </div>
 
         {/* Controles de navegación y búsqueda */}

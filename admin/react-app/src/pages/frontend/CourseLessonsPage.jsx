@@ -50,6 +50,7 @@ const CourseLessonsPage = () => {
   const [error, setError] = useState(null);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [showRankingModal, setShowRankingModal] = useState(false);
+  const [isLessonListOpen, setIsLessonListOpen] = useState(false); // Estado para el modal de lecciones
 
   // 2. Fetch lessons using the new course-specific endpoint
   useEffect(() => {
@@ -241,15 +242,18 @@ const CourseLessonsPage = () => {
           courseId={parseInt(courseId, 10)}
           onOpenRanking={handleOpenRanking}
           rankingLoading={rankingLoading}
+          onOpenLessonList={() => setIsLessonListOpen(true)} // Pasar función para abrir el modal
         />
       </div>
 
-      {/* Panel lateral de lecciones */}
+      {/* Modal de lecciones */}
       <CourseLessonList 
         lessons={sortedLessons} 
         isLoading={lessonsLoading}
         selectedStepId={activeContent.step?.id}
         onSelectStep={handleSelectStep}
+        isOpen={isLessonListOpen}
+        onClose={() => setIsLessonListOpen(false)}
       />
 
       {/* Ranking Modal */}

@@ -56,6 +56,7 @@
     "myDesk": "Mi Escritorio",
     "studyPlanner": "Cursos",
     "test": "Test",
+    "statistics": "Estadísticas",
     "supportMaterial": "Material de Apoyo",
     "videosClasses": "Vídeos / Clases",
     "profile": "Mi Perfil",
@@ -65,7 +66,8 @@
     "expand": "Expandir",
     "collapse": "Colapsar",
     "logoAlt": "Logo de la empresa",
-    "logoText": "Tu Logo"
+    "logoText": "Tu Logo",
+    "onlineClasses": "Clases Online"
   },
   "dashboard": {
     "title": "Panel del LMS",

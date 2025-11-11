@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 // --- COMPONENTES AUXILIARES (Sin cambios) ---
 
@@ -32,6 +33,7 @@ const QuizSidebar = ({
   hasMore = false,
   onLoadMore = null
 }) => {
+  const { getColor } = useTheme();
   
   const answeredCount = Object.keys(userAnswers).length;
   const riskedCount = riskedAnswers.length;
@@ -63,27 +65,44 @@ const QuizSidebar = ({
 
   return (
     <div className="sticky top-4 w-full">
-      <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+      <div 
+        className="p-6 rounded-xl shadow-lg border-2"
+        style={{ 
+          backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
+          borderColor: getColor('primary', '#3b82f6')
+        }}
+      >
         
         {/* 🔥 NEW: Loading progress indicator */}
         {loadingMore && loadingProgress < 100 && (
-          <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center justify-between text-xs text-blue-700 mb-1">
-              <span>Cargando preguntas...</span>
+          <div 
+            className="mb-4 p-3 rounded-lg border-2"
+            style={{ 
+              backgroundColor: getColor('primary', '#3b82f6') + '10',
+              borderColor: getColor('primary', '#3b82f6')
+            }}
+          >
+            <div className="flex items-center justify-between text-xs qe-text-primary mb-2">
+              <span className="font-medium">Cargando preguntas...</span>
               <span className="font-bold">{loadedCount}/{effectiveTotal}</span>
             </div>
-            <div className="w-full bg-blue-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${loadingProgress}%` }}
+                className="h-2 rounded-full transition-all duration-300"
+                style={{ 
+                  width: `${loadingProgress}%`,
+                  backgroundColor: getColor('primary', '#3b82f6')
+                }}
               ></div>
             </div>
           </div>
         )}
         
-        <div className="flex justify-around items-center mb-4 p-2 bg-gray-50 rounded-lg">
-            {/* CAMBIO: Usando la nueva clase 'bg-primary' */}
-            <LegendItem color="bg-primary border-primary" text="Contestada" />
+        <div 
+          className="flex justify-around items-center mb-4 p-3 rounded-lg"
+          style={{ backgroundColor: getColor('background', '#ffffff') }}
+        >
+            <LegendItem color="border-2" text="Contestada" style={{ borderColor: getColor('primary', '#3b82f6'), backgroundColor: getColor('primary', '#3b82f6') }} />
             <LegendItem color="bg-yellow-500 border-yellow-500" text="Con Riesgo" />
             <LegendItem color="bg-gray-400 border-gray-400" text="Impugnada" />
         </div>
@@ -104,6 +123,9 @@ const QuizSidebar = ({
             const isImpugned = false; 
 
             let style = '';
+            let bgColor = '';
+            let borderColor = '';
+            let textColor = '';
             
             if (!isLoaded) {
               // 🔥 NEW: Placeholder style for unloaded questions
@@ -111,21 +133,31 @@ const QuizSidebar = ({
             } else if (isImpugned) {
               style = 'bg-gray-400 text-black border-gray-400';
             } else if (isRisked) {
-              // CAMBIO: Usando 'text-primary'
-              style = 'bg-yellow-500 text-primary border-yellow-500';
+              // CAMBIO: Usando color primario
+              style = `bg-yellow-500 text-white border-2`;
+              borderColor = '#eab308';
             } else if (isAnswered) {
-              // CAMBIO: Usando 'bg-primary' y 'border-primary'
-              style = 'bg-primary text-yellow-500 border-primary';
+              // CAMBIO: Usando color primario
+              style = `text-white border-2`;
+              bgColor = getColor('primary', '#3b82f6');
+              borderColor = getColor('primary', '#3b82f6');
             } else {
-              // CAMBIO: Usando 'border-primary' y 'text-primary'
-              style = 'bg-white border-2 border-primary text-primary';
+              // Sin contestar
+              style = `bg-white border-2`;
+              borderColor = getColor('primary', '#3b82f6');
+              textColor = getColor('primary', '#3b82f6');
             }
 
             return (
               <div
                 key={qId}
                 onClick={() => isLoaded && scrollToQuestion(index)}
-                className={`w-full h-7 rounded text-xs font-bold transition-colors flex items-center justify-center ${isLoaded ? 'cursor-pointer hover:opacity-80' : 'cursor-wait'} ${style}`}
+                className={`w-full h-7 rounded text-xs font-bold transition-all flex items-center justify-center ${isLoaded ? 'cursor-pointer hover:opacity-80' : 'cursor-wait'} ${style}`}
+                style={{
+                  backgroundColor: bgColor,
+                  borderColor: borderColor,
+                  color: textColor
+                }}
                 title={!isLoaded ? 'Cargando pregunta...' : undefined}
               >
                 {index + 1}
@@ -141,7 +173,11 @@ const QuizSidebar = ({
               onClick={() => { if (onLoadMore) onLoadMore(); }}
               disabled={loadingMore}
               aria-label="Cargar más preguntas"
-              className={`w-full px-4 py-2 rounded-md font-medium transition-all ${loadingMore ? 'bg-gray-300 text-gray-600 cursor-wait' : 'bg-white border-2 border-primary text-primary hover:opacity-90'}`}
+              className={`w-full px-4 py-2 rounded-lg font-medium transition-all border-2 ${loadingMore ? 'bg-gray-300 text-gray-600 cursor-wait' : 'bg-white hover:opacity-90'}`}
+              style={!loadingMore ? {
+                borderColor: getColor('primary', '#3b82f6'),
+                color: getColor('primary', '#3b82f6')
+              } : {}}
             >
               {loadingMore ? 'Cargando...' : 'Cargar más preguntas'}
             </button>
@@ -150,8 +186,14 @@ const QuizSidebar = ({
 
         <button
           onClick={onSubmit}
-          // CAMBIO: Usando 'bg-primary' y 'hover:bg-primary/90' para un efecto hover sutil
-          className="w-full px-6 py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 shadow-md transition-all transform hover:-translate-y-px"
+          className="w-full px-6 py-3 text-white font-semibold rounded-lg shadow-md transition-all transform hover:-translate-y-px hover:shadow-lg"
+          style={{ backgroundColor: getColor('primary', '#3b82f6') }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = '0.9';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = '1';
+          }}
         >
           FINALIZAR EXAMEN
         </button>

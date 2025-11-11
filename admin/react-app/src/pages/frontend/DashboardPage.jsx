@@ -13,7 +13,7 @@ const DashboardPage = () => {
   const { getColor } = useTheme();
 
   return (
-    <div className="container mx-auto p-6 space-y-8 min-h-full" style={{ backgroundColor: getColor('secondaryBackground', '#ffffff') }}>
+    <div className="p-6 space-y-8 min-h-full max-w-full" style={{ backgroundColor: getColor('secondaryBackground', '#ffffff') }}>
       <header>
         <h1 className="text-4xl font-bold qe-text-primary">
           ¡Bienvenido de nuevo, {userName}!

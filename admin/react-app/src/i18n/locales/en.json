@@ -56,6 +56,7 @@
     "myDesk": "My Desk",
     "studyPlanner": "Courses",
     "test": "Test",
+    "statistics": "Statistics",
     "supportMaterial": "Support Material",
     "videosClasses": "Videos / Classes",
     "profile": "My Profile",
@@ -65,7 +66,8 @@
     "expand": "Expand",
     "collapse": "Collapse",
     "logoAlt": "Company Logo",
-    "logoText": "Your Logo"
+    "logoText": "Your Logo",
+    "onlineClasses": "Online Classes"
   },
   "courses": {
     "title": "Courses",
