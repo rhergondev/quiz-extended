@@ -31,7 +31,7 @@ const Quiz = ({ quizId, customQuiz = null, onQuizComplete }) => {
   const [autosaveData, setAutosaveData] = useState(null);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const { theme } = useTheme();
+  const { getColor } = useTheme();
 
   // Use paginated hook for loading questions
   const { 
@@ -368,7 +368,7 @@ const Quiz = ({ quizId, customQuiz = null, onQuizComplete }) => {
         onClick={() => setIsDrawingMode(!isDrawingMode)}
         className="fixed top-6 right-6 z-40 p-3 rounded-full shadow-lg transition-all duration-300 text-white"
         style={{
-          backgroundColor: isDrawingMode ? '#dc2626' : theme.primary,
+          backgroundColor: isDrawingMode ? '#dc2626' : getColor('primary', '#3b82f6'),
           transform: isDrawingMode ? 'rotate(45deg)' : 'rotate(0deg)'
         }}
         onMouseEnter={(e) => {

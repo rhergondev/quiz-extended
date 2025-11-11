@@ -6,12 +6,14 @@ import SimpleUserInbox from '../../components/frontend/dashboard/SimpleUserInbox
 import CourseProgressWidget from '../../components/frontend/dashboard/CourseProgressWidget';
 import QuestionStatsWidget from '../../components/frontend/dashboard/QuestionStatsWidget';
 import PendingQuizAlert from '../../components/frontend/dashboard/PendingQuizAlert';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const DashboardPage = () => {
   const userName = window.qe_data?.user?.name || "Estudiante";
+  const { getColor } = useTheme();
 
   return (
-    <div className="container mx-auto p-6 space-y-8">
+    <div className="container mx-auto p-6 space-y-8 min-h-full" style={{ backgroundColor: getColor('secondaryBackground', '#ffffff') }}>
       <header>
         <h1 className="text-4xl font-bold qe-text-primary">
           ¡Bienvenido de nuevo, {userName}!

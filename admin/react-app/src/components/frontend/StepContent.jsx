@@ -16,8 +16,7 @@ const stepIcons = {
 };
 
 const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId, onOpenRanking, rankingLoading }) => {
-  const { getCurrentColors } = useTheme(); // Obtener colores actuales del tema
-  const currentColors = getCurrentColors();
+  const { getColor } = useTheme(); // Obtener función para colores seguros
   const [quizStarted, setQuizStarted] = useState(false);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   
@@ -331,7 +330,7 @@ const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId, onOpenR
  return (
     <div className="flex-grow lg:w-full h-[100%] overflow-y-auto">
       {/* Header sticky sin padding externo */}
-      <div className="sticky top-0 z-10 px-6 py-4 border-b" style={{ backgroundColor: currentColors.secondaryBackground }}>
+      <div className="sticky top-0 z-10 px-6 py-4 border-b" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
         {quizStarted && !quizSubmitted ? (
           // Header especial para Quiz en progreso: Solo título y botón salir
           <div className="flex items-center justify-between gap-4">

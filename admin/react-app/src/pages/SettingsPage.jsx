@@ -4,7 +4,7 @@ import { Save, Settings, Percent, Hash, Palette, Sun, Moon, RotateCcw } from 'lu
 import QEButton from '../components/common/QEButton';
 import { toast } from 'react-toastify';
 import settingsService from '../api/services/settingsService';
-import { DEFAULT_THEME } from '../contexts/ThemeContext';
+import { DEFAULT_THEME, useTheme } from '../contexts/ThemeContext';
 
 /**
  * Settings page for admin panel
@@ -13,19 +13,17 @@ import { DEFAULT_THEME } from '../contexts/ThemeContext';
 const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState('general');
   
-  // Inicializar con datos de window.qe_data si están disponibles
+  // Usar el ThemeContext para obtener y actualizar el tema
+  const { theme: contextTheme, setThemePreview } = useTheme();
+  
+  // Inicializar con datos del contexto (que ya viene de window.qe_data)
   const getInitialScoreFormat = () => {
     const wpData = window.qe_data || {};
     return wpData.scoreFormat || 'percentage';
   };
   
-  const getInitialTheme = () => {
-    const wpData = window.qe_data || {};
-    return wpData.theme || DEFAULT_THEME;
-  };
-  
   const [scoreFormat, setScoreFormat] = useState(getInitialScoreFormat());
-  const [theme, setTheme] = useState(getInitialTheme());
+  const [theme, setTheme] = useState(contextTheme);
   const [previewMode, setPreviewMode] = useState('light');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -97,18 +95,26 @@ const SettingsPage = () => {
   };
 
   const handleColorChange = (mode, colorKey, value) => {
-    setTheme(prev => ({
-      ...prev,
+    const newTheme = {
+      ...theme,
       [mode]: {
-        ...prev[mode],
+        ...theme[mode],
         [colorKey]: value
       }
-    }));
+    };
+    
+    // Actualizar estado local
+    setTheme(newTheme);
+    
+    // Actualizar contexto (esto aplicará los colores al DOM inmediatamente)
+    setThemePreview(newTheme);
   };
 
   const handleResetTheme = () => {
     if (confirm('¿Estás seguro de que quieres restaurar los colores por defecto?')) {
       setTheme(DEFAULT_THEME);
+      // Actualizar contexto también
+      setThemePreview(DEFAULT_THEME);
     }
   };
 

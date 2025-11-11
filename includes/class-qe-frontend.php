@@ -315,6 +315,47 @@ class QE_Frontend
         $logo_path = get_option('lms_logo_path', '/uploads/2025/08/logotipo-horizontal-uniforme-azul.png');
         $logo_url = content_url($logo_path);
 
+        // Get settings from database (same as admin)
+        if (!class_exists('QE_Settings_API')) {
+            require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/api/class-qe-settings-api.php';
+        }
+
+        $all_settings = QE_Settings_API::get_all_settings();
+
+        // Ensure we have valid theme data
+        $theme = isset($all_settings['theme']) && is_array($all_settings['theme'])
+            ? $all_settings['theme']
+            : [
+                'light' => [
+                    'primary' => '#3b82f6',
+                    'secondary' => '#8b5cf6',
+                    'accent' => '#f59e0b',
+                    'background' => '#f3f4f6',
+                    'secondaryBackground' => '#ffffff',
+                    'text' => '#111827'
+                ],
+                'dark' => [
+                    'primary' => '#60a5fa',
+                    'secondary' => '#a78bfa',
+                    'accent' => '#fbbf24',
+                    'background' => '#1f2937',
+                    'secondaryBackground' => '#111827',
+                    'text' => '#f9fafb'
+                ]
+            ];
+
+        $score_format = isset($all_settings['score_format'])
+            ? $all_settings['score_format']
+            : 'percentage';
+
+        // Detect dark mode preference
+        $is_dark_mode = false;
+        if (is_user_logged_in()) {
+            $user_id = get_current_user_id();
+            $color_scheme = get_user_meta($user_id, 'admin_color', true);
+            $dark_schemes = ['midnight', 'coffee', 'ectoplasm', 'ocean', 'modern'];
+            $is_dark_mode = in_array($color_scheme, $dark_schemes);
+        }
 
         wp_localize_script(
             'quiz-extended-frontend-app',
@@ -327,6 +368,9 @@ class QE_Frontend
                 'user' => $user_data,
                 'logout_url' => wp_logout_url(home_url()),
                 'logoUrl' => $logo_url,
+                'theme' => $theme,
+                'isDarkMode' => $is_dark_mode,
+                'scoreFormat' => $score_format,
                 'locale' => get_locale(),
                 'endpoints' => [
                     'courses' => $api_url_base . '/wp/v2/qe_course',

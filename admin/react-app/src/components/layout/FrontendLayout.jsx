@@ -7,7 +7,7 @@ const FrontendLayout = () => {
   const location = useLocation();
   const layoutRef = useRef(null);
   const [adjustedBgColor, setAdjustedBgColor] = useState('');
-  const { theme, isDarkMode } = useTheme(); // Escuchar cambios del tema
+  const { getColor, isDarkMode } = useTheme(); // Usar getColor directamente
 
   // Función para determinar si un color es claro u oscuro
   const isLightColor = (color) => {
@@ -94,9 +94,7 @@ const FrontendLayout = () => {
   // Calcular el color de fondo ajustado basado en el color del tema
   // Se recalcula cuando cambia el tema, el modo oscuro, o la ruta
   useEffect(() => {
-    const bgColor = getComputedStyle(document.documentElement)
-      .getPropertyValue('--qe-secondary-background')
-      .trim();
+    const bgColor = getColor('secondaryBackground', '#f3f4f6');
 
     if (bgColor && bgColor.startsWith('#')) {
       const isLight = isLightColor(bgColor);
@@ -105,7 +103,7 @@ const FrontendLayout = () => {
       const adjustedColor = adjustColorBrightness(bgColor, isLight ? -0.05 : 0.05);
       setAdjustedBgColor(adjustedColor);
     }
-  }, [theme, isDarkMode, location]); // Recalcular cuando cambie el tema, modo oscuro, o ruta
+  }, [getColor, isDarkMode, location]); // Recalcular cuando cambie el tema, modo oscuro, o ruta
 
   // Este efecto se encarga de ajustar la altura dinámicamente.
   useLayoutEffect(() => {

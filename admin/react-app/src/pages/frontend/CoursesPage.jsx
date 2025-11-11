@@ -5,6 +5,7 @@ import useCourses from '../../hooks/useCourses';
 import useCoursesLessons from '../../hooks/useCoursesLessons';
 import CompactCourseCard from '../../components/frontend/CompactCourseCard';
 import { isUserAdmin } from '../../utils/userUtils'; // 🎯 NEW: Import user utility
+import { useTheme } from '../../contexts/ThemeContext';
 
 const PageState = ({ icon: Icon, title, message }) => (
   <div className="text-center py-16">
@@ -16,6 +17,7 @@ const PageState = ({ icon: Icon, title, message }) => (
 
 const CoursesPage = () => {
   const { t } = useTranslation();
+  const { getColor } = useTheme();
   
   // 🎯 Check if user is admin to determine if we should filter by enrollment
   const userIsAdmin = isUserAdmin();
@@ -87,7 +89,7 @@ const CoursesPage = () => {
 
   return (
     // Contenedor con scroll vertical
-    <div className="p-6 h-[97vh] w-full overflow-y-auto">
+    <div className="p-6 min-h-full w-full overflow-y-auto" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
       
       {/* Cabecera */}
       <header className="border-b qe-border-primary pb-4 mb-8">

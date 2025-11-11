@@ -9,7 +9,7 @@ const DrawingCanvas = ({ isActive, onClose }) => {
   const [color, setColor] = useState('#000000');
   const [lineWidth, setLineWidth] = useState(2);
   const [context, setContext] = useState(null);
-  const { theme } = useTheme();
+  const { getColor } = useTheme();
 
   // Configurar el canvas
   useEffect(() => {
@@ -117,9 +117,9 @@ const DrawingCanvas = ({ isActive, onClose }) => {
 
   const colors = [
     { name: 'Negro', value: '#000000' },
-    { name: 'Primario', value: theme.primary },
-    { name: 'Secundario', value: theme.secondary },
-    { name: 'Acento', value: theme.accent },
+    { name: 'Primario', value: getColor('primary', '#3b82f6') },
+    { name: 'Secundario', value: getColor('secondary', '#64748b') },
+    { name: 'Acento', value: getColor('accent', '#f59e0b') },
     { name: 'Rojo', value: '#dc2626' },
     { name: 'Verde', value: '#16a34a' },
   ];

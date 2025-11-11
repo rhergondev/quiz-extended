@@ -15,7 +15,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 
 const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep }) => {
   const { t } = useTranslation();
-  const { theme, isDarkMode } = useTheme(); // Escuchar cambios del tema
+  const { getColor, isDarkMode } = useTheme(); // Usar getColor con fallback
   const [expandedLessonId, setExpandedLessonId] = useState(null);
   // ✅ Estado para controlar el colapso del panel completo
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -79,7 +79,7 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep }) 
 
   return (
     // ✅ El ancho del panel es dinámico y se mantiene responsive
-    <aside className={`transition-all duration-300 flex-shrink-0 ${isCollapsed ? 'w-24' : 'lg:w-80 w-full'}`} style={{ backgroundColor: theme.isDarkMode ? theme.theme.dark.background : theme.theme.light.background }}>
+    <aside className={`transition-all duration-300 flex-shrink-0 ${isCollapsed ? 'w-24' : 'lg:w-80 w-full'}`} style={{ backgroundColor: getColor('background', '#ffffff') }}>
 
       <div className="h-[100%]">
         <div className="h-full flex flex-col">

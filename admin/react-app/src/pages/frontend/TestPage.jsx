@@ -1,9 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Sparkles, BookCheck, ClipboardList, BookOpen } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const TestPage = () => {
   const navigate = useNavigate();
+  const { getColor } = useTheme();
 
   const testOptions = [
     {
@@ -63,7 +65,7 @@ const TestPage = () => {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-8 min-h-full" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Test</h1>
