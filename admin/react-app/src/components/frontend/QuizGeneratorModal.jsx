@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Sliders } from 'lucide-react';
 import Button from '../common/Button';
 import FilterDropdown from '../common/FilterDropdown';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const QuizGeneratorModal = ({
   isOpen,
@@ -14,6 +15,7 @@ const QuizGeneratorModal = ({
   isLoading,
   isPracticeMode = false
 }) => {
+  const { getColor } = useTheme();
   const [filters, setFilters] = useState({
     course: 'all',
     lesson: 'all',
@@ -36,7 +38,7 @@ const QuizGeneratorModal = ({
 
   const renderSelect = (label, name, value, onChange, options, disabled = false) => (
     <div>
-      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-2">
+      <label htmlFor={name} className="block text-sm font-medium qe-text-primary mb-2">
         {label}
       </label>
       <select
@@ -45,7 +47,16 @@ const QuizGeneratorModal = ({
         value={value}
         onChange={(e) => onChange(name, e.target.value)}
         disabled={disabled}
-        className="w-full h-10 pl-3 pr-6 text-base placeholder-gray-600 border rounded-lg appearance-none focus:shadow-outline-blue focus:border-blue-300"
+        className="w-full h-10 pl-3 pr-6 text-base border-2 rounded-lg appearance-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{ borderColor: getColor('primary', '#3b82f6') + '30' }}
+        onFocus={(e) => {
+          if (!disabled) {
+            e.currentTarget.style.borderColor = getColor('primary', '#3b82f6');
+          }
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.borderColor = getColor('primary', '#3b82f6') + '30';
+        }}
       >
         {options.map(option => (
           <option key={option.value} value={option.value}>
@@ -59,62 +70,143 @@ const QuizGeneratorModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-gray-500 opacity-75" onClick={onClose}></div>
-      <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-auto">
-        <div className="p-6 border-b flex justify-between items-center">
-          <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-            <Sliders className="w-5 h-5" />
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      {/* Overlay */}
+      <div className="fixed inset-0" onClick={onClose}></div>
+      
+      {/* Modal centrado tipo widget */}
+      <div 
+        className="relative w-full max-w-3xl max-h-[90vh] rounded-xl shadow-lg border-2 flex flex-col"
+        style={{ 
+          backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
+          borderColor: getColor('primary', '#3b82f6')
+        }}
+      >
+        {/* Header del modal */}
+        <div 
+          className="p-6 border-b-2 flex items-center justify-between flex-shrink-0" 
+          style={{ borderColor: getColor('primary', '#3b82f6') + '30' }}
+        >
+          <h3 className="text-2xl font-bold qe-text-primary flex items-center gap-3">
+            <div 
+              className="p-2 rounded-lg"
+              style={{ backgroundColor: getColor('primary', '#3b82f6') + '20' }}
+            >
+              <Sliders className="w-6 h-6" style={{ color: getColor('primary', '#3b82f6') }} />
+            </div>
             {isPracticeMode ? 'Configurar Práctica' : 'Configurar Cuestionario'}
           </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="h-5 w-5" />
+          <button 
+            onClick={onClose} 
+            className="p-2 rounded-lg transition-all"
+            style={{ backgroundColor: getColor('primary', '#3b82f6') + '15' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = getColor('primary', '#3b82f6') + '25';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = getColor('primary', '#3b82f6') + '15';
+            }}
+            title="Cerrar"
+          >
+            <X className="w-6 h-6" style={{ color: getColor('primary', '#3b82f6') }} />
           </button>
         </div>
 
-        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-          {/* Usamos el nuevo renderSelect para cada dropdown */}
-          {renderSelect('Filtrar por Curso', 'course', filters.course, handleFilterChange, courseOptions, isLoading)}
-          {renderSelect('Filtrar por Lección', 'lesson', filters.lesson, handleFilterChange, lessonOptions, isLoading)}
-          {renderSelect('Filtrar por Categoría', 'category', filters.category, handleFilterChange, categories, isLoading)}
-          {renderSelect('Filtrar por Dificultad', 'difficulty', filters.difficulty, handleFilterChange, difficulties, isLoading)}
+        {/* Contenido del modal con scroll */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-4 max-w-2xl mx-auto">
+            {/* Usamos el nuevo renderSelect para cada dropdown */}
+            {renderSelect('Filtrar por Curso', 'course', filters.course, handleFilterChange, courseOptions, isLoading)}
+            {renderSelect('Filtrar por Lección', 'lesson', filters.lesson, handleFilterChange, lessonOptions, isLoading)}
+            {renderSelect('Filtrar por Categoría', 'category', filters.category, handleFilterChange, categories, isLoading)}
+            {renderSelect('Filtrar por Dificultad', 'difficulty', filters.difficulty, handleFilterChange, difficulties, isLoading)}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Número de Preguntas
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="50"
-                value={filters.numQuestions}
-                onChange={(e) => handleFilterChange('numQuestions', parseInt(e.target.value, 10))}
-                className="w-full h-10 px-3 text-base placeholder-gray-600 border rounded-lg focus:shadow-outline-blue focus:border-blue-300"
-              />
-            </div>
-            {!isPracticeMode && (
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Límite de Tiempo (minutos)
+                <label className="block text-sm font-medium qe-text-primary mb-2">
+                  Número de Preguntas
                 </label>
                 <input
                   type="number"
-                  min="0"
-                  value={filters.timeLimit}
-                  onChange={(e) => handleFilterChange('timeLimit', parseInt(e.target.value, 10))}
-                  className="w-full h-10 px-3 text-base placeholder-gray-600 border rounded-lg focus:shadow-outline-blue focus:border-blue-300"
-                  placeholder="0 para ilimitado"
+                  min="1"
+                  max="50"
+                  value={filters.numQuestions}
+                  onChange={(e) => handleFilterChange('numQuestions', parseInt(e.target.value, 10))}
+                  className="w-full h-10 px-3 text-base border-2 rounded-lg transition-colors"
+                  style={{ borderColor: getColor('primary', '#3b82f6') + '30' }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = getColor('primary', '#3b82f6');
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = getColor('primary', '#3b82f6') + '30';
+                  }}
                 />
               </div>
-            )}
+              {!isPracticeMode && (
+                <div>
+                  <label className="block text-sm font-medium qe-text-primary mb-2">
+                    Límite de Tiempo (minutos)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={filters.timeLimit}
+                    onChange={(e) => handleFilterChange('timeLimit', parseInt(e.target.value, 10))}
+                    className="w-full h-10 px-3 text-base border-2 rounded-lg transition-colors"
+                    style={{ borderColor: getColor('primary', '#3b82f6') + '30' }}
+                    placeholder="0 para ilimitado"
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = getColor('primary', '#3b82f6');
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = getColor('primary', '#3b82f6') + '30';
+                    }}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
         
-        <div className="bg-gray-50 px-6 py-4 flex justify-end">
-          <Button onClick={handleGenerateClick} disabled={isLoading}>
+        {/* Footer con botones */}
+        <div 
+          className="p-4 border-t-2 flex justify-center gap-3 flex-shrink-0" 
+          style={{ borderColor: getColor('primary', '#3b82f6') + '30' }}
+        >
+          <button
+            onClick={onClose}
+            className="px-6 py-2 rounded-lg font-semibold transition-all border-2"
+            style={{ 
+              borderColor: getColor('primary', '#3b82f6') + '30',
+              color: getColor('primary', '#3b82f6')
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = getColor('primary', '#3b82f6') + '10';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleGenerateClick}
+            disabled={isLoading}
+            className="px-6 py-2 rounded-lg text-white font-semibold transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ 
+              backgroundColor: getColor('primary', '#3b82f6')
+            }}
+            onMouseEnter={(e) => {
+              if (!isLoading) {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
             {isLoading ? 'Cargando filtros...' : isPracticeMode ? 'Comenzar Práctica' : 'Generar Cuestionario'}
-          </Button>
+          </button>
         </div>
       </div>
     </div>

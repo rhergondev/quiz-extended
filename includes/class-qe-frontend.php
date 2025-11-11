@@ -105,7 +105,7 @@ class QE_Frontend
 
         if ($lms_page_url && $this->lms_page_id > 0) {
             if (strpos($items, 'href="' . esc_url($lms_page_url) . '"') === false) {
-                $academy_item = '<li class="menu-item menu-item-type-post_type menu-item-object-page qe-academy-link"><a href="' . esc_url($lms_page_url) . '">' . __('Academia', 'quiz-extended') . '</a></li>';
+                $academy_item = '<li class="menu-item menu-item-type-post_type menu-item-object-page qe-academy-link"><a href="' . esc_url($lms_page_url) . '">' . __('Campus', 'quiz-extended') . '</a></li>';
                 $items .= $academy_item;
                 $this->menu_item_added = true;
             }

@@ -376,6 +376,22 @@ const CourseRankingModal = ({ isOpen, onClose, courseId, courseName }) => {
                         </div>
                     )}
                 </div>
+
+                {/* Footer con botón de cerrar */}
+                <div className="p-4 border-t border-gray-200 flex justify-center bg-gray-50">
+                    <button
+                        onClick={onClose}
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                    >
+                        Cerrar
+                    </button>
+                </div>
             </div>
         </div>
     );

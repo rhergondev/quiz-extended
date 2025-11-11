@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Home, Calendar, FileText, BookOpen, Video, User, LogOut, ChevronLeft, ChevronRight, Menu, X, Settings, BarChart3, CalendarClock
@@ -8,11 +8,23 @@ import useUserInbox from '../../hooks/useUserInbox';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const Sidebar = () => {
+  const location = useLocation();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const { t } = useTranslation();
   const { getCurrentColors } = useTheme(); // Obtener colores actuales del tema
   const currentColors = getCurrentColors();
+  
+  // Auto-collapse logic for focus pages (course lessons and quiz pages)
+  React.useEffect(() => {
+    const pathname = location.pathname;
+    // Check if we're on a course lessons page (/courses/:id) or quiz/test pages
+    const isFocusPage = /^\/courses\/\d+/.test(pathname) || pathname.startsWith('/test') || pathname.startsWith('/quiz/');
+    
+    if (isFocusPage) {
+      setIsCollapsed(true);
+    }
+  }, [location.pathname]);
   
   // Get unread messages count
   const { messages, loading: loadingMessages } = useUserInbox({

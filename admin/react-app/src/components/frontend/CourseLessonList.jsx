@@ -189,6 +189,25 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep, is
             <p className="p-4 qe-text-secondary text-center">{t('noLessonsForCourse')}</p>
           )}
         </div>
+
+          {/* Footer con botón de cerrar */}
+          <div className="p-4 border-t-2 flex justify-center flex-shrink-0" style={{ borderColor: getColor('primary', '#3b82f6') + '30' }}>
+            <button
+              onClick={onClose}
+              className="px-6 py-2 rounded-lg text-white font-semibold transition-all shadow-md hover:shadow-lg"
+              style={{ 
+                backgroundColor: getColor('primary', '#3b82f6')
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </div>
     </>
