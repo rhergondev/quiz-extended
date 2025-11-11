@@ -29,35 +29,35 @@ class QE_Rate_Limiter
      * * @var array
      */
     private $limits = [
-        // 🔥 CORRECCIÓN: Aumentado el límite para evitar bloqueos al buscar en el admin.
+        // 🔥 CORRECCIÓN: Aumentado significativamente para desarrollo y carga inicial de dashboard
         'api_general' => [
-            'limit' => 300,         // Aumentado de 60 a 300 peticiones
+            'limit' => 1000,        // Aumentado de 300 a 1000 peticiones
             'window' => 60,         // por minuto
             'action' => 'throttle'
         ],
         'api_quiz_start' => [
-            'limit' => 50,
+            'limit' => 100,         // Aumentado de 50 a 100
             'window' => 300,        // 5 minutes
-            'action' => 'block'
+            'action' => 'throttle'  // Cambiado de block a throttle
         ],
         'api_quiz_submit' => [
-            'limit' => 40,
+            'limit' => 100,         // Aumentado de 40 a 100
             'window' => 3600,       // 1 hour
             'action' => 'throttle'
         ],
         'api_create' => [
-            'limit' => 30,
+            'limit' => 100,         // Aumentado de 30 a 100
             'window' => 300,        // 5 minutes
             'action' => 'throttle'
         ],
         'api_delete' => [
-            'limit' => 20,
+            'limit' => 50,          // Aumentado de 20 a 50
             'window' => 300,
-            'action' => 'block'
+            'action' => 'throttle'  // Cambiado de block a throttle
         ],
         // AJAX actions
         'ajax_search' => [
-            'limit' => 30,
+            'limit' => 100,         // Aumentado de 30 a 100
             'window' => 60,
             'action' => 'throttle'
         ],
@@ -602,8 +602,9 @@ class QE_Rate_Limiter
 
         set_transient($violations_key, $violations, HOUR_IN_SECONDS);
 
-        // If more than 10 violations in 1 hour, add to blacklist and alert
-        if ($violations >= 10) {
+        // If more than 50 violations in 1 hour, add to blacklist and alert
+        // Aumentado de 10 a 50 para evitar bloqueos en desarrollo
+        if ($violations >= 50) {
             $this->add_to_blacklist($data['ip']);
 
             // Send alert
@@ -777,8 +778,8 @@ class QE_Rate_Limiter
      */
     private function should_bypass($limit_type)
     {
-        // Bypass for administrators in admin area
-        if (is_admin() && current_user_can('manage_options')) {
+        // Bypass for administrators (tanto en admin como en frontend)
+        if (current_user_can('manage_options')) {
             return true;
         }
 
@@ -792,9 +793,16 @@ class QE_Rate_Limiter
             return true;
         }
 
-        // Bypass for localhost development
-        if (in_array($this->get_client_ip(), ['127.0.0.1', '::1'])) {
+        // Bypass for localhost development (ampliado)
+        $client_ip = $this->get_client_ip();
+        $localhost_ips = ['127.0.0.1', '::1', 'localhost'];
+        if (in_array($client_ip, $localhost_ips) || strpos($client_ip, '192.168.') === 0 || strpos($client_ip, '10.') === 0) {
             return apply_filters('qe_rate_limit_bypass_localhost', true);
+        }
+
+        // Bypass en entorno de desarrollo
+        if (defined('WP_DEBUG') && WP_DEBUG && defined('WP_ENVIRONMENT_TYPE') && WP_ENVIRONMENT_TYPE === 'local') {
+            return true;
         }
 
         return apply_filters('qe_rate_limit_bypass', false, $limit_type);

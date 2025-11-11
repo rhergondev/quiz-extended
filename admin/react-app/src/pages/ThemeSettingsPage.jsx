@@ -3,44 +3,13 @@ import { Palette, Sun, Moon, Save, RotateCcw } from 'lucide-react';
 import QEButton from '../components/common/QEButton';
 import { toast } from 'react-toastify';
 import settingsService from '../api/services/settingsService';
+import { DEFAULT_THEME } from '../contexts/ThemeContext';
 
 const ThemeSettingsPage = () => {
-  const [theme, setTheme] = useState({
-    light: {
-      primary: '#3b82f6',
-      secondary: '#8b5cf6',
-      accent: '#f59e0b',
-      background: '#ffffff',
-      text: '#111827'
-    },
-    dark: {
-      primary: '#60a5fa',
-      secondary: '#a78bfa',
-      accent: '#fbbf24',
-      background: '#1f2937',
-      text: '#f9fafb'
-    }
-  });
+  const [theme, setTheme] = useState(DEFAULT_THEME);
   const [previewMode, setPreviewMode] = useState('light');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  const defaultTheme = {
-    light: {
-      primary: '#3b82f6',
-      secondary: '#8b5cf6',
-      accent: '#f59e0b',
-      background: '#ffffff',
-      text: '#111827'
-    },
-    dark: {
-      primary: '#60a5fa',
-      secondary: '#a78bfa',
-      accent: '#fbbf24',
-      background: '#1f2937',
-      text: '#f9fafb'
-    }
-  };
 
   useEffect(() => {
     loadTheme();
@@ -57,13 +26,13 @@ const ThemeSettingsPage = () => {
           // Migrar formato antiguo
           const migratedTheme = {
             light: {
-              primary: settings.theme.primary || defaultTheme.light.primary,
-              secondary: settings.theme.secondary || defaultTheme.light.secondary,
-              accent: settings.theme.accent || defaultTheme.light.accent,
-              background: settings.theme.background || defaultTheme.light.background,
-              text: settings.theme.text || defaultTheme.light.text
+              primary: settings.theme.primary || DEFAULT_THEME.light.primary,
+              secondary: settings.theme.secondary || DEFAULT_THEME.light.secondary,
+              accent: settings.theme.accent || DEFAULT_THEME.light.accent,
+              background: settings.theme.background || DEFAULT_THEME.light.background,
+              text: settings.theme.text || DEFAULT_THEME.light.text
             },
-            dark: defaultTheme.dark
+            dark: DEFAULT_THEME.dark
           };
           setTheme(migratedTheme);
         }
@@ -103,7 +72,7 @@ const ThemeSettingsPage = () => {
 
   const handleReset = () => {
     if (confirm('¿Estás seguro de que quieres restaurar los colores por defecto?')) {
-      setTheme(defaultTheme);
+      setTheme(DEFAULT_THEME);
     }
   };
 

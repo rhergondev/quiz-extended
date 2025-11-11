@@ -10,10 +10,12 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../contexts/ThemeContext';
 
 
 const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep }) => {
   const { t } = useTranslation();
+  const { theme, isDarkMode } = useTheme(); // Escuchar cambios del tema
   const [expandedLessonId, setExpandedLessonId] = useState(null);
   // ✅ Estado para controlar el colapso del panel completo
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -77,10 +79,10 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep }) 
 
   return (
     // ✅ El ancho del panel es dinámico y se mantiene responsive
-    <aside className={`transition-all duration-300 flex-shrink-0 ${isCollapsed ? 'w-24' : 'lg:w-80 w-full'}`}>
+    <aside className={`transition-all duration-300 flex-shrink-0 ${isCollapsed ? 'w-24' : 'lg:w-80 w-full'}`} style={{ backgroundColor: theme.isDarkMode ? theme.theme.dark.background : theme.theme.light.background }}>
 
-      <div className="h-[100%] border-l-2 border-black-200">
-        <div className="bg-gray-100 h-full flex flex-col">
+      <div className="h-[100%]">
+        <div className="h-full flex flex-col">
           {/* ✅ Cabecera con título condicional y botón de colapso */}
           <div className={`p-4 border-b border-gray-200 flex-shrink-0 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
             {!isCollapsed && (
@@ -115,7 +117,7 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep }) 
                     <li key={lesson.id} className="border-b border-gray-200">
                       <div
                         onClick={() => handleLessonClick(lesson.id)}
-                        className={`p-4 flex justify-between items-center ${!isCollapsed ? 'cursor-pointer' : ''} ${isExpanded && !isCollapsed ? 'bg-gray-200' : 'hover:bg-gray-200'}`}
+                        className={`p-4 flex justify-between items-center ${!isCollapsed ? 'cursor-pointer' : ''} ${isExpanded && !isCollapsed ? 'bg-gray-200 bg-opacity-50' : 'hover:bg-gray-200 hover:bg-opacity-30'}`}
                         title={isCollapsed ? lessonTitle : ''}
                       >
                         <div className={`flex items-center space-x-3 ${isCollapsed ? 'justify-center w-full' : ''}`}>
@@ -131,7 +133,7 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep }) 
                       
                       {/* ✅ Los pasos solo se muestran si la lección está expandida Y el panel NO está colapsado */}
                       {isExpanded && !isCollapsed && steps.length > 0 && (
-                        <ul className="bg-white">
+                        <ul className="bg-white bg-opacity-70">
                           {steps.map((step) => {
                             const isSelected = step.id === selectedStepId;
                             const title = getStepTitle(step);
@@ -139,7 +141,7 @@ const CourseLessonList = ({ lessons, isLoading, selectedStepId, onSelectStep }) 
                               <li 
                                 key={step.id}
                                 onClick={() => onSelectStep(step, lesson)}
-                                className={`flex items-center space-x-2 py-3 px-4 border-l-4 transition-colors cursor-pointer ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-transparent hover:bg-gray-50'}`}
+                                className={`flex items-center space-x-2 py-3 px-4 border-l-4 transition-colors cursor-pointer ${isSelected ? 'border-blue-500 bg-blue-100 bg-opacity-70' : 'border-transparent hover:bg-gray-100 hover:bg-opacity-50'}`}
                                 style={{ paddingLeft: '2rem' }}
                               >
                                 {getStepIcon(step.type)}

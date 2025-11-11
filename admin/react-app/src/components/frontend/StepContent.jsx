@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, PlayCircle, FileText, CheckSquare, File, ChevronLeft, ChevronRight, Check, Circle } from 'lucide-react';
+import { BookOpen, PlayCircle, FileText, CheckSquare, File, ChevronLeft, ChevronRight, Trophy, X, Check, Circle } from 'lucide-react';
 import Quiz from './Quiz';
 import QuizStartConfirmation from './QuizStartConfirmation';
 import PdfStep from './PdfStep';
 import { getEmbedUrl } from '../../api/utils/videoUtils';
 import useStudentProgress from '../../hooks/useStudentProgress';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const stepIcons = {
   video: <PlayCircle className="w-5 h-5 text-blue-500" />,
@@ -14,8 +15,11 @@ const stepIcons = {
   default: <BookOpen className="w-5 h-5 text-gray-500" />,
 };
 
-const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId }) => {
+const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId, onOpenRanking, rankingLoading }) => {
+  const { getCurrentColors } = useTheme(); // Obtener colores actuales del tema
+  const currentColors = getCurrentColors();
   const [quizStarted, setQuizStarted] = useState(false);
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
   
   // Debug: Log props on mount and change
   useEffect(() => {
@@ -44,6 +48,7 @@ const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId }) => {
 
   useEffect(() => {
     setQuizStarted(false);
+    setQuizSubmitted(false);
   }, [step]);
 
   // 🎯 Lógica de navegación entre pasos
@@ -152,7 +157,10 @@ const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId }) => {
     }
   };
 
-  // 🎯 Manejar marcar/desmarcar como completado
+  // Calcular el estado de navegación
+  const navigationInfo = getNavigationInfo();
+
+  // 🎯 Manejar marcar/desmarcar como completado (solo para pasos NO quiz)
   const handleToggleComplete = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -191,8 +199,7 @@ const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId }) => {
     }
   };
 
-  // Calcular el estado de completado y navegación
-  const navigationInfo = getNavigationInfo();
+  // Calcular el estado de completado
   const { currentStepIndex } = getCurrentStepInfo();
   const isStepCompleted = lesson && step && courseId && currentStepIndex !== -1
     ? isCompleted(lesson.id, 'step', lesson.id, currentStepIndex)
@@ -267,7 +274,25 @@ const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId }) => {
           };
           return <QuizStartConfirmation quiz={quizInfo} onStartQuiz={() => setQuizStarted(true)} />;
         }
-        return <Quiz quizId={quizId} />;
+        
+        // Pasar información de progreso al Quiz para que pueda marcar como completado
+        return (
+          <Quiz 
+            quizId={quizId}
+            onQuizComplete={() => {
+              // Marcar el paso del quiz como completado automáticamente
+              const { currentStepIndex } = getCurrentStepInfo();
+              if (currentStepIndex !== -1 && lesson && courseId) {
+                markComplete(lesson.id, 'step', lesson.id, currentStepIndex)
+                  .then(() => {
+                    console.log('✅ Quiz step marked as complete');
+                    setQuizSubmitted(true); // Notificar que el quiz fue completado
+                  })
+                  .catch(err => console.error('❌ Error marking quiz as complete:', err));
+              }
+            }}
+          />
+        );
       
       // 🔥 2. Añade el 'case' para el tipo 'pdf'
       case 'pdf':
@@ -304,135 +329,184 @@ const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId }) => {
   const stepTitle = step.type === 'quiz' ? getQuizTitle(quizIdForTitle, step.data || {}) : step.title;
 
  return (
-    <div className="flex-grow lg:w-full bg-gray-100 h-[100%] overflow-y-auto">
-      {/* Header compacto con título y progreso */}
-      <div className="sticky top-0 bg-white shadow-sm z-10 px-6 py-3 border-b">
-        {/* Primera fila: Nombre de lección + Título del paso */}
-        <div className="flex items-center justify-between gap-4 mb-2">
-          <div className="flex-1 min-w-0 flex items-baseline gap-3">
-            <p className="text-sm qe-text-primary font-semibold flex-shrink-0">
-              {lesson.title.rendered}
-            </p>
-            <span className="text-gray-400">•</span>
-            <h1 className="text-xl font-bold text-gray-800 truncate">{stepTitle}</h1>
+    <div className="flex-grow lg:w-full h-[100%] overflow-y-auto">
+      {/* Header sticky sin padding externo */}
+      <div className="sticky top-0 z-10 px-6 py-4 border-b" style={{ backgroundColor: currentColors.secondaryBackground }}>
+        {quizStarted && !quizSubmitted ? (
+          // Header especial para Quiz en progreso: Solo título y botón salir
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-xl font-bold text-gray-800">{stepTitle}</h1>
+            <button
+              onClick={() => setQuizStarted(false)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-all"
+              style={{ backgroundColor: '#ef4444' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#dc2626';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#ef4444';
+              }}
+              title="Salir del cuestionario"
+            >
+              <X className="w-4 h-4" />
+              <span>Salir del cuestionario</span>
+            </button>
           </div>
+        ) : (
+            // Header normal con toda la información
+            <>
+              {/* Primera fila: Nombre de lección + Título del paso */}
+              <div className="flex items-center justify-between gap-4 mb-3">
+                <div className="flex-1 min-w-0 flex items-baseline gap-3">
+                  <p className="text-sm qe-text-primary font-semibold flex-shrink-0">
+                    {lesson.title.rendered}
+                  </p>
+                  <span className="text-gray-400">•</span>
+                  <h1 className="text-xl font-bold text-gray-800 truncate">{stepTitle}</h1>
+                </div>
+              </div>
+
+              {/* Segunda fila: Progreso + Botones */}
+              <div className="flex items-center justify-between gap-4">
+                {/* Mini-tracker de progreso */}
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="qe-text-primary font-medium">Progreso:</span>
+                    <span className="font-semibold qe-text-primary">
+                      {lessonProgress.completed} / {lessonProgress.total}
+                    </span>
+                  </div>
+                  
+                  {/* Barra de progreso */}
+                  <div className="flex-1 max-w-xs bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="h-full transition-all duration-300 rounded-full"
+                      style={{ 
+                        width: `${lessonProgress.total > 0 ? (lessonProgress.completed / lessonProgress.total) * 100 : 0}%`,
+                        backgroundColor: 'var(--qe-primary)'
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Porcentaje */}
+                  <span className="text-sm font-medium text-gray-600">
+                    {lessonProgress.total > 0 
+                      ? Math.round((lessonProgress.completed / lessonProgress.total) * 100) 
+                      : 0}%
+                  </span>
+                </div>
+
+                {/* Botones de navegación y ranking */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* Botón Ranking */}
+                  <button
+                    onClick={onOpenRanking}
+                    disabled={rankingLoading}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: 'var(--qe-primary)' }}
+                    onMouseEnter={(e) => {
+                      if (!rankingLoading) {
+                        e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!rankingLoading) {
+                        e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+                      }
+                    }}
+                    title="Ver ranking del curso"
+                  >
+                    <Trophy className="w-4 h-4" />
+                    <span className="hidden lg:inline">Ranking</span>
+                  </button>
+
+                  {/* Botón Anterior */}
+                  <button
+                    onClick={handlePrevious}
+                    disabled={!navigationInfo.hasPrev}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: navigationInfo.hasPrev ? 'var(--qe-primary)' : '#9ca3af' }}
+                    onMouseEnter={(e) => {
+                      if (navigationInfo.hasPrev) {
+                        e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (navigationInfo.hasPrev) {
+                        e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+                      }
+                    }}
+                    title="Paso anterior"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Anterior</span>
+                  </button>
+
+                  {/* Botón Marcar como Completado - Solo para pasos NO quiz, o para quiz completado */}
+                  {(step.type !== 'quiz' || quizSubmitted) && (
+                    <button
+                      onClick={handleToggleComplete}
+                      disabled={progressLoading}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ backgroundColor: isStepCompleted ? '#10b981' : 'var(--qe-primary)' }}
+                      onMouseEnter={(e) => {
+                        if (!progressLoading) {
+                          e.currentTarget.style.backgroundColor = isStepCompleted ? '#059669' : 'var(--qe-accent)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!progressLoading) {
+                          e.currentTarget.style.backgroundColor = isStepCompleted ? '#10b981' : 'var(--qe-primary)';
+                        }
+                      }}
+                      title={isStepCompleted ? "Marcar como no completado" : "Marcar como completado"}
+                    >
+                      {isStepCompleted ? (
+                        <>
+                          <Check className="w-4 h-4" />
+                          <span className="hidden md:inline">Completado</span>
+                        </>
+                      ) : (
+                        <>
+                          <Circle className="w-4 h-4" />
+                          <span className="hidden md:inline">Completar</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Botón Siguiente */}
+                  <button
+                    onClick={handleNext}
+                    disabled={!navigationInfo.hasNext}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: navigationInfo.hasNext ? 'var(--qe-primary)' : '#9ca3af' }}
+                    onMouseEnter={(e) => {
+                      if (navigationInfo.hasNext) {
+                        e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (navigationInfo.hasNext) {
+                        e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
+                      }
+                    }}
+                    title="Siguiente paso"
+                  >
+                    <span className="hidden sm:inline">Siguiente</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Segunda fila: Progreso a la izquierda + Botones de navegación a la derecha */}
-        <div className="flex items-center justify-between gap-4">
-          {/* Mini-tracker de progreso de la lección */}
-          <div className="flex items-center gap-3 flex-1">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="qe-text-primary font-medium">Progreso:</span>
-              <span className="font-semibold qe-text-primary">
-                {lessonProgress.completed} / {lessonProgress.total}
-              </span>
-            </div>
-            
-            {/* Barra de progreso */}
-            <div className="flex-1 max-w-xs bg-gray-200 rounded-full h-2 overflow-hidden">
-              <div 
-                className="h-full transition-all duration-300 rounded-full"
-                style={{ 
-                  width: `${lessonProgress.total > 0 ? (lessonProgress.completed / lessonProgress.total) * 100 : 0}%`,
-                  backgroundColor: 'var(--qe-primary)'
-                }}
-              />
-            </div>
-            
-            {/* Porcentaje */}
-            <span className="text-sm font-medium text-gray-600">
-              {lessonProgress.total > 0 
-                ? Math.round((lessonProgress.completed / lessonProgress.total) * 100) 
-                : 0}%
-            </span>
-          </div>
-
-          {/* Botones de navegación */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Botón Anterior */}
-            <button
-              onClick={handlePrevious}
-              disabled={!navigationInfo.hasPrev}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: navigationInfo.hasPrev ? 'var(--qe-primary)' : '#9ca3af' }}
-              onMouseEnter={(e) => {
-                if (navigationInfo.hasPrev) {
-                  e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (navigationInfo.hasPrev) {
-                  e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
-                }
-              }}
-              title="Paso anterior"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Anterior</span>
-            </button>
-
-            {/* Botón Marcar como Completado */}
-            <button
-              onClick={handleToggleComplete}
-              disabled={progressLoading}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: isStepCompleted ? '#10b981' : 'var(--qe-primary)' }}
-              onMouseEnter={(e) => {
-                if (!progressLoading) {
-                  e.currentTarget.style.backgroundColor = isStepCompleted ? '#059669' : 'var(--qe-accent)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!progressLoading) {
-                  e.currentTarget.style.backgroundColor = isStepCompleted ? '#10b981' : 'var(--qe-primary)';
-                }
-              }}
-              title={isStepCompleted ? "Marcar como no completado" : "Marcar como completado"}
-            >
-              {isStepCompleted ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span className="hidden md:inline">Completado</span>
-                </>
-              ) : (
-                <>
-                  <Circle className="w-4 h-4" />
-                  <span className="hidden md:inline">Completar</span>
-                </>
-              )}
-            </button>
-
-            {/* Botón Siguiente */}
-            <button
-              onClick={handleNext}
-              disabled={!navigationInfo.hasNext}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: navigationInfo.hasNext ? 'var(--qe-primary)' : '#9ca3af' }}
-              onMouseEnter={(e) => {
-                if (navigationInfo.hasNext) {
-                  e.currentTarget.style.backgroundColor = 'var(--qe-accent)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (navigationInfo.hasNext) {
-                  e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
-                }
-              }}
-              title="Siguiente paso"
-            >
-              <span className="hidden sm:inline">Siguiente</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+        {/* Contenido del paso */}
+        <div className="px-6 py-6">
+          {renderStepContent(step)}
         </div>
       </div>
-
-      {/* Contenido del paso */}
-      <div className="pt-6 px-6 pb-6">
-        {renderStepContent(step)}
-      </div>
-    </div>
   );
 };
 

@@ -4,6 +4,7 @@ import { Save, Settings, Percent, Hash, Palette, Sun, Moon, RotateCcw } from 'lu
 import QEButton from '../components/common/QEButton';
 import { toast } from 'react-toastify';
 import settingsService from '../api/services/settingsService';
+import { DEFAULT_THEME } from '../contexts/ThemeContext';
 
 /**
  * Settings page for admin panel
@@ -11,50 +12,36 @@ import settingsService from '../api/services/settingsService';
  */
 const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState('general');
-  const [scoreFormat, setScoreFormat] = useState('percentage');
-  const [theme, setTheme] = useState({
-    light: {
-      primary: '#3b82f6',
-      secondary: '#8b5cf6',
-      accent: '#f59e0b',
-      background: '#ffffff',
-      text: '#111827'
-    },
-    dark: {
-      primary: '#60a5fa',
-      secondary: '#a78bfa',
-      accent: '#fbbf24',
-      background: '#1f2937',
-      text: '#f9fafb'
-    }
-  });
+  
+  // Inicializar con datos de window.qe_data si están disponibles
+  const getInitialScoreFormat = () => {
+    const wpData = window.qe_data || {};
+    return wpData.scoreFormat || 'percentage';
+  };
+  
+  const getInitialTheme = () => {
+    const wpData = window.qe_data || {};
+    return wpData.theme || DEFAULT_THEME;
+  };
+  
+  const [scoreFormat, setScoreFormat] = useState(getInitialScoreFormat());
+  const [theme, setTheme] = useState(getInitialTheme());
   const [previewMode, setPreviewMode] = useState('light');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
-  const defaultTheme = {
-    light: {
-      primary: '#3b82f6',
-      secondary: '#8b5cf6',
-      accent: '#f59e0b',
-      background: '#ffffff',
-      text: '#111827'
-    },
-    dark: {
-      primary: '#60a5fa',
-      secondary: '#a78bfa',
-      accent: '#fbbf24',
-      background: '#1f2937',
-      text: '#f9fafb'
-    }
-  };
-
-  // Cargar la configuración actual al montar
+  // Cargar la configuración actual al montar (verificar si hay cambios)
   useEffect(() => {
     const loadSettings = async () => {
       try {
         const settings = await settingsService.getSettings();
-        setScoreFormat(settings.score_format || 'percentage');
+        
+        // Solo actualizar si hay diferencias (para evitar re-renders innecesarios)
+        const newScoreFormat = settings.score_format || 'percentage';
+        if (newScoreFormat !== scoreFormat) {
+          setScoreFormat(newScoreFormat);
+        }
+        
         if (settings.theme) {
           // Verificar si es el nuevo formato
           if (settings.theme.light && settings.theme.dark) {
@@ -63,13 +50,14 @@ const SettingsPage = () => {
             // Migrar formato antiguo
             const migratedTheme = {
               light: {
-                primary: settings.theme.primary || defaultTheme.light.primary,
-                secondary: settings.theme.secondary || defaultTheme.light.secondary,
-                accent: settings.theme.accent || defaultTheme.light.accent,
-                background: settings.theme.background || defaultTheme.light.background,
-                text: settings.theme.text || defaultTheme.light.text
+                primary: settings.theme.primary || DEFAULT_THEME.light.primary,
+                secondary: settings.theme.secondary || DEFAULT_THEME.light.secondary,
+                accent: settings.theme.accent || DEFAULT_THEME.light.accent,
+                background: settings.theme.background || DEFAULT_THEME.light.background,
+                secondaryBackground: settings.theme.secondaryBackground || DEFAULT_THEME.light.secondaryBackground,
+                text: settings.theme.text || DEFAULT_THEME.light.text
               },
-              dark: defaultTheme.dark
+              dark: DEFAULT_THEME.dark
             };
             setTheme(migratedTheme);
           }
@@ -120,7 +108,7 @@ const SettingsPage = () => {
 
   const handleResetTheme = () => {
     if (confirm('¿Estás seguro de que quieres restaurar los colores por defecto?')) {
-      setTheme(defaultTheme);
+      setTheme(DEFAULT_THEME);
     }
   };
 
@@ -495,10 +483,16 @@ const SettingsPage = () => {
                     onChange={(value) => handleColorChange(previewMode, 'accent', value)}
                   />
                   <ColorPicker
-                    label="Color de Fondo"
-                    description="Color de fondo de la interfaz"
+                    label="Color de Fondo (Sidebars)"
+                    description="Color de fondo para barras laterales"
                     value={theme[previewMode].background}
                     onChange={(value) => handleColorChange(previewMode, 'background', value)}
+                  />
+                  <ColorPicker
+                    label="Color de Fondo (Contenido)"
+                    description="Color de fondo para el contenido principal"
+                    value={theme[previewMode].secondaryBackground}
+                    onChange={(value) => handleColorChange(previewMode, 'secondaryBackground', value)}
                   />
                   <ColorPicker
                     label="Color de Texto"

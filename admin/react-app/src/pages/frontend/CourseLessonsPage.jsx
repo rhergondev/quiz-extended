@@ -229,29 +229,18 @@ const CourseLessonsPage = () => {
   if (!course || !sortedLessons || sortedLessons.length === 0) return <EmptyState />;
 
   return (
-    // ✅ Fondo gris y maquetación corregida (lista a la izquierda, contenido a la derecha)
-    <div className="flex flex-col lg:flex-row h-full overflow-hidden bg-gray-100">
+    // ✅ Sin fondo, heredamos del FrontendLayout que ya tiene el fondo del tema
+    <div className="flex flex-col lg:flex-row h-full overflow-hidden">
       {/* Panel de contenido principal */}
       <div className="flex-1 overflow-y-auto relative">
-        {/* Ranking Button - Positioned in main content area */}
-        <div className="absolute top-4 right-4 z-10">
-          <QEButton
-            onClick={handleOpenRanking}
-            variant="primary"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg shadow-lg"
-            disabled={rankingLoading}
-          >
-            <Trophy className="w-5 h-5" />
-            <span className="hidden sm:inline">Ranking del Curso</span>
-          </QEButton>
-        </div>
-
         <StepContent 
           lesson={activeContent.lesson} 
           step={activeContent.step}
           lessons={sortedLessons}
           onNavigate={handleSelectStep}
           courseId={parseInt(courseId, 10)}
+          onOpenRanking={handleOpenRanking}
+          rankingLoading={rankingLoading}
         />
       </div>
 

@@ -48,6 +48,25 @@ class QE_Assets
         $api_url_base = rtrim(home_url('/wp-json'), '/');
         $current_user = wp_get_current_user();
 
+        // Get settings from database using the Settings API
+        // This ensures we always use the saved settings, not hardcoded defaults
+        if (!class_exists('QE_Settings_API')) {
+            require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/api/class-qe-settings-api.php';
+        }
+        $all_settings = QE_Settings_API::get_all_settings();
+
+        $theme = $all_settings['theme'];
+        $score_format = $all_settings['score_format'];
+
+        // Detect dark mode preference
+        $is_dark_mode = false;
+        if (is_user_logged_in()) {
+            $user_id = get_current_user_id();
+            $color_scheme = get_user_meta($user_id, 'admin_color', true);
+            $dark_schemes = ['midnight', 'coffee', 'ectoplasm', 'ocean', 'modern'];
+            $is_dark_mode = in_array($color_scheme, $dark_schemes);
+        }
+
         wp_localize_script(
             'quiz-extended-react-app',
             'qe_data',
@@ -60,6 +79,9 @@ class QE_Assets
                     'email' => $current_user->user_email,
                     'capabilities' => array_keys($current_user->allcaps),
                 ],
+                'theme' => $theme,
+                'isDarkMode' => $is_dark_mode,
+                'scoreFormat' => $score_format,
                 'endpoints' => [
                     'courses' => $api_url_base . '/wp/v2/qe_course',
                     'lessons' => $api_url_base . '/wp/v2/qe_lesson',

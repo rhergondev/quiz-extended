@@ -34,18 +34,20 @@ class QE_Settings_API extends QE_API_Base
         'score_format' => 'percentage', // 'percentage' or 'base10'
         'theme' => [
             'light' => [
-                'primary' => '#3b82f6',     // Blue
-                'secondary' => '#8b5cf6',   // Purple
-                'accent' => '#f59e0b',      // Amber
-                'background' => '#ffffff',  // White
-                'text' => '#111827'         // Dark gray
+                'primary' => '#3b82f6',           // Blue
+                'secondary' => '#8b5cf6',         // Purple
+                'accent' => '#f59e0b',            // Amber
+                'background' => '#f3f4f6',        // Light gray (sidebars)
+                'secondaryBackground' => '#ffffff', // White (main content)
+                'text' => '#111827'               // Dark gray
             ],
             'dark' => [
-                'primary' => '#60a5fa',     // Light Blue
-                'secondary' => '#a78bfa',   // Light Purple
-                'accent' => '#fbbf24',      // Light Amber
-                'background' => '#1f2937',  // Dark gray
-                'text' => '#f9fafb'         // Light gray
+                'primary' => '#60a5fa',           // Light Blue
+                'secondary' => '#a78bfa',         // Light Purple
+                'accent' => '#fbbf24',            // Light Amber
+                'background' => '#1f2937',        // Dark gray (sidebars)
+                'secondaryBackground' => '#111827', // Darker gray (main content)
+                'text' => '#f9fafb'               // Light gray
             ]
         ]
     ];
@@ -267,7 +269,7 @@ class QE_Settings_API extends QE_API_Base
                 $theme = $new_values['theme'];
 
                 // Validate color format (hex) for both light and dark modes
-                $color_fields = ['primary', 'secondary', 'accent', 'background', 'text'];
+                $color_fields = ['primary', 'secondary', 'accent', 'background', 'secondaryBackground', 'text'];
 
                 foreach (['light', 'dark'] as $mode) {
                     if (isset($theme[$mode])) {
@@ -373,6 +375,45 @@ class QE_Settings_API extends QE_API_Base
     {
         $settings = get_option('qe_plugin_settings', []);
         return $settings[$key] ?? $default;
+    }
+
+    /**
+     * Get all settings with defaults
+     *
+     * @return array All settings
+     */
+    public static function get_all_settings()
+    {
+        $default_settings = [
+            'score_format' => 'percentage',
+            'theme' => [
+                'light' => [
+                    'primary' => '#3b82f6',
+                    'secondary' => '#8b5cf6',
+                    'accent' => '#f59e0b',
+                    'background' => '#f3f4f6',
+                    'secondaryBackground' => '#ffffff',
+                    'text' => '#111827'
+                ],
+                'dark' => [
+                    'primary' => '#60a5fa',
+                    'secondary' => '#a78bfa',
+                    'accent' => '#fbbf24',
+                    'background' => '#1f2937',
+                    'secondaryBackground' => '#111827',
+                    'text' => '#f9fafb'
+                ]
+            ]
+        ];
+
+        $settings = get_option('qe_plugin_settings', $default_settings);
+
+        // Ensure theme structure exists
+        if (!isset($settings['theme']) || !is_array($settings['theme'])) {
+            $settings['theme'] = $default_settings['theme'];
+        }
+
+        return $settings;
     }
 
     /**

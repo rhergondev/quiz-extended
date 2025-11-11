@@ -3,6 +3,26 @@ import { settingsService } from '../api/services/settingsService';
 
 const ThemeContext = createContext();
 
+// Default theme (fallback only) - Exportado para uso en SettingsPage
+export const DEFAULT_THEME = {
+  light: {
+    primary: '#3b82f6',
+    secondary: '#8b5cf6',
+    accent: '#f59e0b',
+    background: '#f3f4f6',
+    secondaryBackground: '#ffffff',
+    text: '#111827'
+  },
+  dark: {
+    primary: '#60a5fa',
+    secondary: '#a78bfa',
+    accent: '#fbbf24',
+    background: '#1f2937',
+    secondaryBackground: '#111827',
+    text: '#f9fafb'
+  }
+};
+
 // Hook personalizado para usar el contexto
 export const useTheme = () => {
   const context = useContext(ThemeContext);
@@ -12,97 +32,57 @@ export const useTheme = () => {
   return context;
 };
 
+// Get initial theme from WordPress (injected via wp_localize_script)
+const getInitialTheme = () => {
+  const wpData = window.qe_data || {};
+  return wpData.theme || DEFAULT_THEME;
+};
+
+// Get initial dark mode from WordPress
+const getInitialDarkMode = () => {
+  const wpData = window.qe_data || {};
+  // Check WordPress preference first, then system preference
+  if (wpData.isDarkMode !== undefined) {
+    return wpData.isDarkMode;
+  }
+  // Fallback to system preference
+  if (window.matchMedia) {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  return false;
+};
+
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState({
-    light: {
-      primary: '#3b82f6',
-      secondary: '#8b5cf6',
-      accent: '#f59e0b',
-      background: '#ffffff',
-      text: '#111827'
-    },
-    dark: {
-      primary: '#60a5fa',
-      secondary: '#a78bfa',
-      accent: '#fbbf24',
-      background: '#1f2937',
-      text: '#f9fafb'
-    }
-  });
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [theme, setTheme] = useState(getInitialTheme());
+  const [isDarkMode, setIsDarkMode] = useState(getInitialDarkMode());
+  const [loading, setLoading] = useState(false);
 
-  // Detectar preferencia de modo oscuro del sistema
+  // Detectar cambios en preferencia de modo oscuro del sistema
   useEffect(() => {
-    const detectSystemDarkMode = () => {
-      // Verificar si el navegador soporta prefers-color-scheme
-      if (window.matchMedia) {
-        const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        setIsDarkMode(darkModeQuery.matches);
-        
-        // Escuchar cambios en la preferencia del sistema
-        const handleChange = (e) => {
+    if (window.matchMedia) {
+      const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      
+      // Solo escuchar cambios, no establecer el valor inicial (ya lo hicimos arriba)
+      const handleChange = (e) => {
+        // Solo aplicar si no hay preferencia de WordPress
+        const wpData = window.qe_data || {};
+        if (wpData.isDarkMode === undefined) {
           setIsDarkMode(e.matches);
-        };
-        
-        darkModeQuery.addEventListener('change', handleChange);
-        
-        return () => {
-          darkModeQuery.removeEventListener('change', handleChange);
-        };
-      }
-    };
-
-    detectSystemDarkMode();
-  }, []);
-
-  // Cargar tema desde la API
-  useEffect(() => {
-    const loadTheme = async () => {
-      try {
-        const response = await settingsService.getTheme();
-        if (response.success && response.data) {
-          const themeData = response.data.theme || response.data;
-          
-          // Si la respuesta incluye detección del servidor, usarla
-          if (response.data.is_dark_mode !== undefined) {
-            setIsDarkMode(response.data.is_dark_mode);
-          }
-          
-          // Actualizar el tema con los datos recibidos
-          if (themeData.light && themeData.dark) {
-            setTheme(themeData);
-          } else {
-            // Migrar formato antiguo si existe
-            const migratedTheme = {
-              light: {
-                primary: themeData.primary || '#3b82f6',
-                secondary: themeData.secondary || '#8b5cf6',
-                accent: themeData.accent || '#f59e0b',
-                background: themeData.background || '#ffffff',
-                text: themeData.text || '#111827'
-              },
-              dark: theme.dark
-            };
-            setTheme(migratedTheme);
-          }
         }
-      } catch (error) {
-        console.error('Error loading theme:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadTheme();
+      };
+      
+      darkModeQuery.addEventListener('change', handleChange);
+      
+      return () => {
+        darkModeQuery.removeEventListener('change', handleChange);
+      };
+    }
   }, []);
 
   // Aplicar tema al DOM cuando cambia el tema o el modo
   useEffect(() => {
-    if (!loading) {
-      applyThemeToDOM(theme, isDarkMode);
-    }
-  }, [theme, isDarkMode, loading]);
+    applyThemeToDOM(theme, isDarkMode);
+  }, [theme, isDarkMode]);
 
   // Aplicar tema al DOM usando CSS variables
   const applyThemeToDOM = (themeData, darkMode) => {
@@ -116,6 +96,7 @@ export const ThemeProvider = ({ children }) => {
     root.style.setProperty('--qe-secondary', currentMode.secondary);
     root.style.setProperty('--qe-accent', currentMode.accent);
     root.style.setProperty('--qe-background', currentMode.background);
+    root.style.setProperty('--qe-secondary-background', currentMode.secondaryBackground);
     root.style.setProperty('--qe-text', currentMode.text || '#111827');
     
     // Calcular colores derivados

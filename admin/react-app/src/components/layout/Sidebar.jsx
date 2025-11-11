@@ -5,11 +5,14 @@ import {
   Home, Calendar, FileText, BookOpen, Video, User, LogOut, ChevronLeft, ChevronRight, Menu, X, Settings
 } from 'lucide-react';
 import useUserInbox from '../../hooks/useUserInbox';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const { t } = useTranslation();
+  const { getCurrentColors } = useTheme(); // Obtener colores actuales del tema
+  const currentColors = getCurrentColors();
   
   // Get unread messages count
   const { messages, loading: loadingMessages } = useUserInbox({
@@ -48,14 +51,14 @@ const Sidebar = () => {
   const getLinkStyle = (isActive) => {
     if (isActive) {
       return {
-        backgroundColor: 'var(--qe-primary)',
-        borderColor: 'var(--qe-primary)',
+        backgroundColor: currentColors.primary,
+        borderColor: currentColors.primary,
         color: '#ffffff'
       };
     }
     return {
       backgroundColor: 'transparent',
-      color: 'var(--qe-primary)'
+      color: currentColors.primary
     };
   };
 
@@ -64,8 +67,8 @@ const Sidebar = () => {
     
     if (isEnter) {
       // Hover: Fondo primario + doble borde (blanco interno + secundario externo)
-      e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
-      e.currentTarget.style.borderColor = 'var(--qe-secondary)'; // Border externo del color de fondo del sidebar
+      e.currentTarget.style.backgroundColor = currentColors.primary;
+      e.currentTarget.style.borderColor = currentColors.secondary; // Border externo del color de fondo del sidebar
       e.currentTarget.style.color = '#ffffff';
       // Border interno blanco usando box-shadow
       e.currentTarget.style.boxShadow = 'inset 0 0 0 3px #ffffff';
@@ -73,7 +76,7 @@ const Sidebar = () => {
       // Volver al estado normal
       e.currentTarget.style.backgroundColor = 'transparent';
       e.currentTarget.style.borderColor = 'transparent';
-      e.currentTarget.style.color = 'var(--qe-primary)';
+      e.currentTarget.style.color = currentColors.primary;
       e.currentTarget.style.boxShadow = 'none';
     }
   };
@@ -82,8 +85,8 @@ const Sidebar = () => {
     <div 
       className="qe-sidebar-wrapper flex flex-col h-full"
       style={{ 
-        backgroundColor: 'var(--qe-secondary)',
-        color: 'var(--qe-primary)'
+        backgroundColor: currentColors.secondary,
+        color: currentColors.primary
       }}
     >
       <div className={`p-4 transition-all duration-300`}>
@@ -95,9 +98,9 @@ const Sidebar = () => {
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsCollapsed(!isCollapsed); }}
             title={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
             className="transition-colors cursor-pointer"
-            style={{ color: 'var(--qe-primary)' }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--qe-accent)'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--qe-primary)'}
+            style={{ color: currentColors.primary }}
+            onMouseEnter={(e) => e.currentTarget.style.color = currentColors.accent}
+            onMouseLeave={(e) => e.currentTarget.style.color = currentColors.primary}
           >
             {isCollapsed ? <ChevronRight size={32}/> : <ChevronLeft size={32} />}
           </div>
@@ -118,18 +121,18 @@ const Sidebar = () => {
                 }`}
                 style={{
                   backgroundColor: 'transparent',
-                  color: 'var(--qe-primary)'
+                  color: currentColors.primary
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
-                  e.currentTarget.style.borderColor = 'var(--qe-secondary)';
+                  e.currentTarget.style.backgroundColor = currentColors.primary;
+                  e.currentTarget.style.borderColor = currentColors.secondary;
                   e.currentTarget.style.color = '#ffffff';
                   e.currentTarget.style.boxShadow = 'inset 0 0 0 3px #ffffff';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent';
                   e.currentTarget.style.borderColor = 'transparent';
-                  e.currentTarget.style.color = 'var(--qe-primary)';
+                  e.currentTarget.style.color = currentColors.primary;
                   e.currentTarget.style.boxShadow = 'none';
                 }}
                 title={isCollapsed ? item.text : ''}
@@ -204,17 +207,17 @@ const Sidebar = () => {
           <a
             href={logoutUrl}
             className={`flex items-center p-3 text-lg transition-all duration-200 rounded-lg border-[3px] border-transparent mb-4 ${isCollapsed ? 'justify-center' : ''}`}
-            style={{ color: 'var(--qe-primary)' }}
+            style={{ color: currentColors.primary }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--qe-primary)';
-              e.currentTarget.style.borderColor = 'var(--qe-secondary)'; // Border externo
+              e.currentTarget.style.backgroundColor = currentColors.primary;
+              e.currentTarget.style.borderColor = currentColors.secondary; // Border externo
               e.currentTarget.style.color = '#ffffff';
               e.currentTarget.style.boxShadow = 'inset 0 0 0 3px #ffffff'; // Border interno blanco
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
               e.currentTarget.style.borderColor = 'transparent';
-              e.currentTarget.style.color = 'var(--qe-primary)';
+              e.currentTarget.style.color = currentColors.primary;
               e.currentTarget.style.boxShadow = 'none';
             }}
             title={isCollapsed ? t('sidebar.logout') : ''}
@@ -226,24 +229,24 @@ const Sidebar = () => {
 
         <div 
           className={`flex items-center pt-4 border-t-2 ${isCollapsed ? 'justify-center' : ''}`}
-          style={{ borderTopColor: 'var(--qe-primary)' }}
+          style={{ borderTopColor: currentColors.primary }}
         >
           <User 
             className="w-8 h-8 flex-shrink-0" 
-            style={{ color: 'var(--qe-primary)' }}
+            style={{ color: currentColors.primary }}
           />
           {!isCollapsed && (
             <div className="flex flex-col flex-1 min-w-0 ml-3 justify-center pt-0.5">
               <p 
                 className="m-0 text-base font-semibold truncate leading-tight" 
-                style={{ color: 'var(--qe-primary)' }}
+                style={{ color: currentColors.primary }}
                 title={userName}
               >
                 {userName}
               </p>
               <p 
                 className="text-xs truncate leading-tight opacity-80" 
-                style={{ color: 'var(--qe-primary)' }}
+                style={{ color: currentColors.primary }}
                 title={userEmail}
               >
                 {userEmail}
@@ -261,8 +264,8 @@ const Sidebar = () => {
       <button
         className="md:hidden absolute top-4 left-4 z-20 p-2 rounded-full shadow"
         style={{ 
-          color: 'var(--qe-primary)',
-          backgroundColor: 'var(--qe-secondary)'
+          color: currentColors.primary,
+          backgroundColor: currentColors.secondary
         }}
         onClick={() => setIsMobileMenuOpen(true)}
       >
@@ -270,7 +273,7 @@ const Sidebar = () => {
       </button>
 
       <div className={`hidden md:block relative h-full transition-all duration-300 ${isCollapsed ? 'w-24' : 'w-64'}`}>
-        <aside className="h-full">
+        <aside className="h-full" style={{ backgroundColor: currentColors.background }}>
           <SidebarContent />
         </aside>
       </div>
@@ -283,12 +286,12 @@ const Sidebar = () => {
           ></div>
           <aside 
             className="relative z-50 w-64 flex flex-col"
-            style={{ backgroundColor: 'var(--qe-secondary)' }}
+            style={{ backgroundColor: currentColors.secondary }}
           >
             <button
               onClick={() => setIsMobileMenuOpen(false)}
               className="absolute top-4 right-4"
-              style={{ color: 'var(--qe-primary)' }}
+              style={{ color: currentColors.primary }}
             >
               <X />
             </button>

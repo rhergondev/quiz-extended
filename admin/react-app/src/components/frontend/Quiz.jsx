@@ -16,7 +16,7 @@ import useQuizAutosave from '../../hooks/useQuizAutosave';
 import quizAutosaveService from '../../api/services/quizAutosaveService';
 import QuizRecoveryModal from '../quizzes/QuizRecoveryModal';
 
-const Quiz = ({ quizId, customQuiz = null }) => {
+const Quiz = ({ quizId, customQuiz = null, onQuizComplete }) => {
   const [quizInfo, setQuizInfo] = useState(null);
   const [questionIds, setQuestionIds] = useState([]);
   const [userAnswers, setUserAnswers] = useState({});
@@ -130,7 +130,9 @@ const Quiz = ({ quizId, customQuiz = null }) => {
   });
 
   useEffect(() => {
-      if (quizInfo && attemptId && loadedCount > 0) {
+      if (quizInfo && attemptId) {
+          // Si tenemos quiz info y attempt ID, podemos mostrar el quiz
+          // Incluso si loadedCount es 0, el mensaje apropiado se mostrará más abajo
           console.log('🎯 Changing quiz state to in-progress', {
             quizInfo: !!quizInfo,
             attemptId,
@@ -138,9 +140,29 @@ const Quiz = ({ quizId, customQuiz = null }) => {
             loadedCount,
             totalQuestions
           });
-          setQuizState('in-progress');
+          
+          // Solo cambiar a in-progress si:
+          // 1. Ya tenemos preguntas cargadas (loadedCount > 0), o
+          // 2. No estamos cargando y el quiz no tiene preguntas (questionIds.length === 0)
+          if (loadedCount > 0 || (!questionsLoading && questionIds.length === 0)) {
+            setQuizState('in-progress');
+          }
       }
-  }, [quizInfo, attemptId, questionsLoading, loadedCount, totalQuestions]);
+  }, [quizInfo, attemptId, questionsLoading, loadedCount, totalQuestions, questionIds.length]);
+
+  // 🔥 Timeout de seguridad: si después de 10 segundos aún está en loading, mostrar error
+  useEffect(() => {
+    if (quizState === 'loading' && quizInfo && attemptId) {
+      const timeoutId = setTimeout(() => {
+        if (loadedCount === 0 && !questionsLoading) {
+          console.warn('⚠️ Quiz loading timeout - forcing in-progress state');
+          setQuizState('in-progress');
+        }
+      }, 10000); // 10 segundos
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [quizState, quizInfo, attemptId, loadedCount, questionsLoading]);
 
   // Handler para resumir quiz desde autoguardado
   const handleResumeQuiz = async () => {
@@ -287,6 +309,12 @@ const Quiz = ({ quizId, customQuiz = null }) => {
 
           setQuizResult(result);
           setQuizState('submitted');
+          
+          // 🎯 Llamar al callback de completado si existe
+          if (onQuizComplete && typeof onQuizComplete === 'function') {
+            console.log('🎯 Calling onQuizComplete callback');
+            onQuizComplete();
+          }
       } catch (error) {
           console.error("Error al enviar el cuestionario:", error);
           setQuizState('error');

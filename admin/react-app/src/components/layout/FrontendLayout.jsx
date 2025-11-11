@@ -1,11 +1,13 @@
 import React, { useLayoutEffect, useRef, useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const FrontendLayout = () => {
   const location = useLocation();
   const layoutRef = useRef(null);
   const [adjustedBgColor, setAdjustedBgColor] = useState('');
+  const { theme, isDarkMode } = useTheme(); // Escuchar cambios del tema
 
   // Función para determinar si un color es claro u oscuro
   const isLightColor = (color) => {
@@ -90,9 +92,10 @@ const FrontendLayout = () => {
   };
 
   // Calcular el color de fondo ajustado basado en el color del tema
+  // Se recalcula cuando cambia el tema, el modo oscuro, o la ruta
   useEffect(() => {
     const bgColor = getComputedStyle(document.documentElement)
-      .getPropertyValue('--qe-background')
+      .getPropertyValue('--qe-secondary-background')
       .trim();
 
     if (bgColor && bgColor.startsWith('#')) {
@@ -102,7 +105,7 @@ const FrontendLayout = () => {
       const adjustedColor = adjustColorBrightness(bgColor, isLight ? -0.05 : 0.05);
       setAdjustedBgColor(adjustedColor);
     }
-  }, [location]); // Recalcular cuando cambie la ruta (por si cambia el tema)
+  }, [theme, isDarkMode, location]); // Recalcular cuando cambie el tema, modo oscuro, o ruta
 
   // Este efecto se encarga de ajustar la altura dinámicamente.
   useLayoutEffect(() => {
@@ -141,7 +144,7 @@ const FrontendLayout = () => {
     <div 
       ref={layoutRef} 
       className="flex"
-      style={{ backgroundColor: adjustedBgColor || 'var(--qe-background)' }}
+      style={{ backgroundColor: adjustedBgColor || 'var(--qe-secondary-background)' }}
     >
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
