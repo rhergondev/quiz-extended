@@ -1,13 +1,20 @@
 import React, { useLayoutEffect, useRef, useState, useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useParams } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const FrontendLayout = () => {
   const location = useLocation();
+  const { courseId } = useParams();
   const layoutRef = useRef(null);
   const [adjustedBgColor, setAdjustedBgColor] = useState('');
   const { getColor, isDarkMode } = useTheme(); // Usar getColor directamente
+
+  // Check if we're in a course route
+  const isInCourseRoute = location.pathname.startsWith('/courses/') && courseId;
+  
+  // Get course name from navigation state
+  const courseName = location.state?.courseName;
 
   // Función para determinar si un color es claro u oscuro
   const isLightColor = (color) => {

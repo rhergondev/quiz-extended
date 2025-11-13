@@ -98,6 +98,24 @@
     "loadingCourses": "Cargando cursos...",
     "loadingMoreCourses": "Cargando más cursos...",
     "courseContent": "Contenido del Curso",
+    "myCourses": "Mis Cursos",
+    "progress": "Progreso",
+    "noImage": "Sin imagen",
+    "test": "Test",
+    "material": "Material",
+    "videos": "Videos",
+    "dashboard": "Mi Campus",
+    "studyPlanner": "Planificador de Estudio",
+    "tests": "Tests",
+    "testGenerator": "Generador de Tests",
+    "selfPacedTests": "Tests a tu Ritmo",
+    "testBrowser": "Navegador de Tests",
+    "testHistory": "Historial de Tests",
+    "supportMaterial": "Material de Apoyo",
+    "videosSection": "Videos",
+    "statistics": "Estadísticas",
+    "noContent": "Sin contenido disponible",
+    "noContentDescription": "Este curso aún no tiene contenido agregado",
     "fields": {
       "title": "Título del Curso",
       "description": "Descripción",
@@ -750,5 +768,65 @@
     "maxLength": "No debe exceder {{length}} caracteres",
     "mustBeNumber": "Debe ser un número",
     "mustBePositive": "Debe ser un número positivo"
+  },
+  "ranking": {
+    "yourPosition": "Tu Posición",
+    "averageScore": "Puntuación Media",
+    "pending": "Pendiente",
+    "quizzesCompleted": "Tests Completados",
+    "completeAllQuizzes": "Completa todos los tests del curso para ver tu posición"
+  },
+  "events": {
+    "pending": "Pendiente",
+    "nextEvent": "Próximo Evento",
+    "noEventsScheduled": "No hay eventos programados",
+    "november": "Noviembre"
+  },
+  "supportMaterial": {
+    "noMaterials": "No hay material de apoyo disponible",
+    "noMaterialsDescription": "Aún no se ha agregado material de apoyo a este curso",
+    "document": "documento",
+    "documents": "documentos",
+    "download": "Descargar",
+    "read": "Leer",
+    "noPreview": "Vista previa no disponible",
+    "noPreviewDescription": "Este documento no puede mostrarse en el navegador"
+  },
+  "videos": {
+    "noVideos": "No hay videos disponibles",
+    "noVideosDescription": "Aún no se han agregado videos a este curso",
+    "video": "video",
+    "videos": "videos",
+    "watch": "Ver",
+    "noVideoUrl": "Video no disponible",
+    "noVideoUrlDescription": "Este video no tiene una URL válida"
+  },
+  "tests": {
+    "noTests": "No hay tests disponibles",
+    "noTestsDescription": "Aún no se han agregado tests a este curso",
+    "test": "test",
+    "tests": "tests",
+    "start": "Iniciar",
+    "startTest": "Comenzar Test",
+    "retake": "Repetir",
+    "passingScore": "Nota mínima",
+    "timeLimit": "Tiempo límite",
+    "minutes": "minutos",
+    "noTimeLimit": "Sin límite",
+    "questions": "Preguntas",
+    "difficulty": "Dificultad",
+    "easy": "Fácil",
+    "medium": "Medio",
+    "hard": "Difícil",
+    "viewerPlaceholder": "Interfaz de test en desarrollo",
+    "viewerPlaceholderDescription": "Aquí se mostrará la interfaz para realizar el test"
+  },
+  "navigation": {
+    "previous": "Anterior",
+    "next": "Siguiente"
+  },
+  "progress": {
+    "completed": "Completado",
+    "markComplete": "Marcar como completado"
   }
 }

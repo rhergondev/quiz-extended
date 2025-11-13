@@ -379,8 +379,9 @@ class QE_Student_Progress_API extends QE_API_Base
                 return $access_check;
             }
 
-            // Calculate progress
-            $progress_percentage = $this->calculate_course_progress($user_id, $course_id);
+            // Calculate progress and get detailed stats
+            $stats = $this->calculate_course_progress_detailed($user_id, $course_id);
+            $progress_percentage = $stats['percentage'];
 
             // Get last activity
             $last_activity = get_user_meta($user_id, "_course_{$course_id}_last_activity", true);
@@ -388,6 +389,9 @@ class QE_Student_Progress_API extends QE_API_Base
             return $this->success_response([
                 'course_id' => (int) $course_id,
                 'percentage' => $progress_percentage,
+                'total_steps' => $stats['total_steps'],
+                'completed_steps' => $stats['completed_steps'],
+                'steps_by_type' => $stats['steps_by_type'],
                 'last_activity' => $last_activity ?: null
             ]);
 
@@ -700,6 +704,89 @@ class QE_Student_Progress_API extends QE_API_Base
     }
 
     /**
+     * Calculate course progress percentage with detailed stats
+     *
+     * @param int $user_id User ID
+     * @param int $course_id Course ID
+     * @return array Progress stats with breakdown by type
+     */
+    private function calculate_course_progress_detailed($user_id, $course_id)
+    {
+        try {
+            // Get lesson IDs from course meta
+            $lesson_ids = get_post_meta($course_id, '_lesson_ids', true);
+
+            $stats = [
+                'total_steps' => 0,
+                'completed_steps' => 0,
+                'percentage' => 0,
+                'steps_by_type' => [
+                    'quiz' => ['total' => 0, 'completed' => 0],
+                    'video' => ['total' => 0, 'completed' => 0],
+                    'text' => ['total' => 0, 'completed' => 0],
+                    'image' => ['total' => 0, 'completed' => 0]
+                ]
+            ];
+
+            if (empty($lesson_ids) || !is_array($lesson_ids)) {
+                return $stats;
+            }
+
+            // Count total steps by type across all lessons
+            foreach ($lesson_ids as $lesson_id) {
+                $steps = get_post_meta($lesson_id, '_lesson_steps', true);
+                if (is_array($steps)) {
+                    foreach ($steps as $index => $step) {
+                        $step_type = isset($step['type']) ? $step['type'] : 'text';
+
+                        // Ensure step type exists in stats
+                        if (!isset($stats['steps_by_type'][$step_type])) {
+                            $stats['steps_by_type'][$step_type] = ['total' => 0, 'completed' => 0];
+                        }
+
+                        $stats['steps_by_type'][$step_type]['total']++;
+                        $stats['total_steps']++;
+
+                        // Check if this step is completed
+                        $unique_step_id = ($lesson_id * 10000) + $index;
+                        $is_completed = $this->db_get_var(
+                            "SELECT progress_id FROM {$this->get_table('student_progress')} 
+                             WHERE user_id = %d AND content_id = %d AND content_type = 'step' AND status = 'completed'",
+                            [$user_id, $unique_step_id]
+                        );
+
+                        if ($is_completed) {
+                            $stats['steps_by_type'][$step_type]['completed']++;
+                            $stats['completed_steps']++;
+                        }
+                    }
+                }
+            }
+
+            // Calculate percentage
+            if ($stats['total_steps'] > 0) {
+                $stats['percentage'] = round(($stats['completed_steps'] / $stats['total_steps']) * 100, 2);
+            }
+
+            return $stats;
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in calculate_course_progress_detailed', [
+                'message' => $e->getMessage(),
+                'user_id' => $user_id,
+                'course_id' => $course_id
+            ]);
+
+            return [
+                'total_steps' => 0,
+                'completed_steps' => 0,
+                'percentage' => 0,
+                'steps_by_type' => []
+            ];
+        }
+    }
+
+    /**
      * Calculate course progress percentage
      *
      * @param int $user_id User ID
@@ -709,38 +796,34 @@ class QE_Student_Progress_API extends QE_API_Base
     private function calculate_course_progress($user_id, $course_id)
     {
         try {
-            // Get total lessons
-            $total_lessons = count(get_posts([
-                'post_type' => 'qe_lesson',
-                'meta_key' => '_course_id',
-                'meta_value' => $course_id,
-                'posts_per_page' => -1,
-                'fields' => 'ids'
-            ]));
+            // Get lesson IDs from course meta
+            $lesson_ids = get_post_meta($course_id, '_lesson_ids', true);
 
-            // Get total quizzes
-            $total_quizzes = count(get_posts([
-                'post_type' => 'qe_quiz',
-                'meta_key' => '_course_id',
-                'meta_value' => $course_id,
-                'posts_per_page' => -1,
-                'fields' => 'ids'
-            ]));
-
-            $total_items = $total_lessons + $total_quizzes;
-
-            if ($total_items === 0) {
+            if (empty($lesson_ids) || !is_array($lesson_ids)) {
                 return 0;
             }
 
-            // Get completed items
-            $completed_count = $this->db_get_var(
+            // Count total steps across all lessons
+            $total_steps = 0;
+            foreach ($lesson_ids as $lesson_id) {
+                $steps = get_post_meta($lesson_id, '_lesson_steps', true);
+                if (is_array($steps)) {
+                    $total_steps += count($steps);
+                }
+            }
+
+            if ($total_steps === 0) {
+                return 0;
+            }
+
+            // Count completed steps
+            $completed_steps = $this->db_get_var(
                 "SELECT COUNT(*) FROM {$this->get_table('student_progress')} 
-                 WHERE user_id = %d AND course_id = %d AND status = 'completed'",
+                 WHERE user_id = %d AND course_id = %d AND content_type = 'step' AND status = 'completed'",
                 [$user_id, $course_id]
             );
 
-            return round(($completed_count / $total_items) * 100, 2);
+            return round(($completed_steps / $total_steps) * 100, 2);
 
         } catch (Exception $e) {
             $this->log_error('Exception in calculate_course_progress', [

@@ -6,9 +6,10 @@ import { markContentComplete, unmarkContentComplete, getCourseProgress, getCompl
  * Hook para gestionar el progreso del estudiante
  * @param {number} courseId - ID del curso
  * @param {boolean} autoFetch - Si debe cargar automáticamente al montar
+ * @param {boolean} fetchProgressData - Si debe cargar datos de progreso (porcentaje) - default false
  * @returns {Object} Estado y funciones para gestionar el progreso
  */
-const useStudentProgress = (courseId, autoFetch = false) => {
+const useStudentProgress = (courseId, autoFetch = false, fetchProgressData = false) => {
   const [progress, setProgress] = useState(null);
   const [completedItems, setCompletedItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -97,8 +98,11 @@ const useStudentProgress = (courseId, autoFetch = false) => {
       });
 
       // Refetch para asegurar consistencia
-      await fetchProgress();
       await fetchCompletedContent();
+      
+      if (fetchProgressData) {
+        await fetchProgress();
+      }
 
       return result;
     } catch (err) {
@@ -108,7 +112,7 @@ const useStudentProgress = (courseId, autoFetch = false) => {
     } finally {
       setLoading(false);
     }
-  }, [courseId, fetchProgress, fetchCompletedContent]);
+  }, [courseId, fetchProgressData, fetchProgress]);
 
   /**
    * Desmarcar contenido (quitar completado)
@@ -150,8 +154,11 @@ const useStudentProgress = (courseId, autoFetch = false) => {
       );
 
       // Refetch para asegurar consistencia
-      await fetchProgress();
       await fetchCompletedContent();
+      
+      if (fetchProgressData) {
+        await fetchProgress();
+      }
 
       return result;
     } catch (err) {
@@ -161,7 +168,7 @@ const useStudentProgress = (courseId, autoFetch = false) => {
     } finally {
       setLoading(false);
     }
-  }, [courseId, fetchProgress, fetchCompletedContent]);
+  }, [courseId, fetchProgressData, fetchProgress]);
 
   /**
    * Verificar si un contenido está completado
@@ -184,14 +191,14 @@ const useStudentProgress = (courseId, autoFetch = false) => {
   }, [completedItems]);
 
   /**
-   * Refrescar todo el progreso
+   * Refrescar progreso (condicional)
    */
   const refresh = useCallback(async () => {
-    await Promise.all([
-      fetchProgress(),
-      fetchCompletedContent()
-    ]);
-  }, [fetchProgress, fetchCompletedContent]);
+    // Solo cargar progress si se solicitó explícitamente
+    if (fetchProgressData) {
+      await fetchProgress();
+    }
+  }, [fetchProgressData, fetchProgress]);
 
   // Auto-fetch al montar
   useEffect(() => {

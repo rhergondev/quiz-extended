@@ -84,6 +84,24 @@
     "loadingCourses": "Loading courses...",
     "loadingMoreCourses": "Loading more courses...",
     "courseContent": "Course Content",
+    "myCourses": "My Courses",
+    "progress": "Progress",
+    "noImage": "No image",
+    "test": "Test",
+    "material": "Material",
+    "videos": "Videos",
+    "dashboard": "My Campus",
+    "studyPlanner": "Study Planner",
+    "tests": "Tests",
+    "testGenerator": "Test Generator",
+    "selfPacedTests": "Self-Paced Tests",
+    "testBrowser": "Test Browser",
+    "testHistory": "Test History",
+    "supportMaterial": "Support Material",
+    "videosSection": "Videos",
+    "statistics": "Statistics",
+    "noContent": "No content available",
+    "noContentDescription": "This course has no content added yet",
     "fields": {
       "title": "Course Title",
       "description": "Description",
@@ -750,5 +768,65 @@
     "maxLength": "Must not exceed {{length}} characters",
     "mustBeNumber": "Must be a number",
     "mustBePositive": "Must be a positive number"
+  },
+  "ranking": {
+    "yourPosition": "Your Position",
+    "averageScore": "Average Score",
+    "pending": "Pending",
+    "quizzesCompleted": "Quizzes Completed",
+    "completeAllQuizzes": "Complete all course quizzes to see your rank"
+  },
+  "events": {
+    "pending": "Pending",
+    "nextEvent": "Next Event",
+    "noEventsScheduled": "No events scheduled",
+    "november": "November"
+  },
+  "supportMaterial": {
+    "noMaterials": "No support materials available",
+    "noMaterialsDescription": "No support materials have been added to this course yet",
+    "document": "document",
+    "documents": "documents",
+    "download": "Download",
+    "read": "Read",
+    "noPreview": "Preview not available",
+    "noPreviewDescription": "This document cannot be displayed in the browser"
+  },
+  "videos": {
+    "noVideos": "No videos available",
+    "noVideosDescription": "No videos have been added to this course yet",
+    "video": "video",
+    "videos": "videos",
+    "watch": "Watch",
+    "noVideoUrl": "Video not available",
+    "noVideoUrlDescription": "This video does not have a valid URL"
+  },
+  "tests": {
+    "noTests": "No tests available",
+    "noTestsDescription": "No tests have been added to this course yet",
+    "test": "test",
+    "tests": "tests",
+    "start": "Start",
+    "startTest": "Start Test",
+    "retake": "Retake",
+    "passingScore": "Passing score",
+    "timeLimit": "Time limit",
+    "minutes": "minutes",
+    "noTimeLimit": "No limit",
+    "questions": "Questions",
+    "difficulty": "Difficulty",
+    "easy": "Easy",
+    "medium": "Medium",
+    "hard": "Hard",
+    "viewerPlaceholder": "Test interface in development",
+    "viewerPlaceholderDescription": "The test interface will be displayed here"
+  },
+  "navigation": {
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "progress": {
+    "completed": "Completed",
+    "markComplete": "Mark as completed"
   }
 }
