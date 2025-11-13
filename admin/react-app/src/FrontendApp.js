@@ -36,7 +36,8 @@ function FrontendApp() {
         <Router>
           <Routes>
             <Route path="/" element={<FrontendLayout />}>
-              <Route index element={<DashboardPage />} />
+              <Route index element={<CoursesPage />} />
+              <Route path="dashboard" element={<DashboardPage />} />
               <Route path="/dashboard/attempts/:attemptId" element={<QuizAttemptDetailsPage />} />
               <Route path="courses" element={<CoursesPage />} />
               
