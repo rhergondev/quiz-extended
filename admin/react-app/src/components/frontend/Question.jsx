@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Trash2, ChevronDown, ChevronUp, Info, TrendingDown } from 'lucide-react';
+import { Trash2, ChevronDown, Info, TrendingDown, Circle, CheckCircle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 const Question = ({ 
   question, 
@@ -21,6 +22,7 @@ const Question = ({
   const [showExplanation, setShowExplanation] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const { getColor } = useTheme();
+  const { t } = useTranslation();
 
   if (!question) {
     return null;
@@ -28,32 +30,30 @@ const Question = ({
 
   const { id, title, meta } = question;
   
-  // Log para verificar isPracticeMode
-  console.log(`📋 Question ${id} - Props:`, { 
-    isPracticeMode, 
-    hasExplanation: !!meta?._question_explanation,
-    hasStats: meta?._question_fail_rate !== undefined,
-    disabled,
-    isSubmitted
-  });
-  
   // Manejar tanto title.rendered como title directo
   const questionTitle = typeof title === 'object' && title?.rendered ? title.rendered : title;
   const options = meta?._question_options || [];
   const displayIndex = questionNumber !== undefined ? questionNumber : index + 1;
 
+  // Determinar el estado de la pregunta para los colores
+  const hasAnswer = selectedAnswer !== null && selectedAnswer !== undefined;
+  const questionState = !hasAnswer ? 'unanswered' : (isRisked ? 'risked' : 'answered');
+  
+  // Función para obtener colores según el estado
+  const getQuestionColor = (opacity = '') => {
+    switch (questionState) {
+      case 'unanswered':
+        return `#6b7280${opacity}`; // Gris
+      case 'risked':
+        return `${getColor('accent', '#f59e0b')}${opacity}`; // Naranja
+      case 'answered':
+      default:
+        return `${getColor('primary', '#1a202c')}${opacity}`; // Azul
+    }
+  };
+
   // Handler unificado para cambios de respuesta
   const handleAnswerSelect = (questionId, optionId) => {
-    console.log('🔘 Question.jsx - Selección de respuesta:', { 
-      questionId, 
-      optionId, 
-      tipoQuestionId: typeof questionId,
-      tipoOptionId: typeof optionId,
-      isPracticeMode,
-      hasOnAnswerChange: !!onAnswerChange,
-      hasOnSelectAnswer: !!onSelectAnswer
-    });
-    
     if (isPracticeMode && onAnswerChange) {
       onAnswerChange(optionId);
     } else if (onSelectAnswer) {
@@ -64,53 +64,166 @@ const Question = ({
   return (
     <div 
       id={`quiz-question-${displayIndex}`} 
-      className="p-6 rounded-xl shadow-lg border-2 mb-6 scroll-mt-6"
+      className="rounded-lg overflow-hidden shadow-sm mb-6 scroll-mt-6 transition-all duration-200"
       style={{ 
-        backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
-        borderColor: getColor('primary', '#3b82f6')
+        backgroundColor: getColor('background', '#ffffff'),
+        border: `1px solid ${getQuestionColor('15')}`,
+        borderLeft: `4px solid ${getQuestionColor()}`
       }}
     >
       <div>
-        {/* Número de pregunta y título */}
-        <div className="mb-6">
+        {/* Header: Número de pregunta */}
+        <div 
+          className="px-6 py-4 border-b"
+          style={{ 
+            backgroundColor: getQuestionColor('08'),
+            borderColor: getQuestionColor('10')
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div 
+                className="flex items-center justify-center rounded-full font-bold text-sm"
+                style={{ 
+                  width: '32px',
+                  height: '32px',
+                  backgroundColor: getQuestionColor(),
+                  color: '#ffffff'
+                }}
+              >
+                {displayIndex}
+              </div>
+              {questionState === 'unanswered' && (
+                <div 
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                  style={{ 
+                    backgroundColor: `${getQuestionColor()}20`,
+                    color: getQuestionColor()
+                  }}
+                >
+                  <Circle size={14} />
+                  <span>{t('quizzes.question.unanswered')}</span>
+                </div>
+              )}
+              {questionState === 'risked' && (
+                <div 
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                  style={{ 
+                    backgroundColor: getQuestionColor('20'),
+                    color: getQuestionColor()
+                  }}
+                >
+                  <TrendingDown size={14} />
+                  <span>{t('quizzes.question.withRisk')}</span>
+                </div>
+              )}
+              {questionState === 'answered' && (
+                <div 
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                  style={{ 
+                    backgroundColor: getQuestionColor('20'),
+                    color: getQuestionColor()
+                  }}
+                >
+                  <CheckCircle size={14} />
+                  <span>{t('quizzes.question.answered')}</span>
+                </div>
+              )}
+            </div>
+            
+            {selectedAnswer !== null && selectedAnswer !== undefined && !isSubmitted && (
+              <button
+                type="button"
+                onClick={() => onClearAnswer(id)}
+                title={t('quizzes.question.clearSelection')}
+                className="p-2 rounded-lg transition-all duration-200"
+                style={{ 
+                  backgroundColor: 'transparent',
+                  color: `${getColor('primary', '#1a202c')}60`
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#fee2e2';
+                  e.currentTarget.style.color = '#dc2626';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = `${getColor('primary', '#1a202c')}60`;
+                }}
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Título de la pregunta */}
+        <div className="px-6 py-5">
           <h3 
-            className="text-base qe-text-primary font-medium"
-            dangerouslySetInnerHTML={{ __html: `${displayIndex}. ${questionTitle || ''}` }}
+            className="text-base font-medium leading-relaxed"
+            style={{ color: getColor('primary', '#1a202c') }}
+            dangerouslySetInnerHTML={{ __html: questionTitle || '' }}
           />
         </div>
 
-          {/* Opciones de respuesta */}
-          <div className="space-y-3">
-            {options.map((option, optionIndex) => {
-              const isSelected = selectedAnswer !== null && selectedAnswer !== undefined && option.id === selectedAnswer;
-              
-              console.log(`🎨 Renderizando opción ${option.id} de pregunta ${id}:`, {
-                optionId: option.id,
-                selectedAnswer,
-                isSelected,
-                tipoOptionId: typeof option.id,
-                tipoSelectedAnswer: typeof selectedAnswer,
-                comparacionEstricta: option.id === selectedAnswer,
-                comparacionLaxa: option.id == selectedAnswer
-              });
-              
-              const selectionStyle = isSelected 
-                ? 'border-2'
-                : 'border-2 border-gray-200 hover:bg-gray-50';
-              
-              const textStyle = isSelected
-                ? 'font-semibold'
-                : 'text-gray-700';
+        {/* Opciones de respuesta */}
+        <div className="px-6 pb-5 space-y-2">
+          {options.map((option, optionIndex) => {
+            const isSelected = selectedAnswer !== null && selectedAnswer !== undefined && option.id === selectedAnswer;
 
-              return (
-                <label 
-                  key={option.id} 
-                  className={`flex items-center cursor-pointer p-3 rounded-lg transition-colors ${selectionStyle}`}
-                  style={isSelected ? {
-                    borderColor: 'var(--qe-primary)',
-                    backgroundColor: 'var(--qe-primary-light)'
-                  } : {}}
-                >
+            return (
+              <label 
+                key={option.id} 
+                className="flex items-start cursor-pointer p-4 rounded-lg transition-all duration-200 group"
+                style={{
+                  backgroundColor: isSelected 
+                    ? getQuestionColor('10')
+                    : 'transparent',
+                  border: `2px solid ${isSelected 
+                    ? getQuestionColor()
+                    : `${getColor('primary', '#1a202c')}15`
+                  }`
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`;
+                    e.currentTarget.style.borderColor = `${getColor('primary', '#1a202c')}30`;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.borderColor = `${getColor('primary', '#1a202c')}15`;
+                  }
+                }}
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  {/* Radio button customizado */}
+                  <div 
+                    className="flex items-center justify-center rounded-full transition-all duration-200"
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      border: `2px solid ${isSelected 
+                        ? getQuestionColor()
+                        : `${getColor('primary', '#1a202c')}40`
+                      }`,
+                      backgroundColor: isSelected 
+                        ? getQuestionColor()
+                        : 'transparent'
+                    }}
+                  >
+                    {isSelected && (
+                      <div 
+                        className="rounded-full"
+                        style={{
+                          width: '8px',
+                          height: '8px',
+                          backgroundColor: '#ffffff'
+                        }}
+                      />
+                    )}
+                  </div>
+                  
                   <input
                     type="radio"
                     name={`question-${id}`}
@@ -118,135 +231,303 @@ const Question = ({
                     checked={isSelected}
                     onChange={() => handleAnswerSelect(id, option.id)}
                     disabled={isSubmitted || disabled}
-                    className="h-4 w-4 border-gray-300"
-                    style={{ accentColor: 'var(--qe-primary)' }}
+                    className="sr-only"
                   />
-                  <span 
-                    className={`ml-3 text-sm transition-colors ${textStyle}`}
-                    style={isSelected ? { color: 'var(--qe-primary)' } : {}}
+                  
+                  {/* Letra de la opción */}
+                  <div 
+                    className="flex items-center justify-center rounded font-bold text-xs transition-all duration-200"
+                    style={{
+                      width: '24px',
+                      height: '24px',
+                      backgroundColor: isSelected
+                        ? getQuestionColor()
+                        : `${getColor('primary', '#1a202c')}10`,
+                      color: isSelected ? '#ffffff' : getColor('primary', '#1a202c')
+                    }}
                   >
-                    {String.fromCharCode(65 + optionIndex)}) {option.text}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-          
-          {/* Explanation Section - Solo en modo práctica o modo zen */}
-          {isPracticeMode && (
-            <div className="mt-4 border-t pt-4">
-              <button
-                onClick={() => setShowExplanation(!showExplanation)}
-                className="flex items-center justify-between w-full text-left p-3 qe-bg-primary-light qe-hover-light-primary rounded-lg transition-colors"
-              >
-                <div className="flex items-center space-x-2">
-                  <Info className="w-5 h-5 qe-icon-primary" />
-                  <span className="text-sm font-semibold qe-text-primary">
-                    Explicación de la respuesta
+                    {String.fromCharCode(65 + optionIndex)}
+                  </div>
+                  
+                  {/* Texto de la opción */}
+                  <span 
+                    className="text-sm leading-relaxed transition-colors duration-200"
+                    style={{ 
+                      color: isSelected 
+                        ? getColor('primary', '#1a202c')
+                        : `${getColor('primary', '#1a202c')}90`,
+                      fontWeight: isSelected ? '600' : '400'
+                    }}
+                  >
+                    {option.text}
                   </span>
                 </div>
-                {showExplanation ? (
-                  <ChevronUp className="w-5 h-5 qe-icon-primary" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 qe-icon-primary" />
-                )}
-              </button>
-              
-              {showExplanation && (
-                <div className="mt-3 p-4 qe-bg-primary-light qe-border-primary rounded-lg">
-                  <p className="text-sm text-gray-700 leading-relaxed">
-                    {meta?._question_explanation || 'No hay explicación disponible para esta pregunta aún.'}
+              </label>
+            );
+          })}
+        </div>
+          
+        {/* Explanation Section - Solo en modo práctica */}
+        {isPracticeMode && (
+          <div 
+            className="border-t"
+            style={{ borderColor: `${getColor('primary', '#1a202c')}10` }}
+          >
+            <button
+              onClick={() => setShowExplanation(!showExplanation)}
+              className="flex items-center justify-between w-full text-left px-6 py-4 transition-colors duration-200"
+              style={{ 
+                backgroundColor: showExplanation 
+                  ? `${getColor('primary', '#1a202c')}05`
+                  : 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                if (!showExplanation) {
+                  e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}03`;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!showExplanation) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div 
+                  className="flex items-center justify-center rounded-lg"
+                  style={{ 
+                    width: '36px',
+                    height: '36px',
+                    backgroundColor: `${getColor('primary', '#1a202c')}10`
+                  }}
+                >
+                  <Info size={18} style={{ color: getColor('primary', '#1a202c') }} />
+                </div>
+                <span 
+                  className="text-sm font-semibold"
+                  style={{ color: getColor('primary', '#1a202c') }}
+                >
+                  {t('quizzes.question.answerExplanation')}
+                </span>
+              </div>
+              <div 
+                className="p-1 rounded transition-transform duration-200"
+                style={{ 
+                  transform: showExplanation ? 'rotate(180deg)' : 'rotate(0deg)'
+                }}
+              >
+                <ChevronDown size={20} style={{ color: getColor('primary', '#1a202c') }} />
+              </div>
+            </button>
+            
+            {showExplanation && (
+              <div 
+                className="px-6 pb-5"
+                style={{ 
+                  backgroundColor: `${getColor('primary', '#1a202c')}03`
+                }}
+              >
+                <div 
+                  className="p-4 rounded-lg"
+                  style={{ 
+                    backgroundColor: getColor('background', '#ffffff'),
+                    border: `1px solid ${getColor('primary', '#1a202c')}15`
+                  }}
+                >
+                  <p 
+                    className="text-sm leading-relaxed"
+                    style={{ color: `${getColor('primary', '#1a202c')}90` }}
+                  >
+                    {meta?._question_explanation || t('quizzes.question.noExplanationAvailable')}
                   </p>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
+        )}
 
-          {/* Statistics Section - Solo en modo práctica o modo zen */}
-          {isPracticeMode && (
-            <div className="mt-4">
-              <button
-                onClick={() => setShowStats(!showStats)}
-                className="flex items-center justify-between w-full text-left p-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors"
-              >
-                <div className="flex items-center space-x-2">
-                  <TrendingDown className="w-5 h-5 text-orange-600" />
-                  <span className="text-sm font-semibold text-orange-900">
-                    Estadísticas de la pregunta
-                  </span>
+        {/* Statistics Section - Solo en modo práctica */}
+        {isPracticeMode && (
+          <div 
+            className="border-t"
+            style={{ borderColor: `${getColor('primary', '#1a202c')}10` }}
+          >
+            <button
+              onClick={() => setShowStats(!showStats)}
+              className="flex items-center justify-between w-full text-left px-6 py-4 transition-colors duration-200"
+              style={{ 
+                backgroundColor: showStats 
+                  ? `${getColor('accent', '#f59e0b')}08`
+                  : 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                if (!showStats) {
+                  e.currentTarget.style.backgroundColor = `${getColor('accent', '#f59e0b')}05`;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!showStats) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div 
+                  className="flex items-center justify-center rounded-lg"
+                  style={{ 
+                    width: '36px',
+                    height: '36px',
+                    backgroundColor: `${getColor('accent', '#f59e0b')}15`
+                  }}
+                >
+                  <TrendingDown size={18} style={{ color: getColor('accent', '#f59e0b') }} />
                 </div>
-                {showStats ? (
-                  <ChevronUp className="w-5 h-5 text-orange-600" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-orange-600" />
-                )}
-              </button>
-              
-              {showStats && (
-                <div className="mt-3 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                <span 
+                  className="text-sm font-semibold"
+                  style={{ color: getColor('accent', '#f59e0b') }}
+                >
+                  {t('quizzes.question.questionStatistics')}
+                </span>
+              </div>
+              <div 
+                className="p-1 rounded transition-transform duration-200"
+                style={{ 
+                  transform: showStats ? 'rotate(180deg)' : 'rotate(0deg)'
+                }}
+              >
+                <ChevronDown size={20} style={{ color: getColor('accent', '#f59e0b') }} />
+              </div>
+            </button>
+            
+            {showStats && (
+              <div 
+                className="px-6 pb-5"
+                style={{ 
+                  backgroundColor: `${getColor('accent', '#f59e0b')}08`
+                }}
+              >
+                <div 
+                  className="p-4 rounded-lg"
+                  style={{ 
+                    backgroundColor: getColor('background', '#ffffff'),
+                    border: `1px solid ${getColor('accent', '#f59e0b')}30`
+                  }}
+                >
                   {meta?._question_fail_rate !== undefined ? (
-                    <>
+                    <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700">
-                          Porcentaje de usuarios que fallan esta pregunta:
+                        <span 
+                          className="text-sm"
+                          style={{ color: `${getColor('primary', '#1a202c')}80` }}
+                        >
+                          {t('quizzes.question.failureRate')}:
                         </span>
-                        <span className="text-lg font-bold text-orange-700">
+                        <span 
+                          className="text-2xl font-bold"
+                          style={{ color: getColor('accent', '#f59e0b') }}
+                        >
                           {meta._question_fail_rate}%
                         </span>
                       </div>
+                      
+                      {/* Barra de progreso */}
+                      <div 
+                        className="w-full rounded-full overflow-hidden"
+                        style={{ 
+                          height: '8px',
+                          backgroundColor: `${getColor('accent', '#f59e0b')}15`
+                        }}
+                      >
+                        <div 
+                          className="h-full transition-all duration-300"
+                          style={{ 
+                            width: `${meta._question_fail_rate}%`,
+                            backgroundColor: getColor('accent', '#f59e0b')
+                          }}
+                        />
+                      </div>
+                      
                       {meta._question_fail_rate > 50 && (
-                        <p className="mt-2 text-xs text-orange-600">
-                          ⚠️ Esta es una pregunta difícil - más de la mitad de los estudiantes la fallan
-                        </p>
+                        <div 
+                          className="flex items-start gap-2 p-3 rounded-lg text-xs"
+                          style={{ 
+                            backgroundColor: `${getColor('accent', '#f59e0b')}10`,
+                            color: getColor('accent', '#f59e0b')
+                          }}
+                        >
+                          <span className="font-bold">⚠️</span>
+                          <span>{t('quizzes.question.difficultQuestion')}</span>
+                        </div>
                       )}
-                    </>
+                    </div>
                   ) : (
-                    <p className="text-sm text-gray-600">
-                      No hay suficientes datos estadísticos para esta pregunta aún.
+                    <p 
+                      className="text-sm"
+                      style={{ color: `${getColor('primary', '#1a202c')}60` }}
+                    >
+                      {t('quizzes.question.noStatisticsAvailable')}
                     </p>
                   )}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
+        )}
           
-          {/* Checkbox de Riesgo y Botón de Limpiar - CORREGIDO: usar showRiskSelector */}
-          {selectedAnswer !== null && selectedAnswer !== undefined && !isSubmitted && showRiskSelector && onToggleRisk && onClearAnswer && (
-            <div className="mt-6 border-t pt-4 flex items-center justify-between">
-                <label className="flex items-center cursor-pointer group">
-                    <input
-                        type="checkbox"
-                        checked={isRisked}
-                        onChange={() => onToggleRisk(id)}
-                        disabled={isSubmitted}
-                        className="h-4 w-4 rounded border-gray-300 qe-checkbox-accent"
-                        style={{ accentColor: 'var(--qe-accent)' }}
-                    />
-                    <span className="ml-2 text-sm font-semibold text-gray-600 transition-colors" style={{ '--hover-color': 'var(--qe-accent)' }}>Marcar con riesgo</span>
-                </label>
-
-                <button
-                  type="button"
-                  onClick={() => onClearAnswer(id)}
-                  title="Limpiar selección"
-                  className="p-2 rounded-full transition-colors"
-                  style={{ 
-                    color: 'var(--qe-text-secondary, #6b7280)',
-                    backgroundColor: 'transparent'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-                    e.currentTarget.style.color = '#dc2626';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.color = 'var(--qe-text-secondary, #6b7280)';
-                  }}
-                >
-                  <Trash2 className="w-4 h-4"/>
-                </button>
-            </div>
-          )}
+        {/* Checkbox de Riesgo - Solo si hay respuesta seleccionada y showRiskSelector */}
+        {selectedAnswer !== null && selectedAnswer !== undefined && !isSubmitted && showRiskSelector && onToggleRisk && (
+          <div 
+            className="px-6 py-4 border-t"
+            style={{ 
+              backgroundColor: `${getColor('primary', '#1a202c')}03`,
+              borderColor: getQuestionColor('10')
+            }}
+          >
+            <label className="flex items-center cursor-pointer group">
+              {/* Checkbox customizado */}
+              <div 
+                className="relative flex items-center justify-center rounded transition-all duration-200"
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  border: `2px solid ${isRisked ? getColor('accent', '#f59e0b') : `${getColor('primary', '#1a202c')}40`}`,
+                  backgroundColor: isRisked ? getColor('accent', '#f59e0b') : 'transparent'
+                }}
+              >
+                {isRisked && (
+                  <svg 
+                    className="w-3 h-3" 
+                    fill="none" 
+                    stroke="#ffffff" 
+                    strokeWidth="3" 
+                    viewBox="0 0 24 24"
+                  >
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                )}
+              </div>
+              
+              <input
+                type="checkbox"
+                checked={isRisked}
+                onChange={() => onToggleRisk(id)}
+                disabled={isSubmitted}
+                className="sr-only"
+              />
+              
+              <span 
+                className="ml-3 text-sm font-medium transition-colors duration-200"
+                style={{ 
+                  color: isRisked 
+                    ? getColor('accent', '#f59e0b')
+                    : `${getColor('primary', '#1a202c')}70`
+                }}
+              >
+                {t('quizzes.question.markWithRisk')}
+              </span>
+            </label>
+          </div>
+        )}
       </div>
     </div>
   );

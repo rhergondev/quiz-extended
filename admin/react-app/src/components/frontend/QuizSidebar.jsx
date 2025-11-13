@@ -1,24 +1,34 @@
 import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useTranslation } from 'react-i18next';
+import { Circle, CheckCircle, TrendingDown, AlertCircle } from 'lucide-react';
 
-// --- COMPONENTES AUXILIARES (Sin cambios) ---
+// --- COMPONENTES AUXILIARES ---
 
-const StatBox = ({ label, value, colorClass = 'bg-gray-200' }) => (
-  <div className={`text-center p-2 rounded-md ${colorClass}`}>
-    <span className="block text-xs text-gray-700">{label}</span>
-    <span className="block text-xl font-bold text-gray-900">{value}</span>
+const StatBox = ({ label, value, bgColor, textColor }) => (
+  <div 
+    className="text-center p-3 rounded-lg border transition-all duration-200"
+    style={{ 
+      backgroundColor: bgColor,
+      borderColor: textColor + '20'
+    }}
+  >
+    <span className="block text-xs font-medium mb-1" style={{ color: textColor + '90' }}>
+      {label}
+    </span>
+    <span className="block text-2xl font-bold" style={{ color: textColor }}>
+      {value}
+    </span>
   </div>
 );
 
-const LegendItem = ({ color, text }) => (
-    <div className="flex items-center text-xs text-gray-600">
-        <span className={`w-3 h-3 rounded-full mr-2 border ${color}`}></span>
-        <span>{text}</span>
-    </div>
+const LegendItem = ({ icon: Icon, color, text }) => (
+  <div className="flex items-center gap-2 text-xs font-medium" style={{ color: color }}>
+    <Icon size={16} strokeWidth={2.5} />
+    <span>{text}</span>
+  </div>
 );
-
-
-// --- COMPONENTE PRINCIPAL (Con cambios) ---
+// --- COMPONENTE PRINCIPAL ---
 
 const QuizSidebar = ({ 
   questions, 
@@ -34,6 +44,7 @@ const QuizSidebar = ({
   onLoadMore = null
 }) => {
   const { getColor } = useTheme();
+  const { t } = useTranslation();
   
   const answeredCount = Object.keys(userAnswers).length;
   const riskedCount = riskedAnswers.length;
@@ -41,8 +52,15 @@ const QuizSidebar = ({
   const unansweredCount = Math.max(0, effectiveTotal - answeredCount);
   const impugnedCount = 0;
   
-  // 🔥 NEW: Calculate loading progress
   const loadingProgress = effectiveTotal > 0 ? Math.round((loadedCount / effectiveTotal) * 100) : 100;
+
+  // Colores del sistema de 3 estados
+  const colors = {
+    unanswered: '#6b7280', // gray-500
+    answered: getColor('primary', '#1a202c'),
+    risked: getColor('accent', '#f59e0b'),
+    impugned: '#9ca3af' // gray-400
+  };
 
   const scrollToQuestion = (index) => {
     const element = document.getElementById(`quiz-question-${index + 1}`);
@@ -51,152 +69,195 @@ const QuizSidebar = ({
         behavior: 'smooth', 
         block: 'center' 
       });
-      // Añadir un efecto visual temporal
-      element.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2');
+      
+      // Aumentar el border-left temporalmente
+      const originalBorderWidth = element.style.borderLeftWidth || '4px';
+      element.style.borderLeftWidth = '12px';
+      element.style.transition = 'border-left-width 0.3s ease';
+      
       setTimeout(() => {
-        element.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2');
+        element.style.borderLeftWidth = originalBorderWidth;
       }, 2000);
     }
-    // También llamar a onQuestionSelect si existe
     if (onQuestionSelect) {
       onQuestionSelect(index);
     }
   };
 
   return (
-    <div className="sticky top-4 w-full">
+    <div className="w-full">
       <div 
-        className="p-6 rounded-xl shadow-lg border-2"
+        className="rounded-lg shadow-sm border transition-all duration-200"
         style={{ 
-          backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
-          borderColor: getColor('primary', '#3b82f6')
+          backgroundColor: getColor('background', '#ffffff'),
+          borderColor: colors.answered + '20'
         }}
       >
         
-        {/* 🔥 NEW: Loading progress indicator */}
+        {/* Indicador de progreso de carga */}
         {loadingMore && loadingProgress < 100 && (
           <div 
-            className="mb-4 p-3 rounded-lg border-2"
+            className="p-4 rounded-t-lg border-b"
             style={{ 
-              backgroundColor: getColor('primary', '#3b82f6') + '10',
-              borderColor: getColor('primary', '#3b82f6')
+              backgroundColor: colors.answered + '05',
+              borderColor: colors.answered + '20'
             }}
           >
-            <div className="flex items-center justify-between text-xs qe-text-primary mb-2">
-              <span className="font-medium">Cargando preguntas...</span>
+            <div className="flex items-center justify-between text-xs font-medium mb-2" style={{ color: colors.answered }}>
+              <span>{t('quizzes.sidebar.loadingQuestions')}</span>
               <span className="font-bold">{loadedCount}/{effectiveTotal}</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full rounded-full h-2" style={{ backgroundColor: colors.answered + '15' }}>
               <div 
                 className="h-2 rounded-full transition-all duration-300"
                 style={{ 
                   width: `${loadingProgress}%`,
-                  backgroundColor: getColor('primary', '#3b82f6')
+                  backgroundColor: colors.answered
                 }}
               ></div>
             </div>
           </div>
         )}
         
+        {/* Leyenda de estados */}
         <div 
-          className="flex justify-around items-center mb-4 p-3 rounded-lg"
-          style={{ backgroundColor: getColor('background', '#ffffff') }}
+          className="p-4 border-b"
+          style={{ borderColor: colors.answered + '15' }}
         >
-            <LegendItem color="border-2" text="Contestada" style={{ borderColor: getColor('primary', '#3b82f6'), backgroundColor: getColor('primary', '#3b82f6') }} />
-            <LegendItem color="bg-yellow-500 border-yellow-500" text="Con Riesgo" />
-            <LegendItem color="bg-gray-400 border-gray-400" text="Impugnada" />
+          <div className="flex flex-wrap gap-4 justify-around">
+            <LegendItem 
+              icon={Circle} 
+              color={colors.unanswered} 
+              text={t('quizzes.sidebar.unanswered')} 
+            />
+            <LegendItem 
+              icon={CheckCircle} 
+              color={colors.answered} 
+              text={t('quizzes.sidebar.answered')} 
+            />
+            <LegendItem 
+              icon={TrendingDown} 
+              color={colors.risked} 
+              text={t('quizzes.sidebar.withRisk')} 
+            />
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <StatBox label="Contestadas" value={answeredCount} />
-          <StatBox label="Con Riesgo" value={riskedCount} colorClass="bg-yellow-100" />
-          <StatBox label="Sin Riesgo" value={answeredCount - riskedCount} />
-          <StatBox label="Sin Contestar" value={unansweredCount} />
+        {/* Estadísticas */}
+        <div className="p-4 border-b" style={{ borderColor: colors.answered + '15' }}>
+          <div className="grid grid-cols-2 gap-3">
+            <StatBox 
+              label={t('quizzes.sidebar.answered')} 
+              value={answeredCount} 
+              bgColor={colors.answered + '10'}
+              textColor={colors.answered}
+            />
+            <StatBox 
+              label={t('quizzes.sidebar.withRisk')} 
+              value={riskedCount} 
+              bgColor={colors.risked + '10'}
+              textColor={colors.risked}
+            />
+            <StatBox 
+              label={t('quizzes.sidebar.withoutRisk')} 
+              value={answeredCount - riskedCount} 
+              bgColor={colors.answered + '10'}
+              textColor={colors.answered}
+            />
+            <StatBox 
+              label={t('quizzes.sidebar.unanswered')} 
+              value={unansweredCount} 
+              bgColor={colors.unanswered + '10'}
+              textColor={colors.unanswered}
+            />
+          </div>
         </div>
 
-        <div className="grid grid-cols-10 gap-1.5 mb-6">
-          {Array.from({ length: effectiveTotal }).map((_, index) => {
-            const qId = questionIds && questionIds[index] ? questionIds[index] : (questions && questions[index] ? questions[index].id : `unloaded-${index}`);
-            const isLoaded = questions && questions[index]; // Check if question is loaded
-            const isAnswered = userAnswers.hasOwnProperty(qId);
-            const isRisked = riskedAnswers.includes(qId);
-            const isImpugned = false; 
+        {/* Mapa de preguntas */}
+        <div className="p-4 border-b" style={{ borderColor: colors.answered + '15' }}>
+          <h3 className="text-sm font-semibold mb-3" style={{ color: colors.answered }}>
+            {t('quizzes.sidebar.questionsMap')}
+          </h3>
+          <div className="grid grid-cols-10 gap-1.5">
+            {Array.from({ length: effectiveTotal }).map((_, index) => {
+              const qId = questionIds && questionIds[index] ? questionIds[index] : (questions && questions[index] ? questions[index].id : `unloaded-${index}`);
+              const isLoaded = questions && questions[index];
+              const isAnswered = userAnswers.hasOwnProperty(qId);
+              const isRisked = riskedAnswers.includes(qId);
 
-            let style = '';
-            let bgColor = '';
-            let borderColor = '';
-            let textColor = '';
-            
-            if (!isLoaded) {
-              // 🔥 NEW: Placeholder style for unloaded questions
-              style = 'bg-gray-100 border-2 border-gray-300 text-gray-400 cursor-wait';
-            } else if (isImpugned) {
-              style = 'bg-gray-400 text-black border-gray-400';
-            } else if (isRisked) {
-              // CAMBIO: Usando color primario
-              style = `bg-yellow-500 text-white border-2`;
-              borderColor = '#eab308';
-            } else if (isAnswered) {
-              // CAMBIO: Usando color primario
-              style = `text-white border-2`;
-              bgColor = getColor('primary', '#3b82f6');
-              borderColor = getColor('primary', '#3b82f6');
-            } else {
-              // Sin contestar
-              style = `bg-white border-2`;
-              borderColor = getColor('primary', '#3b82f6');
-              textColor = getColor('primary', '#3b82f6');
-            }
+              let bgColor = '';
+              let borderColor = '';
+              let textColor = '';
+              let opacity = '1';
+              
+              if (!isLoaded) {
+                bgColor = colors.unanswered + '15';
+                borderColor = colors.unanswered + '30';
+                textColor = colors.unanswered + '60';
+                opacity = '0.5';
+              } else if (isRisked) {
+                bgColor = colors.risked;
+                borderColor = colors.risked;
+                textColor = '#ffffff';
+              } else if (isAnswered) {
+                bgColor = colors.answered;
+                borderColor = colors.answered;
+                textColor = '#ffffff';
+              } else {
+                bgColor = colors.unanswered + '10';
+                borderColor = colors.unanswered + '30';
+                textColor = colors.unanswered;
+              }
 
-            return (
-              <div
-                key={qId}
-                onClick={() => isLoaded && scrollToQuestion(index)}
-                className={`w-full h-7 rounded text-xs font-bold transition-all flex items-center justify-center ${isLoaded ? 'cursor-pointer hover:opacity-80' : 'cursor-wait'} ${style}`}
-                style={{
-                  backgroundColor: bgColor,
-                  borderColor: borderColor,
-                  color: textColor
-                }}
-                title={!isLoaded ? 'Cargando pregunta...' : undefined}
-              >
-                {index + 1}
-              </div>
-            );
-          })}
+              return (
+                <button
+                  key={qId}
+                  onClick={() => isLoaded && scrollToQuestion(index)}
+                  disabled={!isLoaded}
+                  className="w-full h-8 rounded text-xs font-bold transition-all duration-200 flex items-center justify-center border disabled:cursor-wait hover:enabled:scale-105 hover:enabled:shadow-md"
+                  style={{
+                    backgroundColor: bgColor,
+                    borderColor: borderColor,
+                    color: textColor,
+                    opacity: opacity
+                  }}
+                  title={!isLoaded ? t('quizzes.sidebar.loadingQuestion') : `${t('quizzes.sidebar.question')} ${index + 1}`}
+                >
+                  {index + 1}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Manual fallback: cargar más preguntas si hay más y la prefetch falló */}
+        {/* Botón cargar más preguntas */}
         {hasMore && (
-          <div className="mb-4">
+          <div className="p-4 border-b" style={{ borderColor: colors.answered + '15' }}>
             <button
               onClick={() => { if (onLoadMore) onLoadMore(); }}
               disabled={loadingMore}
-              aria-label="Cargar más preguntas"
-              className={`w-full px-4 py-2 rounded-lg font-medium transition-all border-2 ${loadingMore ? 'bg-gray-300 text-gray-600 cursor-wait' : 'bg-white hover:opacity-90'}`}
-              style={!loadingMore ? {
-                borderColor: getColor('primary', '#3b82f6'),
-                color: getColor('primary', '#3b82f6')
-              } : {}}
+              className="w-full px-4 py-2.5 rounded-lg font-medium transition-all duration-200 border disabled:opacity-50 disabled:cursor-wait hover:enabled:scale-[1.02]"
+              style={{
+                backgroundColor: loadingMore ? colors.answered + '10' : colors.answered + '05',
+                borderColor: colors.answered + '30',
+                color: colors.answered
+              }}
             >
-              {loadingMore ? 'Cargando...' : 'Cargar más preguntas'}
+              {loadingMore ? t('quizzes.sidebar.loading') : t('quizzes.sidebar.loadMore')}
             </button>
           </div>
         )}
 
-        <button
-          onClick={onSubmit}
-          className="w-full px-6 py-3 text-white font-semibold rounded-lg shadow-md transition-all transform hover:-translate-y-px hover:shadow-lg"
-          style={{ backgroundColor: getColor('primary', '#3b82f6') }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = '0.9';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = '1';
-          }}
-        >
-          FINALIZAR EXAMEN
-        </button>
+        {/* Botón finalizar */}
+        <div className="p-4">
+          <button
+            onClick={onSubmit}
+            className="w-full px-6 py-3.5 text-white font-semibold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98]"
+            style={{ backgroundColor: colors.answered }}
+          >
+            {t('quizzes.sidebar.finishExam')}
+          </button>
+        </div>
       </div>
     </div>
   );

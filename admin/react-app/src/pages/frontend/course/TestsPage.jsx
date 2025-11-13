@@ -2,16 +2,22 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { useScoreFormat } from '../../../contexts/ScoreFormatContext';
 import useCourse from '../../../hooks/useCourse';
 import useStudentProgress from '../../../hooks/useStudentProgress';
+import useQuizRanking from '../../../hooks/useQuizRanking';
+import useQuizAttempts from '../../../hooks/useQuizAttempts';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
-import { ChevronDown, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target } from 'lucide-react';
+import Quiz from '../../../components/frontend/Quiz';
+import QuizResults from '../../../components/frontend/QuizResults';
+import { ChevronDown, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, XCircle } from 'lucide-react';
 
 const TestsPage = () => {
   const { t } = useTranslation();
   const { courseId } = useParams();
   const { getColor } = useTheme();
+  const { formatScore } = useScoreFormat();
   const { course } = useCourse(courseId);
   const courseName = course?.title?.rendered || course?.title || '';
   
@@ -20,6 +26,20 @@ const TestsPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedTest, setSelectedTest] = useState(null);
   const [selectedLesson, setSelectedLesson] = useState(null);
+  const [showQuizViewer, setShowQuizViewer] = useState(false);
+  const [quizToStart, setQuizToStart] = useState(null);
+  const [isQuizRunning, setIsQuizRunning] = useState(false);
+  const [quizResults, setQuizResults] = useState(null);
+  const [resultsQuestions, setResultsQuestions] = useState(null);
+  const [resultsQuizInfo, setResultsQuizInfo] = useState(null);
+  
+  // Drawing mode states for Quiz component
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [isDrawingEnabled, setIsDrawingEnabled] = useState(false);
+  const [showDrawingToolbar, setShowDrawingToolbar] = useState(false);
+  const [drawingTool, setDrawingTool] = useState('pen');
+  const [drawingColor, setDrawingColor] = useState('#000000');
+  const [drawingLineWidth, setDrawingLineWidth] = useState(2);
 
   // Hook para manejar el progreso del estudiante
   const { 
@@ -29,6 +49,47 @@ const TestsPage = () => {
     loading: progressLoading,
     fetchCompletedContent
   } = useStudentProgress(courseId, false);
+
+  // Obtener quiz_id del test seleccionado
+  const quizId = selectedTest?.data?.quiz_id;
+
+  // Hook para obtener ranking y estadísticas del quiz
+  const { ranking, loading: rankingLoading } = useQuizRanking(quizId);
+
+  // Hook para obtener todos los intentos del usuario (solo los últimos 5 ya ordenados)
+  const { attempts, loading: attemptsLoading } = useQuizAttempts({ perPage: 5, autoFetch: true });
+
+  // Filtrar intentos de este quiz específico (últimos 5)
+  const quizAttempts = useMemo(() => {
+    if (!quizId || !attempts) return [];
+    
+    return attempts
+      .filter(a => parseInt(a.quiz_id) === parseInt(quizId))
+      .slice(0, 5);
+  }, [quizId, attempts]);
+
+  // Función para calcular percentil (diferencia con la media)
+  const calculatePercentile = (score, withRisk) => {
+    if (!ranking?.statistics) return 0;
+    const avgScore = withRisk 
+      ? ranking.statistics.avg_score_with_risk 
+      : ranking.statistics.avg_score_without_risk;
+    return score - avgScore;
+  };
+
+  // Obtener estadísticas del usuario actual
+  const userStats = useMemo(() => {
+    if (!ranking) return null;
+    const topUsers = ranking.top || [];
+    const relativeUsers = ranking.relative || [];
+    const currentUser = ranking.currentUser;
+    
+    const userInTop = topUsers.find(u => u.user_id === currentUser?.id);
+    const userInRelative = relativeUsers.find(u => u.user_id === currentUser?.id);
+    return userInTop || userInRelative;
+  }, [ranking]);
+
+  const hasUserStats = userStats !== null && ranking?.statistics?.total_users > 0;
 
   // Fetch completed content when component mounts
   useEffect(() => {
@@ -105,11 +166,62 @@ const TestsPage = () => {
   const handleOpenTest = (step, lesson) => {
     setSelectedTest(step);
     setSelectedLesson(lesson);
+    setQuizResults(null);
+    setResultsQuestions(null);
+    setResultsQuizInfo(null);
+    setIsQuizRunning(false);
+    setQuizToStart(null);
   };
 
   const closeTestViewer = () => {
     setSelectedTest(null);
     setSelectedLesson(null);
+    setIsQuizRunning(false);
+    setQuizToStart(null);
+  };
+
+  const handleQuizComplete = async (result, questions, quizInfo) => {
+    // Guardar los resultados para mostrarlos
+    setQuizResults(result);
+    setResultsQuestions(questions);
+    setResultsQuizInfo(quizInfo);
+    
+    // Marcar el quiz como completado
+    if (quizToStart?.id && selectedLesson) {
+      try {
+        const currentIndex = getCurrentStepIndex();
+        if (currentIndex !== -1) {
+          const { originalStepIndex } = allTestSteps[currentIndex];
+          await markComplete(selectedLesson.id, 'step', selectedLesson.id, originalStepIndex);
+          
+          // Refreschar contenido completado
+          await fetchCompletedContent();
+          
+          // Disparar evento para actualizar el sidebar
+          window.dispatchEvent(new CustomEvent('courseProgressUpdated', { detail: { courseId } }));
+          
+          // Cambiar a vista de resultados (no cerrar el viewer)
+          setIsQuizRunning(false);
+        }
+      } catch (error) {
+        console.error('Error marking quiz as complete:', error);
+      }
+    } else {
+      // Si no hay test para marcar, solo cambiar la vista
+      setIsQuizRunning(false);
+    }
+  };
+
+  const handleCloseResults = () => {
+    // Limpiar resultados y volver a la vista de info
+    setQuizResults(null);
+    setResultsQuestions(null);
+    setResultsQuizInfo(null);
+    setQuizToStart(null);
+  };
+
+  const handleClearCanvas = () => {
+    // Canvas clearing logic handled by DrawingCanvas component
   };
 
   // Navigation functions
@@ -496,7 +608,191 @@ const TestsPage = () => {
 
               {/* Test Content */}
               <div className="flex-1 overflow-y-auto">
-                <div className="max-w-4xl mx-auto p-8">
+                {!isQuizRunning && !quizResults ? (
+                  // Mostrar info del test
+                  <div className="max-w-4xl mx-auto p-8">
+                  {/* Estadísticas del Test - Solo si el usuario tiene nota */}
+                  {hasUserStats && !rankingLoading && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-bold mb-4" style={{ color: getColor('primary', '#1a202c') }}>
+                        {t('tests.statistics')}
+                      </h3>
+                      
+                      <div 
+                        className="rounded-lg overflow-hidden"
+                        style={{ 
+                          backgroundColor: getColor('background', '#ffffff'),
+                          border: `2px solid ${getColor('primary', '#1a202c')}20`
+                        }}
+                      >
+                        <div 
+                          className="grid"
+                          style={{ 
+                            gridTemplateColumns: 'repeat(2, 1fr)',
+                            minHeight: '140px'
+                          }}
+                        >
+                          {/* Columna Sin Riesgo */}
+                          <div 
+                            className="border-r transition-all duration-200"
+                            style={{ 
+                              borderColor: `${getColor('primary', '#1a202c')}20`,
+                              backgroundColor: `${getColor('primary', '#1a202c')}03`
+                            }}
+                          >
+                            <div 
+                              className="p-5 border-b"
+                              style={{ 
+                                borderColor: `${getColor('primary', '#1a202c')}15`,
+                                backgroundColor: `${getColor('primary', '#1a202c')}08`
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-bold uppercase tracking-wide" style={{ color: getColor('primary', '#1a202c') }}>
+                                  {t('tests.withoutRisk')}
+                                </h4>
+                                <div 
+                                  className="w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: getColor('primary', '#1a202c') }}
+                                ></div>
+                              </div>
+                            </div>
+                            
+                            <div className="p-5 space-y-4">
+                              {/* Media UA */}
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-medium uppercase tracking-wide" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                                    {t('tests.avgScore')}
+                                  </span>
+                                </div>
+                                <div className="text-2xl font-bold" style={{ color: getColor('primary', '#1a202c') }}>
+                                  {formatScore(ranking?.statistics?.avg_score_without_risk || 0)}
+                                </div>
+                              </div>
+
+                              {/* Mi Nota */}
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-medium uppercase tracking-wide" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                                    {t('tests.myScore')}
+                                  </span>
+                                </div>
+                                <div className="text-3xl font-bold" style={{ color: getColor('primary', '#1a202c') }}>
+                                  {formatScore(userStats?.score || 0)}
+                                </div>
+                              </div>
+
+                              {/* Percentil (diferencia) */}
+                              <div 
+                                className="pt-3 border-t"
+                                style={{ borderColor: `${getColor('primary', '#1a202c')}15` }}
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-medium uppercase tracking-wide" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                                    {t('tests.percentile')}
+                                  </span>
+                                </div>
+                                <div 
+                                  className="text-2xl font-extrabold flex items-baseline gap-1"
+                                  style={{ 
+                                    color: calculatePercentile(userStats?.score || 0, false) >= 0 ? '#10b981' : '#ef4444'
+                                  }}
+                                >
+                                  <span>
+                                    {calculatePercentile(userStats?.score || 0, false) >= 0 ? '+' : ''}
+                                    {formatScore(calculatePercentile(userStats?.score || 0, false))}
+                                  </span>
+                                  <span className="text-sm font-medium" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                                    pts
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Columna Con Riesgo */}
+                          <div 
+                            className="transition-all duration-200"
+                            style={{ 
+                              backgroundColor: `${getColor('accent', '#f59e0b')}08`
+                            }}
+                          >
+                            <div 
+                              className="p-5 border-b"
+                              style={{ 
+                                borderColor: `${getColor('accent', '#f59e0b')}20`,
+                                backgroundColor: `${getColor('accent', '#f59e0b')}15`
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-bold uppercase tracking-wide" style={{ color: getColor('accent', '#f59e0b') }}>
+                                  {t('tests.withRisk')}
+                                </h4>
+                                <div 
+                                  className="w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: getColor('accent', '#f59e0b') }}
+                                ></div>
+                              </div>
+                            </div>
+                            
+                            <div className="p-5 space-y-4">
+                              {/* Media UA */}
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-medium uppercase tracking-wide" style={{ color: `${getColor('accent', '#f59e0b')}80` }}>
+                                    {t('tests.avgScore')}
+                                  </span>
+                                </div>
+                                <div className="text-2xl font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
+                                  {formatScore(ranking?.statistics?.avg_score_with_risk || 0)}
+                                </div>
+                              </div>
+
+                              {/* Mi Nota */}
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-medium uppercase tracking-wide" style={{ color: `${getColor('accent', '#f59e0b')}80` }}>
+                                    {t('tests.myScore')}
+                                  </span>
+                                </div>
+                                <div className="text-3xl font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
+                                  {formatScore(userStats?.score_with_risk || 0)}
+                                </div>
+                              </div>
+
+                              {/* Percentil (diferencia) */}
+                              <div 
+                                className="pt-3 border-t"
+                                style={{ borderColor: `${getColor('accent', '#f59e0b')}20` }}
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-medium uppercase tracking-wide" style={{ color: `${getColor('accent', '#f59e0b')}80` }}>
+                                    {t('tests.percentile')}
+                                  </span>
+                                </div>
+                                <div 
+                                  className="text-2xl font-extrabold flex items-baseline gap-1"
+                                  style={{ 
+                                    color: calculatePercentile(userStats?.score_with_risk || 0, true) >= 0 ? '#10b981' : '#ef4444'
+                                  }}
+                                >
+                                  <span>
+                                    {calculatePercentile(userStats?.score_with_risk || 0, true) >= 0 ? '+' : ''}
+                                    {formatScore(calculatePercentile(userStats?.score_with_risk || 0, true))}
+                                  </span>
+                                  <span className="text-sm font-medium" style={{ color: `${getColor('accent', '#f59e0b')}70` }}>
+                                    pts
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Test Info Card */}
                   <div 
                     className="rounded-lg overflow-hidden"
@@ -678,6 +974,26 @@ const TestsPage = () => {
                     {/* Botón de comenzar */}
                     <div className="p-6">
                       <button
+                        onClick={async () => {
+                          console.log('🎯 Comenzar test - selectedTest:', selectedTest);
+                          console.log('🎯 quiz_id extraído:', quizId);
+                          
+                          if (quizId) {
+                            try {
+                              // Cargar el quiz completo desde la API
+                              const { getQuiz } = await import('../../../api/services/quizService');
+                              const quizData = await getQuiz(quizId);
+                              console.log('✅ Quiz cargado:', quizData);
+                              
+                              setQuizToStart(quizData);
+                              setIsQuizRunning(true);
+                            } catch (error) {
+                              console.error('❌ Error loading quiz:', error);
+                            }
+                          } else {
+                            console.error('❌ No quiz_id found');
+                          }
+                        }}
                         className="w-full py-4 rounded-lg font-bold text-lg transition-all flex items-center justify-center gap-3 shadow-md"
                         style={{ 
                           backgroundColor: getColor('primary', '#1a202c'),
@@ -699,7 +1015,181 @@ const TestsPage = () => {
                       </button>
                     </div>
                   </div>
+
+                  {/* Historial de Intentos - Solo si el usuario ha hecho el test */}
+                  {quizAttempts.length > 0 && !attemptsLoading && (
+                    <div className="mt-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-bold" style={{ color: getColor('primary', '#1a202c') }}>
+                          {t('tests.recentAttempts')}
+                        </h3>
+                        <span className="text-sm" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                          {t('tests.last5Attempts')}
+                        </span>
+                      </div>
+
+                      <div 
+                        className="rounded-lg overflow-hidden"
+                        style={{ 
+                          backgroundColor: getColor('background', '#ffffff'),
+                          border: `2px solid ${getColor('primary', '#1a202c')}20`
+                        }}
+                      >
+                        {quizAttempts.map((attempt, index) => {
+                          const percentileWithoutRisk = calculatePercentile(attempt.score || 0, false);
+                          const percentileWithRisk = calculatePercentile(attempt.score_with_risk || 0, true);
+                          
+                          return (
+                            <div
+                              key={attempt.id || index}
+                              className="transition-all duration-200"
+                              style={{ 
+                                backgroundColor: index % 2 === 0 ? 'transparent' : `${getColor('primary', '#1a202c')}03`,
+                                borderBottom: index < quizAttempts.length - 1 ? `1px solid ${getColor('primary', '#1a202c')}10` : 'none'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`;
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = index % 2 === 0 ? 'transparent' : `${getColor('primary', '#1a202c')}03`;
+                              }}
+                            >
+                              <div className="px-6 py-4 grid grid-cols-5 gap-4 items-center">
+                                {/* Fecha */}
+                                <div className="flex items-center gap-2">
+                                  <Calendar size={16} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
+                                  <span className="text-sm font-medium" style={{ color: getColor('primary', '#1a202c') }}>
+                                    {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                                  </span>
+                                </div>
+
+                                {/* Nota Sin Riesgo */}
+                                <div className="flex flex-col">
+                                  <div className="flex items-baseline gap-1">
+                                    <span className="text-lg font-bold" style={{ color: getColor('primary', '#1a202c') }}>
+                                      {formatScore(attempt.score || 0)}
+                                    </span>
+                                  </div>
+                                  <span 
+                                    className="text-xs font-medium"
+                                    style={{ color: percentileWithoutRisk >= 0 ? '#10b981' : '#ef4444' }}
+                                  >
+                                    {percentileWithoutRisk >= 0 ? '+' : ''}{formatScore(percentileWithoutRisk)}
+                                  </span>
+                                </div>
+
+                                {/* Nota Con Riesgo */}
+                                <div className="flex flex-col">
+                                  <div className="flex items-baseline gap-1">
+                                    <span className="text-lg font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
+                                      {formatScore(attempt.score_with_risk || 0)}
+                                    </span>
+                                  </div>
+                                  <span 
+                                    className="text-xs font-medium"
+                                    style={{ color: percentileWithRisk >= 0 ? '#10b981' : '#ef4444' }}
+                                  >
+                                    {percentileWithRisk >= 0 ? '+' : ''}{formatScore(percentileWithRisk)}
+                                  </span>
+                                </div>
+
+                                {/* Estado */}
+                                <div className="flex items-center gap-2">
+                                  {attempt.passed ? (
+                                    <>
+                                      <CheckCircle size={18} style={{ color: '#10b981' }} />
+                                      <span className="text-sm font-medium" style={{ color: '#10b981' }}>
+                                        {t('tests.passed')}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <XCircle size={18} style={{ color: '#ef4444' }} />
+                                      <span className="text-sm font-medium" style={{ color: '#ef4444' }}>
+                                        {t('tests.failed')}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+
+                                {/* Detalles */}
+                                <div className="flex justify-end">
+                                  <button
+                                    className="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm"
+                                    style={{ 
+                                      backgroundColor: `${getColor('primary', '#1a202c')}10`,
+                                      color: getColor('primary', '#1a202c')
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                                      e.currentTarget.style.transform = 'scale(1.05)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                                      e.currentTarget.style.transform = 'scale(1)';
+                                    }}
+                                    title={t('tests.viewDetails')}
+                                  >
+                                    <Eye size={16} />
+                                    <span className="font-medium">{t('tests.details')}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
+                ) : !quizResults ? (
+                  // Mostrar Quiz component
+                  quizToStart && (
+                    <Quiz
+                      quizId={quizToStart.id}
+                      onQuizComplete={handleQuizComplete}
+                      isDrawingMode={isDrawingMode}
+                      setIsDrawingMode={setIsDrawingMode}
+                      isDrawingEnabled={isDrawingEnabled}
+                      setIsDrawingEnabled={setIsDrawingEnabled}
+                      showDrawingToolbar={showDrawingToolbar}
+                      setShowDrawingToolbar={setShowDrawingToolbar}
+                      drawingTool={drawingTool}
+                      drawingColor={drawingColor}
+                      drawingLineWidth={drawingLineWidth}
+                      onClearCanvas={handleClearCanvas}
+                    />
+                  )
+                ) : (
+                  // Mostrar resultados
+                  <div className="p-6">
+                    <QuizResults
+                      result={quizResults}
+                      quizTitle={resultsQuizInfo?.title?.rendered || resultsQuizInfo?.title || selectedTest?.data?.title}
+                      questions={resultsQuestions}
+                    />
+                    <div className="mt-6 flex justify-center">
+                      <button
+                        onClick={handleCloseResults}
+                        className="px-6 py-3 rounded-lg font-semibold transition-all duration-200"
+                        style={{
+                          backgroundColor: getColor('primary', '#1a202c'),
+                          color: '#ffffff'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.opacity = '0.9';
+                          e.currentTarget.style.transform = 'scale(1.02)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.opacity = '1';
+                          e.currentTarget.style.transform = 'scale(1)';
+                        }}
+                      >
+                        {t('tests.backToInfo')}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

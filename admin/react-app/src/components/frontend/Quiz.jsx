@@ -1,14 +1,13 @@
 import React from 'react';
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getQuiz } from '../../api/services/quizService';
 import useQuizQuestions from '../../hooks/useQuizQuestions';
 import { getQuestionsByIds } from '../../api/services/questionService';
-// 🔥 IMPORTAMOS LA NUEVA FUNCIÓN
 import { startQuizAttempt, submitQuizAttempt, calculateCustomQuizResult } from '../../api/services/quizAttemptService';
 import Question from './Question';
 import QuizSidebar from './QuizSidebar';
 import Timer from './Timer';
-import QuizResults from './QuizResults';
 import DrawingCanvas from './DrawingCanvas';
 import { Loader } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -45,7 +44,9 @@ const Quiz = ({
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const { getColor } = useTheme();
+  const { t } = useTranslation();
   const questionsContainerRef = useRef(null);
+  const loadMoreTriggerRef = useRef(null);
 
   // Use paginated hook for loading questions
   const { 
@@ -65,21 +66,46 @@ const Quiz = ({
     randomize: quizInfo?.meta?._randomize_questions || false
   });
 
-  // Auto-prefetch questions as user progresses
+  // Intersection Observer: Auto-cargar más preguntas cuando el trigger sea visible
   useEffect(() => {
-    if (quizState === 'in-progress' && currentQuestionIndex >= 0) {
-      checkPrefetch(currentQuestionIndex);
+    if (!loadMoreTriggerRef.current || !hasMoreQuestions || questionsLoading) {
+      return;
     }
-  }, [currentQuestionIndex, quizState, checkPrefetch]);
 
-  // 🔥 NEW: Auto-prefetch based on answered questions count
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && hasMoreQuestions && !questionsLoading) {
+          loadMore();
+        }
+      },
+      {
+        root: null,
+        rootMargin: '200px',
+        threshold: 0.1
+      }
+    );
+
+    observer.observe(loadMoreTriggerRef.current);
+
+    return () => {
+      if (loadMoreTriggerRef.current) {
+        observer.unobserve(loadMoreTriggerRef.current);
+      }
+    };
+  }, [hasMoreQuestions, questionsLoading, loadMore]);
+
+  // Auto-prefetch questions as user progresses
   useEffect(() => {
     if (quizState === 'in-progress' && Object.keys(userAnswers).length > 0) {
       const answeredCount = Object.keys(userAnswers).length;
-      // Trigger prefetch when user has answered enough questions
-      checkPrefetch(answeredCount);
+      const remainingLoaded = loadedCount - answeredCount;
+      
+      if (remainingLoaded <= 10 && hasMoreQuestions && !questionsLoading) {
+        checkPrefetch(answeredCount);
+      }
     }
-  }, [userAnswers, quizState, checkPrefetch]);
+  }, [userAnswers, quizState, checkPrefetch, loadedCount, hasMoreQuestions, questionsLoading]);
 
   useEffect(() => {
     const fetchAndStartQuiz = async () => {
@@ -108,11 +134,9 @@ const Quiz = ({
 
         // Load quiz data
         const quizData = await getQuiz(quizId);
-        console.log('✅ Quiz data loaded:', quizData);
         setQuizInfo(quizData);
         
         const ids = quizData.meta?._quiz_question_ids || [];
-        console.log('📋 Question IDs from quiz:', ids);
         
         // Set question IDs - useQuizQuestions hook will handle lazy loading
         setQuestionIds(ids);
@@ -144,35 +168,34 @@ const Quiz = ({
   });
 
   useEffect(() => {
-      if (quizInfo && attemptId) {
-          // Si tenemos quiz info y attempt ID, podemos mostrar el quiz
-          // Incluso si loadedCount es 0, el mensaje apropiado se mostrará más abajo
-          console.log('🎯 Changing quiz state to in-progress', {
-            quizInfo: !!quizInfo,
-            attemptId,
-            questionsLoading,
-            loadedCount,
-            totalQuestions
-          });
-          
-          // Solo cambiar a in-progress si:
-          // 1. Ya tenemos preguntas cargadas (loadedCount > 0), o
-          // 2. No estamos cargando y el quiz no tiene preguntas (questionIds.length === 0)
+      if (quizInfo && attemptId && quizState === 'loading') {
+          // Cambiar a in-progress cuando las preguntas estén cargadas
+          // o cuando el quiz no tenga preguntas
           if (loadedCount > 0 || (!questionsLoading && questionIds.length === 0)) {
             setQuizState('in-progress');
           }
       }
-  }, [quizInfo, attemptId, questionsLoading, loadedCount, totalQuestions, questionIds.length]);
+  }, [quizInfo, attemptId, questionsLoading, loadedCount, totalQuestions, questionIds.length, quizState]);
 
-  // 🔥 Timeout de seguridad: si después de 10 segundos aún está en loading, mostrar error
+  // Asegurar que el hook de preguntas se active correctamente
+  useEffect(() => {
+    if (quizState === 'loading' && questionIds.length > 0 && quizInfo && attemptId && loadedCount === 0 && !questionsLoading) {
+      const timeoutId = setTimeout(() => {
+        // Si después de 2 segundos no se han cargado preguntas, puede haber un problema
+      }, 2000);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [quizState, questionIds.length, quizInfo, attemptId, loadedCount, questionsLoading]);
+
+  // Timeout de seguridad: forzar in-progress después de 10 segundos
   useEffect(() => {
     if (quizState === 'loading' && quizInfo && attemptId) {
       const timeoutId = setTimeout(() => {
         if (loadedCount === 0 && !questionsLoading) {
-          console.warn('⚠️ Quiz loading timeout - forcing in-progress state');
           setQuizState('in-progress');
         }
-      }, 10000); // 10 segundos
+      }, 10000);
       
       return () => clearTimeout(timeoutId);
     }
@@ -183,6 +206,9 @@ const Quiz = ({
     if (!autosaveData) return;
 
     try {
+      // Cambiar a loading temporalmente
+      setQuizState('loading');
+      
       const savedQuizData = typeof autosaveData.quiz_data === 'string' 
         ? JSON.parse(autosaveData.quiz_data) 
         : autosaveData.quiz_data;
@@ -202,7 +228,9 @@ const Quiz = ({
       setAttemptId(autosaveData.attempt_id);
       
       setShowRecoveryModal(false);
-      setQuizState('in-progress');
+      
+      // Esperar a que el hook cargue las preguntas
+      // El useEffect cambiará el estado a 'in-progress' cuando estén cargadas
     } catch (error) {
       console.error('Error resuming quiz:', error);
       setQuizState('error');
@@ -214,6 +242,9 @@ const Quiz = ({
     if (!quizId) return;
 
     try {
+      // Cambiar a loading mientras se reinicia
+      setQuizState('loading');
+      
       await quizAutosaveService.deleteAutosave(quizId);
       
       const quizData = await getQuiz(quizId);
@@ -225,10 +256,15 @@ const Quiz = ({
       const attemptResponse = await startQuizAttempt(quizId);
       if (attemptResponse.attempt_id) {
         setAttemptId(attemptResponse.attempt_id);
+      } else {
+        throw new Error("Failed to get a valid attempt ID.");
       }
 
       setShowRecoveryModal(false);
       setAutosaveData(null);
+      
+      // El estado cambiará a 'in-progress' cuando las preguntas se carguen
+      // gracias al useEffect que monitorea quizInfo y attemptId
     } catch (error) {
       console.error('Error restarting quiz:', error);
       setQuizState('error');
@@ -236,12 +272,10 @@ const Quiz = ({
   };
 
   const handleSelectAnswer = (questionId, answerId) => {
-    console.log('🎯 Seleccionando respuesta:', { questionId, answerId, tipo: typeof answerId });
-    setUserAnswers(prev => {
-      const newAnswers = { ...prev, [questionId]: answerId };
-      console.log('📝 Estado actualizado de respuestas:', newAnswers);
-      return newAnswers;
-    });
+    setUserAnswers(prev => ({
+      ...prev,
+      [questionId]: answerId
+    }));
   };
 
   const handleToggleRisk = (questionId) => {
@@ -263,55 +297,39 @@ const Quiz = ({
 
   const handleSubmit = async () => {
       if (!attemptId) {
-          console.error("Cannot submit without an attempt ID.");
           setQuizState('error');
           return;
       }
       setQuizState('submitting');
 
-      console.log('📊 Estado de respuestas antes de formatear:', userAnswers);
-      console.log('📋 Preguntas del cuestionario:', quizQuestions.map(q => ({ id: q.id, title: q.title })));
-      // Ensure we submit answers for ALL questions in the quiz (not only the ones already loaded)
+      // Ensure we submit answers for ALL questions in the quiz
       let questionsForSubmission = quizQuestions;
       if (questionIds && questionIds.length > quizQuestions.length) {
         try {
-          // Fetch missing questions in batches
           questionsForSubmission = await getQuestionsByIds(questionIds, { batchSize: 50 });
-          console.log(`📥 Fetched ${questionsForSubmission.length} questions for submission`);
         } catch (err) {
-          console.warn('⚠️ Failed to fetch all questions before submit, falling back to loaded questions', err);
           questionsForSubmission = quizQuestions;
         }
       }
 
-      const formattedAnswers = questionsForSubmission.map(q => {
-        const hasAnswer = userAnswers.hasOwnProperty(q.id);
-        const answerGiven = hasAnswer ? userAnswers[q.id] : null;
-        console.log(`❓ Pregunta ${q.id}:`, { hasAnswer, answerGiven, isRisked: riskedAnswers.includes(q.id) });
-        return {
-          question_id: q.id,
-          answer_given: answerGiven,
-          is_risked: riskedAnswers.includes(q.id)
-        };
-      });
-
-      console.log('📤 Respuestas formateadas para enviar:', formattedAnswers);
+      const formattedAnswers = questionsForSubmission.map(q => ({
+        question_id: q.id,
+        answer_given: userAnswers.hasOwnProperty(q.id) ? userAnswers[q.id] : null,
+        is_risked: riskedAnswers.includes(q.id)
+      }));
 
       try {
           let result;
-          // 🔥 CORRECCIÓN: Se reemplaza la simulación por la llamada real a la API.
           if (attemptId === 'custom-attempt' && customQuiz) {
               const questionIds = customQuiz.meta._quiz_question_ids;
               const endTime = Date.now();
               const durationInSeconds = Math.round((endTime - startTime) / 1000);
               
               result = await calculateCustomQuizResult(questionIds, formattedAnswers);
-              result.duration_seconds = durationInSeconds; // Añadimos la duración calculada
+              result.duration_seconds = durationInSeconds;
           } else {
               result = await submitQuizAttempt(attemptId, formattedAnswers);
           }
-          
-          console.log('✅ Resultado recibido:', result);
           
           // Limpiar autoguardado después de completar exitosamente
           if (quizId && !customQuiz) {
@@ -319,29 +337,28 @@ const Quiz = ({
           }
 
           // Save the full question list we used for results display
-          setFinalQuestions(questionsForSubmission || quizQuestions);
+          const fullQuestions = questionsForSubmission || quizQuestions;
+          setFinalQuestions(fullQuestions);
 
           setQuizResult(result);
           setQuizState('submitted');
           
-          // 🎯 Llamar al callback de completado si existe
+          // Pasar los resultados al callback para que el padre los maneje
           if (onQuizComplete && typeof onQuizComplete === 'function') {
-            console.log('🎯 Calling onQuizComplete callback');
-            onQuizComplete();
+            onQuizComplete(result, fullQuestions, quizInfo);
           }
       } catch (error) {
-          console.error("Error al enviar el cuestionario:", error);
           setQuizState('error');
       }
   };
 
   if (quizState === 'loading' || questionsLoading) {
-    return <div className="text-center p-8">Cargando cuestionario...</div>;
+    return <div className="text-center p-8">{t('quizzes.quiz.loadingQuiz')}</div>;
   }
   if (quizState === 'awaiting-recovery') {
     return (
       <>
-        <div className="text-center p-8">Cargando cuestionario...</div>
+        <div className="text-center p-8">{t('quizzes.quiz.loadingQuiz')}</div>
         <QuizRecoveryModal
           autosaveData={autosaveData}
           onResume={handleResumeQuiz}
@@ -352,25 +369,25 @@ const Quiz = ({
     );
   }
   if (quizState === 'error' || questionsError) {
-      const errorMessage = questionsError?.message || 'No se pudo cargar el cuestionario.';
+      const errorMessage = questionsError?.message || t('quizzes.quiz.errorLoadingQuiz');
       return (
         <div className="text-center p-8 text-red-600">
-          <p className="font-semibold mb-2">Error al cargar el cuestionario</p>
+          <p className="font-semibold mb-2">{t('quizzes.quiz.errorTitle')}</p>
           <p className="text-sm">{errorMessage}</p>
         </div>
       );
   }
   if (quizState === 'submitting') {
-      return <div className="text-center p-8">Enviando respuestas...</div>
+      return <div className="text-center p-8">{t('quizzes.quiz.submittingAnswers')}</div>
   }
   if (quizState === 'submitted') {
-    const resultsQuestions = finalQuestions && finalQuestions.length > 0 ? finalQuestions : quizQuestions;
-    return <QuizResults result={quizResult} quizTitle={quizInfo?.title?.rendered || quizInfo?.title} questions={resultsQuestions} />;
+    // El quiz ha sido enviado, el padre debería manejar los resultados
+    // Mostrar un mensaje mientras se procesa
+    return <div className="text-center p-8">{t('quizzes.quiz.submittingAnswers')}</div>
   }
   
-  // Solo mostrar este mensaje si el quiz está cargado pero no tiene IDs de preguntas
   if (quizInfo && quizQuestions.length === 0 && !questionsLoading && questionIds.length === 0) {
-      return <div className="text-center p-8 text-gray-600">Este cuestionario no tiene preguntas asignadas.</div>
+      return <div className="text-center p-8 text-gray-600">{t('quizzes.quiz.noQuestionsAssigned')}</div>
   }
 
   const timeLimit = quizInfo?.meta?._time_limit || 0;
@@ -415,18 +432,34 @@ const Quiz = ({
           />
         ))}
         
+        {/* 🔥 Trigger invisible para Intersection Observer - Auto-carga más preguntas */}
+        {hasMoreQuestions && !questionsLoading && (
+          <div 
+            ref={loadMoreTriggerRef}
+            className="h-4 w-full"
+            aria-hidden="true"
+          />
+        )}
+        
         {/* Loading indicator for lazy loading */}
         {questionsLoading && hasMoreQuestions && (
-          <div className="flex items-center justify-center p-8 text-gray-500">
-            <Loader className="w-6 h-6 animate-spin mr-2" />
-            <span>Cargando más preguntas... ({loadedCount}/{totalQuestions})</span>
+          <div className="flex flex-col items-center justify-center p-8 gap-3">
+            <Loader className="w-8 h-8 animate-spin" style={{ color: getColor('primary', '#3b82f6') }} />
+            <div className="text-center">
+              <p className="font-medium" style={{ color: getColor('primary', '#3b82f6') }}>
+                {t('quizzes.quiz.loadingMoreQuestions')}
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                {t('quizzes.quiz.questionsLoadedCount', { loaded: loadedCount, total: totalQuestions })}
+              </p>
+            </div>
           </div>
         )}
       </main>
 
       {/* Columna de la Barra Lateral y Reloj */}
-      <aside className="w-full lg:w-1/3">
-        <div className="sticky top-4 space-y-4">
+      <aside className="w-full lg:w-1/3 flex-shrink-0">
+        <div className="sticky top-4 space-y-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
             <QuizSidebar
               questions={quizQuestions}
               questionIds={questionIds}
@@ -438,21 +471,10 @@ const Quiz = ({
                 loadedCount={loadedCount}
                 hasMore={hasMoreQuestions}
                 onLoadMore={() => {
-                  // Manual fallback to trigger loading the next batch
-                  console.log('🖱️ Manual load more requested');
-                  // call loadMore from hook if available via checkPrefetch fallback
-                  // useQuizQuestions exposes loadMore via its return; call via checkPrefetch with a negative index to force
-                  // But we have loadMore directly available from the hook; call checkPrefetch with large index to prompt loadMore
-                  // Simpler: call checkPrefetch with loadedCount to let hook decide
-                  try {
-                    if (typeof loadMore === 'function') {
-                      loadMore();
-                    } else {
-                      // fallback to checkPrefetch if loadMore isn't available
-                      checkPrefetch(loadedCount);
-                    }
-                  } catch (e) {
-                    console.warn('Manual loadMore fallback triggered', e);
+                  if (typeof loadMore === 'function') {
+                    loadMore();
+                  } else {
+                    checkPrefetch(loadedCount);
                   }
                 }}
             />

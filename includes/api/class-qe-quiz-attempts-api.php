@@ -540,12 +540,18 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             // Update rankings
             $this->update_rankings($attempt->user_id, $attempt->course_id, $grading_result);
 
-            // Calculate average scores for this quiz
+            // Calculate average scores for this quiz (only latest attempt per user)
             $quiz_attempts = $this->db_get_results(
-                "SELECT score, score_with_risk 
-                 FROM {$this->get_table('quiz_attempts')} 
-                 WHERE quiz_id = %d AND status = 'completed'",
-                [$attempt->quiz_id]
+                "SELECT qa.score, qa.score_with_risk 
+                 FROM {$this->get_table('quiz_attempts')} qa
+                 INNER JOIN (
+                     SELECT user_id, MAX(attempt_id) as latest_attempt_id
+                     FROM {$this->get_table('quiz_attempts')}
+                     WHERE quiz_id = %d AND status = 'completed'
+                     GROUP BY user_id
+                 ) latest ON qa.attempt_id = latest.latest_attempt_id
+                 WHERE qa.quiz_id = %d AND qa.status = 'completed'",
+                [$attempt->quiz_id, $attempt->quiz_id]
             );
 
             $average_score = null;

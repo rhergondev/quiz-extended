@@ -405,8 +405,10 @@ export const sanitizeRenderedContent = (value) => {
   }
 
   // Handle WordPress REST API rendered format
-  if (typeof value === 'object' && value.rendered) {
-    return sanitizeString(value.rendered);
+  if (typeof value === 'object' && value !== null) {
+    // Intentar obtener rendered o raw, ambos sanitizados
+    const content = value.rendered || value.raw || '';
+    return sanitizeString(content);
   }
 
   return sanitizeString(value);

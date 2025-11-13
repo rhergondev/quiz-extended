@@ -182,8 +182,9 @@ export const formatQuestionForDisplay = (question) => {
   // 🔥 CORRECCIÓN: Accedemos a content.rendered si es un objeto, o usamos el string directamente
   let contentText = '';
   if (sanitized.content) {
-    if (typeof sanitized.content === 'object') {
-      contentText = sanitized.content?.rendered || '';
+    if (typeof sanitized.content === 'object' && sanitized.content !== null) {
+      // Si es objeto, intentamos obtener rendered, si no existe o está vacío, usamos raw
+      contentText = sanitized.content.rendered || sanitized.content.raw || '';
     } else if (typeof sanitized.content === 'string') {
       contentText = sanitized.content;
     }

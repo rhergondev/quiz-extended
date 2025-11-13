@@ -1,19 +1,40 @@
 import React from 'react';
 import { Award, Zap, Clock } from 'lucide-react';
 import { useScoreFormat } from '../../contexts/ScoreFormatContext';
+import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../contexts/ThemeContext';
 
-const StatBox = ({ label, value, icon: Icon, colorClass = 'bg-gray-100 text-gray-800' }) => (
-  <div className={`text-center p-3 rounded-lg ${colorClass}`}>
-    <div className="flex items-center justify-center mb-1">
-      <Icon className="w-4 h-4 mr-2" />
-      <span className="text-xs font-semibold uppercase tracking-wider">{label}</span>
+const StatBox = ({ label, value, icon: Icon, bgColor, textColor }) => (
+  <div 
+    className="text-center p-4 rounded-lg"
+    style={{ backgroundColor: bgColor }}
+  >
+    <div className="flex items-center justify-center mb-2">
+      <Icon className="w-5 h-5 mr-2" style={{ color: textColor }} />
+      <span 
+        className="text-xs font-semibold uppercase tracking-wider"
+        style={{ color: textColor }}
+      >
+        {label}
+      </span>
     </div>
-    <span className="block text-2xl font-bold">{value}</span>
+    <span 
+      className="block text-2xl font-bold"
+      style={{ color: textColor }}
+    >
+      {value}
+    </span>
   </div>
 );
 
 const ResultsSidebar = ({ result, questions }) => {
   const { formatScore } = useScoreFormat();
+  const { t } = useTranslation();
+  const { getColor } = useTheme();
+  
+  const SUCCESS_COLOR = '#22c55e';
+  const ERROR_COLOR = '#ef4444';
+  const GRAY_COLOR = '#6b7280';
   
   if (!result) {
     return null;
@@ -35,10 +56,13 @@ const ResultsSidebar = ({ result, questions }) => {
         behavior: 'smooth', 
         block: 'center' 
       });
-      // Añadir un efecto visual temporal
-      element.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2');
+      
+      // Añadir efecto visual con el borde izquierdo pulsante
+      element.style.borderLeftWidth = '8px';
+      element.style.transition = 'border-left-width 0.3s ease';
+      
       setTimeout(() => {
-        element.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2');
+        element.style.borderLeftWidth = '4px';
       }, 2000);
     }
   };
@@ -50,74 +74,103 @@ const ResultsSidebar = ({ result, questions }) => {
 
   return (
     <aside className="w-full">
-      <div className="sticky top-4 qe-bg-background p-4 rounded-lg border qe-border-primary shadow-sm max-h-[calc(100vh-2rem)] overflow-y-auto">
-        <h3 className="text-lg font-semibold qe-text-primary mb-4 text-center">Resumen de Resultados</h3>
+      <div 
+        className="sticky top-4 p-6 rounded-lg border shadow-sm max-h-[calc(100vh-2rem)] overflow-y-auto"
+        style={{
+          backgroundColor: getColor('background', '#ffffff'),
+          borderColor: getColor('primary', '#1a202c') + '20'
+        }}
+      >
+        <h3 
+          className="text-xl font-bold mb-6 text-center"
+          style={{ color: getColor('primary', '#1a202c') }}
+        >
+          {t('quizzes.resultsSidebar.title')}
+        </h3>
 
         <div className="grid grid-cols-1 gap-3 mb-6">
-          {/* 🔥 CORRECCIÓN: Se han invertido las etiquetas y los valores para que coincidan con la lógica. */}
           <StatBox
-            label="Puntuación"
+            label={t('quizzes.resultsSidebar.score')}
             value={formatScore(score)}
             icon={Award}
-            colorClass="qe-bg-primary-light qe-text-primary"
+            bgColor={getColor('primary', '#1a202c') + '10'}
+            textColor={getColor('primary', '#1a202c')}
           />
           <StatBox
-            label="Puntuación (con riesgo)"
+            label={t('quizzes.resultsSidebar.scoreWithRisk')}
             value={formatScore(score_with_risk)}
             icon={Zap}
-            colorClass="qe-bg-accent-light qe-text-accent"
+            bgColor={getColor('accent', '#f59e0b') + '15'}
+            textColor={getColor('accent', '#f59e0b')}
           />
           <StatBox
-            label="Tiempo Empleado"
+            label={t('quizzes.resultsSidebar.timeSpent')}
             value={formatTime(duration_seconds)}
             icon={Clock}
-            colorClass="qe-bg-primary-light qe-text-primary"
+            bgColor={getColor('primary', '#1a202c') + '10'}
+            textColor={getColor('primary', '#1a202c')}
           />
         </div>
 
-        <h4 className="text-sm font-semibold text-gray-700 mb-2">Mapa de Preguntas</h4>
-        <div className="grid grid-cols-10 gap-1.5 p-2 bg-gray-50 rounded-lg">
+        <h4 
+          className="text-sm font-semibold mb-3"
+          style={{ color: getColor('primary', '#1a202c') }}
+        >
+          {t('quizzes.resultsSidebar.questionsMap')}
+        </h4>
+        <div 
+          className="grid grid-cols-5 gap-2 p-3 rounded-lg"
+          style={{ backgroundColor: getColor('primary', '#1a202c') + '05' }}
+        >
           {orderedResults && orderedResults.map((res, index) => {
-            // Determinar si la pregunta fue contestada
-            const wasAnswered = res.answer_given !== null;
+            const wasAnswered = res.answer_given !== null && res.answer_given !== undefined;
             
-            // Lógica de estilos
-            let boxStyle = '';
-            let title = '';
+            let bgColor, borderColor, textColor, title;
             
             if (!wasAnswered) {
-              // Sin contestar: gris
-              boxStyle = 'bg-gray-300 text-white';
-              title = `Pregunta ${index + 1}: Sin contestar`;
+              bgColor = GRAY_COLOR + '20';
+              borderColor = GRAY_COLOR;
+              textColor = GRAY_COLOR;
+              title = t('quizzes.resultsSidebar.questionUnanswered', { number: index + 1 });
             } else if (res.is_risked) {
-              // Con riesgo: solo borde, sin relleno
-              if (res.is_correct) {
-                boxStyle = 'bg-white border-2 border-green-500 text-green-600';
-                title = `Pregunta ${index + 1}: Correcta (con riesgo)`;
-              } else {
-                boxStyle = 'bg-white border-2 border-red-500 text-red-600';
-                title = `Pregunta ${index + 1}: Incorrecta (con riesgo)`;
-              }
+              bgColor = '#ffffff';
+              borderColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
+              textColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
+              title = res.is_correct 
+                ? t('quizzes.resultsSidebar.questionCorrectWithRisk', { number: index + 1 })
+                : t('quizzes.resultsSidebar.questionIncorrectWithRisk', { number: index + 1 });
             } else {
-              // Sin riesgo: relleno completo
-              if (res.is_correct) {
-                boxStyle = 'bg-green-500 text-white';
-                title = `Pregunta ${index + 1}: Correcta`;
-              } else {
-                boxStyle = 'bg-red-500 text-white';
-                title = `Pregunta ${index + 1}: Incorrecta`;
-              }
+              bgColor = res.is_correct ? SUCCESS_COLOR + '20' : ERROR_COLOR + '20';
+              borderColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
+              textColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
+              title = res.is_correct 
+                ? t('quizzes.resultsSidebar.questionCorrect', { number: index + 1 })
+                : t('quizzes.resultsSidebar.questionIncorrect', { number: index + 1 });
             }
 
             return (
-              <div
+              <button
                 key={res.question_id}
                 onClick={() => scrollToQuestion(index + 1)}
-                className={`w-full h-7 rounded text-xs font-bold transition-colors flex items-center justify-center cursor-pointer hover:opacity-80 leading-none ${boxStyle}`}
+                className="w-full aspect-square rounded-lg text-sm font-bold transition-all duration-200 flex items-center justify-center cursor-pointer border-2"
+                style={{
+                  backgroundColor: bgColor,
+                  borderColor: borderColor,
+                  color: textColor
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.1)';
+                  e.currentTarget.style.boxShadow = `0 4px 8px ${borderColor}40`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
                 title={title}
+                aria-label={title}
               >
                 {index + 1}
-              </div>
+              </button>
             );
           })}
         </div>

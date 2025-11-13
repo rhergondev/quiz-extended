@@ -10,7 +10,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useScoreFormat } from '../../contexts/ScoreFormatContext';
-import { useQuizRanking } from '../../hooks/useQuizRanking';
+import useQuizRanking from '../../hooks/useQuizRanking';
 import QuizResultsSummary from './dashboard/QuizResultsSummary';
 import QEButton from '../common/QEButton';
 
@@ -27,7 +27,7 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
   const { formatScore } = useScoreFormat();
   
   // Obtener estadísticas del ranking
-  const { ranking, isLoading: rankingLoading } = useQuizRanking(quiz?.id);
+  const { ranking, loading: rankingLoading } = useQuizRanking(quiz?.id);
 
   if (!quiz) {
     return (
