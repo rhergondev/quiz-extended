@@ -30,12 +30,6 @@ class QE_Frontend
     private $lms_page_id = 0;
 
     /**
-     * Flag to ensure the menu item is added only once.
-     * @var bool
-     */
-    private $menu_item_added = false;
-
-    /**
      * Main QE_Frontend Instance.
      */
     public static function instance()
@@ -57,7 +51,9 @@ class QE_Frontend
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
         add_filter('woocommerce_login_redirect', [$this, 'custom_login_redirect'], 99, 2);
         add_filter('logout_redirect', [$this, 'custom_logout_redirect'], 99, 3);
-        add_filter('wp_nav_menu_items', [$this, 'add_academy_menu_item'], 20, 2);
+
+        // 🔧 Comentado para permitir gestión manual del menú desde WordPress
+        // add_filter('wp_nav_menu_items', [$this, 'add_academy_menu_item'], 20, 2);
 
         // Custom login handling
         add_filter('login_redirect', [$this, 'custom_login_redirect'], 99, 3);
@@ -95,11 +91,16 @@ class QE_Frontend
     /**
      * Adds "Academia" link to the main navigation menu.
      * Updated to be more compatible with page builders like Elementor.
+     * 
+     * 🔧 DESHABILITADO - Gestión manual del menú desde WordPress
+     * Esta función inyectaba automáticamente el enlace "Campus" en el menú principal.
+     * Ahora debe agregarse manualmente desde Apariencia > Menús en WordPress.
      *
      * @param string $items The HTML list content for the menu items.
      * @param stdClass $args An object containing wp_nav_menu() arguments.
      * @return string Modified HTML for the menu items.
      */
+    /*
     public function add_academy_menu_item($items, $args)
     {
         if ($this->menu_item_added) {
@@ -118,6 +119,7 @@ class QE_Frontend
 
         return $items;
     }
+    */
 
     /**
      * Create the main LMS page on plugin activation.
