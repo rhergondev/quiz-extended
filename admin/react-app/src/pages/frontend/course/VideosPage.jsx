@@ -231,54 +231,44 @@ const VideosPage = () => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3 py-4">
-                {lessons.map((lesson) => {
+              <div className="py-4">
+                <div 
+                  className="rounded-xl overflow-hidden border-2"
+                  style={{ 
+                    backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
+                    borderColor: getColor('primary', '#1a202c')
+                  }}
+                >
+                {lessons.map((lesson, lessonIndex) => {
                   const isExpanded = expandedLessons.has(lesson.id);
                   const videoCount = lesson.videoSteps.length;
                   const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
 
                   return (
-                    <div 
-                      key={lesson.id}
-                      className="rounded-lg overflow-hidden border-2 transition-all duration-200"
-                      style={{ 
-                        backgroundColor: getColor('secondaryBackground', '#ffffff'),
-                        borderColor: getColor('borderColor', getColor('primary', '#1a202c'))
-                      }}
-                    >
+                    <div key={lesson.id}>
                       {/* Lesson Header */}
                       <button
                         onClick={() => toggleLesson(lesson.id)}
-                        className="w-full px-8 py-5 flex items-center justify-between transition-all duration-200 hover:bg-opacity-50"
+                        className="w-full px-6 py-4 flex items-center justify-between transition-all duration-200"
                         style={{ 
-                          backgroundColor: isExpanded ? `${getColor('primary', '#1a202c')}08` : 'transparent'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isExpanded) {
-                            e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`;
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isExpanded) {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                          }
+                          backgroundColor: `${getColor('primary', '#1a202c')}05`
                         }}
                       >
                         <div className="flex items-center gap-3">
                           {isExpanded ? (
-                            <ChevronDown size={22} style={{ color: getColor('primary', '#1a202c') }} />
+                            <ChevronDown size={20} style={{ color: getColor('primary', '#1a202c') }} />
                           ) : (
-                            <ChevronRight size={22} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
+                            <ChevronRight size={20} style={{ color: `${getColor('textSecondary', '#6b7280')}` }} />
                           )}
-                          <Video size={22} style={{ color: getColor('primary', '#1a202c') }} />
-                          <span className="font-semibold text-left text-base" style={{ color: getColor('primary', '#1a202c') }}>
+                          <Video size={20} style={{ color: getColor('primary', '#1a202c') }} />
+                          <span className="font-semibold text-left" style={{ color: getColor('textPrimary', '#1f2937') }}>
                             {lessonTitle}
                           </span>
                         </div>
                         <span 
                           className="text-sm font-medium px-3 py-1 rounded-full"
                           style={{ 
-                            backgroundColor: `${getColor('primary', '#1a202c')}15`,
+                            backgroundColor: `${getColor('primary', '#1a202c')}10`,
                             color: getColor('primary', '#1a202c')
                           }}
                         >
@@ -288,28 +278,22 @@ const VideosPage = () => {
 
                       {/* Video Steps */}
                       {isExpanded && (
-                        <div 
-                          className="border-t"
-                          style={{ borderColor: `${getColor('primary', '#1a202c')}10` }}
-                        >
+                        <div>
                           {lesson.videoSteps.map((step, index) => {
                             const duration = getVideoDuration(step);
                             
                             return (
-                              <div
-                                key={step.id || index}
-                                className="px-8 py-4 flex items-center justify-between transition-all duration-200"
-                                style={{ 
-                                  backgroundColor: index % 2 === 0 ? `${getColor('primary', '#1a202c')}03` : 'transparent',
-                                  borderBottom: index < lesson.videoSteps.length - 1 ? `1px solid ${getColor('primary', '#1a202c')}10` : 'none'
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}08`;
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = index % 2 === 0 ? `${getColor('primary', '#1a202c')}03` : 'transparent';
-                                }}
-                              >
+                              <div key={step.id || index}>
+                                {/* Separador horizontal */}
+                                <div 
+                                  className="mx-6"
+                                  style={{ 
+                                    height: '1px', 
+                                    backgroundColor: 'rgba(156, 163, 175, 0.2)'
+                                  }}
+                                />
+                                
+                                <div className="px-6 py-4 flex items-center justify-between transition-all duration-200">
                                 <div className="flex items-center gap-3 flex-1">
                                   <Play size={18} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
                                   <div className="flex flex-col">
@@ -343,13 +327,26 @@ const VideosPage = () => {
                                   </span>
                                 </button>
                               </div>
+                            </div>
                             );
                           })}
                         </div>
                       )}
+                      
+                      {/* Separador entre lecciones */}
+                      {lessonIndex < lessons.length - 1 && (
+                        <div 
+                          className="mx-6"
+                          style={{ 
+                            height: '1px', 
+                            backgroundColor: 'rgba(156, 163, 175, 0.2)'
+                          }}
+                        />
+                      )}
                     </div>
                   );
                 })}
+                </div>
               </div>
             )}
             </div>

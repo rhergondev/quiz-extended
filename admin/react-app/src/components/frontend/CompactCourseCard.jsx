@@ -68,8 +68,8 @@ const CompactCourseCard = ({ course }) => {
         borderTopWidth: '2px',
         borderBottomWidth: '2px',
         borderLeftWidth: '8px',
-        borderRightWidth: '8px',
-        borderColor: getColor('borderColor', '#3b82f6')
+        borderRightWidth: '2px',
+        borderColor: getColor('primary', '#3b82f6')
       }}
     >
       {/* Featured Image */}
@@ -124,8 +124,8 @@ const CompactCourseCard = ({ course }) => {
           <div 
             className="mt-4 overflow-hidden"
             style={{ 
-              borderTop: `2px solid ${getColor('borderColor', '#3b82f6')}15`,
-              borderBottom: `2px solid ${getColor('borderColor', '#3b82f6')}15`
+              borderTop: `2px solid ${getColor('primary', '#3b82f6')}15`,
+              borderBottom: `2px solid ${getColor('primary', '#3b82f6')}15`
             }}
           >
             <div 
@@ -142,7 +142,7 @@ const CompactCourseCard = ({ course }) => {
                     index < availableContentTypes.length - 1 ? 'border-r' : ''
                   }`}
                   style={{ 
-                    borderColor: `${getColor('borderColor', '#3b82f6')}15`,
+                    borderColor: `${getColor('primary', '#3b82f6')}15`,
                     backgroundColor: 'transparent'
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}08`}

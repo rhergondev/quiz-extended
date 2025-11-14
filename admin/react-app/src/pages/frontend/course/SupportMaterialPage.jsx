@@ -256,115 +256,125 @@ const SupportMaterialPage = () => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3 py-4">
-            {lessons.map((lesson) => {
-              const isExpanded = expandedLessons.has(lesson.id);
-              const materialCount = lesson.materialSteps.length;
-              const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
-
-              return (
+              <div className="py-4">
+                {/* Contenedor único para todos los materiales */}
                 <div 
-                  key={lesson.id}
-                  className="rounded-lg overflow-hidden border-2 transition-all duration-200"
+                  className="rounded-xl overflow-hidden border-2"
                   style={{ 
-                    backgroundColor: getColor('secondaryBackground', '#ffffff'),
-                    borderColor: getColor('borderColor', getColor('primary', '#1a202c'))
+                    backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
+                    borderColor: getColor('borderColor', '#e5e7eb')
                   }}
                 >
-                  {/* Lesson Header */}
-                  <button
-                    onClick={() => toggleLesson(lesson.id)}
-                    className="w-full px-8 py-5 flex items-center justify-between transition-all duration-200 hover:bg-opacity-50"
-                    style={{ 
-                      backgroundColor: isExpanded ? `${getColor('primary', '#1a202c')}08` : 'transparent'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isExpanded) {
-                        e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`;
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isExpanded) {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      {isExpanded ? (
-                        <ChevronDown size={22} style={{ color: getColor('primary', '#1a202c') }} />
-                      ) : (
-                        <ChevronRight size={22} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
-                      )}
-                      <FileText size={22} style={{ color: getColor('primary', '#1a202c') }} />
-                      <span className="font-semibold text-left text-base" style={{ color: getColor('primary', '#1a202c') }}>
-                        {lessonTitle}
-                      </span>
-                    </div>
-                    <span 
-                      className="text-sm font-medium px-3 py-1 rounded-full"
-                      style={{ 
-                        backgroundColor: `${getColor('primary', '#1a202c')}15`,
-                        color: getColor('primary', '#1a202c')
-                      }}
-                    >
-                      {materialCount} {materialCount === 1 ? t('supportMaterial.document') : t('supportMaterial.documents')}
-                    </span>
-                  </button>
+                  {lessons.map((lesson, lessonIndex) => {
+                    const isExpanded = expandedLessons.has(lesson.id);
+                    const materialCount = lesson.materialSteps.length;
+                    const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
 
-                  {/* PDF Steps */}
-                  {isExpanded && (
-                    <div 
-                      className="border-t"
-                      style={{ borderColor: `${getColor('primary', '#1a202c')}10` }}
-                    >
-                      {lesson.materialSteps.map((step, index) => (
-                        <div
-                          key={step.id}
-                          className="px-8 py-4 flex items-center justify-between transition-all duration-200"
+                    return (
+                      <div key={lesson.id}>
+                        {/* Lesson Header */}
+                        <button
+                          onClick={() => toggleLesson(lesson.id)}
+                          className="w-full px-6 py-4 flex items-center justify-between transition-all duration-200"
                           style={{ 
-                            backgroundColor: index % 2 === 0 ? `${getColor('primary', '#1a202c')}03` : 'transparent',
-                            borderBottom: index < lesson.materialSteps.length - 1 ? `1px solid ${getColor('primary', '#1a202c')}10` : 'none'
+                            backgroundColor: isExpanded ? `${getColor('primary', '#1a202c')}08` : 'transparent'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}08`;
+                            if (!isExpanded) {
+                              e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`;
+                            }
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = index % 2 === 0 ? `${getColor('primary', '#1a202c')}03` : 'transparent';
+                            if (!isExpanded) {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }
                           }}
                         >
-                          <div className="flex items-center gap-3 flex-1">
-                            <File size={18} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
-                            <span className="text-sm font-medium" style={{ color: getColor('primary', '#1a202c') }}>
-                              {step.title}
+                          <div className="flex items-center gap-3">
+                            {isExpanded ? (
+                              <ChevronDown size={20} style={{ color: getColor('primary', '#1a202c') }} />
+                            ) : (
+                              <ChevronRight size={20} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
+                            )}
+                            <FileText size={20} style={{ color: getColor('primary', '#1a202c') }} />
+                            <span className="font-semibold text-left" style={{ color: getColor('primary', '#1a202c') }}>
+                              {lessonTitle}
                             </span>
                           </div>
-                          <button
-                            onClick={() => handleOpenPDF(step, lesson)}
-                            className="p-2.5 rounded-lg transition-all duration-200 flex items-center gap-2"
-                            style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
-                              e.currentTarget.style.transform = 'scale(1.05)';
+                          <span 
+                            className="text-sm font-medium px-3 py-1 rounded-full"
+                            style={{ 
+                              backgroundColor: `${getColor('primary', '#1a202c')}15`,
+                              color: getColor('primary', '#1a202c')
                             }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
-                              e.currentTarget.style.transform = 'scale(1)';
-                            }}
-                            title={t('supportMaterial.read')}
                           >
-                            <BookOpen size={18} style={{ color: getColor('primary', '#1a202c') }} />
-                            <span className="text-sm font-medium" style={{ color: getColor('primary', '#1a202c') }}>
-                              {t('supportMaterial.read')}
-                            </span>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                            {materialCount} {materialCount === 1 ? t('supportMaterial.document') : t('supportMaterial.documents')}
+                          </span>
+                        </button>
+
+                        {/* Material Steps */}
+                        {isExpanded && (
+                          <div>
+                            {lesson.materialSteps.map((step, index) => {
+                              return (
+                                <div key={step.id || index}>
+                                  {/* Separador horizontal */}
+                                  <div 
+                                    className="mx-6"
+                                    style={{ 
+                                      height: '1px', 
+                                      backgroundColor: 'rgba(156, 163, 175, 0.2)'
+                                    }}
+                                  />
+                                  
+                                  <div className="px-6 py-4 flex items-center justify-between transition-all duration-200">
+                                    <div className="flex items-center gap-3 flex-1">
+                                      <File size={18} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
+                                      <span className="text-sm font-medium" style={{ color: getColor('primary', '#1a202c') }}>
+                                        {step.title}
+                                      </span>
+                                    </div>
+                                    <button
+                                      onClick={() => handleOpenPDF(step, lesson)}
+                                      className="p-2.5 rounded-lg transition-all duration-200 flex items-center gap-2"
+                                      style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                                        e.currentTarget.style.transform = 'scale(1.05)';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                                        e.currentTarget.style.transform = 'scale(1)';
+                                      }}
+                                      title={t('supportMaterial.read')}
+                                    >
+                                      <BookOpen size={18} style={{ color: getColor('primary', '#1a202c') }} />
+                                      <span className="text-sm font-medium" style={{ color: getColor('primary', '#1a202c') }}>
+                                        {t('supportMaterial.read')}
+                                      </span>
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        
+                        {/* Separador entre lecciones */}
+                        {lessonIndex < lessons.length - 1 && (
+                          <div 
+                            className="mx-6"
+                            style={{ 
+                              height: '1px', 
+                              backgroundColor: 'rgba(156, 163, 175, 0.2)'
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
+              </div>
         )}
             </div>
           </div>
