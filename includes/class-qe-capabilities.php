@@ -53,6 +53,14 @@ class QE_Capabilities
             error_log("[Quiz Extended] Added capabilities for {$post_type}");
         }
 
+        // Add read-only capabilities for questions to all logged-in users (subscriber role as base)
+        $subscriber_role = get_role('subscriber');
+        if ($subscriber_role) {
+            $subscriber_role->add_cap('read_qe_question');
+            $subscriber_role->add_cap('read_qe_quiz');
+            error_log('[Quiz Extended] Added read capabilities for questions and quizzes to subscriber role');
+        }
+
         error_log('[Quiz Extended] All capabilities added to administrator role');
     }
 

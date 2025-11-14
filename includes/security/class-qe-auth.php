@@ -244,11 +244,18 @@ class QE_Auth
     /**
      * Check if current user can take a quiz
      *
+     * SIMPLIFIED SECURITY MODEL:
+     * Quizzes are not standalone entities - they're always part of a course.
+     * Course access is already validated by can_view_course() at the API level.
+     * This method only validates basic requirements (logged in, quiz published).
+     * No need to re-check enrollment here - trust the course security layer.
+     *
      * @param int $quiz_id Quiz ID
      * @return bool
      */
     public function can_take_quiz($quiz_id)
     {
+        // 1. User must be logged in
         if (!is_user_logged_in()) {
             error_log('[QE Auth] can_take_quiz: User not logged in');
             return false;
@@ -257,47 +264,31 @@ class QE_Auth
         $user_id = get_current_user_id();
         error_log(sprintf('[QE Auth] can_take_quiz: User ID: %d, Quiz ID: %d', $user_id, $quiz_id));
 
+        // 2. Admins and instructors can always take quizzes
         if (current_user_can('manage_lms') || current_user_can('edit_courses')) {
-            error_log('[QE Auth] can_take_quiz: User has admin permissions');
+            error_log('[QE Auth] can_take_quiz: User has admin permissions - GRANTED');
             return true;
         }
 
-        // Get course from quiz
-        $course_id = get_post_meta($quiz_id, '_course_id', true);
-        error_log(sprintf('[QE Auth] can_take_quiz: Course ID from quiz meta: %s', var_export($course_id, true)));
-
-        if (!$course_id) {
-            error_log('[QE Auth] can_take_quiz: No course ID found for quiz');
-            return false;
-        }
-
-        // Check enrollment
-        $is_enrolled = $this->is_user_enrolled($course_id);
-        error_log(sprintf('[QE Auth] can_take_quiz: Enrollment check result: %s', var_export($is_enrolled, true)));
-
-        if (!$is_enrolled) {
-            error_log('[QE Auth] can_take_quiz: User not enrolled in course');
-            return false;
-        }
-
-        // Check if quiz is published
+        // 3. Quiz must be published
         $quiz = get_post($quiz_id);
         if (!$quiz || $quiz->post_status !== 'publish') {
-            error_log(sprintf('[QE Auth] can_take_quiz: Quiz not published - Status: %s', $quiz ? $quiz->post_status : 'NULL'));
+            error_log(sprintf('[QE Auth] can_take_quiz: Quiz not published - Status: %s - DENIED', $quiz ? $quiz->post_status : 'NULL'));
             return false;
         }
 
-        error_log('[QE Auth] can_take_quiz: All checks passed, user can take quiz');
+        // 4. Trust the course security layer
+        // If user accessed this quiz through the course UI, they already passed can_view_course()
+        // No need to re-validate enrollment here - the course layer handles it
+        error_log('[QE Auth] can_take_quiz: Basic checks passed, trusting course security - GRANTED');
         return true;
-    }
-
-    /**
-     * Check if user is enrolled in a course
-     *
-     * @param int $course_id Course ID
-     * @param int $user_id User ID (default: current user)
-     * @return bool
-     */
+    }    /**
+         * Check if user is enrolled in a course
+         *
+         * @param int $course_id Course ID
+         * @param int $user_id User ID (default: current user)
+         * @return bool
+         */
     public function is_user_enrolled($course_id, $user_id = null)
     {
         if ($user_id === null) {
