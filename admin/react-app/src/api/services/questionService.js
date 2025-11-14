@@ -347,11 +347,14 @@ export const getQuestionsByIds = async (questionIds, options = {}) => {
     for (let i = 0; i < validIds.length; i += batchSize) {
       const batchIds = validIds.slice(i, i + batchSize);
       
+      // Only use context=edit for administrators, view for everyone else
+      const isAdmin = window.qe_data?.user?.roles?.includes('administrator') || false;
+      
       // Build URL with include parameter - WordPress REST API supports this
       const params = new URLSearchParams({
         include: batchIds.join(','),
         per_page: batchSize.toString(),
-        context: 'edit', // Get full data including content
+        context: isAdmin ? 'edit' : 'view', // edit only for admins
         orderby: 'include', // Maintain order of IDs
       });
 

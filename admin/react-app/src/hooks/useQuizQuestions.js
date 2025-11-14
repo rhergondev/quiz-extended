@@ -87,12 +87,16 @@ export const useQuizQuestions = (questionIds, options = {}) => {
       }
 
       const endpoint = config.endpoints.questions;
+      
+      // Only use context=edit for administrators, view for everyone else
+      const isAdmin = window.qe_data?.user?.roles?.includes('administrator') || false;
+      
       const params = new URLSearchParams({
         include: idsToLoad.join(','),
         per_page: questionsPerPage.toString(),
         page: '1', // We're already slicing by our own logic, so always page 1
         orderby: 'include', // Maintain order
-        context: 'edit'
+        context: isAdmin ? 'edit' : 'view' // edit only for admins
       });
 
       const url = `${endpoint}?${params.toString()}`;
