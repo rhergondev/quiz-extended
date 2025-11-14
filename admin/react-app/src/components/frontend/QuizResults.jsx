@@ -49,15 +49,14 @@ const QuizResults = ({ result, quizTitle, questions }) => {
 
           <main className="flex-1 w-full lg:w-auto lg:overflow-y-auto lg:pr-4">
         <div 
-          className="border rounded-lg p-6 mb-6 shadow-sm"
+          className="rounded-lg p-6 mb-6 shadow-sm"
           style={{
-            backgroundColor: getColor('background', '#ffffff'),
-            borderColor: getColor('primary', '#1a202c') + '20'
+            backgroundColor: getColor('primary', '#1a202c'),
           }}
         >
           <h2 
             className="text-2xl font-bold"
-            style={{ color: getColor('primary', '#1a202c') }}
+            style={{ color: getColor('textColorContrast', '#ffffff') }}
           >
             {t('quizzes.results.title')}
           </h2>
@@ -67,8 +66,8 @@ const QuizResults = ({ result, quizTitle, questions }) => {
           <div 
             className="border-2 rounded-lg p-6 shadow-md"
             style={{
-              backgroundColor: getColor('primary', '#1a202c') + '08',
-              borderColor: getColor('primary', '#1a202c') + '30'
+              backgroundColor: getColor('secondaryBackground', '#ffffff'),
+              borderColor: getColor('primary', '#1a202c')
             }}
           >
             <div className="flex items-center justify-between mb-4">
@@ -175,8 +174,8 @@ const QuizResults = ({ result, quizTitle, questions }) => {
           <div 
             className="border-2 rounded-lg p-6 shadow-md"
             style={{
-              backgroundColor: getColor('accent', '#f59e0b') + '10',
-              borderColor: getColor('accent', '#f59e0b') + '40'
+              backgroundColor: getColor('secondaryBackground', '#ffffff'),
+              borderColor: getColor('accent', '#f59e0b')
             }}
           >
             <div className="flex items-center justify-between mb-4">
@@ -297,26 +296,6 @@ const QuizResults = ({ result, quizTitle, questions }) => {
             {t('quizzes.noDetailedResults')}
           </p>
         )}
-
-        <div className="mt-8 text-center pb-4">
-          <Link to="/courses">
-            <button
-              className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3 rounded-lg font-semibold shadow-md transition-all duration-200"
-              style={{
-                backgroundColor: getColor('primary', '#1a202c'),
-                color: '#ffffff'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = '0.9';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = '1';
-              }}
-            >
-              {t('quizzes.results.backToCourses')}
-            </button>
-          </Link>
-        </div>
       </main>
         </div>
       </div>

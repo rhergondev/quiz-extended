@@ -259,7 +259,7 @@ class QE_Course_Lessons_API extends QE_API_Base
             }
         }
 
-        // Enrich quiz steps with quiz title to avoid additional API calls
+        // Enrich quiz steps with quiz metadata to avoid additional API calls
         if (isset($processed_meta['_lesson_steps']) && is_array($processed_meta['_lesson_steps'])) {
             foreach ($processed_meta['_lesson_steps'] as &$step) {
                 if (isset($step['type']) && $step['type'] === 'quiz' && isset($step['data']['quiz_id'])) {
@@ -269,6 +269,16 @@ class QE_Course_Lessons_API extends QE_API_Base
                     if ($quiz_post && $quiz_post->post_type === 'qe_quiz') {
                         // Add quiz title to the step data
                         $step['data']['quiz_title'] = $quiz_post->post_title;
+
+                        // Add quiz metadata
+                        $step['data']['difficulty'] = get_post_meta($quiz_id, '_difficulty_level', true) ?: 'medium';
+                        $step['data']['start_date'] = get_post_meta($quiz_id, '_start_date', true) ?: null;
+                        $step['data']['time_limit'] = (int) get_post_meta($quiz_id, '_time_limit', true) ?: 0;
+                        $step['data']['passing_score'] = (float) get_post_meta($quiz_id, '_passing_score', true) ?: 7.0;
+
+                        // Add question count
+                        $question_ids = get_post_meta($quiz_id, '_quiz_question_ids', true);
+                        $step['data']['question_count'] = is_array($question_ids) ? count($question_ids) : 0;
                     }
                 }
             }

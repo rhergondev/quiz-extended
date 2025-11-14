@@ -124,14 +124,13 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
     <>
       <div 
         id={`question-${displayIndex || question.id}`} 
-        className="rounded-lg mb-6 shadow-sm scroll-mt-6 border transition-all duration-200"
+        className="rounded-lg mb-6 shadow-sm scroll-mt-6 transition-all duration-200"
         style={{
-          backgroundColor: getColor('background', '#ffffff'),
-          borderLeftWidth: '4px',
-          borderLeftColor: borderColor,
-          borderTopColor: borderColor + '20',
-          borderRightColor: borderColor + '20',
-          borderBottomColor: borderColor + '20'
+          backgroundColor: getColor('secondaryBackground', '#ffffff'),
+          borderTop: `2px solid ${borderColor}40`,
+          borderRight: `2px solid ${borderColor}40`,
+          borderBottom: `2px solid ${borderColor}40`,
+          borderLeft: `4px solid ${borderColor}`
         }}
       >
         {/* Header */}

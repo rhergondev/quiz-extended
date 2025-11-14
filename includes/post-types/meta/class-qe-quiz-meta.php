@@ -101,6 +101,15 @@ class QE_Quiz_Meta
             'sanitize_callback' => [$this, 'sanitize_quiz_type'],
             'auth_callback' => [$this, 'auth_callback'],
         ]);
+
+        register_post_meta($this->post_type, '_start_date', [
+            'show_in_rest' => true,
+            'single' => true,
+            'type' => 'string',
+            'description' => __('Quiz start date (YYYY-MM-DD)', 'quiz-extended'),
+            'sanitize_callback' => [$this, 'sanitize_date'],
+            'auth_callback' => [$this, 'auth_callback'],
+        ]);
     }
 
     /**
@@ -285,6 +294,31 @@ class QE_Quiz_Meta
         }
 
         return 'assessment';
+    }
+
+    /**
+     * Sanitize date field (YYYY-MM-DD format)
+     *
+     * @param string $value Date string
+     * @return string Sanitized date or empty string
+     */
+    public function sanitize_date($value)
+    {
+        if (empty($value)) {
+            return '';
+        }
+
+        $value = sanitize_text_field($value);
+
+        // Validate date format YYYY-MM-DD
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            $date = \DateTime::createFromFormat('Y-m-d', $value);
+            if ($date && $date->format('Y-m-d') === $value) {
+                return $value;
+            }
+        }
+
+        return '';
     }
 
     /**

@@ -204,6 +204,15 @@ export const transformQuizDataForApi = (quizData) => {
     );
   }
 
+  // Start Date (YYYY-MM-DD format)
+  if (quizData._start_date !== undefined) {
+    transformed.meta._start_date = sanitizeString(quizData._start_date);
+  } else if (quizData.startDate !== undefined) {
+    transformed.meta._start_date = sanitizeString(quizData.startDate);
+  } else if (quizData.meta?._start_date !== undefined) {
+    transformed.meta._start_date = sanitizeString(quizData.meta._start_date);
+  }
+
   // Quiz Category
   if (quizData._quiz_category !== undefined) {
     transformed.meta._quiz_category = sanitizeString(quizData._quiz_category);

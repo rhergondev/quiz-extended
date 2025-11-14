@@ -6,8 +6,11 @@ import { useTheme } from '../../contexts/ThemeContext';
 
 const StatBox = ({ label, value, icon: Icon, bgColor, textColor }) => (
   <div 
-    className="text-center p-4 rounded-lg"
-    style={{ backgroundColor: bgColor }}
+    className="text-center p-4 rounded-lg border-2"
+    style={{ 
+      backgroundColor: '#ffffff',
+      borderColor: textColor
+    }}
   >
     <div className="flex items-center justify-center mb-2">
       <Icon className="w-5 h-5 mr-2" style={{ color: textColor }} />
@@ -75,10 +78,10 @@ const ResultsSidebar = ({ result, questions }) => {
   return (
     <aside className="w-full">
       <div 
-        className="sticky top-4 p-6 rounded-lg border shadow-sm max-h-[calc(100vh-2rem)] overflow-y-auto"
+        className="sticky top-4 p-6 rounded-lg border-2 shadow-sm max-h-[calc(100vh-2rem)] overflow-y-auto"
         style={{
-          backgroundColor: getColor('background', '#ffffff'),
-          borderColor: getColor('primary', '#1a202c') + '20'
+          backgroundColor: getColor('secondaryBackground', '#ffffff'),
+          borderColor: getColor('borderColor', getColor('primary', '#1a202c'))
         }}
       >
         <h3 

@@ -11,7 +11,12 @@ export const DEFAULT_THEME = {
     accent: '#f59e0b',
     background: '#f3f4f6',
     secondaryBackground: '#ffffff',
-    text: '#111827'
+    text: '#111827',
+    textPrimary: '#111827',
+    textSecondary: '#6b7280',
+    textColorContrast: '#ffffff',
+    borderColor: '#3b82f6',
+    hoverColor: '#2563eb'
   },
   dark: {
     primary: '#60a5fa',
@@ -19,7 +24,12 @@ export const DEFAULT_THEME = {
     accent: '#fbbf24',
     background: '#1f2937',
     secondaryBackground: '#111827',
-    text: '#f9fafb'
+    text: '#f9fafb',
+    textPrimary: '#f9fafb',
+    textSecondary: '#9ca3af',
+    textColorContrast: '#ffffff',
+    borderColor: '#60a5fa',
+    hoverColor: '#3b82f6'
   }
 };
 
@@ -123,6 +133,10 @@ export const ThemeProvider = ({ children }) => {
     root.style.setProperty('--qe-background', currentMode.background || '#f3f4f6');
     root.style.setProperty('--qe-secondary-background', currentMode.secondaryBackground || '#ffffff');
     root.style.setProperty('--qe-text', currentMode.text || '#111827');
+    root.style.setProperty('--qe-text-primary', currentMode.textPrimary || currentMode.text || '#111827');
+    root.style.setProperty('--qe-text-secondary', currentMode.textSecondary || (darkMode ? '#9ca3af' : '#6b7280'));
+    root.style.setProperty('--qe-text-contrast', currentMode.textColorContrast || '#ffffff');
+    root.style.setProperty('--qe-border-color', currentMode.borderColor || currentMode.primary || '#3b82f6');
     
     // Calcular colores derivados
     const primaryRGB = hexToRGB(currentMode.primary || '#3b82f6');
@@ -140,13 +154,11 @@ export const ThemeProvider = ({ children }) => {
     // Modo oscuro
     if (darkMode) {
       root.classList.add('qe-dark-mode');
-      root.style.setProperty('--qe-text-secondary', '#d1d5db');
       root.style.setProperty('--qe-border', '#374151');
       root.style.setProperty('--qe-bg-card', currentMode.secondaryBackground || '#1f2937');
       root.style.setProperty('--qe-bg-hover', '#374151');
     } else {
       root.classList.remove('qe-dark-mode');
-      root.style.setProperty('--qe-text-secondary', '#6b7280');
       root.style.setProperty('--qe-border', '#e5e7eb');
       root.style.setProperty('--qe-bg-card', currentMode.secondaryBackground || '#ffffff');
       root.style.setProperty('--qe-bg-hover', '#f9fafb');
@@ -194,15 +206,15 @@ export const ThemeProvider = ({ children }) => {
       }
       return isDarkMode ? theme.dark : theme.light;
     },
-    getColor: (colorName) => {
+    getColor: (colorName, fallback = '#000000') => {
       // Validar que theme tenga la estructura correcta
       if (!theme || !theme.light || !theme.dark) {
         console.warn('Theme is invalid in getColor, using DEFAULT_THEME');
         const currentColors = isDarkMode ? DEFAULT_THEME.dark : DEFAULT_THEME.light;
-        return currentColors[colorName] || '#000000';
+        return currentColors[colorName] || fallback;
       }
       const currentColors = isDarkMode ? theme.dark : theme.light;
-      return currentColors[colorName] || '#000000';
+      return currentColors[colorName] || fallback;
     }
   };
 

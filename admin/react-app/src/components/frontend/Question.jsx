@@ -66,8 +66,10 @@ const Question = ({
       id={`quiz-question-${displayIndex}`} 
       className="rounded-lg overflow-hidden shadow-sm mb-6 scroll-mt-6 transition-all duration-200"
       style={{ 
-        backgroundColor: getColor('background', '#ffffff'),
-        border: `1px solid ${getQuestionColor('15')}`,
+        backgroundColor: getColor('secondaryBackground', '#ffffff'),
+        borderTop: `2px solid ${getQuestionColor('40')}`,
+        borderRight: `2px solid ${getQuestionColor('40')}`,
+        borderBottom: `2px solid ${getQuestionColor('40')}`,
         borderLeft: `4px solid ${getQuestionColor()}`
       }}
     >

@@ -228,15 +228,15 @@ const SupportMaterialPage = () => {
       courseName={courseName}
       sectionName={t('courses.supportMaterial')}
     >
-      <div className="relative w-full h-full overflow-hidden">
+      <div className="relative h-full">
         {/* Main Content - Lista de materiales */}
         <div 
-          className={`absolute inset-0 w-full transition-transform duration-300 ease-in-out overflow-hidden ${
+          className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
             selectedPDF ? '-translate-x-full' : 'translate-x-0'
           }`}
         >
-          <div className="h-full overflow-y-auto overflow-x-hidden px-4 py-6 w-full">
-            <div className="max-w-5xl mx-auto">
+          <div className="h-full overflow-y-auto">
+            <div className="max-w-5xl mx-auto px-4 py-6">
             {loading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map(i => (
@@ -265,11 +265,10 @@ const SupportMaterialPage = () => {
               return (
                 <div 
                   key={lesson.id}
-                  className="rounded-lg overflow-hidden border transition-all duration-200"
+                  className="rounded-lg overflow-hidden border-2 transition-all duration-200"
                   style={{ 
-                    backgroundColor: getColor('background', '#ffffff'),
-                    borderColor: `${getColor('primary', '#1a202c')}20`,
-                    borderWidth: '2px'
+                    backgroundColor: getColor('secondaryBackground', '#ffffff'),
+                    borderColor: getColor('borderColor', getColor('primary', '#1a202c'))
                   }}
                 >
                   {/* Lesson Header */}

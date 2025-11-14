@@ -15,10 +15,11 @@ const stepIcons = {
   default: <BookOpen className="w-5 h-5 text-gray-500" />,
 };
 
-const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId, onOpenRanking, rankingLoading, onOpenLessonList }) => {
+const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId, onOpenRanking, rankingLoading, onOpenLessonList, onQuizStateChange }) => {
   const { getColor } = useTheme(); // Obtener función para colores seguros
   const [quizStarted, setQuizStarted] = useState(false);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [quizState, setQuizState] = useState(null); // 🎯 FOCUS MODE: Track quiz internal state
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [showDrawingToolbar, setShowDrawingToolbar] = useState(false);
   const [isDrawingEnabled, setIsDrawingEnabled] = useState(false); // Toggle para dibujar o no
@@ -28,6 +29,16 @@ const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId, onOpenR
   const [drawingColor, setDrawingColor] = useState('#000000');
   const [drawingLineWidth, setDrawingLineWidth] = useState(2);
   const [clearCanvasFunction, setClearCanvasFunction] = useState(null);
+
+  // 🎯 FOCUS MODE: Forward quiz state to parent
+  useEffect(() => {
+    if (onQuizStateChange && typeof onQuizStateChange === 'function') {
+      onQuizStateChange(quizState);
+    }
+  }, [quizState, onQuizStateChange]);
+
+  // 🎯 FOCUS MODE: Determine if we should hide header/navigation
+  const isQuizFocusMode = quizState === 'in-progress';
   
   // Debug: Log props on mount and change
   useEffect(() => {
@@ -287,6 +298,9 @@ const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId, onOpenR
         return (
           <Quiz 
             quizId={quizId}
+            onQuizStateChange={(state) => {
+              setQuizState(state); // Track internally
+            }}
             isDrawingMode={isDrawingMode}
             setIsDrawingMode={setIsDrawingMode}
             isDrawingEnabled={isDrawingEnabled}
@@ -348,9 +362,10 @@ const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId, onOpenR
 
  return (
     <div className="flex-grow lg:w-full h-full flex flex-col">
-      {/* Header sticky sin padding externo */}
-      <div className="sticky top-0 z-10 px-6 py-4 border-b flex-shrink-0" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
-        {quizStarted && !quizSubmitted ? (
+      {/* Header sticky sin padding externo - Hidden in Focus Mode */}
+      {!isQuizFocusMode && (
+        <div className="sticky top-0 z-10 px-6 py-4 border-b flex-shrink-0" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
+          {quizStarted && !quizSubmitted ? (
           // Header especial para Quiz en progreso: Solo título y botón salir
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
@@ -742,12 +757,13 @@ const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId, onOpenR
             </>
           )}
         </div>
+      )}
 
-        {/* Contenido del paso */}
-        <div 
-          className={step.type === 'quiz' && quizStarted ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto px-6 py-6"} 
-          style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}
-        >
+      {/* Contenido del paso */}
+      <div 
+        className={step.type === 'quiz' && quizStarted ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto px-6 py-6"} 
+        style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}
+      >
           {renderStepContent(step)}
         </div>
       </div>

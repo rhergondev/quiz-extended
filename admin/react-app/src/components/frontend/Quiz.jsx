@@ -18,7 +18,7 @@ import QuizRecoveryModal from '../quizzes/QuizRecoveryModal';
 const Quiz = ({ 
   quizId, 
   customQuiz = null, 
-  onQuizComplete, 
+  onQuizComplete,
   isDrawingMode, 
   setIsDrawingMode, 
   isDrawingEnabled, 
@@ -46,7 +46,6 @@ const Quiz = ({
   const { getColor } = useTheme();
   const { t } = useTranslation();
   const questionsContainerRef = useRef(null);
-  const loadMoreTriggerRef = useRef(null);
 
   // Use paginated hook for loading questions
   const { 
@@ -65,35 +64,6 @@ const Quiz = ({
     prefetchThreshold: 5, // 🔥 PAGINATION: Prefetch when 5 questions from end of current page
     randomize: quizInfo?.meta?._randomize_questions || false
   });
-
-  // Intersection Observer: Auto-cargar más preguntas cuando el trigger sea visible
-  useEffect(() => {
-    if (!loadMoreTriggerRef.current || !hasMoreQuestions || questionsLoading) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-        if (entry.isIntersecting && hasMoreQuestions && !questionsLoading) {
-          loadMore();
-        }
-      },
-      {
-        root: null,
-        rootMargin: '200px',
-        threshold: 0.1
-      }
-    );
-
-    observer.observe(loadMoreTriggerRef.current);
-
-    return () => {
-      if (loadMoreTriggerRef.current) {
-        observer.unobserve(loadMoreTriggerRef.current);
-      }
-    };
-  }, [hasMoreQuestions, questionsLoading, loadMore]);
 
   // Auto-prefetch questions as user progresses
   useEffect(() => {
@@ -432,27 +402,45 @@ const Quiz = ({
           />
         ))}
         
-        {/* 🔥 Trigger invisible para Intersection Observer - Auto-carga más preguntas */}
-        {hasMoreQuestions && !questionsLoading && (
-          <div 
-            ref={loadMoreTriggerRef}
-            className="h-4 w-full"
-            aria-hidden="true"
-          />
-        )}
-        
-        {/* Loading indicator for lazy loading */}
-        {questionsLoading && hasMoreQuestions && (
-          <div className="flex flex-col items-center justify-center p-8 gap-3">
-            <Loader className="w-8 h-8 animate-spin" style={{ color: getColor('primary', '#3b82f6') }} />
-            <div className="text-center">
-              <p className="font-medium" style={{ color: getColor('primary', '#3b82f6') }}>
-                {t('quizzes.quiz.loadingMoreQuestions')}
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                {t('quizzes.quiz.questionsLoadedCount', { loaded: loadedCount, total: totalQuestions })}
-              </p>
-            </div>
+        {/* Botón cargar más preguntas al final del quiz */}
+        {hasMoreQuestions && (
+          <div className="mt-8 mb-4 flex flex-col items-center gap-4">
+            {questionsLoading ? (
+              // Loading state
+              <div className="flex flex-col items-center justify-center p-8 gap-3">
+                <Loader className="w-8 h-8 animate-spin" style={{ color: getColor('primary', '#3b82f6') }} />
+                <div className="text-center">
+                  <p className="font-medium" style={{ color: getColor('primary', '#3b82f6') }}>
+                    {t('quizzes.quiz.loadingMoreQuestions')}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {t('quizzes.quiz.questionsLoadedCount', { loaded: loadedCount, total: totalQuestions })}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              // Load more button
+              <button
+                onClick={() => {
+                  if (typeof loadMore === 'function') {
+                    loadMore();
+                  } else {
+                    checkPrefetch(loadedCount);
+                  }
+                }}
+                className="px-8 py-3.5 rounded-lg font-semibold transition-all duration-200 border-2 shadow-sm hover:scale-[1.02] hover:shadow-md active:scale-[0.98]"
+                style={{
+                  backgroundColor: getColor('primary', '#3b82f6') + '10',
+                  borderColor: getColor('primary', '#3b82f6'),
+                  color: getColor('primary', '#3b82f6')
+                }}
+              >
+                {t('quizzes.sidebar.loadMore')}
+              </button>
+            )}
+            <p className="text-sm text-gray-500">
+              {t('quizzes.quiz.questionsLoadedCount', { loaded: loadedCount, total: totalQuestions })}
+            </p>
           </div>
         )}
       </main>
@@ -466,17 +454,8 @@ const Quiz = ({
               totalCount={totalQuestions}
               userAnswers={userAnswers}
               riskedAnswers={riskedAnswers}
-                onSubmit={handleSubmit}
-                loadingMore={questionsLoading}
-                loadedCount={loadedCount}
-                hasMore={hasMoreQuestions}
-                onLoadMore={() => {
-                  if (typeof loadMore === 'function') {
-                    loadMore();
-                  } else {
-                    checkPrefetch(loadedCount);
-                  }
-                }}
+              onSubmit={handleSubmit}
+              loadedCount={loadedCount}
             />
             <Timer
                 durationMinutes={timeLimit}

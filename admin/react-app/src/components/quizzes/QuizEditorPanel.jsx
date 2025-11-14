@@ -119,6 +119,7 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
       show_results: true,
       enable_negative_scoring: false,
       questionIds: [],
+      start_date: '', // 🆕 Nueva fecha de inicio
     });
     setSelectedQuestions([]);
     setQuestionsLoaded(false);
@@ -160,6 +161,7 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
             show_results: meta._show_results !== undefined ? meta._show_results : true,
             enable_negative_scoring: meta._enable_negative_scoring || false,
             questionIds: meta._quiz_question_ids || [],
+            start_date: meta._start_date || '', // 🆕 Nueva fecha de inicio
           });
 
           console.log('✅ Form data set:', { title: titleValue, category: quizData.qe_category });
@@ -250,6 +252,7 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
         _show_results: formData.show_results,
         _enable_negative_scoring: formData.enable_negative_scoring,
         _quiz_question_ids: formData.questionIds,
+        _start_date: formData.start_date || '', // 🆕 Nueva fecha de inicio
       };
       
       // Solo incluir _course_id si tiene un valor válido (no "0", no "")
@@ -308,6 +311,15 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
           <select value={formData.difficulty_level || 'medium'} onChange={(e) => handleFieldChange('difficulty_level', e.target.value)} className="w-full input border-gray-300 rounded-md">
             {difficultyLevels.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
           </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('quizzes.form.startDate')}</label>
+          <input 
+            type="date" 
+            value={formData.start_date || ''} 
+            onChange={(e) => handleFieldChange('start_date', e.target.value)} 
+            className="w-full input border-gray-300 rounded-md"
+          />
         </div>
       </div>
        <div>

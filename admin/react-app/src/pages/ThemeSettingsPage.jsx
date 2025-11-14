@@ -30,7 +30,11 @@ const ThemeSettingsPage = () => {
               secondary: settings.theme.secondary || DEFAULT_THEME.light.secondary,
               accent: settings.theme.accent || DEFAULT_THEME.light.accent,
               background: settings.theme.background || DEFAULT_THEME.light.background,
-              text: settings.theme.text || DEFAULT_THEME.light.text
+              text: settings.theme.text || DEFAULT_THEME.light.text,
+              textPrimary: settings.theme.textPrimary || settings.theme.text || DEFAULT_THEME.light.textPrimary,
+              textSecondary: settings.theme.textSecondary || DEFAULT_THEME.light.textSecondary,
+              borderColor: settings.theme.borderColor || settings.theme.primary || DEFAULT_THEME.light.borderColor,
+              hoverColor: settings.theme.hoverColor || settings.theme.accent || DEFAULT_THEME.light.hoverColor
             },
             dark: DEFAULT_THEME.dark
           };
@@ -222,10 +226,31 @@ const ThemeSettingsPage = () => {
             />
 
             <ColorPicker
-              label="Color de Texto"
-              description="Color principal del texto"
-              value={theme[previewMode].text}
-              onChange={(value) => handleColorChange(previewMode, 'text', value)}
+              label="Color de Texto Principal"
+              description="Color para textos principales y títulos"
+              value={theme[previewMode].textPrimary || theme[previewMode].text}
+              onChange={(value) => handleColorChange(previewMode, 'textPrimary', value)}
+            />
+
+            <ColorPicker
+              label="Color de Texto Secundario"
+              description="Color para textos descriptivos y labels (más tenue)"
+              value={theme[previewMode].textSecondary || `${theme[previewMode].text}70`}
+              onChange={(value) => handleColorChange(previewMode, 'textSecondary', value)}
+            />
+
+            <ColorPicker
+              label="Color de Bordes"
+              description="Color usado en los bordes de tarjetas y elementos (puede ser diferente al primario en modo oscuro)"
+              value={theme[previewMode].borderColor || theme[previewMode].primary}
+              onChange={(value) => handleColorChange(previewMode, 'borderColor', value)}
+            />
+
+            <ColorPicker
+              label="Color de Hover"
+              description="Color al pasar el cursor sobre botones y elementos interactivos"
+              value={theme[previewMode].hoverColor || theme[previewMode].accent}
+              onChange={(value) => handleColorChange(previewMode, 'hoverColor', value)}
             />
           </div>
 
@@ -234,7 +259,7 @@ const ThemeSettingsPage = () => {
             className="mt-8 p-6 rounded-lg border-2"
             style={{ 
               backgroundColor: theme[previewMode].background,
-              borderColor: theme[previewMode].primary
+              borderColor: theme[previewMode].borderColor || theme[previewMode].primary
             }}
           >
             <h3 
@@ -246,19 +271,37 @@ const ThemeSettingsPage = () => {
             <div className="grid grid-cols-2 gap-4">
               <button
                 style={{ backgroundColor: theme[previewMode].primary }}
-                className="px-4 py-2 text-white rounded font-medium hover:opacity-90 transition-opacity"
+                className="px-4 py-2 text-white rounded font-medium transition-colors cursor-pointer"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = theme[previewMode].hoverColor || theme[previewMode].accent;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = theme[previewMode].primary;
+                }}
               >
                 Botón Primario
               </button>
               <button
                 style={{ backgroundColor: theme[previewMode].secondary }}
-                className="px-4 py-2 text-white rounded font-medium hover:opacity-90 transition-opacity"
+                className="px-4 py-2 text-white rounded font-medium transition-colors cursor-pointer"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = theme[previewMode].hoverColor || theme[previewMode].accent;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = theme[previewMode].secondary;
+                }}
               >
                 Botón Secundario
               </button>
               <button
                 style={{ backgroundColor: theme[previewMode].accent }}
-                className="px-4 py-2 text-white rounded font-medium hover:opacity-90 transition-opacity"
+                className="px-4 py-2 text-white rounded font-medium transition-colors cursor-pointer"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = theme[previewMode].hoverColor || theme[previewMode].accent;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = theme[previewMode].accent;
+                }}
               >
                 Botón de Acento
               </button>
@@ -266,7 +309,7 @@ const ThemeSettingsPage = () => {
                 style={{ 
                   backgroundColor: theme[previewMode].background,
                   color: theme[previewMode].text,
-                  borderColor: theme[previewMode].primary
+                  borderColor: theme[previewMode].borderColor || theme[previewMode].primary
                 }}
                 className="px-4 py-2 rounded border-2 text-center font-medium"
               >

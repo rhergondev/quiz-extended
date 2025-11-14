@@ -8,6 +8,7 @@ import useStudentProgress from '../../../hooks/useStudentProgress';
 const QuizViewerPage = ({ quiz, courseId, onClose }) => {
   const { t } = useTranslation();
   const { getColor } = useTheme();
+  const [quizState, setQuizState] = useState('loading'); // 🎯 FOCUS MODE: Track quiz state
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [isDrawingEnabled, setIsDrawingEnabled] = useState(false);
   const [showDrawingToolbar, setShowDrawingToolbar] = useState(false);
@@ -22,6 +23,9 @@ const QuizViewerPage = ({ quiz, courseId, onClose }) => {
   } = useStudentProgress(courseId, false);
 
   const isQuizCompleted = isCompleted('quiz', quiz?.id);
+
+  // 🎯 FOCUS MODE: Determine if we should show UI elements
+  const isFocusMode = quizState === 'in-progress';
 
   const handleQuizComplete = async () => {
     // Marcar el quiz como completado
@@ -58,49 +62,52 @@ const QuizViewerPage = ({ quiz, courseId, onClose }) => {
         className="w-full h-full flex flex-col overflow-hidden"
         style={{ backgroundColor: getColor('background', '#ffffff') }}
       >
-        {/* Header */}
-        <div 
-          className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b"
-          style={{ 
-            borderColor: `${getColor('primary', '#1a202c')}15`,
-            backgroundColor: getColor('background', '#ffffff')
-          }}
-        >
-          <div className="flex items-center gap-4 flex-1 min-w-0">
-            <h2 
-              className="text-xl font-bold truncate"
-              style={{ color: getColor('primary', '#1a202c') }}
-            >
-              {quizTitle}
-            </h2>
-          </div>
+        {/* Header - Hidden in Focus Mode */}
+        {!isFocusMode && (
+          <div 
+            className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b"
+            style={{ 
+              borderColor: `${getColor('primary', '#1a202c')}15`,
+              backgroundColor: getColor('background', '#ffffff')
+            }}
+          >
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+              <h2 
+                className="text-xl font-bold truncate"
+                style={{ color: getColor('primary', '#1a202c') }}
+              >
+                {quizTitle}
+              </h2>
+            </div>
 
-          <div className="flex items-center gap-3">
-            {/* Close Button */}
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg transition-colors duration-200"
-              style={{
-                backgroundColor: `${getColor('primary', '#1a202c')}10`,
-                color: getColor('primary', '#1a202c')
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
-              }}
-            >
-              <X size={24} />
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Close Button */}
+              <button
+                onClick={onClose}
+                className="p-2 rounded-lg transition-colors duration-200"
+                style={{
+                  backgroundColor: `${getColor('primary', '#1a202c')}10`,
+                  color: getColor('primary', '#1a202c')
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                }}
+              >
+                <X size={24} />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Content */}
         <div className="flex-1 overflow-auto">
           <Quiz
             quizId={quiz.id}
             onQuizComplete={handleQuizComplete}
+            onQuizStateChange={setQuizState}
             isDrawingMode={isDrawingMode}
             setIsDrawingMode={setIsDrawingMode}
             isDrawingEnabled={isDrawingEnabled}

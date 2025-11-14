@@ -7,10 +7,10 @@ import { Circle, CheckCircle, TrendingDown, AlertCircle } from 'lucide-react';
 
 const StatBox = ({ label, value, bgColor, textColor }) => (
   <div 
-    className="text-center p-3 rounded-lg border transition-all duration-200"
+    className="text-center p-3 rounded-lg border-2 transition-all duration-200"
     style={{ 
-      backgroundColor: bgColor,
-      borderColor: textColor + '20'
+      backgroundColor: '#ffffff',
+      borderColor: textColor
     }}
   >
     <span className="block text-xs font-medium mb-1" style={{ color: textColor + '90' }}>
@@ -38,10 +38,7 @@ const QuizSidebar = ({
   riskedAnswers, 
   onQuestionSelect, 
   onSubmit,
-  loadingMore = false,
-  loadedCount = 0,
-  hasMore = false,
-  onLoadMore = null
+  loadedCount = 0
 }) => {
   const { getColor } = useTheme();
   const { t } = useTranslation();
@@ -51,8 +48,6 @@ const QuizSidebar = ({
   const effectiveTotal = totalCount !== null ? totalCount : (questions ? questions.length : (questionIds ? questionIds.length : 0));
   const unansweredCount = Math.max(0, effectiveTotal - answeredCount);
   const impugnedCount = 0;
-  
-  const loadingProgress = effectiveTotal > 0 ? Math.round((loadedCount / effectiveTotal) * 100) : 100;
 
   // Colores del sistema de 3 estados
   const colors = {
@@ -87,42 +82,17 @@ const QuizSidebar = ({
   return (
     <div className="w-full">
       <div 
-        className="rounded-lg shadow-sm border transition-all duration-200"
+        className="rounded-lg shadow-sm border-2 transition-all duration-200"
         style={{ 
-          backgroundColor: getColor('background', '#ffffff'),
-          borderColor: colors.answered + '20'
+          backgroundColor: getColor('secondaryBackground', '#ffffff'),
+          borderColor: getColor('borderColor', colors.answered)
         }}
       >
-        
-        {/* Indicador de progreso de carga */}
-        {loadingMore && loadingProgress < 100 && (
-          <div 
-            className="p-4 rounded-t-lg border-b"
-            style={{ 
-              backgroundColor: colors.answered + '05',
-              borderColor: colors.answered + '20'
-            }}
-          >
-            <div className="flex items-center justify-between text-xs font-medium mb-2" style={{ color: colors.answered }}>
-              <span>{t('quizzes.sidebar.loadingQuestions')}</span>
-              <span className="font-bold">{loadedCount}/{effectiveTotal}</span>
-            </div>
-            <div className="w-full rounded-full h-2" style={{ backgroundColor: colors.answered + '15' }}>
-              <div 
-                className="h-2 rounded-full transition-all duration-300"
-                style={{ 
-                  width: `${loadingProgress}%`,
-                  backgroundColor: colors.answered
-                }}
-              ></div>
-            </div>
-          </div>
-        )}
         
         {/* Leyenda de estados */}
         <div 
           className="p-4 border-b"
-          style={{ borderColor: colors.answered + '15' }}
+          style={{ borderColor: getColor('borderColor', colors.answered) + '30' }}
         >
           <div className="flex flex-wrap gap-4 justify-around">
             <LegendItem 
@@ -144,7 +114,7 @@ const QuizSidebar = ({
         </div>
 
         {/* Estadísticas */}
-        <div className="p-4 border-b" style={{ borderColor: colors.answered + '15' }}>
+        <div className="p-4 border-b" style={{ borderColor: getColor('borderColor', colors.answered) + '30' }}>
           <div className="grid grid-cols-2 gap-3">
             <StatBox 
               label={t('quizzes.sidebar.answered')} 
@@ -174,7 +144,7 @@ const QuizSidebar = ({
         </div>
 
         {/* Mapa de preguntas */}
-        <div className="p-4 border-b" style={{ borderColor: colors.answered + '15' }}>
+        <div className="p-4 border-b" style={{ borderColor: getColor('borderColor', colors.answered) + '30' }}>
           <h3 className="text-sm font-semibold mb-3" style={{ color: colors.answered }}>
             {t('quizzes.sidebar.questionsMap')}
           </h3>
@@ -229,24 +199,6 @@ const QuizSidebar = ({
             })}
           </div>
         </div>
-
-        {/* Botón cargar más preguntas */}
-        {hasMore && (
-          <div className="p-4 border-b" style={{ borderColor: colors.answered + '15' }}>
-            <button
-              onClick={() => { if (onLoadMore) onLoadMore(); }}
-              disabled={loadingMore}
-              className="w-full px-4 py-2.5 rounded-lg font-medium transition-all duration-200 border disabled:opacity-50 disabled:cursor-wait hover:enabled:scale-[1.02]"
-              style={{
-                backgroundColor: loadingMore ? colors.answered + '10' : colors.answered + '05',
-                borderColor: colors.answered + '30',
-                color: colors.answered
-              }}
-            >
-              {loadingMore ? t('quizzes.sidebar.loading') : t('quizzes.sidebar.loadMore')}
-            </button>
-          </div>
-        )}
 
         {/* Botón finalizar */}
         <div className="p-4">

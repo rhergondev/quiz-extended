@@ -62,9 +62,14 @@ const CompactCourseCard = ({ course }) => {
   }, [stepsByType, t]);
 
   return (
-    <div className="rounded-lg shadow-sm overflow-hidden flex flex-col w-full transition-all duration-300 hover:shadow-lg"
+    <div className="rounded-lg shadow-sm overflow-hidden flex flex-col w-full transition-all duration-300 hover:shadow-lg border-2"
       style={{ 
-        backgroundColor: getColor('background', '#ffffff')
+        backgroundColor: getColor('background', '#ffffff'),
+        borderTopWidth: '2px',
+        borderBottomWidth: '2px',
+        borderLeftWidth: '8px',
+        borderRightWidth: '8px',
+        borderColor: getColor('borderColor', '#3b82f6')
       }}
     >
       {/* Featured Image */}
@@ -89,20 +94,20 @@ const CompactCourseCard = ({ course }) => {
           <div className="flex justify-between items-center mb-2">
             <span 
               className="text-sm font-semibold"
-              style={{ color: `${getColor('primary', '#1a202c')}80` }}
+              style={{ color: getColor('textSecondary', '#6b7280') }}
             >
               {t('courses.progress')}
             </span>
             <span 
               className="text-lg font-bold"
-              style={{ color: getColor('primary', '#1a202c') }}
+              style={{ color: getColor('textPrimary', '#111827') }}
             >
               {progressPercentage}%
             </span>
           </div>
           <div 
             className="rounded-full h-3 overflow-hidden"
-            style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+            style={{ backgroundColor: `${getColor('primary', '#1a202c')}15` }}
           >
             <div 
               className="h-full transition-all duration-500 rounded-full"
@@ -119,8 +124,8 @@ const CompactCourseCard = ({ course }) => {
           <div 
             className="mt-4 overflow-hidden"
             style={{ 
-              borderTop: `2px solid ${getColor('primary', '#1a202c')}20`,
-              borderBottom: `2px solid ${getColor('primary', '#1a202c')}20`
+              borderTop: `2px solid ${getColor('borderColor', '#3b82f6')}15`,
+              borderBottom: `2px solid ${getColor('borderColor', '#3b82f6')}15`
             }}
           >
             <div 
@@ -137,10 +142,10 @@ const CompactCourseCard = ({ course }) => {
                     index < availableContentTypes.length - 1 ? 'border-r' : ''
                   }`}
                   style={{ 
-                    borderColor: `${getColor('primary', '#1a202c')}20`,
+                    borderColor: `${getColor('borderColor', '#3b82f6')}15`,
                     backgroundColor: 'transparent'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}08`}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   <contentType.icon 
@@ -150,13 +155,13 @@ const CompactCourseCard = ({ course }) => {
                   />
                   <span 
                     className="text-xs font-bold"
-                    style={{ color: getColor('primary', '#1a202c') }}
+                    style={{ color: getColor('textPrimary', '#111827') }}
                   >
                     {contentType.completed}/{contentType.total}
                   </span>
                   <span 
                     className="text-xs mt-0.5"
-                    style={{ color: `${getColor('primary', '#1a202c')}70` }}
+                    style={{ color: getColor('textSecondary', '#6b7280') }}
                   >
                     {contentType.label}
                   </span>
@@ -177,7 +182,7 @@ const CompactCourseCard = ({ course }) => {
             className="block w-full py-3 px-4 text-center text-base font-semibold text-white rounded-lg transition-all shadow-sm hover:shadow-md"
             style={{ backgroundColor: getColor('primary', '#1a202c') }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = getColor('accent', '#1a202c');
+              e.currentTarget.style.backgroundColor = getColor('hoverColor', '#f59e0b');
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = getColor('primary', '#1a202c');
