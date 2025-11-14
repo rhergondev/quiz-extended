@@ -165,6 +165,13 @@ const settingsService = {
    */
   updateTheme: async (theme) => {
     return settingsService.updateSettings({ theme });
+  },
+
+  /**
+   * Update campus logo URL (admin only)
+   */
+  updateCampusLogo: async (logoUrl) => {
+    return settingsService.updateSettings({ campus_logo: logoUrl });
   }
 };
 

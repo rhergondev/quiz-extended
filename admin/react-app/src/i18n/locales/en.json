@@ -63,6 +63,9 @@
     "myAccount": "My Account",
     "books": "Books",
     "logout": "Log Out",
+    "exitCampus": "Exit Campus",
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
     "expand": "Expand",
     "collapse": "Collapse",
     "logoAlt": "Company Logo",
@@ -931,5 +934,18 @@
   "progress": {
     "completed": "Completed",
     "markComplete": "Mark as completed"
+  },
+  "login": {
+    "welcomeBack": "Welcome back",
+    "signInToContinue": "Sign in to continue",
+    "username": "Username or email",
+    "usernamePlaceholder": "your@email.com",
+    "password": "Password",
+    "rememberMe": "Remember me",
+    "signIn": "Sign In",
+    "signingIn": "Signing in...",
+    "forgotPassword": "Forgot your password?",
+    "invalidCredentials": "Invalid username or password",
+    "error": "Login error. Please try again."
   }
 }

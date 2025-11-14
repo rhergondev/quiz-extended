@@ -88,12 +88,6 @@ const CoursesPage = () => {
       className="p-6 min-h-full w-full overflow-y-auto" 
       style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}
     >
-      <header className="border-b qe-border-primary pb-4 mb-8">
-        <h1 className="text-4xl font-bold qe-text-primary">
-          {t('courses.myCourses')}
-        </h1>
-      </header>
-      
       <main>
         {renderContent()}
       </main>

@@ -228,14 +228,15 @@ const SupportMaterialPage = () => {
       courseName={courseName}
       sectionName={t('courses.supportMaterial')}
     >
-      <div className="relative" style={{ height: 'calc(100vh - 60px)' }}>
+      <div className="relative w-full h-full overflow-hidden">
         {/* Main Content - Lista de materiales */}
         <div 
-          className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
+          className={`absolute inset-0 w-full transition-transform duration-300 ease-in-out overflow-hidden ${
             selectedPDF ? '-translate-x-full' : 'translate-x-0'
           }`}
         >
-          <div className="max-w-5xl mx-auto h-full overflow-y-auto px-4">
+          <div className="h-full overflow-y-auto overflow-x-hidden px-4 py-6 w-full">
+            <div className="max-w-5xl mx-auto">
             {loading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map(i => (
@@ -366,18 +367,19 @@ const SupportMaterialPage = () => {
             })}
           </div>
         )}
+            </div>
+          </div>
         </div>
-      </div>
 
         {/* PDF Viewer Page - Slides from right */}
         <div 
-          className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
+          className={`absolute inset-0 w-full transition-transform duration-300 ease-in-out ${
             selectedPDF ? 'translate-x-0' : 'translate-x-full'
           }`}
           style={{ backgroundColor: getColor('secondaryBackground', '#f8f9fa') }}
         >
           {selectedPDF && (
-            <div className="h-full flex flex-col">
+            <div className="h-full flex flex-col w-full overflow-hidden">
               {/* Header - más compacto */}
               <div 
                 className="flex items-center justify-between px-4 py-2.5 border-b flex-shrink-0"

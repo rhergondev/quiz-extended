@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef, useState, useEffect } from 'react';
 import { Outlet, useLocation, useParams } from 'react-router-dom';
-import Sidebar from './Sidebar';
+import Topbar from './Topbar';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const FrontendLayout = () => {
@@ -144,16 +144,14 @@ const FrontendLayout = () => {
   const isLmsHome = location.pathname === '/';
 
   return (
-    // 1. Añadimos la 'ref' a nuestro div.
-    // 2. Eliminamos la clase 'h-screen' para que la altura se controle por JavaScript.
     <div 
       ref={layoutRef} 
-      className="flex"
+      className="flex flex-col w-full"
       style={{ backgroundColor: adjustedBgColor || 'var(--qe-secondary-background)' }}
     >
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-x-hidden overflow-y-auto">
+      <Topbar />
+      <div className="flex-1 flex flex-col w-full overflow-hidden">
+        <main className="flex-1 w-full overflow-x-hidden overflow-y-auto">
           <Outlet />
         </main>
       </div>

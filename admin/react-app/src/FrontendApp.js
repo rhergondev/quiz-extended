@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ScoreFormatProvider } from './contexts/ScoreFormatContext';
@@ -7,6 +7,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 
 // Layout y Páginas del Frontend
 import FrontendLayout from './components/layout/FrontendLayout';
+import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/frontend/DashboardPage';
 import QuizAttemptDetailsPage from './pages/frontend/QuizAttemptDetailsPage';
 import CoursesPage from './pages/frontend/CoursesPage';
@@ -29,13 +30,30 @@ import CourseStatisticsPage from './pages/frontend/course/CourseStatisticsPage';
 import SelfPacedTestsPage from './pages/frontend/course/SelfPacedTestsPage';
 import TestBrowserPage from './pages/frontend/course/TestBrowserPage';
 
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
+  const isLoggedIn = window.qe_data?.user?.id > 0;
+  
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
+
 function FrontendApp() {
+  const isLoggedIn = window.qe_data?.user?.id > 0;
+
   return (
     <ThemeProvider>
       <ScoreFormatProvider>
         <Router>
           <Routes>
-            <Route path="/" element={<FrontendLayout />}>
+            {/* Public Routes */}
+            <Route path="/login" element={isLoggedIn ? <Navigate to="/" replace /> : <LoginPage />} />
+            
+            {/* Protected Routes */}
+            <Route path="/" element={<ProtectedRoute><FrontendLayout /></ProtectedRoute>}>
               <Route index element={<CoursesPage />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="/dashboard/attempts/:attemptId" element={<QuizAttemptDetailsPage />} />

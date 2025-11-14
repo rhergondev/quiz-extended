@@ -27,10 +27,11 @@ const SettingsPage = () => {
   const [previewMode, setPreviewMode] = useState('light');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [campusLogo, setCampusLogo] = useState(window.qe_data?.campus_logo || '');
 
   // Cargar la configuración actual al montar (verificar si hay cambios)
   useEffect(() => {
-    const loadSettings = async () => {
+      const loadSettings = async () => {
       try {
         const settings = await settingsService.getSettings();
         
@@ -38,6 +39,11 @@ const SettingsPage = () => {
         const newScoreFormat = settings.score_format || 'percentage';
         if (newScoreFormat !== scoreFormat) {
           setScoreFormat(newScoreFormat);
+        }
+
+        // Cargar logo si existe
+        if (settings.campus_logo) {
+          setCampusLogo(settings.campus_logo);
         }
         
         if (settings.theme) {
@@ -77,6 +83,9 @@ const SettingsPage = () => {
     try {
       if (activeTab === 'general') {
         await settingsService.updateScoreFormat(scoreFormat);
+        if (campusLogo !== (window.qe_data?.campus_logo || '')) {
+          await settingsService.updateCampusLogo(campusLogo);
+        }
       } else if (activeTab === 'theme') {
         await settingsService.updateTheme(theme);
       }
@@ -116,6 +125,39 @@ const SettingsPage = () => {
       // Actualizar contexto también
       setThemePreview(DEFAULT_THEME);
     }
+  };
+
+  const handleSelectLogo = () => {
+    // Verificar que el media uploader de WordPress está disponible
+    if (!window.wp || !window.wp.media) {
+      toast.error('El media uploader de WordPress no está disponible');
+      return;
+    }
+
+    // Crear el frame del media uploader
+    const frame = window.wp.media({
+      title: 'Seleccionar Logo del Campus',
+      button: {
+        text: 'Usar esta imagen'
+      },
+      multiple: false,
+      library: {
+        type: 'image'
+      }
+    });
+
+    // Cuando se selecciona una imagen
+    frame.on('select', () => {
+      const attachment = frame.state().get('selection').first().toJSON();
+      setCampusLogo(attachment.url);
+    });
+
+    // Abrir el modal
+    frame.open();
+  };
+
+  const handleRemoveLogo = () => {
+    setCampusLogo('');
   };
 
   const ColorPicker = ({ label, value, onChange, description }) => {
@@ -331,6 +373,57 @@ const SettingsPage = () => {
         {/* General Settings Tab */}
         {activeTab === 'general' && (
           <>
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                Logo del Campus
+              </h2>
+              <p className="text-gray-600 mb-6">
+                Sube el logo que aparecerá en la barra superior del campus
+              </p>
+
+              <div className="space-y-4">
+                {campusLogo ? (
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0 w-48 h-16 border-2 border-gray-200 rounded-lg overflow-hidden bg-white flex items-center justify-center p-2">
+                      <img 
+                        src={campusLogo} 
+                        alt="Campus Logo" 
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSelectLogo}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        Cambiar Logo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemoveLogo}
+                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                      >
+                        Eliminar Logo
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSelectLogo}
+                    className="w-full px-6 py-8 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <Settings className="w-8 h-8 text-gray-400" />
+                      <span className="text-gray-600 font-medium">Haz clic para seleccionar un logo</span>
+                      <span className="text-sm text-gray-500">Formatos: JPG, PNG, SVG</span>
+                    </div>
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">
                 Formato de Puntuación

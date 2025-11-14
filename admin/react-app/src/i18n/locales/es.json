@@ -63,6 +63,9 @@
     "myAccount": "Mi Cuenta",
     "books": "Libros",
     "logout": "Cerrar Sesión",
+    "exitCampus": "Salir del Campus",
+    "lightMode": "Modo Claro",
+    "darkMode": "Modo Oscuro",
     "expand": "Expandir",
     "collapse": "Colapsar",
     "logoAlt": "Logo de la empresa",
@@ -931,5 +934,18 @@
   "progress": {
     "completed": "Completado",
     "markComplete": "Marcar como completado"
+  },
+  "login": {
+    "welcomeBack": "Bienvenido de vuelta",
+    "signInToContinue": "Inicia sesión para continuar",
+    "username": "Usuario o correo electrónico",
+    "usernamePlaceholder": "tu@email.com",
+    "password": "Contraseña",
+    "rememberMe": "Recordarme",
+    "signIn": "Iniciar Sesión",
+    "signingIn": "Iniciando sesión...",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "invalidCredentials": "Usuario o contraseña incorrectos",
+    "error": "Error al iniciar sesión. Por favor, intenta de nuevo."
   }
 }

@@ -250,31 +250,44 @@ class QE_Auth
     public function can_take_quiz($quiz_id)
     {
         if (!is_user_logged_in()) {
+            error_log('[QE Auth] can_take_quiz: User not logged in');
             return false;
         }
 
+        $user_id = get_current_user_id();
+        error_log(sprintf('[QE Auth] can_take_quiz: User ID: %d, Quiz ID: %d', $user_id, $quiz_id));
+
         if (current_user_can('manage_lms') || current_user_can('edit_courses')) {
+            error_log('[QE Auth] can_take_quiz: User has admin permissions');
             return true;
         }
 
         // Get course from quiz
         $course_id = get_post_meta($quiz_id, '_course_id', true);
+        error_log(sprintf('[QE Auth] can_take_quiz: Course ID from quiz meta: %s', var_export($course_id, true)));
 
         if (!$course_id) {
+            error_log('[QE Auth] can_take_quiz: No course ID found for quiz');
             return false;
         }
 
         // Check enrollment
-        if (!$this->is_user_enrolled($course_id)) {
+        $is_enrolled = $this->is_user_enrolled($course_id);
+        error_log(sprintf('[QE Auth] can_take_quiz: Enrollment check result: %s', var_export($is_enrolled, true)));
+
+        if (!$is_enrolled) {
+            error_log('[QE Auth] can_take_quiz: User not enrolled in course');
             return false;
         }
 
         // Check if quiz is published
         $quiz = get_post($quiz_id);
         if (!$quiz || $quiz->post_status !== 'publish') {
+            error_log(sprintf('[QE Auth] can_take_quiz: Quiz not published - Status: %s', $quiz ? $quiz->post_status : 'NULL'));
             return false;
         }
 
+        error_log('[QE Auth] can_take_quiz: All checks passed, user can take quiz');
         return true;
     }
 
@@ -296,15 +309,24 @@ class QE_Auth
         }
 
         $enrolled = get_user_meta($user_id, '_enrolled_course_' . $course_id, true);
-        return !empty($enrolled) && ($enrolled === 'yes' || $enrolled == 1);
-    }
 
-    /**
-     * Check if user can grade submissions
-     *
-     * @param int $course_id Course ID (optional)
-     * @return bool
-     */
+        // Log for debugging
+        error_log(sprintf(
+            '[QE Auth] Checking enrollment - User: %d, Course: %d, Meta Value: %s, Type: %s',
+            $user_id,
+            $course_id,
+            var_export($enrolled, true),
+            gettype($enrolled)
+        ));
+
+        // Accept: 'yes', '1', 1, true, or any truthy value
+        return !empty($enrolled) && ($enrolled === 'yes' || $enrolled == 1 || $enrolled === true || $enrolled === '1');
+    }    /**
+         * Check if user can grade submissions
+         *
+         * @param int $course_id Course ID (optional)
+         * @return bool
+         */
     public function can_grade_submissions($course_id = null)
     {
         if (!current_user_can('grade_submissions')) {

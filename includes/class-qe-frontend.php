@@ -59,6 +59,11 @@ class QE_Frontend
         add_filter('logout_redirect', [$this, 'custom_logout_redirect'], 99, 3);
         add_filter('wp_nav_menu_items', [$this, 'add_academy_menu_item'], 20, 2);
 
+        // Custom login handling
+        add_filter('login_redirect', [$this, 'custom_login_redirect'], 99, 3);
+        add_action('wp_login_failed', [$this, 'custom_login_failed']);
+        add_filter('authenticate', [$this, 'custom_authenticate_username_password'], 30, 3);
+
         // Hook to override the page template
         add_filter('template_include', [$this, 'override_lms_page_template']);
 
@@ -371,6 +376,7 @@ class QE_Frontend
                 'theme' => $theme,
                 'isDarkMode' => $is_dark_mode,
                 'scoreFormat' => $score_format,
+                'campus_logo' => get_option('qe_plugin_settings')['campus_logo'] ?? '',
                 'locale' => get_locale(),
                 'endpoints' => [
                     'courses' => $api_url_base . '/wp/v2/qe_course',
@@ -393,20 +399,23 @@ class QE_Frontend
     /**
      * Redirect user to LMS page after login.
      */
-    public function custom_login_redirect($redirect_to, $user)
+    public function custom_login_redirect($redirect_to, $requested_redirect_to = '', $user = null)
     {
+        // Handle WP_Error
         if (is_wp_error($user)) {
             return $redirect_to;
         }
 
-        $lms_page_url = get_permalink(get_option('quiz_extended_lms_page_id'));
+        // If user object is provided, make sure it's a valid user
+        if ($user && isset($user->ID)) {
+            $lms_page_url = get_permalink(get_option('quiz_extended_lms_page_id'));
 
-        if (!empty($lms_page_url)) {
-            return $lms_page_url;
+            if (!empty($lms_page_url)) {
+                return $lms_page_url;
+            }
         }
 
         return $redirect_to;
-
     }
 
     /**
@@ -415,6 +424,50 @@ class QE_Frontend
     public function custom_logout_redirect($logout_url, $redirect_to, $user)
     {
         return home_url();
+    }
+
+    /**
+     * Handle login failures and redirect with error message
+     */
+    public function custom_login_failed($username)
+    {
+        $lms_page_url = get_permalink($this->lms_page_id);
+
+        if (empty($lms_page_url)) {
+            return;
+        }
+
+        $referrer = wp_get_referer();
+
+        // Only redirect if the failed login came from our LMS page
+        if ($referrer && strpos($referrer, $lms_page_url) !== false) {
+            wp_redirect($lms_page_url . '?login=failed');
+            exit;
+        }
+    }
+
+    /**
+     * Handle empty credentials and redirect with error message
+     */
+    public function custom_authenticate_username_password($user, $username, $password)
+    {
+        // Check if username and password are empty
+        if (empty($username) || empty($password)) {
+            $lms_page_url = get_permalink($this->lms_page_id);
+
+            if (!empty($lms_page_url)) {
+                $referrer = wp_get_referer();
+
+                // Only redirect if the request came from our LMS page
+                if ($referrer && strpos($referrer, $lms_page_url) !== false) {
+                    remove_action('authenticate', 'wp_authenticate_username_password', 20);
+                    wp_redirect($lms_page_url . '?login=empty');
+                    exit;
+                }
+            }
+        }
+
+        return $user;
     }
 }
 

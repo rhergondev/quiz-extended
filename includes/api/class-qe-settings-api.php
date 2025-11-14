@@ -252,6 +252,9 @@ class QE_Settings_API extends QE_API_Base
             if ($request->has_param('theme')) {
                 $new_values['theme'] = $request->get_param('theme');
             }
+            if ($request->has_param('campus_logo')) {
+                $new_values['campus_logo'] = $request->get_param('campus_logo');
+            }
 
             // Validate score_format
             if (isset($new_values['score_format'])) {

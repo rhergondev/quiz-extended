@@ -214,14 +214,10 @@ const CoursesPage = () => {
 
   // --- RENDER ---
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header with Stats */}
       <div className="rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Course Management</h1>
-            <p className="text-gray-600 mt-1">Create and manage your courses</p>
-          </div>
+        <div className="flex items-center justify-end mb-6">
           <div className="flex items-center space-x-3">
             {loading && (
               <div className="flex items-center text-sm text-gray-500">

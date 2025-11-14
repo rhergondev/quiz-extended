@@ -164,7 +164,7 @@ class QE_User_Enrollments_API extends QE_API_Base
 
             // Add enrollment meta
             $enrollment_date = current_time('mysql');
-            update_user_meta($user_id, "_enrolled_course_{$course_id}", true);
+            update_user_meta($user_id, "_enrolled_course_{$course_id}", 'yes'); // Cambiar de true a 'yes' para consistencia
             update_user_meta($user_id, "_enrolled_course_{$course_id}_date", $enrollment_date);
             update_user_meta($user_id, "_course_{$course_id}_progress", 0);
 
