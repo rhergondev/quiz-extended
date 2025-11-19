@@ -10,10 +10,12 @@ import { makeApiRequest } from '../api/services/baseService';
  *
  * @param {object} options
  * @param {number} options.userId - El ID del usuario. Si no se provee, se asume el usuario actual.
+ * @param {number} options.courseId - Filtrar por curso específico.
  * @param {number} options.perPage - Resultados por página.
  * @param {boolean} options.autoFetch - Si debe hacer el fetch automáticamente al montar.
+ * @param {object} options.filters - Filtros adicionales (search, lesson_id, date_from, date_to).
  */
-export const useQuizAttempts = ({ userId, perPage = 10, autoFetch = true } = {}) => {
+export const useQuizAttempts = ({ userId, courseId, perPage = 10, autoFetch = true, filters = {} } = {}) => {
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -24,12 +26,11 @@ export const useQuizAttempts = ({ userId, perPage = 10, autoFetch = true } = {})
     hasMore: false,
   });
 
-  const fetchAttempts = useCallback(async (page = 1) => {
+  const fetchAttempts = useCallback(async (page = 1, customFilters = {}) => {
     setLoading(true);
     setError(null);
 
     try {
-      // 🔥 CORRECCIÓN: Obtenemos la URL base de la API desde la configuración global
       const config = getApiConfig();
       const endpoint = `${config.apiUrl}/quiz-extended/v1/my-quiz-attempts`;
       
@@ -43,18 +44,38 @@ export const useQuizAttempts = ({ userId, perPage = 10, autoFetch = true } = {})
         params.append('user_id', userId);
       }
 
+      // Filtrar por curso
+      if (courseId) {
+        params.append('course_id', courseId.toString());
+      }
+
+      // Aplicar filtros adicionales
+      const activeFilters = { ...filters, ...customFilters };
+      if (activeFilters.search) {
+        params.append('search', activeFilters.search);
+      }
+      if (activeFilters.lesson_id) {
+        params.append('lesson_id', activeFilters.lesson_id);
+      }
+      if (activeFilters.date_from) {
+        params.append('date_from', activeFilters.date_from);
+      }
+      if (activeFilters.date_to) {
+        params.append('date_to', activeFilters.date_to);
+      }
+
       const url = `${endpoint}?${params}`;
       const response = await makeApiRequest(url);
 
-      // 🔥 CORRECCIÓN: Los datos ya vienen con 'quizTitle' y 'courseTitle' desde el PHP,
-      // no necesitamos procesar '_embedded'.
       const sanitizedData = response.data.map(attempt => ({
         ...attempt,
         quizTitle: attempt.quizTitle || 'Cuestionario Desconocido',
         courseTitle: attempt.courseTitle || 'Curso Desconocido',
+        lessonTitle: attempt.lessonTitle || 'Sin lección',
       }));
 
-      setAttempts(prev => (page === 1 ? sanitizedData : [...prev, ...sanitizedData]));
+      // Para paginación normal (no infinite scroll), siempre reemplazar
+      setAttempts(sanitizedData);
       
       const newPagination = {
         currentPage: page,
@@ -70,7 +91,7 @@ export const useQuizAttempts = ({ userId, perPage = 10, autoFetch = true } = {})
     } finally {
       setLoading(false);
     }
-  }, [userId, perPage]);
+  }, [userId, courseId, perPage, filters.search, filters.lesson_id, filters.date_from, filters.date_to]);
 
   const loadMore = useCallback(() => {
     if (pagination.hasMore && !loading) {
@@ -82,7 +103,8 @@ export const useQuizAttempts = ({ userId, perPage = 10, autoFetch = true } = {})
     if (autoFetch) {
       fetchAttempts(1);
     }
-  }, [autoFetch, fetchAttempts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFetch]);
 
   return {
     attempts,

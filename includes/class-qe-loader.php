@@ -230,6 +230,7 @@ final class QE_Loader
         $core_files = [
             'database' => 'includes/class-qe-database.php',
             'post_types_loader' => 'includes/post-types/class-qe-post-types-loader.php',
+            'quiz_course_sync' => 'includes/post-types/class-qe-quiz-course-sync.php', // 🆕 Quiz-Course sync
             'enrollment' => 'includes/class-qe-enrollment.php'
         ];
 
@@ -347,7 +348,8 @@ final class QE_Loader
         $admin_files = [
             'admin_menu' => 'admin/class-qe-admin-menu.php',
             'admin_assets' => 'admin/class-qe-assets.php',
-            'menu_badge' => 'includes/class-qe-menu-badge.php'
+            'menu_badge' => 'includes/class-qe-menu-badge.php',
+            'migration_api' => 'includes/api/class-qe-migration-api.php'
         ];
 
         foreach ($admin_files as $name => $file) {
@@ -373,6 +375,12 @@ final class QE_Loader
             if (class_exists('QE_Post_Types_Loader')) {
                 QE_Post_Types_Loader::instance()->init();
                 $this->loaded_components['post_types_initialized'] = true;
+            }
+
+            // 🆕 Initialize quiz-course synchronization
+            if (class_exists('QE_Quiz_Course_Sync')) {
+                new QE_Quiz_Course_Sync();
+                $this->loaded_components['quiz_course_sync_initialized'] = true;
             }
 
             if (class_exists('QE_Enrollment')) {

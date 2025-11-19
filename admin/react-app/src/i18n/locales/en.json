@@ -930,7 +930,10 @@
     "viewDetails": "View attempt details",
     "viewerPlaceholder": "Test interface in development",
     "viewerPlaceholderDescription": "The test interface will be displayed here",
-    "backToInfo": "Back to Test"
+    "backToInfo": "Back to Test",
+    "loadingAttemptDetails": "Loading attempt details...",
+    "errorLoadingAttempt": "Error loading attempt",
+    "attemptDetails": "Attempt Details"
   },
   "navigation": {
     "previous": "Previous",

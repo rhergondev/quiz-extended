@@ -289,19 +289,37 @@ if (!is_user_logged_in()) {
 }
 ?>
 
-<div id="primary" class="content-area qe-lms-content-area">
-    <main id="main" class="site-main qe-lms-main" role="main">
-        <?php
-        // Start the loop to display the page content (which contains our shortcode).
-        while (have_posts()):
-            the_post();
+<style>
+    /* Reset theme styles that might interfere with the full-screen app */
+    html,
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow-x: hidden !important;
+        background-color: #f3f4f6;
+        /* Fallback color */
+    }
 
-            the_content();
+    /* Remove margins from common theme containers if they exist in header */
+    .site-header,
+    #masthead,
+    header {
+        margin-bottom: 0 !important;
+    }
 
-        endwhile; // End the loop.
-        ?>
-    </main>
-</div>
+    /* Ensure the app container takes available space */
+    #qe-frontend-root {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        /* Fallback */
+    }
+</style>
+
+<!-- Direct output of the React Root, bypassing theme content wrappers -->
+<div id="qe-frontend-root" class="qe-lms-app"></div>
+
 <?php
 // We call wp_footer() directly to ensure scripts are loaded,
 // but we intentionally omit get_footer() to hide the theme's footer.

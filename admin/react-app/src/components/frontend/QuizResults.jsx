@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useScoreFormat } from '../../contexts/ScoreFormatContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
-const QuizResults = ({ result, quizTitle, questions }) => {
+const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
   const { t } = useTranslation();
   const { formatScore } = useScoreFormat();
   const { getColor } = useTheme();
@@ -41,15 +41,15 @@ const QuizResults = ({ result, quizTitle, questions }) => {
 
   return (
     <div className="h-full flex flex-col" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
-      <div className="flex-1 overflow-hidden p-6">
+      <div className={`flex-1 overflow-hidden ${noPadding ? '' : 'p-6'}`}>
         <div className="w-full max-w-screen-2xl mx-auto flex flex-col lg:flex-row-reverse gap-8 h-full">
-          <div className="w-full lg:w-80 flex-shrink-0">
+          <div className={`w-full lg:w-80 flex-shrink-0 ${noPadding ? 'mt-4' : ''}`}>
             <ResultsSidebar result={result} questions={questions} />
           </div>
 
-          <main className="flex-1 w-full lg:w-auto lg:overflow-y-auto lg:pr-4">
+          <main className={`flex-1 w-full lg:w-auto lg:overflow-y-auto ${noPadding ? 'lg:px-6 lg:py-6' : 'lg:pr-4'}`}>
         <div 
-          className="rounded-lg p-6 mb-6 shadow-sm"
+          className={`rounded-lg p-6 mb-6 shadow-sm ${noPadding ? 'mt-4' : ''}`}
           style={{
             backgroundColor: getColor('primary', '#1a202c'),
           }}
@@ -281,7 +281,7 @@ const QuizResults = ({ result, quizTitle, questions }) => {
         </div>
 
         {detailed_results && questions ? (
-          <div className="space-y-4">
+          <div className={`space-y-4 ${noPadding ? 'pb-6' : ''}`}>
             {questions.map((question, index) => (
               <ReviewedQuestion
                 key={question.id}
@@ -292,7 +292,7 @@ const QuizResults = ({ result, quizTitle, questions }) => {
             ))}
           </div>
         ) : (
-          <p style={{ color: getColor('text', '#6b7280') }}>
+          <p className={noPadding ? 'pb-6' : ''} style={{ color: getColor('text', '#6b7280') }}>
             {t('quizzes.noDetailedResults')}
           </p>
         )}

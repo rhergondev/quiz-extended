@@ -38,6 +38,12 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                         'type' => 'integer',
                         'minimum' => 1,
                         'description' => 'Quiz ID to start'
+                    ],
+                    'lesson_id' => [
+                        'required' => false,
+                        'type' => 'integer',
+                        'minimum' => 1,
+                        'description' => 'Lesson ID where the quiz is taken'
                     ]
                 ]
             ]
@@ -129,6 +135,15 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 'permission_callback' => [$this, 'check_get_details_permission']
             ]
         );
+
+        // 🔧 TEMPORAL: Endpoint para sincronizar course_ids en quizzes
+        register_rest_route($this->namespace, '/sync-quiz-course-ids', [
+            'methods' => WP_REST_Server::CREATABLE,
+            'callback' => [$this, 'sync_quiz_course_ids'],
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            }
+        ]);
     }
 
     // ============================================================
@@ -293,43 +308,122 @@ class QE_Quiz_Attempts_API extends QE_API_Base
         $per_page = $request->get_param('per_page');
         $offset = ($page - 1) * $per_page;
 
+        // Obtener filtros
+        $course_id = $request->get_param('course_id');
+        $search = $request->get_param('search');
+        $lesson_id = $request->get_param('lesson_id');
+        $date_from = $request->get_param('date_from');
+        $date_to = $request->get_param('date_to');
+
         global $wpdb;
         $attempts_table = $this->get_table('quiz_attempts');
 
-        // Query para obtener el total de intentos para la paginación
-        $total_items = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$attempts_table} WHERE user_id = %d AND status = 'completed'",
-            $user_id
-        ));
+        // Construir condiciones WHERE
+        $where_conditions = ["att.user_id = %d", "att.status = 'completed'"];
+        $where_params = [$user_id];
 
-        // Query para obtener los intentos con los títulos del quiz y del curso
-        $query = $wpdb->prepare(
-            "SELECT 
+        // Filtro por curso - buscar en att.course_id o en el array _course_ids del quiz
+        if (!empty($course_id)) {
+            // Comprobar si el att.course_id coincide (legacy) O si el quiz tiene este curso en _course_ids
+            // Buscamos el número en el valor serializado de forma simple
+            $where_conditions[] = "((att.course_id = %d AND att.course_id != 0) OR quiz_course_ids_meta.meta_value LIKE %s OR quiz_course_id_meta.meta_value = %d)";
+            $where_params[] = $course_id;
+            // Buscar el ID como número en cualquier formato: %:840% encontrará i:840 o "840"
+            $where_params[] = '%:' . $course_id . '%';
+            $where_params[] = $course_id;
+        }
+
+        // Filtro por lección
+        if (!empty($lesson_id)) {
+            $where_conditions[] = "(att.lesson_id = %d OR (att.lesson_id IS NULL AND lesson_meta.meta_value = %d))";
+            $where_params[] = $lesson_id;
+            $where_params[] = $lesson_id;
+        }
+
+        // Filtro por búsqueda de texto
+        if (!empty($search)) {
+            $where_conditions[] = "quiz.post_title LIKE %s";
+            $where_params[] = '%' . $wpdb->esc_like($search) . '%';
+        }
+
+        // Filtro por rango de fechas
+        if (!empty($date_from)) {
+            $where_conditions[] = "DATE(att.end_time) >= %s";
+            $where_params[] = $date_from;
+        }
+        if (!empty($date_to)) {
+            $where_conditions[] = "DATE(att.end_time) <= %s";
+            $where_params[] = $date_to;
+        }
+
+        $where_clause = implode(' AND ', $where_conditions);
+
+        // Query para obtener el total de intentos
+        $count_query = "SELECT COUNT(*) 
+            FROM {$attempts_table} AS att
+            LEFT JOIN {$wpdb->posts} AS quiz ON att.quiz_id = quiz.ID
+            LEFT JOIN {$wpdb->postmeta} AS quiz_course_ids_meta ON (att.quiz_id = quiz_course_ids_meta.post_id AND quiz_course_ids_meta.meta_key = '_course_ids')
+            LEFT JOIN {$wpdb->postmeta} AS quiz_course_id_meta ON (att.quiz_id = quiz_course_id_meta.post_id AND quiz_course_id_meta.meta_key = '_course_id')
+            LEFT JOIN {$wpdb->postmeta} AS lesson_meta ON (att.quiz_id = lesson_meta.post_id AND lesson_meta.meta_key = '_lesson_id')
+            WHERE {$where_clause}";
+
+        $total_items = $wpdb->get_var($wpdb->prepare($count_query, $where_params));
+
+        // Query para obtener los intentos con los títulos del quiz, curso y lección
+        $query_params = array_merge($where_params, [$per_page, $offset]);
+        $query = "SELECT 
                 att.*, 
                 att.time_taken_seconds AS duration_seconds,
                 quiz.post_title AS quizTitle,
                 course.post_title AS courseTitle,
-                (SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = att.quiz_id AND meta_key = '_passing_score') as passing_score
+                lesson.post_title AS lessonTitle,
+                (SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = att.quiz_id AND meta_key = '_passing_score') as passing_score,
+                (SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = att.quiz_id AND meta_key = '_course_id') as quiz_course_id,
+                (SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = att.quiz_id AND meta_key = '_lesson_id') as quiz_lesson_id
              FROM {$attempts_table} AS att
              LEFT JOIN {$wpdb->posts} AS quiz ON att.quiz_id = quiz.ID
              LEFT JOIN {$wpdb->posts} AS course ON att.course_id = course.ID
-             WHERE att.user_id = %d AND att.status = 'completed'
+             LEFT JOIN {$wpdb->postmeta} AS quiz_course_ids_meta ON (att.quiz_id = quiz_course_ids_meta.post_id AND quiz_course_ids_meta.meta_key = '_course_ids')
+             LEFT JOIN {$wpdb->postmeta} AS quiz_course_id_meta ON (att.quiz_id = quiz_course_id_meta.post_id AND quiz_course_id_meta.meta_key = '_course_id')
+             LEFT JOIN {$wpdb->postmeta} AS lesson_meta ON (att.quiz_id = lesson_meta.post_id AND lesson_meta.meta_key = '_lesson_id')
+             LEFT JOIN {$wpdb->posts} AS lesson ON (COALESCE(att.lesson_id, lesson_meta.meta_value) = lesson.ID)
+             WHERE {$where_clause}
              ORDER BY att.end_time DESC
-             LIMIT %d OFFSET %d",
-            $user_id,
-            $per_page,
-            $offset
-        );
+             LIMIT %d OFFSET %d";
 
-        $results = $wpdb->get_results($query);
+        $results = $wpdb->get_results($wpdb->prepare($query, $query_params));
 
-        // Añadir el campo "passed" a cada intento
+        // Procesar resultados
         foreach ($results as $result) {
-            // Sistema Base 10: passing_score por defecto es 7.0 (equivalente a 70%)
+            // Corregir course_id si es 0
+            if (empty($result->course_id) || $result->course_id == 0) {
+                if (!empty($result->quiz_course_id)) {
+                    $result->course_id = $result->quiz_course_id;
+                    if (empty($result->courseTitle)) {
+                        $course_post = get_post($result->quiz_course_id);
+                        if ($course_post) {
+                            $result->courseTitle = $course_post->post_title;
+                        }
+                    }
+                }
+            }
+
+            // Asegurar que lessonTitle existe
+            if (empty($result->lessonTitle) && !empty($result->quiz_lesson_id)) {
+                $lesson_post = get_post($result->quiz_lesson_id);
+                if ($lesson_post) {
+                    $result->lessonTitle = $lesson_post->post_title;
+                }
+            }
+
+            // Calcular si pasó o no
             $passing_score_raw = isset($result->passing_score) ? floatval($result->passing_score) : 7.0;
-            // Si parece estar en 0-100, convertir a 0-10
             $passing_score = $passing_score_raw > 10 ? ($passing_score_raw / 10) : $passing_score_raw;
             $result->passed = (float) $result->score >= $passing_score;
+
+            // Limpiar campos temporales
+            unset($result->quiz_course_id);
+            unset($result->quiz_lesson_id);
         }
 
         $response = new WP_REST_Response($results, 200);
@@ -357,11 +451,13 @@ class QE_Quiz_Attempts_API extends QE_API_Base
     {
         try {
             $quiz_id = $request->get_param('quiz_id');
+            $lesson_id = $request->get_param('lesson_id');
             $user_id = get_current_user_id();
 
             // Log API call
             $this->log_api_call('/quiz-attempts/start', [
                 'quiz_id' => $quiz_id,
+                'lesson_id' => $lesson_id,
                 'user_id' => $user_id
             ]);
 
@@ -389,18 +485,51 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 );
             }
 
-            // Get course ID
-            $course_id = get_post_meta($quiz_id, '_course_id', true);
-            $course_id = absint($course_id);
+            // Get course ID - primero intentar desde _course_ids (nuevo), luego _course_id (legacy)
+            $course_ids = get_post_meta($quiz_id, '_course_ids', true);
 
-            // Check max attempts
+            // 🔧 DEBUG TEMPORAL
+            error_log("START_QUIZ_ATTEMPT - Quiz ID: $quiz_id");
+            error_log("_course_ids raw: " . print_r($course_ids, true));
+
+            // Si _course_ids está vacío, intentar sincronizar automáticamente
+            if (!is_array($course_ids) || empty($course_ids)) {
+                error_log("_course_ids is empty, attempting auto-sync for quiz $quiz_id");
+
+                // Intentar sincronizar desde las lecciones
+                if (class_exists('QE_Quiz_Course_Sync')) {
+                    $sync_instance = new QE_Quiz_Course_Sync();
+                    // Usar reflexión para llamar al método privado
+                    $reflection = new ReflectionClass($sync_instance);
+                    $method = $reflection->getMethod('rebuild_quiz_course_ids');
+                    $method->setAccessible(true);
+                    $method->invoke($sync_instance, $quiz_id);
+
+                    // Volver a obtener después de la sincronización
+                    $course_ids = get_post_meta($quiz_id, '_course_ids', true);
+                    error_log("After auto-sync, _course_ids: " . print_r($course_ids, true));
+                }
+            }
+
+            if (is_array($course_ids) && !empty($course_ids)) {
+                // Usar el primer course_id del array
+                $course_id = absint($course_ids[0]);
+            } else {
+                // Fallback a _course_id legacy
+                $course_id = get_post_meta($quiz_id, '_course_id', true);
+                $course_id = absint($course_id);
+                error_log("Using legacy _course_id: $course_id");
+            }
+
+            error_log("Final course_id used: $course_id");
+            // 🔧 FIN DEBUG            // Check max attempts
             $max_attempts_check = $this->check_max_attempts($user_id, $quiz_id);
             if (is_wp_error($max_attempts_check)) {
                 return $max_attempts_check;
             }
 
             // Create attempt record
-            $attempt_id = $this->create_attempt_record($user_id, $quiz_id, $course_id);
+            $attempt_id = $this->create_attempt_record($user_id, $quiz_id, $course_id, $lesson_id);
             if (!$attempt_id) {
                 return $this->error_response(
                     'db_error',
@@ -805,17 +934,19 @@ class QE_Quiz_Attempts_API extends QE_API_Base
      * @param int $user_id User ID
      * @param int $quiz_id Quiz ID
      * @param int $course_id Course ID
+     * @param int|null $lesson_id Lesson ID
      * @return int|false Attempt ID or false
      */
-    private function create_attempt_record($user_id, $quiz_id, $course_id)
+    private function create_attempt_record($user_id, $quiz_id, $course_id, $lesson_id = null)
     {
         return $this->db_insert('quiz_attempts', [
             'user_id' => $user_id,
             'quiz_id' => $quiz_id,
             'course_id' => $course_id,
+            'lesson_id' => $lesson_id,
             'start_time' => $this->get_mysql_timestamp(),
             'status' => 'in-progress'
-        ], ['%d', '%d', '%d', '%s', '%s']);
+        ], ['%d', '%d', '%d', '%d', '%s', '%s']);
     }
 
     /**
@@ -1365,6 +1496,42 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 ],
                 ['%d', '%d', '%d', '%s', '%s']
             ) !== false;
+        }
+    }
+
+    /**
+     * 🔧 TEMPORAL: Sync course_ids for all quizzes
+     * 
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function sync_quiz_course_ids($request)
+    {
+        try {
+            // Verificar que la clase existe
+            if (!class_exists('QE_Quiz_Course_Sync')) {
+                return $this->error_response(
+                    'class_not_found',
+                    'QE_Quiz_Course_Sync class not found. Please check if the file is loaded.',
+                    500
+                );
+            }
+
+            // Ejecutar sincronización
+            $stats = QE_Quiz_Course_Sync::sync_all_quizzes();
+
+            return new WP_REST_Response([
+                'success' => true,
+                'data' => $stats,
+                'message' => 'Quiz course IDs synchronized successfully'
+            ], 200);
+
+        } catch (Exception $e) {
+            return $this->error_response(
+                'sync_error',
+                $e->getMessage(),
+                500
+            );
         }
     }
 }

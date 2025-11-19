@@ -17,7 +17,8 @@ const Question = ({
   disabled = false,
   showCorrectAnswer = false,
   isPracticeMode = false,
-  showRiskSelector = false // Nueva prop para controlar el selector de riesgo
+  showRiskSelector = false, // Nueva prop para controlar el selector de riesgo
+  className = '' // Añadido para clases adicionales
 }) => {
   const [showExplanation, setShowExplanation] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -64,7 +65,7 @@ const Question = ({
   return (
     <div 
       id={`quiz-question-${displayIndex}`} 
-      className="rounded-lg overflow-hidden shadow-sm mb-6 scroll-mt-6 transition-all duration-200"
+      className={`rounded-lg overflow-hidden shadow-sm mb-6 scroll-mt-6 transition-all duration-200 ${className}`}
       style={{ 
         backgroundColor: getColor('secondaryBackground', '#ffffff'),
         borderTop: `2px solid ${getQuestionColor('40')}`,

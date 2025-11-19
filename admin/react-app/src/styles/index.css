@@ -69,3 +69,43 @@ body {
   animation: slideInFromLeft 0.4s ease-out;
 }
 
+/* ===================================
+   CUSTOM SCROLLBAR - Minimalista & Moderno
+   =================================== */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb, rgba(0, 0, 0, 0.2)) var(--scrollbar-track, transparent);
+}
+
+/* Webkit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track, transparent);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, rgba(0, 0, 0, 0.2));
+  border-radius: 10px;
+  border: 2px solid var(--scrollbar-track, transparent);
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, rgba(0, 0, 0, 0.4));
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-thumb-active, rgba(0, 0, 0, 0.5));
+}
+
+/* Esquinas cuando hay scroll horizontal y vertical */
+::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track, transparent);
+}

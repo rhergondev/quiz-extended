@@ -23,7 +23,7 @@ class QE_Database
      *
      * @var string
      */
-    const DB_VERSION = '2.0.0';
+    const DB_VERSION = '2.0.1';
 
     /**
      * Option name for storing database version
@@ -126,6 +126,7 @@ class QE_Database
                 user_id BIGINT(20) UNSIGNED NOT NULL,
                 quiz_id BIGINT(20) UNSIGNED NOT NULL,
                 course_id BIGINT(20) UNSIGNED NOT NULL,
+                lesson_id BIGINT(20) UNSIGNED DEFAULT NULL,
                 start_time DATETIME NOT NULL,
                 end_time DATETIME DEFAULT NULL,
                 score DECIMAL(5,2) DEFAULT 0.00,
@@ -136,6 +137,7 @@ class QE_Database
                 KEY user_id (user_id),
                 KEY quiz_id (quiz_id),
                 KEY course_id (course_id),
+                KEY lesson_id (lesson_id),
                 KEY status (status),
                 KEY start_time (start_time)
             ) {$charset_collate};";

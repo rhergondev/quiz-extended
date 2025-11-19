@@ -157,11 +157,25 @@ export const ThemeProvider = ({ children }) => {
       root.style.setProperty('--qe-border', '#374151');
       root.style.setProperty('--qe-bg-card', currentMode.secondaryBackground || '#1f2937');
       root.style.setProperty('--qe-bg-hover', '#374151');
+      
+      // Scrollbar oscuro
+      const primaryRGBDark = hexToRGB(currentMode.primary || '#60a5fa');
+      root.style.setProperty('--scrollbar-track', 'rgba(0, 0, 0, 0.2)');
+      root.style.setProperty('--scrollbar-thumb', `rgba(${primaryRGBDark}, 0.4)`);
+      root.style.setProperty('--scrollbar-thumb-hover', `rgba(${primaryRGBDark}, 0.6)`);
+      root.style.setProperty('--scrollbar-thumb-active', `rgba(${primaryRGBDark}, 0.8)`);
     } else {
       root.classList.remove('qe-dark-mode');
       root.style.setProperty('--qe-border', '#e5e7eb');
       root.style.setProperty('--qe-bg-card', currentMode.secondaryBackground || '#ffffff');
       root.style.setProperty('--qe-bg-hover', '#f9fafb');
+      
+      // Scrollbar claro
+      const primaryRGBLight = hexToRGB(currentMode.primary || '#3b82f6');
+      root.style.setProperty('--scrollbar-track', 'rgba(0, 0, 0, 0.05)');
+      root.style.setProperty('--scrollbar-thumb', `rgba(${primaryRGBLight}, 0.3)`);
+      root.style.setProperty('--scrollbar-thumb-hover', `rgba(${primaryRGBLight}, 0.5)`);
+      root.style.setProperty('--scrollbar-thumb-active', `rgba(${primaryRGBLight}, 0.7)`);
     }
   };
 

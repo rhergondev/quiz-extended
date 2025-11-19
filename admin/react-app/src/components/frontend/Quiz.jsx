@@ -17,6 +17,7 @@ import QuizRecoveryModal from '../quizzes/QuizRecoveryModal';
 
 const Quiz = ({ 
   quizId, 
+  lessonId = null,
   customQuiz = null, 
   onQuizComplete,
   isDrawingMode, 
@@ -91,6 +92,8 @@ const Quiz = ({
       
       if (!quizId) return;
 
+      console.log('🚀 Starting Quiz Attempt:', { quizId, lessonId });
+
       try {
         // Check for autosave
         const savedProgress = await quizAutosaveService.getQuizAutosave(quizId);
@@ -112,7 +115,7 @@ const Quiz = ({
         setQuestionIds(ids);
 
         // Start attempt
-        const attemptResponse = await startQuizAttempt(quizId);
+        const attemptResponse = await startQuizAttempt(quizId, lessonId);
         if (attemptResponse.attempt_id) {
           setAttemptId(attemptResponse.attempt_id);
         } else {
@@ -124,7 +127,7 @@ const Quiz = ({
       }
     };
     fetchAndStartQuiz();
-  }, [quizId, customQuiz]);
+  }, [quizId, customQuiz, lessonId]);
 
   // Hook de autoguardado - se activa cuando cambian las respuestas
   const { clearAutosave } = useQuizAutosave({
@@ -223,7 +226,7 @@ const Quiz = ({
       const ids = quizData.meta?._quiz_question_ids || [];
       setQuestionIds(ids); // Let hook handle loading
 
-      const attemptResponse = await startQuizAttempt(quizId);
+      const attemptResponse = await startQuizAttempt(quizId, lessonId);
       if (attemptResponse.attempt_id) {
         setAttemptId(attemptResponse.attempt_id);
       } else {
@@ -364,10 +367,10 @@ const Quiz = ({
 
   return (
     <div className="h-full flex flex-col" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
-      <div className="flex-1 overflow-hidden p-6">
-        <div className="w-full max-w-screen-2xl mx-auto flex flex-col lg:flex-row gap-8 h-full">
+      <div className="flex-1 overflow-hidden">
+        <div className="w-full max-w-screen-2xl mx-auto flex flex-col lg:flex-row gap-8 h-full px-6">
           {/* Columna de Preguntas (con scroll interno y canvas de dibujo) */}
-          <main ref={questionsContainerRef} className="w-full lg:w-2/3 lg:overflow-y-auto lg:pr-4 relative">
+          <main ref={questionsContainerRef} className="w-full lg:w-2/3 lg:overflow-y-auto lg:pr-4 relative pt-6 pb-6">
             {/* Canvas de dibujo relativo al contenedor */}
             {isDrawingMode && (
               <DrawingCanvas 
@@ -443,11 +446,12 @@ const Quiz = ({
             </p>
           </div>
         )}
+        
       </main>
 
       {/* Columna de la Barra Lateral y Reloj */}
-      <aside className="w-full lg:w-1/3 flex-shrink-0">
-        <div className="sticky top-4 space-y-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
+      <aside className="w-full lg:w-1/3 flex-shrink-0 pt-6 pb-6">
+        <div className="space-y-4">
             <QuizSidebar
               questions={quizQuestions}
               questionIds={questionIds}

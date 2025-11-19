@@ -5,17 +5,23 @@ import { getApiConfig } from '../config/apiConfig';
 /**
  * Inicia un nuevo intento de cuestionario.
  * @param {number} quizId - El ID del cuestionario a iniciar.
+ * @param {number|null} lessonId - El ID de la lección (opcional).
  * @returns {Promise<Object>} El objeto del intento, incluyendo el attempt_id.
  */
-export const startQuizAttempt = async (quizId) => {
+export const startQuizAttempt = async (quizId, lessonId = null) => {
   try {
     const { endpoints } = getApiConfig();
     const url = `${endpoints.custom_api}/quiz-attempts/start`;
-    console.log(`🚀 Starting quiz attempt for quiz ID: ${quizId}`);
+    console.log(`🚀 Starting quiz attempt for quiz ID: ${quizId}, Lesson ID: ${lessonId}`);
     
+    const body = { quiz_id: quizId };
+    if (lessonId) {
+      body.lesson_id = lessonId;
+    }
+
     const response = await makeApiRequest(url, {
       method: 'POST',
-      body: JSON.stringify({ quiz_id: quizId }),
+      body: JSON.stringify(body),
     });
     
     console.log('✅ Attempt started:', response.data);

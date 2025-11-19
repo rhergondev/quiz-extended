@@ -110,7 +110,7 @@ const TestBrowserPage = () => {
       courseName={courseName}
       sectionName={t('courses.tests')}
     >
-      <div className="relative" style={{ height: 'calc(100vh - 60px)' }}>
+      <div className="relative h-full">
         {/* Main Content - Lista de tests */}
         <div className="absolute inset-0">
           <div className="max-w-5xl mx-auto h-full overflow-y-auto px-4">

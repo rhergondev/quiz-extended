@@ -102,14 +102,31 @@ const FrontendLayout = () => {
   // Se recalcula cuando cambia el tema, el modo oscuro, o la ruta
   useEffect(() => {
     const bgColor = getColor('secondaryBackground', '#f3f4f6');
+    let finalColor = bgColor;
 
     if (bgColor && bgColor.startsWith('#')) {
       const isLight = isLightColor(bgColor);
       // Si es claro, oscurecer 5% (restar luminosidad)
       // Si es oscuro, aclarar 5% (sumar luminosidad)
-      const adjustedColor = adjustColorBrightness(bgColor, isLight ? -0.05 : 0.05);
-      setAdjustedBgColor(adjustedColor);
+      finalColor = adjustColorBrightness(bgColor, isLight ? -0.05 : 0.05);
+      setAdjustedBgColor(finalColor);
+    } else {
+      setAdjustedBgColor(bgColor);
     }
+
+    // Fix para la "franja blanca": asegurar que el body y html tengan el mismo color
+    // Esto cubre cualquier hueco que pueda quedar por cálculos de altura o scroll
+    const originalBodyBg = document.body.style.backgroundColor;
+    const originalHtmlBg = document.documentElement.style.backgroundColor;
+    
+    const colorToApply = finalColor || bgColor;
+    document.body.style.backgroundColor = colorToApply;
+    document.documentElement.style.backgroundColor = colorToApply;
+    
+    return () => {
+      document.body.style.backgroundColor = originalBodyBg;
+      document.documentElement.style.backgroundColor = originalHtmlBg;
+    };
   }, [getColor, isDarkMode, location]); // Recalcular cuando cambie el tema, modo oscuro, o ruta
 
   // Este efecto se encarga de ajustar la altura dinámicamente.
@@ -117,28 +134,72 @@ const FrontendLayout = () => {
     const updateHeight = () => {
       if (!layoutRef.current) return;
 
-      // Buscamos los elementos que están por encima de nuestra app
-      const header = document.querySelector('header, #masthead, .elementor-location-header');
-      const wpAdminBar = document.querySelector('#wpadminbar');
-
-      // Obtenemos su altura
-      const headerHeight = header ? header.offsetHeight : 0;
-      const wpAdminBarHeight = wpAdminBar ? wpAdminBar.offsetHeight : 0;
+      // 1. Detectar Header Fijo para añadir margen si es necesario
+      const headers = document.querySelectorAll('header, #masthead, .elementor-location-header');
+      let header = null;
+      for (let h of headers) {
+        if (h.offsetHeight > 0) {
+          header = h;
+          break;
+        }
+      }
       
-      const totalOffset = headerHeight + wpAdminBarHeight;
+      let isHeaderFixed = false;
+      let headerHeight = 0;
+      if (header) {
+        headerHeight = header.offsetHeight;
+        const style = window.getComputedStyle(header);
+        isHeaderFixed = style.position === 'fixed' || style.position === 'sticky';
+      }
 
-      // Aplicamos la altura calculada a nuestro contenedor principal
-      layoutRef.current.style.height = `calc(100vh - ${totalOffset}px)`;
+      // Resetear estilos
+      layoutRef.current.style.position = 'relative';
+
+      // Si es fijo, añadimos margen para que no tape el contenido
+      if (isHeaderFixed) {
+        layoutRef.current.style.marginTop = `${headerHeight}px`;
+      } else {
+        layoutRef.current.style.marginTop = '0px';
+      }
+
+      // 2. Calcular la altura restante
+      // Usamos offsetTop para saber dónde empieza realmente nuestro contenedor en el documento
+      // Esto incluye la altura de headers estáticos, admin bar, etc.
+      const topPosition = layoutRef.current.offsetTop;
+      
+      // La altura disponible es la altura de la ventana menos la posición de inicio
+      // Usamos window.innerHeight para asegurar que encaje en el viewport visible
+      const availableHeight = window.innerHeight - topPosition;
+
+      layoutRef.current.style.height = `${Math.max(0, availableHeight)}px`;
+      
+      // Importante: Evitar scroll en el body para que solo scrollee nuestra app
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
     };
 
     // Calculamos la altura al cargar el componente
     updateHeight();
 
-    // Y también si el usuario cambia el tamaño de la ventana
+    // Listeners para redimensionamiento y cambios
     window.addEventListener('resize', updateHeight);
+    window.addEventListener('scroll', updateHeight);
+    
+    // Observer para detectar cambios en el tamaño del header o body (ej. carga de imágenes)
+    const observer = new ResizeObserver(updateHeight);
+    if (document.body) observer.observe(document.body);
+    const header = document.querySelector('header, #masthead, .elementor-location-header');
+    if (header) observer.observe(header);
 
     // Limpiamos el listener cuando el componente se desmonta
-    return () => window.removeEventListener('resize', updateHeight);
+    return () => {
+      window.removeEventListener('resize', updateHeight);
+      window.removeEventListener('scroll', updateHeight);
+      observer.disconnect();
+      // Restaurar scroll
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
   }, []); // El array vacío asegura que este efecto se ejecute solo una vez
 
   const isLmsHome = location.pathname === '/';

@@ -56,7 +56,17 @@ class QE_Debug_API extends QE_API_Base
             'callback' => [$this, 'fix_permissions'],
             'permission_callback' => [$this, 'permissions_check']
         ]);
+
+        // 🔧 TEMPORAL: Endpoint para sincronizar course_ids en quizzes
+        register_rest_route($this->namespace, '/sync-quiz-course-ids', [
+            'methods' => 'POST',
+            'callback' => [$this, 'sync_quiz_course_ids'],
+            'permission_callback' => [$this, 'permissions_check']
+        ]);
     }
+
+    /**
+     * Get capabilities debug info
 
     /**
      * Get capabilities debug info
@@ -187,6 +197,98 @@ class QE_Debug_API extends QE_API_Base
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * 🔧 TEMPORAL: Sync course_ids for all quizzes
+     * 
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function sync_quiz_course_ids($request)
+    {
+        try {
+            // Verificar que la clase existe
+            if (!class_exists('QE_Quiz_Course_Sync')) {
+                return new WP_REST_Response([
+                    'success' => false,
+                    'message' => 'QE_Quiz_Course_Sync class not found'
+                ], 500);
+            }
+
+            // Ejecutar sincronización
+            $stats = QE_Quiz_Course_Sync::sync_all_quizzes();
+
+            return new WP_REST_Response([
+                'success' => true,
+                'data' => $stats,
+                'message' => 'Quiz course IDs synchronized successfully',
+                'timestamp' => current_time('mysql')
+            ], 200);
+
+        } catch (Exception $e) {
+            return new WP_REST_Response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Debug Quiz Relationships
+     * 
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function debug_quiz_relationships($request)
+    {
+        $quiz_id = $request->get_param('quiz_id');
+
+        $debug_data = [
+            'quiz_id' => $quiz_id,
+            'meta' => [
+                '_lesson_id' => get_post_meta($quiz_id, '_lesson_id', true),
+                '_course_ids' => get_post_meta($quiz_id, '_course_ids', true),
+            ],
+            'found_in_lessons' => []
+        ];
+
+        // Search for lessons containing this quiz
+        $all_lessons = get_posts(['post_type' => 'qe_lesson', 'posts_per_page' => -1]);
+
+        foreach ($all_lessons as $lesson) {
+            $steps = get_post_meta($lesson->ID, '_lesson_steps', true);
+
+            // Handle different storage formats
+            if (is_string($steps)) {
+                $decoded = json_decode($steps, true);
+                if (!$decoded)
+                    $decoded = maybe_unserialize($steps);
+                $steps = $decoded;
+            }
+
+            if (is_array($steps)) {
+                foreach ($steps as $step) {
+                    if (isset($step['type']) && $step['type'] === 'quiz') {
+                        $step_quiz_id = isset($step['data']['quiz_id']) ? $step['data']['quiz_id'] : null;
+
+                        // Loose comparison for string/int mismatch
+                        if ($step_quiz_id == $quiz_id) {
+                            $debug_data['found_in_lessons'][] = [
+                                'lesson_id' => $lesson->ID,
+                                'lesson_title' => $lesson->post_title,
+                                'course_id_of_lesson' => get_post_meta($lesson->ID, '_course_id', true)
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
+        return new WP_REST_Response([
+            'success' => true,
+            'data' => $debug_data
+        ], 200);
     }
 
     /**

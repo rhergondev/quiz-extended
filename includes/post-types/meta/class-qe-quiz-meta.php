@@ -218,6 +218,22 @@ class QE_Quiz_Meta
             'sanitize_callback' => [$this, 'sanitize_id_array'],
             'auth_callback' => [$this, 'auth_callback'],
         ]);
+
+        // 🆕 Array de IDs de cursos (derivado de las lecciones)
+        register_post_meta($this->post_type, '_course_ids', [
+            'show_in_rest' => [
+                'schema' => [
+                    'description' => __('Array of course IDs where this quiz appears (derived from lessons)', 'quiz-extended'),
+                    'type' => 'array',
+                    'items' => ['type' => 'integer'],
+                ]
+            ],
+            'single' => true,
+            'type' => 'array',
+            'description' => __('Courses containing this quiz (via lessons)', 'quiz-extended'),
+            'sanitize_callback' => [$this, 'sanitize_id_array'],
+            'auth_callback' => [$this, 'auth_callback'],
+        ]);
     }
 
     /**

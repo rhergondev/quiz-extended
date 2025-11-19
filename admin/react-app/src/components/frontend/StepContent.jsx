@@ -294,10 +294,13 @@ const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId, onOpenR
           return <QuizStartConfirmation quiz={quizInfo} onStartQuiz={() => setQuizStarted(true)} />;
         }
         
+        console.log('🔍 Rendering Quiz component:', { quizId, lessonId: lesson?.id, lesson });
+
         // Pasar información de progreso al Quiz para que pueda marcar como completado
         return (
           <Quiz 
             quizId={quizId}
+            lessonId={lesson?.id || lesson?.ID}
             onQuizStateChange={(state) => {
               setQuizState(state); // Track internally
             }}

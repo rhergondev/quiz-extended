@@ -112,6 +112,14 @@ class QE_Admin_Menu
 
         add_submenu_page(
             'quiz-extended-lms',
+            __('Migrations', 'quiz-extended'),
+            __('Migrations', 'quiz-extended'),
+            'manage_options',
+            'admin.php?page=quiz-extended-lms#/migrations'
+        );
+
+        add_submenu_page(
+            'quiz-extended-lms',
             __('Settings', 'quiz-extended'),
             __('Settings', 'quiz-extended'),
             'manage_options',

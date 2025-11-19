@@ -24,39 +24,8 @@ const CoursePageTemplate = ({ courseId, courseName, sectionName, children }) => 
         className="flex-1 flex flex-col h-full w-full overflow-hidden"
         style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}
       >
-        {/* Breadcrumbs Header */}
-        <header className="px-6 py-3 border-b flex-shrink-0" style={{ borderBottomColor: `${getColor('primary', '#1a202c')}20`, borderBottomWidth: '1px' }}>
-          <nav className="flex items-center text-sm space-x-2">
-            <Link 
-              to="/courses"
-              className="transition-colors duration-200 hover:underline"
-              style={{ color: getColor('primary', '#1a202c') }}
-            >
-              {t('sidebar.studyPlanner')}
-            </Link>
-            
-            <ChevronRight size={16} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
-            
-            <Link 
-              to={`/courses/${courseId}/dashboard`}
-              className="transition-colors duration-200 hover:underline"
-              style={{ color: getColor('primary', '#1a202c') }}
-              dangerouslySetInnerHTML={{ __html: courseName }}
-            />
-            
-            <ChevronRight size={16} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
-            
-            <span 
-              className="font-medium"
-              style={{ color: getColor('primary', '#1a202c') }}
-            >
-              {sectionName}
-            </span>
-          </nav>
-        </header>
-
-        {/* Page Content */}
-        <main className="flex-1 w-full h-0 overflow-hidden">
+        {/* Page Content - Sin breadcrumbs header */}
+        <main className="flex-1 w-full h-full overflow-hidden">
           {children}
         </main>
       </div>

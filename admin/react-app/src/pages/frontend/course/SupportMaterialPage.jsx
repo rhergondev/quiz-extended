@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
 import useCourse from '../../../hooks/useCourse';
@@ -389,19 +389,43 @@ const SupportMaterialPage = () => {
         >
           {selectedPDF && (
             <div className="h-full flex flex-col w-full overflow-hidden">
-              {/* Header - más compacto */}
+              {/* Header Compacto con Breadcrumbs Integrados */}
               <div 
-                className="flex items-center justify-between px-4 py-2.5 border-b flex-shrink-0"
+                className="flex items-center justify-between px-4 py-1.5 border-b flex-shrink-0"
                 style={{ 
                   backgroundColor: getColor('background', '#ffffff'),
                   borderColor: `${getColor('primary', '#1a202c')}15` 
                 }}
               >
-                <div className="flex items-center gap-2.5">
-                  <FileText size={20} style={{ color: getColor('primary', '#1a202c') }} />
-                  <h2 className="text-base font-semibold" style={{ color: getColor('primary', '#1a202c') }}>
-                    {selectedPDF.title}
-                  </h2>
+                <div className="flex flex-col gap-1">
+                  {/* Breadcrumbs compactos */}
+                  <nav className="flex items-center text-xs space-x-1.5">
+                    <Link 
+                      to="/courses"
+                      className="transition-colors duration-200 hover:underline font-medium"
+                      style={{ color: getColor('primary', '#1a202c') }}
+                    >
+                      {t('sidebar.studyPlanner')}
+                    </Link>
+                    <ChevronRight size={12} style={{ color: `${getColor('primary', '#1a202c')}50` }} />
+                    <Link 
+                      to={`/courses/${courseId}/dashboard`}
+                      className="transition-colors duration-200 hover:underline font-medium"
+                      style={{ color: getColor('primary', '#1a202c') }}
+                      dangerouslySetInnerHTML={{ __html: courseName }}
+                    />
+                    <ChevronRight size={12} style={{ color: `${getColor('primary', '#1a202c')}50` }} />
+                    <span className="font-medium" style={{ color: `${getColor('primary', '#1a202c')}70` }}>
+                      {t('courses.supportMaterial')}
+                    </span>
+                  </nav>
+                  {/* Título del material */}
+                  <div className="flex items-center gap-2">
+                    <FileText size={18} style={{ color: getColor('primary', '#1a202c') }} />
+                    <h2 className="text-base font-semibold leading-none" style={{ color: getColor('primary', '#1a202c') }}>
+                      {selectedPDF.title}
+                    </h2>
+                  </div>
                 </div>
 
                 {/* Navigation and Complete buttons */}

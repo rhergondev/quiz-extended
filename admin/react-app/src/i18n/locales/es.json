@@ -930,7 +930,10 @@
     "viewDetails": "Ver detalles del intento",
     "viewerPlaceholder": "Interfaz de test en desarrollo",
     "viewerPlaceholderDescription": "Aquí se mostrará la interfaz para realizar el test",
-    "backToInfo": "Volver al Test"
+    "backToInfo": "Volver al Test",
+    "loadingAttemptDetails": "Cargando detalles del intento...",
+    "errorLoadingAttempt": "Error al cargar el intento",
+    "attemptDetails": "Detalles del Intento"
   },
   "navigation": {
     "previous": "Anterior",

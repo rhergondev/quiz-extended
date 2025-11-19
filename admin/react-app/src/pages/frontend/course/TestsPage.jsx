@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useScoreFormat } from '../../../contexts/ScoreFormatContext';
@@ -7,19 +7,25 @@ import useCourse from '../../../hooks/useCourse';
 import useStudentProgress from '../../../hooks/useStudentProgress';
 import useQuizRanking from '../../../hooks/useQuizRanking';
 import useQuizAttempts from '../../../hooks/useQuizAttempts';
+import useQuizAttemptDetails from '../../../hooks/useQuizAttemptDetails';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import Quiz from '../../../components/frontend/Quiz';
 import QuizResults from '../../../components/frontend/QuizResults';
-import { ChevronDown, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, XCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, XCircle, Loader } from 'lucide-react';
 
 const TestsPage = () => {
   const { t } = useTranslation();
   const { courseId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { getColor } = useTheme();
   const { formatScore } = useScoreFormat();
   const { course } = useCourse(courseId);
   const courseName = course?.title?.rendered || course?.title || '';
+  
+  // 🔥 Ref para controlar que la navegación externa solo se procese una vez
+  const hasProcessedNavigation = React.useRef(false);
   
   const [expandedLessons, setExpandedLessons] = useState(new Set());
   const [lessons, setLessons] = useState([]);
@@ -33,6 +39,9 @@ const TestsPage = () => {
   const [resultsQuestions, setResultsQuestions] = useState(null);
   const [resultsQuizInfo, setResultsQuizInfo] = useState(null);
   const [isQuizFocusMode, setIsQuizFocusMode] = useState(false); // 🎯 Focus mode: hide all UI when quiz is running
+  
+  // 🆕 Estado para vista de intento previo
+  const [viewingAttemptId, setViewingAttemptId] = useState(null);
   
   // Drawing mode states for Quiz component
   const [isDrawingMode, setIsDrawingMode] = useState(false);
@@ -59,6 +68,9 @@ const TestsPage = () => {
 
   // Hook para obtener todos los intentos del usuario (solo los últimos 5 ya ordenados)
   const { attempts, loading: attemptsLoading } = useQuizAttempts({ perPage: 5, autoFetch: true });
+
+  // 🆕 Hook para cargar detalles de un intento específico
+  const { details: attemptDetails, loading: attemptDetailsLoading, error: attemptDetailsError } = useQuizAttemptDetails(viewingAttemptId);
 
   // Filtrar intentos de este quiz específico (últimos 5)
   const quizAttempts = useMemo(() => {
@@ -166,6 +178,69 @@ const TestsPage = () => {
     fetchLessons();
   }, [courseId]);
 
+  // Handle navigation from external sources (like TestHistoryPage)
+  useEffect(() => {
+    // 🔥 Si ya procesamos la navegación, no hacer nada
+    if (hasProcessedNavigation.current) return;
+    
+    // Solo ejecutar si hay estado de navegación Y tenemos lecciones cargadas
+    if (!location.state || lessons.length === 0) return;
+    
+    if (location.state?.viewAttemptId) {
+      const quizId = location.state.selectedQuizId;
+      console.log('TestsPage - received navigation state:', location.state);
+      
+      // Find the quiz in lessons
+      for (const lesson of lessons) {
+        const quizStep = lesson.quizSteps?.find(step => step.data?.quiz_id === quizId);
+        if (quizStep) {
+          console.log('TestsPage - found quiz, opening test viewer');
+          // Open the test viewer immediately - skip showing the list
+          setSelectedTest(quizStep);
+          setSelectedLesson(lesson);
+          // Set the viewing attempt ID
+          setViewingAttemptId(location.state.viewAttemptId);
+          // Clear other states
+          setQuizResults(null);
+          setResultsQuestions(null);
+          setResultsQuizInfo(null);
+          setIsQuizRunning(false);
+          setQuizToStart(null);
+          setIsQuizFocusMode(false);
+          setLoading(false);
+          
+          // 🔥 Marcar como procesado
+          hasProcessedNavigation.current = true;
+          break;
+        }
+      }
+    } else if (location.state?.selectedQuizId && location.state?.scrollToQuiz) {
+      const quizId = location.state.selectedQuizId;
+      console.log('TestsPage - scrolling to quiz:', quizId);
+      
+      // Find and open the quiz
+      for (const lesson of lessons) {
+        const quizStep = lesson.quizSteps?.find(step => step.data?.quiz_id === quizId);
+        if (quizStep) {
+          setSelectedTest(quizStep);
+          setSelectedLesson(lesson);
+          setQuizResults(null);
+          setResultsQuestions(null);
+          setResultsQuizInfo(null);
+          setIsQuizRunning(false);
+          setQuizToStart(null);
+          setIsQuizFocusMode(false);
+          setViewingAttemptId(null);
+          setLoading(false);
+          
+          // 🔥 Marcar como procesado
+          hasProcessedNavigation.current = true;
+          break;
+        }
+      }
+    }
+  }, [location.state, lessons]);
+
   // Create flat array of all quiz steps for navigation
   const allTestSteps = useMemo(() => {
     return lessons.flatMap(lesson => 
@@ -204,11 +279,38 @@ const TestsPage = () => {
   };
 
   const closeTestViewer = () => {
-    setSelectedTest(null);
-    setSelectedLesson(null);
+    // 🔥 Si venimos de navegación externa y hay una ruta de retorno, navegar ahí
+    if (location.state?.returnTo) {
+      navigate(location.state.returnTo);
+    } else {
+      // Comportamiento normal: cerrar el viewer
+      setSelectedTest(null);
+      setSelectedLesson(null);
+      setIsQuizRunning(false);
+      setQuizToStart(null);
+      setIsQuizFocusMode(false);
+      setViewingAttemptId(null);
+    }
+  };
+
+  // 🆕 Handler para abrir vista de intento previo
+  const handleViewAttemptDetails = (attemptId) => {
+    setViewingAttemptId(attemptId);
     setIsQuizRunning(false);
     setQuizToStart(null);
-    setIsQuizFocusMode(false); // 🎯 Deactivate focus mode
+    setQuizResults(null);
+    setIsQuizFocusMode(false);
+  };
+
+  // 🆕 Handler para volver desde vista de intento previo
+  const handleBackFromAttemptView = () => {
+    // 🔥 Si venimos de navegación externa con viewAttemptId, volver a la ruta de origen
+    if (location.state?.returnTo && location.state?.viewAttemptId) {
+      navigate(location.state.returnTo);
+    } else {
+      // Comportamiento normal: solo limpiar el viewingAttemptId
+      setViewingAttemptId(null);
+    }
   };
 
   const handleQuizComplete = async (result, questions, quizInfo) => {
@@ -331,6 +433,9 @@ const TestsPage = () => {
   const hasPrevious = currentIndex > 0;
   const hasNext = currentIndex < allTestSteps.length - 1;
 
+  // Check if we're coming from external navigation
+  const isExternalNavigation = !!(location.state?.viewAttemptId || location.state?.selectedQuizId);
+
   return (
     <>
     <CoursePageTemplate
@@ -340,14 +445,15 @@ const TestsPage = () => {
     >
       <div className="relative h-full">
         {/* Main Content - Lista de tests */}
-        <div 
-          className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
-            selectedTest ? '-translate-x-full' : 'translate-x-0'
-          }`}
-        >
-          <div className="h-full overflow-y-auto">
-            <div className="max-w-5xl mx-auto px-4 py-6">
-            {loading ? (
+        {!isExternalNavigation && (
+          <div 
+            className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
+              selectedTest ? '-translate-x-full' : 'translate-x-0'
+            }`}
+          >
+            <div className="h-full overflow-y-auto">
+              <div className="max-w-5xl mx-auto px-4 py-6">
+              {loading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map(i => (
                   <div key={i} className="rounded-lg p-4 animate-pulse" style={{ backgroundColor: getColor('background', '#ffffff') }}>
@@ -558,7 +664,8 @@ const TestsPage = () => {
             )}
             </div>
           </div>
-        </div>
+          </div>
+        )}
 
         {/* Test Viewer - Slides from right */}
         <div 
@@ -569,19 +676,43 @@ const TestsPage = () => {
         >
           {selectedTest && (
             <div className="h-full flex flex-col">
-              {/* Header */}
+              {/* Header Compacto con Breadcrumbs Integrados */}
               <div 
-                className="flex items-center justify-between px-4 py-2.5 border-b flex-shrink-0"
+                className="flex items-center justify-between px-4 py-1.5 border-b flex-shrink-0"
                 style={{ 
                   backgroundColor: getColor('background', '#ffffff'),
                   borderColor: `${getColor('primary', '#1a202c')}15` 
                 }}
               >
-                <div className="flex items-center gap-2.5">
-                  <ClipboardList size={20} style={{ color: getColor('primary', '#1a202c') }} />
-                  <h2 className="text-base font-semibold" style={{ color: getColor('primary', '#1a202c') }}>
-                    {selectedTest.title}
-                  </h2>
+                <div className="flex flex-col gap-1">
+                  {/* Breadcrumbs compactos */}
+                  <nav className="flex items-center text-xs space-x-1.5">
+                    <Link 
+                      to="/courses"
+                      className="transition-colors duration-200 hover:underline font-medium"
+                      style={{ color: getColor('primary', '#1a202c') }}
+                    >
+                      {t('sidebar.studyPlanner')}
+                    </Link>
+                    <ChevronRight size={12} style={{ color: `${getColor('primary', '#1a202c')}50` }} />
+                    <Link 
+                      to={`/courses/${courseId}/dashboard`}
+                      className="transition-colors duration-200 hover:underline font-medium"
+                      style={{ color: getColor('primary', '#1a202c') }}
+                      dangerouslySetInnerHTML={{ __html: courseName }}
+                    />
+                    <ChevronRight size={12} style={{ color: `${getColor('primary', '#1a202c')}50` }} />
+                    <span className="font-medium" style={{ color: `${getColor('primary', '#1a202c')}70` }}>
+                      {t('courses.tests')}
+                    </span>
+                  </nav>
+                  {/* Título del test */}
+                  <div className="flex items-center gap-2">
+                    <ClipboardList size={18} style={{ color: getColor('primary', '#1a202c') }} />
+                    <h2 className="text-base font-semibold leading-none" style={{ color: getColor('primary', '#1a202c') }}>
+                      {selectedTest.title}
+                    </h2>
+                  </div>
                 </div>
 
                 {/* Navigation buttons */}
@@ -684,7 +815,83 @@ const TestsPage = () => {
 
               {/* Test Content */}
               <div className="flex-1 overflow-y-auto">
-                {!isQuizRunning && !quizResults ? (
+                {viewingAttemptId ? (
+                  // 🆕 NUEVO: Mostrar detalles de intento previo
+                  attemptDetailsLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center">
+                        <Loader className="w-12 h-12 mx-auto mb-4 animate-spin" style={{ color: getColor('primary', '#1a202c') }} />
+                        <p className="text-lg font-medium" style={{ color: getColor('primary', '#1a202c') }}>
+                          {t('tests.loadingAttemptDetails')}
+                        </p>
+                      </div>
+                    </div>
+                  ) : attemptDetailsError ? (
+                    <div className="flex items-center justify-center h-full p-8">
+                      <div 
+                        className="text-center p-6 rounded-lg border-2"
+                        style={{
+                          backgroundColor: '#fef2f2',
+                          borderColor: '#ef4444'
+                        }}
+                      >
+                        <XCircle className="w-12 h-12 mx-auto mb-4" style={{ color: '#ef4444' }} />
+                        <p className="text-lg font-medium mb-2" style={{ color: '#ef4444' }}>
+                          {t('tests.errorLoadingAttempt')}
+                        </p>
+                        <p className="text-sm" style={{ color: '#6b7280' }}>
+                          {attemptDetailsError}
+                        </p>
+                        <button
+                          onClick={handleBackFromAttemptView}
+                          className="mt-4 px-4 py-2 rounded-lg font-medium"
+                          style={{
+                            backgroundColor: getColor('primary', '#1a202c'),
+                            color: '#ffffff'
+                          }}
+                        >
+                          {t('common.back')}
+                        </button>
+                      </div>
+                    </div>
+                  ) : attemptDetails ? (
+                    <div className="h-full flex flex-col relative">
+                      {/* Botón flotante de volver - posición absoluta */}
+                      <button
+                        onClick={handleBackFromAttemptView}
+                        className="absolute top-4 left-4 z-10 p-2 rounded-full shadow-lg transition-all"
+                        style={{ 
+                          backgroundColor: getColor('background', '#ffffff'),
+                          border: `2px solid ${getColor('primary', '#1a202c')}15`
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = getColor('primary', '#1a202c');
+                          e.currentTarget.querySelector('svg').style.color = '#ffffff';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = getColor('background', '#ffffff');
+                          e.currentTarget.querySelector('svg').style.color = getColor('primary', '#1a202c');
+                        }}
+                        title={t('common.back')}
+                      >
+                        <ChevronLeft size={24} style={{ color: getColor('primary', '#1a202c') }} />
+                      </button>
+                      
+                      {/* Renderizar QuizResults - h-full para ocupar todo el espacio */}
+                      <div className="h-full overflow-hidden">
+                        <QuizResults
+                          result={{
+                            ...attemptDetails.attempt,
+                            detailed_results: attemptDetails.detailed_results
+                          }}
+                          quizTitle={attemptDetails.attempt.quizTitle || selectedTest?.title}
+                          questions={attemptDetails.questions}
+                          noPadding={true}
+                        />
+                      </div>
+                    </div>
+                  ) : null
+                ) : !isQuizRunning && !quizResults ? (
                   // Mostrar info del test
                   <div className="max-w-4xl mx-auto py-8 px-8">
                   {/* Estadísticas del Test - Solo si el usuario tiene nota */}
@@ -1155,7 +1362,7 @@ const TestsPage = () => {
                           const percentileWithRisk = calculatePercentile(attempt.score_with_risk || 0, true);
                           
                           return (
-                            <div key={attempt.id || index}>
+                            <div key={attempt.attempt_id || attempt.id || index}>
                               <div className="px-6 py-4 grid grid-cols-5 gap-4 items-center">
                                 {/* Fecha */}
                                 <div className="flex items-center gap-2">
@@ -1217,6 +1424,10 @@ const TestsPage = () => {
                                 {/* Detalles */}
                                 <div className="flex justify-end">
                                   <button
+                                    onClick={() => {
+                                      const attemptId = attempt.attempt_id || attempt.id;
+                                      handleViewAttemptDetails(attemptId);
+                                    }}
                                     className="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm"
                                     style={{ 
                                       backgroundColor: `${getColor('primary', '#1a202c')}10`,
@@ -1259,6 +1470,7 @@ const TestsPage = () => {
                   quizToStart && (
                     <Quiz
                       quizId={quizToStart.id}
+                      lessonId={selectedLesson?.id}
                       onQuizComplete={handleQuizComplete}
                       isDrawingMode={isDrawingMode}
                       setIsDrawingMode={setIsDrawingMode}
@@ -1274,31 +1486,36 @@ const TestsPage = () => {
                   )
                 ) : (
                   // Mostrar resultados
-                  <div className="h-full">
-                    <QuizResults
-                      result={quizResults}
-                      quizTitle={resultsQuizInfo?.title?.rendered || resultsQuizInfo?.title || selectedTest?.data?.title}
-                      questions={resultsQuestions}
-                    />
-                    <div className="absolute bottom-0 left-0 right-0 p-6 flex justify-center" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
-                      <button
-                        onClick={handleCloseResults}
-                        className="px-6 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg"
-                        style={{
-                          backgroundColor: getColor('primary', '#1a202c'),
-                          color: '#ffffff'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.opacity = '0.9';
-                          e.currentTarget.style.transform = 'scale(1.02)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.opacity = '1';
-                          e.currentTarget.style.transform = 'scale(1)';
-                        }}
-                      >
-                        {t('tests.backToInfo')}
-                      </button>
+                  <div className="h-full flex flex-col relative">
+                    {/* Botón flotante de volver */}
+                    <button
+                      onClick={handleCloseResults}
+                      className="absolute top-4 left-4 z-10 p-2 rounded-full shadow-lg transition-all"
+                      style={{ 
+                        backgroundColor: getColor('background', '#ffffff'),
+                        border: `2px solid ${getColor('primary', '#1a202c')}15`
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = getColor('primary', '#1a202c');
+                        e.currentTarget.querySelector('svg').style.color = '#ffffff';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = getColor('background', '#ffffff');
+                        e.currentTarget.querySelector('svg').style.color = getColor('primary', '#1a202c');
+                      }}
+                      title={t('tests.backToInfo')}
+                    >
+                      <ChevronLeft size={24} style={{ color: getColor('primary', '#1a202c') }} />
+                    </button>
+                    
+                    {/* QuizResults sin padding para ocupar todo el espacio */}
+                    <div className="h-full overflow-hidden">
+                      <QuizResults
+                        result={quizResults}
+                        quizTitle={resultsQuizInfo?.title?.rendered || resultsQuizInfo?.title || selectedTest?.data?.title}
+                        questions={resultsQuestions}
+                        noPadding={true}
+                      />
                     </div>
                   </div>
                 )}
@@ -1317,9 +1534,10 @@ const TestsPage = () => {
           backgroundColor: getColor('background', '#ffffff')
         }}
       >
-        <div className="w-full h-full overflow-auto pt-8 pb-8 px-4">
+        <div className="w-full h-full overflow-hidden">
           <Quiz
             quizId={quizToStart.id}
+            lessonId={selectedLesson?.id}
             onQuizComplete={handleQuizComplete}
             isDrawingMode={isDrawingMode}
             setIsDrawingMode={setIsDrawingMode}
