@@ -45,7 +45,8 @@
     "easy": "Easy",
     "medium": "Medium",
     "hard": "Hard",
-    "featureComingSoon": "Feature coming soon!"
+    "featureComingSoon": "Feature coming soon!",
+    "found": "found"
   },
   "errors": {
     "fetchQuiz": "Failed to load quiz data.",
@@ -933,7 +934,10 @@
     "backToInfo": "Back to Test",
     "loadingAttemptDetails": "Loading attempt details...",
     "errorLoadingAttempt": "Error loading attempt",
-    "attemptDetails": "Attempt Details"
+    "attemptDetails": "Attempt Details",
+    "searchPlaceholder": "Search tests...",
+    "noTestsFound": "No tests found",
+    "tryDifferentSearch": "Try a different search"
   },
   "navigation": {
     "previous": "Previous",

@@ -6,7 +6,7 @@ import useCourse from '../../../hooks/useCourse';
 import useStudentProgress from '../../../hooks/useStudentProgress';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
-import { ChevronDown, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award } from 'lucide-react';
+import { Search, ClipboardList, CheckCircle, Circle, Clock, Award, Play, Filter, Target, Calendar } from 'lucide-react';
 
 const TestBrowserPage = () => {
   const { t } = useTranslation();
@@ -16,9 +16,9 @@ const TestBrowserPage = () => {
   const { course } = useCourse(courseId);
   const courseName = course?.title?.rendered || course?.title || '';
   
-  const [expandedLessons, setExpandedLessons] = useState(new Set());
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Hook para manejar el progreso del estudiante
   const { 
@@ -72,219 +72,263 @@ const TestBrowserPage = () => {
     fetchLessons();
   }, [courseId]);
 
-  const toggleLesson = (lessonId) => {
-    setExpandedLessons(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(lessonId)) {
-        newSet.delete(lessonId);
-      } else {
-        newSet.add(lessonId);
-      }
-      return newSet;
-    });
-  };
-
-  const handleStartTest = (step, lesson) => {
-    // Encontrar el índice original del step en la lección completa (no solo quizzes)
-    const originalStepIndex = (lesson.meta?._lesson_steps || []).findIndex(s => 
-      s.type === step.type && s.title === step.title && JSON.stringify(s.data) === JSON.stringify(step.data)
+  // Flatten all tests from lessons
+  const allTests = useMemo(() => {
+    return lessons.flatMap(lesson => 
+      lesson.quizSteps.map(step => ({
+        ...step,
+        lessonTitle: lesson.title?.rendered || lesson.title,
+        lessonId: lesson.id,
+        originalStepIndex: (lesson.meta?._lesson_steps || []).findIndex(s => 
+          s.type === step.type && s.title === step.title && JSON.stringify(s.data) === JSON.stringify(step.data)
+        )
+      }))
     );
-    
-    // Navegar a CourseLessonsPage con el step específico seleccionado
-    navigate(`/courses/${courseId}/lessons`, {
+  }, [lessons]);
+
+  // Filter tests based on search term
+  const filteredTests = useMemo(() => {
+    if (!searchTerm) return allTests;
+    const lowerTerm = searchTerm.toLowerCase();
+    return allTests.filter(test => 
+      test.title.toLowerCase().includes(lowerTerm) || 
+      test.lessonTitle?.toLowerCase().includes(lowerTerm)
+    );
+  }, [allTests, searchTerm]);
+
+  const handleStartTest = (test) => {
+    // Navegar a TestsPage con el quiz seleccionado
+    // Usamos la ruta /tests que configuraremos en FrontendApp
+    navigate(`/courses/${courseId}/tests`, {
       state: {
-        selectedLessonId: lesson.id,
-        selectedStepIndex: originalStepIndex
+        selectedQuizId: test.data?.quiz_id,
+        scrollToQuiz: true
       }
     });
   };
 
   // Check if a quiz step is completed
-  const isQuizCompleted = (lesson, stepIndex) => {
-    return isCompleted(lesson.id, 'step', lesson.id, stepIndex);
+  const isQuizCompleted = (lessonId, stepIndex) => {
+    return isCompleted(lessonId, 'step', lessonId, stepIndex);
   };
 
   return (
     <CoursePageTemplate
       courseId={courseId}
       courseName={courseName}
-      sectionName={t('courses.tests')}
+      sectionName={t('courses.testBrowser')}
     >
-      <div className="relative h-full">
-        {/* Main Content - Lista de tests */}
-        <div className="absolute inset-0">
-          <div className="max-w-5xl mx-auto h-full overflow-y-auto px-4">
+      <div className="relative h-full flex flex-col">
+        {/* Search Header */}
+        <div 
+          className="px-6 py-4 border-b flex-shrink-0"
+          style={{ 
+            backgroundColor: getColor('background', '#ffffff'),
+            borderColor: `${getColor('primary', '#1a202c')}15`
+          }}
+        >
+          <div className="max-w-5xl mx-auto w-full">
+            <div className="relative">
+              <Search 
+                className="absolute left-3 top-1/2 transform -translate-y-1/2" 
+                size={20} 
+                style={{ color: `${getColor('primary', '#1a202c')}60` }} 
+              />
+              <input
+                type="text"
+                placeholder={t('tests.searchPlaceholder') || "Buscar tests..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 rounded-lg border focus:outline-none focus:ring-2 transition-all"
+                style={{ 
+                  backgroundColor: `${getColor('secondaryBackground', '#f3f4f6')}`,
+                  borderColor: 'transparent',
+                  color: getColor('textPrimary', '#1a202c')
+                }}
+              />
+            </div>
+            <div className="mt-2 flex items-center justify-between text-sm">
+              <span style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                {filteredTests.length} {filteredTests.length === 1 ? t('tests.test') : t('tests.tests')} {t('common.found')}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content - Lista plana de tests */}
+        <div className="flex-1 overflow-y-auto bg-gray-50" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
+          <div className="max-w-5xl mx-auto px-6 py-6">
             {loading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="rounded-lg p-4 animate-pulse" style={{ backgroundColor: getColor('background', '#ffffff') }}>
-                    <div className="h-6 rounded" style={{ backgroundColor: `${getColor('primary', '#1a202c')}20`, width: '60%' }}></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="rounded-lg p-6 animate-pulse h-32" style={{ backgroundColor: getColor('background', '#ffffff') }}>
+                    <div className="h-6 rounded mb-4" style={{ backgroundColor: `${getColor('primary', '#1a202c')}10`, width: '70%' }}></div>
+                    <div className="h-4 rounded" style={{ backgroundColor: `${getColor('primary', '#1a202c')}05`, width: '40%' }}></div>
                   </div>
                 ))}
               </div>
-            ) : lessons.length === 0 ? (
+            ) : filteredTests.length === 0 ? (
               <div className="text-center py-12 rounded-lg" style={{ backgroundColor: getColor('background', '#ffffff') }}>
-                <ClipboardList size={48} className="mx-auto mb-4" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
+                <Filter size={48} className="mx-auto mb-4" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
                 <p className="text-lg font-medium" style={{ color: getColor('primary', '#1a202c') }}>
-                  {t('tests.noTests')}
+                  {t('tests.noTestsFound')}
                 </p>
                 <p className="text-sm mt-2" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                  {t('tests.noTestsDescription')}
+                  {t('tests.tryDifferentSearch')}
                 </p>
               </div>
             ) : (
-              <div className="space-y-3 py-4">
-                {lessons.map((lesson) => {
-                  const isExpanded = expandedLessons.has(lesson.id);
-                  const testsCount = lesson.quizSteps.length;
-                  const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
+              // 🎨 Contenedor global con borde único (Estilo lista plana)
+              <div className="py-4">
+                <div 
+                  className="rounded-xl overflow-hidden border-2"
+                  style={{ 
+                    backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
+                    borderColor: getColor('borderColor', '#e5e7eb')
+                  }}
+                >
+                {filteredTests.map((test, index) => {
+                  const isCompleted = isQuizCompleted(test.lessonId, test.originalStepIndex);
+                  const passingScore = test.data?.passing_score || 70;
+                  const timeLimit = test.data?.time_limit || null;
+                  const difficulty = test.data?.difficulty || 'medium';
+                  const startDate = test.data?.start_date || null;
+                  
+                  // Difficulty labels
+                  const difficultyLabels = {
+                    'easy': t('tests.difficultyEasy') || 'Fácil',
+                    'medium': t('tests.difficultyMedium') || 'Medio',
+                    'hard': t('tests.difficultyHard') || 'Difícil'
+                  };
+                  
+                  // Difficulty colors
+                  const difficultyColors = {
+                    'easy': '#10b981',
+                    'medium': '#f59e0b',
+                    'hard': '#ef4444'
+                  };
+
+                  // Format start date
+                  const formatStartDate = (dateString) => {
+                    if (!dateString) return '--/--/----';
+                    try {
+                      const date = new Date(dateString);
+                      return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    } catch (e) {
+                      return '--/--/----';
+                    }
+                  };
 
                   return (
-                    <div 
-                      key={lesson.id}
-                      className="rounded-lg overflow-hidden border transition-all duration-200"
-                      style={{ 
-                        backgroundColor: getColor('background', '#ffffff'),
-                        borderColor: `${getColor('primary', '#1a202c')}20`,
-                        borderWidth: '2px'
-                      }}
-                    >
-                      {/* Lesson Header */}
-                      <button
-                        onClick={() => toggleLesson(lesson.id)}
-                        className="w-full px-8 py-5 flex items-center justify-between transition-all duration-200 hover:bg-opacity-50"
-                        style={{ 
-                          backgroundColor: isExpanded ? `${getColor('primary', '#1a202c')}08` : 'transparent'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isExpanded) {
-                            e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`;
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isExpanded) {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                          }
-                        }}
-                      >
-                        <div className="flex items-center gap-3">
-                          {isExpanded ? (
-                            <ChevronDown size={22} style={{ color: getColor('primary', '#1a202c') }} />
-                          ) : (
-                            <ChevronRight size={22} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
-                          )}
-                          <ClipboardList size={22} style={{ color: getColor('primary', '#1a202c') }} />
-                          <span className="font-semibold text-left text-base" style={{ color: getColor('primary', '#1a202c') }}>
-                            {lessonTitle}
-                          </span>
-                        </div>
-                        <span 
-                          className="text-sm font-medium px-3 py-1 rounded-full"
-                          style={{ 
-                            backgroundColor: `${getColor('primary', '#1a202c')}15`,
-                            color: getColor('primary', '#1a202c')
-                          }}
-                        >
-                          {testsCount} {testsCount === 1 ? t('tests.test') : t('tests.tests')}
-                        </span>
-                      </button>
-
-                      {/* Quiz Steps */}
-                      {isExpanded && (
+                    <div key={`${test.lessonId}-${index}`}>
+                      {/* Separador horizontal (excepto el primero) */}
+                      {index > 0 && (
                         <div 
-                          className="border-t"
-                          style={{ borderColor: `${getColor('primary', '#1a202c')}10` }}
-                        >
-                          {lesson.quizSteps.map((step, index) => {
-                            const originalStepIndex = (lesson.meta?._lesson_steps || []).findIndex(s => 
-                              s.type === step.type && s.title === step.title && JSON.stringify(s.data) === JSON.stringify(step.data)
-                            );
-                            const isCompleted = isQuizCompleted(lesson, originalStepIndex);
-                            const passingScore = step.data?.passing_score || 70;
-                            const timeLimit = step.data?.time_limit || null;
-                            
-                            return (
-                              <div
-                                key={step.id || index}
-                                className="px-8 py-4 flex items-center justify-between transition-all duration-200"
+                          className="mx-6"
+                          style={{ 
+                            height: '1px', 
+                            backgroundColor: 'rgba(156, 163, 175, 0.2)'
+                          }}
+                        />
+                      )}
+
+                      <div 
+                        className="px-6 py-4 flex items-center justify-between transition-all duration-200"
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <div className="flex items-center gap-3 flex-1">
+                          {/* Status Icon */}
+                          {isCompleted ? (
+                            <CheckCircle size={18} style={{ color: '#10b981' }} />
+                          ) : (
+                            <Circle size={18} style={{ color: getColor('textSecondary', '#6b7280') }} />
+                          )}
+
+                          <div className="flex flex-col flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium mb-0.5" style={{ color: getColor('textPrimary', '#1f2937') }}>
+                                {test.title}
+                              </span>
+                              {/* Lesson Badge for context in flat list */}
+                              <span 
+                                className="text-[10px] px-1.5 py-0.5 rounded border"
                                 style={{ 
-                                  backgroundColor: index % 2 === 0 ? `${getColor('primary', '#1a202c')}03` : 'transparent',
-                                  borderBottom: index < lesson.quizSteps.length - 1 ? `1px solid ${getColor('primary', '#1a202c')}10` : 'none'
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}08`;
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = index % 2 === 0 ? `${getColor('primary', '#1a202c')}03` : 'transparent';
+                                  color: getColor('textSecondary', '#6b7280'),
+                                  borderColor: `${getColor('textSecondary', '#6b7280')}30`
                                 }}
                               >
-                                <div className="flex items-center gap-3 flex-1">
-                                  {isCompleted ? (
-                                    <CheckCircle size={18} style={{ color: '#10b981' }} />
-                                  ) : (
-                                    <Circle size={18} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
-                                  )}
-                                  <div className="flex flex-col flex-1">
-                                    <span className="text-sm font-medium" style={{ color: getColor('primary', '#1a202c') }}>
-                                      {step.title}
-                                    </span>
-                                    <div className="flex items-center gap-4 mt-1">
-                                      {timeLimit && (
-                                        <div className="flex items-center gap-1">
-                                          <Clock size={12} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
-                                          <span className="text-xs" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                                            {timeLimit} min
-                                          </span>
-                                        </div>
-                                      )}
-                                      <div className="flex items-center gap-1">
-                                        <Award size={12} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
-                                        <span className="text-xs" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                                          {t('tests.passingScore')}: {passingScore}%
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={() => handleStartTest(step, lesson)}
-                                  className="p-2.5 rounded-lg transition-all duration-200 flex items-center gap-2"
-                                  style={{ 
-                                    backgroundColor: isCompleted 
-                                      ? `${getColor('primary', '#1a202c')}` 
-                                      : `${getColor('primary', '#1a202c')}10`
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
-                                    e.currentTarget.style.transform = 'scale(1.05)';
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = isCompleted 
-                                      ? `${getColor('primary', '#1a202c')}` 
-                                      : `${getColor('primary', '#1a202c')}10`;
-                                    e.currentTarget.style.transform = 'scale(1)';
-                                  }}
-                                  title={isCompleted ? t('tests.retake') : t('tests.start')}
-                                >
-                                  <ClipboardList 
-                                    size={18} 
-                                    style={{ color: isCompleted ? '#ffffff' : getColor('primary', '#1a202c') }} 
-                                  />
-                                  <span 
-                                    className="text-sm font-medium" 
-                                    style={{ color: isCompleted ? '#ffffff' : getColor('primary', '#1a202c') }}
-                                  >
-                                    {isCompleted ? t('tests.retake') : t('tests.start')}
-                                  </span>
-                                </button>
+                                {test.lessonTitle}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-3 mt-1">
+                              {/* Dificultad */}
+                              <div 
+                                className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+                                style={{ 
+                                  backgroundColor: `${difficultyColors[difficulty]}15`,
+                                }}
+                              >
+                                <Target size={12} style={{ color: difficultyColors[difficulty] }} />
+                                <span className="text-xs font-medium" style={{ color: difficultyColors[difficulty] }}>
+                                  {difficultyLabels[difficulty]}
+                                </span>
                               </div>
-                            );
-                          })}
+                              
+                              {/* Tiempo límite */}
+                              {timeLimit && (
+                                <div className="flex items-center gap-1">
+                                  <Clock size={12} style={{ color: getColor('textSecondary', '#6b7280') }} />
+                                  <span className="text-xs" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                    {timeLimit} min
+                                  </span>
+                                </div>
+                              )}
+                              
+                              {/* Fecha de inicio */}
+                              <div className="flex items-center gap-1">
+                                <Calendar size={12} style={{ color: getColor('textSecondary', '#6b7280') }} />
+                                <span className="text-xs" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                  {formatStartDate(startDate)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      )}
+
+                        {/* Action Button */}
+                        <button
+                          onClick={() => handleStartTest(test)}
+                          className="px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 font-medium text-sm ml-4"
+                          style={{ 
+                            backgroundColor: isCompleted 
+                              ? getColor('primary', '#1a202c')
+                              : `${getColor('primary', '#1a202c')}10`,
+                            color: isCompleted ? '#ffffff' : getColor('primary', '#1a202c')
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                            if (!isCompleted) {
+                              e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}15`;
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'scale(1)';
+                            if (!isCompleted) {
+                              e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                            }
+                          }}
+                          title={isCompleted ? t('tests.retake') : t('tests.start')}
+                        >
+                          <Play size={16} />
+                          <span>{isCompleted ? t('tests.retake') : t('tests.start')}</span>
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
+                </div>
               </div>
             )}
           </div>

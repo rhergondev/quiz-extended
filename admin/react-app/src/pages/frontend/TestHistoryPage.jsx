@@ -90,7 +90,7 @@ const TestHistoryPage = () => {
 
   const handleViewQuiz = (attempt, e) => {
     e.stopPropagation();
-    navigate(`/courses/${courseId}/test-browser`, {
+    navigate(`/courses/${courseId}/tests`, {
       state: { 
         selectedQuizId: parseInt(attempt.quiz_id),
         scrollToQuiz: true,
@@ -101,7 +101,7 @@ const TestHistoryPage = () => {
 
   const handleViewDetails = (attempt, e) => {
     e.stopPropagation();
-    navigate(`/courses/${courseId}/test-browser`, {
+    navigate(`/courses/${courseId}/tests`, {
       state: { 
         selectedQuizId: parseInt(attempt.quiz_id),
         viewAttemptId: parseInt(attempt.attempt_id),

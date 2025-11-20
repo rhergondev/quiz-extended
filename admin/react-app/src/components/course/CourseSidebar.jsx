@@ -57,7 +57,7 @@ const CourseSidebar = () => {
 
     if (stepsByType.quiz?.total > 0) {
       items.push({ 
-        to: `/courses/${courseId}/test-browser`, 
+        to: `/courses/${courseId}/tests`, 
         text: t('courses.tests'), 
         icon: ClipboardList,
         badge: `${stepsByType.quiz.completed}/${stepsByType.quiz.total}`

@@ -70,7 +70,8 @@ function FrontendApp() {
               {/* Course Test Routes */}
               <Route path="courses/:courseId/test-generator" element={<QuizGeneratorPage />} />
               <Route path="courses/:courseId/self-paced-tests" element={<SelfPacedTestsPage />} />
-              <Route path="courses/:courseId/test-browser" element={<TestsPage />} />
+              <Route path="courses/:courseId/tests" element={<TestsPage />} />
+              <Route path="courses/:courseId/test-browser" element={<TestBrowserPage />} />
               <Route path="courses/:courseId/test-history" element={<TestHistoryPage />} />
               
               {/* Global Routes */}

@@ -208,8 +208,11 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 $questions_data[$post->ID] = [
                     'id' => $post->ID,
                     'title' => get_the_title($post->ID),
+                    'content' => $post->post_content, // Include content (explanation)
                     'meta' => [ // Replicamos la estructura que el frontend espera
                         '_question_options' => get_post_meta($post->ID, '_question_options', true),
+                        '_explanation' => get_post_meta($post->ID, '_explanation', true), // Include explanation meta
+                        '_question_type' => get_post_meta($post->ID, '_question_type', true), // Include type
                     ],
                 ];
             }

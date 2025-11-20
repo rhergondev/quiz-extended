@@ -45,7 +45,8 @@
     "easy": "Fácil",
     "medium": "Medio",
     "hard": "Difícil",
-    "featureComingSoon": "Funcionalidad próximamente disponible."
+    "featureComingSoon": "Funcionalidad próximamente disponible.",
+    "found": "encontrados"
   },
   "errors": {
     "fetchQuiz": "Error al cargar los datos del cuestionario.",
@@ -933,7 +934,10 @@
     "backToInfo": "Volver al Test",
     "loadingAttemptDetails": "Cargando detalles del intento...",
     "errorLoadingAttempt": "Error al cargar el intento",
-    "attemptDetails": "Detalles del Intento"
+    "attemptDetails": "Detalles del Intento",
+    "searchPlaceholder": "Buscar tests...",
+    "noTestsFound": "No se encontraron tests",
+    "tryDifferentSearch": "Intenta una búsqueda diferente"
   },
   "navigation": {
     "previous": "Anterior",
