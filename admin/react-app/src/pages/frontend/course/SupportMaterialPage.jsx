@@ -275,7 +275,7 @@ const SupportMaterialPage = () => {
                         {/* Lesson Header */}
                         <button
                           onClick={() => toggleLesson(lesson.id)}
-                          className="w-full px-6 py-4 flex items-center justify-between transition-all duration-200"
+                          className="w-full px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-200"
                           style={{ 
                             backgroundColor: isExpanded ? `${getColor('primary', '#1a202c')}08` : 'transparent'
                           }}
@@ -290,25 +290,25 @@ const SupportMaterialPage = () => {
                             }
                           }}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 overflow-hidden">
                             {isExpanded ? (
-                              <ChevronDown size={20} style={{ color: getColor('primary', '#1a202c') }} />
+                              <ChevronDown size={20} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
                             ) : (
-                              <ChevronRight size={20} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
+                              <ChevronRight size={20} style={{ color: `${getColor('primary', '#1a202c')}60` }} className="flex-shrink-0" />
                             )}
-                            <FileText size={20} style={{ color: getColor('primary', '#1a202c') }} />
-                            <span className="font-semibold text-left" style={{ color: getColor('primary', '#1a202c') }}>
+                            <FileText size={20} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
+                            <span className="font-semibold text-left truncate" style={{ color: getColor('primary', '#1a202c') }}>
                               {lessonTitle}
                             </span>
                           </div>
                           <span 
-                            className="text-sm font-medium px-3 py-1 rounded-full"
+                            className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full flex-shrink-0 ml-2"
                             style={{ 
                               backgroundColor: `${getColor('primary', '#1a202c')}15`,
                               color: getColor('primary', '#1a202c')
                             }}
                           >
-                            {materialCount} {materialCount === 1 ? t('supportMaterial.document') : t('supportMaterial.documents')}
+                            {materialCount} <span className="hidden sm:inline">{materialCount === 1 ? t('supportMaterial.document') : t('supportMaterial.documents')}</span>
                           </span>
                         </button>
 
@@ -327,16 +327,16 @@ const SupportMaterialPage = () => {
                                     }}
                                   />
                                   
-                                  <div className="px-6 py-4 flex items-center justify-between transition-all duration-200">
-                                    <div className="flex items-center gap-3 flex-1">
-                                      <File size={18} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
-                                      <span className="text-sm font-medium" style={{ color: getColor('primary', '#1a202c') }}>
+                                  <div className="px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-200">
+                                    <div className="flex items-center gap-3 flex-1 mr-2">
+                                      <File size={18} style={{ color: `${getColor('primary', '#1a202c')}60` }} className="flex-shrink-0" />
+                                      <span className="text-sm font-medium line-clamp-2" style={{ color: getColor('primary', '#1a202c') }}>
                                         {step.title}
                                       </span>
                                     </div>
                                     <button
                                       onClick={() => handleOpenPDF(step, lesson)}
-                                      className="p-2.5 rounded-lg transition-all duration-200 flex items-center gap-2"
+                                      className="p-2.5 rounded-lg transition-all duration-200 flex items-center gap-2 flex-shrink-0"
                                       style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
                                       onMouseEnter={(e) => {
                                         e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
@@ -349,7 +349,7 @@ const SupportMaterialPage = () => {
                                       title={t('supportMaterial.read')}
                                     >
                                       <BookOpen size={18} style={{ color: getColor('primary', '#1a202c') }} />
-                                      <span className="text-sm font-medium" style={{ color: getColor('primary', '#1a202c') }}>
+                                      <span className="text-sm font-medium hidden sm:inline" style={{ color: getColor('primary', '#1a202c') }}>
                                         {t('supportMaterial.read')}
                                       </span>
                                     </button>
@@ -391,15 +391,15 @@ const SupportMaterialPage = () => {
             <div className="h-full flex flex-col w-full overflow-hidden">
               {/* Header Compacto con Breadcrumbs Integrados */}
               <div 
-                className="flex items-center justify-between px-4 py-1.5 border-b flex-shrink-0"
+                className="flex items-center justify-between px-4 py-2 sm:py-1.5 border-b flex-shrink-0 gap-2"
                 style={{ 
                   backgroundColor: getColor('background', '#ffffff'),
                   borderColor: `${getColor('primary', '#1a202c')}15` 
                 }}
               >
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 overflow-hidden">
                   {/* Breadcrumbs compactos */}
-                  <nav className="flex items-center text-xs space-x-1.5">
+                  <nav className="hidden sm:flex items-center text-xs space-x-1.5">
                     <Link 
                       to="/courses"
                       className="transition-colors duration-200 hover:underline font-medium"
@@ -421,15 +421,15 @@ const SupportMaterialPage = () => {
                   </nav>
                   {/* Título del material */}
                   <div className="flex items-center gap-2">
-                    <FileText size={18} style={{ color: getColor('primary', '#1a202c') }} />
-                    <h2 className="text-base font-semibold leading-none" style={{ color: getColor('primary', '#1a202c') }}>
+                    <FileText size={18} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
+                    <h2 className="text-sm sm:text-base font-semibold leading-tight truncate" style={{ color: getColor('primary', '#1a202c') }}>
                       {selectedPDF.title}
                     </h2>
                   </div>
                 </div>
 
                 {/* Navigation and Complete buttons */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                   {/* Previous button */}
                   <button
                     onClick={handlePrevious}
@@ -457,7 +457,7 @@ const SupportMaterialPage = () => {
                   <button
                     onClick={handleToggleComplete}
                     disabled={progressLoading}
-                    className="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm"
+                    className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm"
                     style={{ 
                       backgroundColor: isCurrentStepCompleted() 
                         ? `${getColor('primary', '#1a202c')}` 
@@ -474,13 +474,14 @@ const SupportMaterialPage = () => {
                         e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
                       }
                     }}
+                    title={isCurrentStepCompleted() ? t('progress.completed') : t('progress.markComplete')}
                   >
                     {isCurrentStepCompleted() ? (
                       <Check size={16} />
                     ) : (
                       <Circle size={16} />
                     )}
-                    <span className="font-medium">
+                    <span className="font-medium hidden sm:inline">
                       {isCurrentStepCompleted() ? t('progress.completed') : t('progress.markComplete')}
                     </span>
                   </button>
@@ -511,7 +512,7 @@ const SupportMaterialPage = () => {
                   {/* Close button - movido a la derecha */}
                   <button
                     onClick={closePDFViewer}
-                    className="p-1.5 rounded-lg transition-all ml-2"
+                    className="p-1.5 rounded-lg transition-all ml-1 sm:ml-2"
                     style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;

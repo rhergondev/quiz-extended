@@ -7,24 +7,24 @@ import { Circle, CheckCircle, TrendingDown, AlertCircle } from 'lucide-react';
 
 const StatBox = ({ label, value, bgColor, textColor }) => (
   <div 
-    className="text-center p-3 rounded-lg border-2 transition-all duration-200"
+    className="text-center p-2 rounded-lg border-2 transition-all duration-200"
     style={{ 
       backgroundColor: '#ffffff',
       borderColor: textColor
     }}
   >
-    <span className="block text-xs font-medium mb-1" style={{ color: textColor + '90' }}>
+    <span className="block text-[10px] font-medium mb-0.5" style={{ color: textColor + '90' }}>
       {label}
     </span>
-    <span className="block text-2xl font-bold" style={{ color: textColor }}>
+    <span className="block text-xl font-bold" style={{ color: textColor }}>
       {value}
     </span>
   </div>
 );
 
 const LegendItem = ({ icon: Icon, color, text }) => (
-  <div className="flex items-center gap-2 text-xs font-medium" style={{ color: color }}>
-    <Icon size={16} strokeWidth={2.5} />
+  <div className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: color }}>
+    <Icon size={14} strokeWidth={2.5} />
     <span>{text}</span>
   </div>
 );
@@ -91,10 +91,10 @@ const QuizSidebar = ({
         
         {/* Leyenda de estados */}
         <div 
-          className="p-4 border-b"
+          className="p-3 border-b"
           style={{ borderColor: getColor('borderColor', colors.answered) + '30' }}
         >
-          <div className="flex flex-wrap gap-4 justify-around">
+          <div className="flex flex-wrap gap-3 justify-around">
             <LegendItem 
               icon={Circle} 
               color={colors.unanswered} 
@@ -114,8 +114,8 @@ const QuizSidebar = ({
         </div>
 
         {/* Estadísticas */}
-        <div className="p-4 border-b" style={{ borderColor: getColor('borderColor', colors.answered) + '30' }}>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="p-3 border-b" style={{ borderColor: getColor('borderColor', colors.answered) + '30' }}>
+          <div className="grid grid-cols-2 gap-2">
             <StatBox 
               label={t('quizzes.sidebar.answered')} 
               value={answeredCount} 
@@ -144,11 +144,11 @@ const QuizSidebar = ({
         </div>
 
         {/* Mapa de preguntas */}
-        <div className="p-4 border-b" style={{ borderColor: getColor('borderColor', colors.answered) + '30' }}>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: colors.answered }}>
+        <div className="p-3 border-b" style={{ borderColor: getColor('borderColor', colors.answered) + '30' }}>
+          <h3 className="text-xs font-semibold mb-2" style={{ color: colors.answered }}>
             {t('quizzes.sidebar.questionsMap')}
           </h3>
-          <div className="grid grid-cols-10 gap-1.5">
+          <div className="grid grid-cols-10 gap-1">
             {Array.from({ length: effectiveTotal }).map((_, index) => {
               const qId = questionIds && questionIds[index] ? questionIds[index] : (questions && questions[index] ? questions[index].id : `unloaded-${index}`);
               const isLoaded = questions && questions[index];
@@ -184,7 +184,7 @@ const QuizSidebar = ({
                   key={qId}
                   onClick={() => isLoaded && scrollToQuestion(index)}
                   disabled={!isLoaded}
-                  className="w-full h-8 rounded text-xs font-bold transition-all duration-200 flex items-center justify-center border disabled:cursor-wait hover:enabled:scale-105 hover:enabled:shadow-md"
+                  className="w-full h-6 rounded text-[10px] font-bold transition-all duration-200 flex items-center justify-center border disabled:cursor-wait hover:enabled:scale-105 hover:enabled:shadow-md"
                   style={{
                     backgroundColor: bgColor,
                     borderColor: borderColor,
@@ -201,10 +201,10 @@ const QuizSidebar = ({
         </div>
 
         {/* Botón finalizar */}
-        <div className="p-4">
+        <div className="p-3">
           <button
             onClick={onSubmit}
-            className="w-full px-6 py-3.5 text-white font-semibold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98]"
+            className="w-full px-4 py-3 text-sm text-white font-semibold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98]"
             style={{ backgroundColor: colors.answered }}
           >
             {t('quizzes.sidebar.finishExam')}

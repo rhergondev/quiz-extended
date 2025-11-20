@@ -9,7 +9,7 @@ import Question from './Question';
 import QuizSidebar from './QuizSidebar';
 import Timer from './Timer';
 import DrawingCanvas from './DrawingCanvas';
-import { Loader } from 'lucide-react';
+import { Loader, Menu, X } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useQuizAutosave from '../../hooks/useQuizAutosave';
 import quizAutosaveService from '../../api/services/quizAutosaveService';
@@ -44,6 +44,7 @@ const Quiz = ({
   const [autosaveData, setAutosaveData] = useState(null);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isQuizSidebarOpen, setIsQuizSidebarOpen] = useState(false);
   const { getColor } = useTheme();
   const { t } = useTranslation();
   const questionsContainerRef = useRef(null);
@@ -325,7 +326,7 @@ const Quiz = ({
       }
   };
 
-  if (quizState === 'loading' || questionsLoading) {
+  if (quizState === 'loading' || (questionsLoading && quizQuestions.length === 0)) {
     return <div className="text-center p-8">{t('quizzes.quiz.loadingQuiz')}</div>;
   }
   if (quizState === 'awaiting-recovery') {
@@ -366,11 +367,32 @@ const Quiz = ({
   const timeLimit = quizInfo?.meta?._time_limit || 0;
 
   return (
-    <div className="h-full flex flex-col" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
+    <div className="h-full flex flex-col relative overflow-hidden" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
+      {/* Overlay para móvil */}
+      {isQuizSidebarOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={() => setIsQuizSidebarOpen(false)}
+        />
+      )}
+
+      {/* Botón flotante para abrir sidebar en móvil */}
+      <button
+        onClick={() => setIsQuizSidebarOpen(true)}
+        className="lg:hidden fixed bottom-6 right-6 z-50 p-4 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+        style={{
+          backgroundColor: getColor('primary', '#3b82f6'),
+          color: '#ffffff'
+        }}
+        aria-label="Abrir menú del quiz"
+      >
+        <Menu className="w-6 h-6" />
+      </button>
+
       <div className="flex-1 overflow-hidden">
-        <div className="w-full max-w-screen-2xl mx-auto flex flex-col lg:flex-row gap-8 h-full px-6">
-          {/* Columna de Preguntas (con scroll interno y canvas de dibujo) */}
-          <main ref={questionsContainerRef} className="w-full lg:w-2/3 lg:overflow-y-auto lg:pr-4 relative pt-6 pb-6">
+        <div className="w-full h-full max-w-screen-2xl mx-auto flex flex-col lg:flex-row gap-8 px-4 sm:px-6 py-6">
+          {/* Columna de Preguntas (con scroll y canvas de dibujo) */}
+          <main ref={questionsContainerRef} className="w-full lg:w-2/3 lg:pr-4 relative overflow-y-auto pb-24 lg:pb-8">
             {/* Canvas de dibujo relativo al contenedor */}
             {isDrawingMode && (
               <DrawingCanvas 
@@ -450,8 +472,37 @@ const Quiz = ({
       </main>
 
       {/* Columna de la Barra Lateral y Reloj */}
-      <aside className="w-full lg:w-1/3 flex-shrink-0 pt-6 pb-6">
-        <div className="space-y-4">
+      <aside className={`
+        fixed lg:relative
+        top-0 right-0 
+        h-full lg:h-auto
+        w-80 lg:w-1/3
+        flex-shrink-0
+        transition-transform duration-300
+        z-50 lg:z-auto
+        ${isQuizSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
+      `}
+      style={{
+        backgroundColor: getColor('background', '#ffffff')
+      }}
+      >
+        {/* Header del sidebar móvil */}
+        <div className="lg:hidden flex items-center justify-between px-4 py-5 border-b" style={{
+          borderColor: getColor('borderColor', '#e5e7eb')
+        }}>
+          <h3 className="font-bold text-xl" style={{ color: getColor('primary', '#1a202c') }}>
+            {t('quizzes.quiz.quizProgress')}
+          </h3>
+          <button
+            onClick={() => setIsQuizSidebarOpen(false)}
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: getColor('primary', '#1a202c') }}
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="space-y-4 p-4 lg:p-0 lg:sticky lg:top-6 overflow-y-auto h-[calc(100%-88px)] lg:h-auto">
             <QuizSidebar
               questions={quizQuestions}
               questionIds={questionIds}

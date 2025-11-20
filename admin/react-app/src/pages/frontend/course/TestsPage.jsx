@@ -452,7 +452,7 @@ const TestsPage = () => {
             }`}
           >
             <div className="h-full overflow-y-auto">
-              <div className="max-w-5xl mx-auto px-4 py-6">
+              <div className="max-w-5xl mx-auto px-4 pt-6 pb-12">
               {loading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map(i => (
@@ -491,30 +491,30 @@ const TestsPage = () => {
                         {/* Lesson Header */}
                         <button
                           onClick={() => toggleLesson(lesson.id)}
-                          className="w-full px-6 py-4 flex items-center justify-between transition-all duration-200"
+                          className="w-full px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-200"
                           style={{ 
                             backgroundColor: `${getColor('primary', '#1a202c')}05`
                           }}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 overflow-hidden">
                             {isExpanded ? (
-                              <ChevronDown size={20} style={{ color: getColor('primary', '#1a202c') }} />
+                              <ChevronDown size={20} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
                             ) : (
-                              <ChevronRight size={20} style={{ color: `${getColor('textSecondary', '#6b7280')}` }} />
+                              <ChevronRight size={20} style={{ color: `${getColor('textSecondary', '#6b7280')}` }} className="flex-shrink-0" />
                             )}
-                            <ClipboardList size={20} style={{ color: getColor('primary', '#1a202c') }} />
-                            <span className="font-semibold text-left" style={{ color: getColor('textPrimary', '#1f2937') }}>
+                            <ClipboardList size={20} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
+                            <span className="font-semibold text-left truncate" style={{ color: getColor('textPrimary', '#1f2937') }}>
                               {lessonTitle}
                             </span>
                           </div>
                           <span 
-                            className="text-sm font-medium px-3 py-1 rounded-full"
+                            className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full flex-shrink-0 ml-2"
                             style={{ 
                               backgroundColor: `${getColor('primary', '#1a202c')}10`,
                               color: getColor('primary', '#1a202c')
                             }}
                           >
-                            {testsCount} {testsCount === 1 ? t('tests.test') : t('tests.tests')}
+                            {testsCount} <span className="hidden sm:inline">{testsCount === 1 ? t('tests.test') : t('tests.tests')}</span>
                           </span>
                         </button>
 
@@ -567,22 +567,22 @@ const TestsPage = () => {
                                   />
                                   
                                   <div
-                                    className="px-6 py-4 flex items-center justify-between transition-all duration-200"
+                                    className="px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-200"
                                   >
-                                    <div className="flex items-center gap-3 flex-1">
+                                    <div className="flex items-center gap-3 flex-1 mr-2 overflow-hidden">
                                       {isCompleted ? (
-                                        <CheckCircle size={18} style={{ color: '#10b981' }} />
+                                        <CheckCircle size={18} style={{ color: '#10b981' }} className="flex-shrink-0" />
                                       ) : (
-                                        <Circle size={18} style={{ color: getColor('textSecondary', '#6b7280') }} />
+                                        <Circle size={18} style={{ color: getColor('textSecondary', '#6b7280') }} className="flex-shrink-0" />
                                       )}
-                                      <div className="flex flex-col flex-1">
-                                        <span className="text-sm font-medium mb-1.5" style={{ color: getColor('textPrimary', '#1f2937') }}>
+                                      <div className="flex flex-col flex-1 overflow-hidden">
+                                        <span className="text-sm font-medium mb-1.5 truncate" style={{ color: getColor('textPrimary', '#1f2937') }}>
                                           {step.title}
                                         </span>
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                                           {/* Dificultad */}
                                           <div 
-                                            className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+                                            className="flex items-center gap-1 px-2 py-0.5 rounded-full flex-shrink-0"
                                             style={{ 
                                               backgroundColor: `${difficultyColors[difficulty]}15`,
                                             }}
@@ -595,7 +595,7 @@ const TestsPage = () => {
                                           
                                           {/* Tiempo límite */}
                                           {timeLimit && (
-                                            <div className="flex items-center gap-1">
+                                            <div className="flex items-center gap-1 flex-shrink-0">
                                               <Clock size={12} style={{ color: getColor('textSecondary', '#6b7280') }} />
                                               <span className="text-xs" style={{ color: getColor('textSecondary', '#6b7280') }}>
                                                 {timeLimit} min
@@ -604,10 +604,10 @@ const TestsPage = () => {
                                           )}
                                           
                                           {/* Fecha de inicio */}
-                                          <div className="flex items-center gap-1">
+                                          <div className="flex items-center gap-1 flex-shrink-0">
                                             <Calendar size={12} style={{ color: getColor('textSecondary', '#6b7280') }} />
                                             <span className="text-xs" style={{ color: getColor('textSecondary', '#6b7280') }}>
-                                              {t('tests.startDate')}: {formatStartDate(startDate)}
+                                              <span className="hidden sm:inline">{t('tests.startDate')}: </span>{formatStartDate(startDate)}
                                             </span>
                                           </div>
                                         </div>
@@ -615,7 +615,7 @@ const TestsPage = () => {
                                     </div>
                                     <button
                                       onClick={() => handleOpenTest(step, lesson)}
-                                      className="px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 font-medium text-sm"
+                                      className="px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 font-medium text-sm flex-shrink-0"
                                       style={{ 
                                         backgroundColor: isCompleted 
                                           ? getColor('primary', '#1a202c')
@@ -637,7 +637,7 @@ const TestsPage = () => {
                                       title={isCompleted ? t('tests.retake') : t('tests.start')}
                                     >
                                       <Play size={16} />
-                                      <span>{isCompleted ? t('tests.retake') : t('tests.start')}</span>
+                                      <span className="hidden sm:inline">{isCompleted ? t('tests.retake') : t('tests.start')}</span>
                                     </button>
                                   </div>
                                 </div>
@@ -678,15 +678,15 @@ const TestsPage = () => {
             <div className="h-full flex flex-col">
               {/* Header Compacto con Breadcrumbs Integrados */}
               <div 
-                className="flex items-center justify-between px-4 py-1.5 border-b flex-shrink-0"
+                className="flex items-center justify-between px-4 py-2 sm:py-1.5 border-b flex-shrink-0 gap-2"
                 style={{ 
                   backgroundColor: getColor('background', '#ffffff'),
                   borderColor: `${getColor('primary', '#1a202c')}15` 
                 }}
               >
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 overflow-hidden">
                   {/* Breadcrumbs compactos */}
-                  <nav className="flex items-center text-xs space-x-1.5">
+                  <nav className="hidden sm:flex items-center text-xs space-x-1.5">
                     <Link 
                       to="/courses"
                       className="transition-colors duration-200 hover:underline font-medium"
@@ -708,15 +708,15 @@ const TestsPage = () => {
                   </nav>
                   {/* Título del test */}
                   <div className="flex items-center gap-2">
-                    <ClipboardList size={18} style={{ color: getColor('primary', '#1a202c') }} />
-                    <h2 className="text-base font-semibold leading-none" style={{ color: getColor('primary', '#1a202c') }}>
+                    <ClipboardList size={18} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
+                    <h2 className="text-sm sm:text-base font-semibold leading-tight truncate" style={{ color: getColor('primary', '#1a202c') }}>
                       {selectedTest.title}
                     </h2>
                   </div>
                 </div>
 
                 {/* Navigation buttons */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                   {/* Previous button */}
                   <button
                     onClick={handlePrevious}
@@ -744,7 +744,7 @@ const TestsPage = () => {
                   <button
                     onClick={handleToggleComplete}
                     disabled={progressLoading}
-                    className="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm"
+                    className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm"
                     style={{ 
                       backgroundColor: isCurrentStepCompleted() 
                         ? `${getColor('primary', '#1a202c')}` 
@@ -761,13 +761,14 @@ const TestsPage = () => {
                         e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
                       }
                     }}
+                    title={isCurrentStepCompleted() ? t('progress.completed') : t('progress.markComplete')}
                   >
                     {isCurrentStepCompleted() ? (
                       <Check size={16} />
                     ) : (
                       <Circle size={16} />
                     )}
-                    <span className="font-medium">
+                    <span className="font-medium hidden sm:inline">
                       {isCurrentStepCompleted() ? t('progress.completed') : t('progress.markComplete')}
                     </span>
                   </button>
@@ -798,7 +799,7 @@ const TestsPage = () => {
                   {/* Close button */}
                   <button
                     onClick={closeTestViewer}
-                    className="p-1.5 rounded-lg transition-all ml-2"
+                    className="p-1.5 rounded-lg transition-all ml-1 sm:ml-2"
                     style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
@@ -893,7 +894,7 @@ const TestsPage = () => {
                   ) : null
                 ) : !isQuizRunning && !quizResults ? (
                   // Mostrar info del test
-                  <div className="max-w-4xl mx-auto py-8 px-8">
+                  <div className="max-w-4xl mx-auto pt-8 pb-24 px-8">
                   {/* Estadísticas del Test - Solo si el usuario tiene nota */}
                   {rankingLoading ? (
                     // Loading skeleton
@@ -925,17 +926,17 @@ const TestsPage = () => {
                         <div>
                           {/* Header Sin Riesgo */}
                           <div 
-                            className="px-6 py-4"
+                            className="px-4 py-3"
                             style={{ 
                               backgroundColor: getColor('primary', '#1a202c')
                             }}
                           >
                             <div className="flex items-center justify-between">
-                              <h4 className="text-sm font-bold uppercase tracking-wide" style={{ color: getColor('textColorContrast', '#ffffff') }}>
+                              <h4 className="text-xs font-bold uppercase tracking-wide" style={{ color: getColor('textColorContrast', '#ffffff') }}>
                                 {t('tests.withoutRisk')}
                               </h4>
                               <div 
-                                className="w-3 h-3 rounded-full"
+                                className="w-2.5 h-2.5 rounded-full"
                                 style={{ backgroundColor: getColor('textColorContrast', '#ffffff') }}
                               ></div>
                             </div>
@@ -943,45 +944,45 @@ const TestsPage = () => {
                           
                           {/* Contenido Sin Riesgo - Grid de 3 columnas */}
                           <div 
-                            className="grid px-6 py-5"
+                            className="grid px-4 py-3"
                             style={{ 
                               gridTemplateColumns: 'repeat(3, 1fr)',
-                              gap: '2rem'
+                              gap: '1rem'
                             }}
                           >
                             {/* Media UA */}
                             <div>
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
                                   {t('tests.avgScore')}
                                 </span>
                               </div>
-                              <div className="text-3xl font-bold" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                              <div className="text-2xl font-bold" style={{ color: getColor('textPrimary', '#1a202c') }}>
                                 {formatScore(ranking?.statistics?.avg_score_without_risk || 0)}
                               </div>
                             </div>
 
                             {/* Mi Nota */}
                             <div>
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
                                   {t('tests.myScore')}
                                 </span>
                               </div>
-                              <div className="text-3xl font-bold" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                              <div className="text-2xl font-bold" style={{ color: getColor('textPrimary', '#1a202c') }}>
                                 {formatScore(userStats?.score || 0)}
                               </div>
                             </div>
 
                             {/* Percentil (diferencia) */}
                             <div>
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
                                   {t('tests.percentile')}
                                 </span>
                               </div>
                               <div 
-                                className="text-3xl font-extrabold flex items-baseline gap-1"
+                                className="text-2xl font-extrabold flex items-baseline gap-1"
                                 style={{ 
                                   color: calculatePercentile(userStats?.score || 0, false) >= 0 ? '#10b981' : '#ef4444'
                                 }}
@@ -990,7 +991,7 @@ const TestsPage = () => {
                                   {calculatePercentile(userStats?.score || 0, false) >= 0 ? '+' : ''}
                                   {formatScore(calculatePercentile(userStats?.score || 0, false))}
                                 </span>
-                                <span className="text-sm font-medium" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                <span className="text-xs font-medium" style={{ color: getColor('textSecondary', '#6b7280') }}>
                                   pts
                                 </span>
                               </div>
@@ -1010,17 +1011,17 @@ const TestsPage = () => {
                         <div>
                           {/* Header Con Riesgo */}
                           <div 
-                            className="px-6 py-4"
+                            className="px-4 py-3"
                             style={{ 
                               backgroundColor: getColor('accent', '#f59e0b')
                             }}
                           >
                             <div className="flex items-center justify-between">
-                              <h4 className="text-sm font-bold uppercase tracking-wide" style={{ color: getColor('textColorContrast', '#ffffff') }}>
+                              <h4 className="text-xs font-bold uppercase tracking-wide" style={{ color: getColor('textColorContrast', '#ffffff') }}>
                                 {t('tests.withRisk')}
                               </h4>
                               <div 
-                                className="w-3 h-3 rounded-full"
+                                className="w-2.5 h-2.5 rounded-full"
                                 style={{ backgroundColor: getColor('textColorContrast', '#ffffff') }}
                               ></div>
                             </div>
@@ -1028,45 +1029,45 @@ const TestsPage = () => {
                           
                           {/* Contenido Con Riesgo - Grid de 3 columnas */}
                           <div 
-                            className="grid px-6 py-5"
+                            className="grid px-4 py-3"
                             style={{ 
                               gridTemplateColumns: 'repeat(3, 1fr)',
-                              gap: '2rem'
+                              gap: '1rem'
                             }}
                           >
                             {/* Media UA */}
                             <div>
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
                                   {t('tests.avgScore')}
                                 </span>
                               </div>
-                              <div className="text-3xl font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
+                              <div className="text-2xl font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
                                 {formatScore(ranking?.statistics?.avg_score_with_risk || 0)}
                               </div>
                             </div>
 
                             {/* Mi Nota */}
                             <div>
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
                                   {t('tests.myScore')}
                                 </span>
                               </div>
-                              <div className="text-3xl font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
+                              <div className="text-2xl font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
                                 {formatScore(userStats?.score_with_risk || 0)}
                               </div>
                             </div>
 
                             {/* Percentil (diferencia) */}
                             <div>
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
                                   {t('tests.percentile')}
                                 </span>
                               </div>
                               <div 
-                                className="text-3xl font-extrabold flex items-baseline gap-1"
+                                className="text-2xl font-extrabold flex items-baseline gap-1"
                                 style={{ 
                                   color: calculatePercentile(userStats?.score_with_risk || 0, true) >= 0 ? '#10b981' : '#ef4444'
                                 }}
@@ -1075,7 +1076,7 @@ const TestsPage = () => {
                                   {calculatePercentile(userStats?.score_with_risk || 0, true) >= 0 ? '+' : ''}
                                   {formatScore(calculatePercentile(userStats?.score_with_risk || 0, true))}
                                 </span>
-                                <span className="text-sm font-medium" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                <span className="text-xs font-medium" style={{ color: getColor('textSecondary', '#6b7280') }}>
                                   pts
                                 </span>
                               </div>
@@ -1096,29 +1097,29 @@ const TestsPage = () => {
                   >
                     {/* Header con título y estado */}
                     <div 
-                      className="px-6 py-4"
+                      className="px-4 py-3"
                       style={{ 
                         backgroundColor: getColor('primary', '#1a202c')
                       }}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h3 className="text-xl font-bold mb-1" style={{ color: getColor('textColorContrast', '#ffffff') }}>
+                          <h3 className="text-lg font-bold mb-0.5" style={{ color: getColor('textColorContrast', '#ffffff') }}>
                             {selectedTest.title}
                           </h3>
                           {selectedTest.data?.description && (
-                            <p className="text-sm" style={{ color: getColor('textColorContrast', '#ffffff'), opacity: 0.8 }}>
+                            <p className="text-xs" style={{ color: getColor('textColorContrast', '#ffffff'), opacity: 0.8 }}>
                               {selectedTest.data.description}
                             </p>
                           )}
                         </div>
                         {isCurrentStepCompleted() && (
                           <div 
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-full ml-4 flex-shrink-0"
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full ml-4 flex-shrink-0"
                             style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
                           >
-                            <CheckCircle size={18} style={{ color: getColor('textColorContrast', '#ffffff') }} />
-                            <span className="text-sm font-medium" style={{ color: getColor('textColorContrast', '#ffffff') }}>
+                            <CheckCircle size={16} style={{ color: getColor('textColorContrast', '#ffffff') }} />
+                            <span className="text-xs font-medium" style={{ color: getColor('textColorContrast', '#ffffff') }}>
                               {t('progress.completed')}
                             </span>
                           </div>
@@ -1136,15 +1137,14 @@ const TestsPage = () => {
 
                     {/* Widgets Horizontales - Info del Test */}
                     <div 
-                      className="grid"
+                      className="grid grid-cols-2 sm:grid-cols-4"
                       style={{ 
-                        gridTemplateColumns: 'repeat(4, 1fr)',
-                        minHeight: '100px'
+                        minHeight: '80px'
                       }}
                     >
                         {/* Preguntas */}
                         <div 
-                          className="flex flex-col items-center justify-center py-4 border-r transition-all duration-200"
+                          className="flex flex-col items-center justify-center py-3 border-r border-b sm:border-b-0 transition-all duration-200"
                           style={{ 
                             borderColor: `${getColor('primary', '#1a202c')}20`,
                             backgroundColor: 'transparent'
@@ -1153,18 +1153,18 @@ const TestsPage = () => {
                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
                           <HelpCircle 
-                            size={24} 
+                            size={20} 
                             style={{ color: getColor('primary', '#1a202c') }} 
-                            className="mb-2" 
+                            className="mb-1" 
                           />
                           <span 
-                            className="text-2xl font-bold"
+                            className="text-xl font-bold"
                             style={{ color: getColor('primary', '#1a202c') }}
                           >
                             {selectedTest.data?.question_count || '?'}
                           </span>
                           <span 
-                            className="text-xs mt-1"
+                            className="text-[10px] mt-0.5"
                             style={{ color: `${getColor('primary', '#1a202c')}70` }}
                           >
                             {t('tests.questions')}
@@ -1173,7 +1173,7 @@ const TestsPage = () => {
 
                         {/* Tiempo Límite */}
                         <div 
-                          className="flex flex-col items-center justify-center py-4 border-r transition-all duration-200"
+                          className="flex flex-col items-center justify-center py-3 sm:border-r border-b sm:border-b-0 transition-all duration-200"
                           style={{ 
                             borderColor: `${getColor('primary', '#1a202c')}20`,
                             backgroundColor: 'transparent'
@@ -1182,18 +1182,18 @@ const TestsPage = () => {
                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
                           <Clock 
-                            size={24} 
+                            size={20} 
                             style={{ color: getColor('primary', '#1a202c') }} 
-                            className="mb-2" 
+                            className="mb-1" 
                           />
                           <span 
-                            className="text-2xl font-bold"
+                            className="text-xl font-bold"
                             style={{ color: getColor('primary', '#1a202c') }}
                           >
                             {selectedTest.data?.time_limit ? `${selectedTest.data.time_limit}` : '∞'}
                           </span>
                           <span 
-                            className="text-xs mt-1"
+                            className="text-[10px] mt-0.5"
                             style={{ color: `${getColor('primary', '#1a202c')}70` }}
                           >
                             {selectedTest.data?.time_limit ? t('tests.minutes') : t('tests.noTimeLimit')}
@@ -1202,7 +1202,7 @@ const TestsPage = () => {
 
                         {/* Puntuación de Aprobado */}
                         <div 
-                          className="flex flex-col items-center justify-center py-4 border-r transition-all duration-200"
+                          className="flex flex-col items-center justify-center py-3 border-r transition-all duration-200"
                           style={{ 
                             borderColor: `${getColor('primary', '#1a202c')}20`,
                             backgroundColor: 'transparent'
@@ -1211,18 +1211,18 @@ const TestsPage = () => {
                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
                           <Award 
-                            size={24} 
+                            size={20} 
                             style={{ color: getColor('primary', '#1a202c') }} 
-                            className="mb-2" 
+                            className="mb-1" 
                           />
                           <span 
-                            className="text-2xl font-bold"
+                            className="text-xl font-bold"
                             style={{ color: getColor('primary', '#1a202c') }}
                           >
                             {selectedTest.data?.passing_score || 70}%
                           </span>
                           <span 
-                            className="text-xs mt-1"
+                            className="text-[10px] mt-0.5"
                             style={{ color: `${getColor('primary', '#1a202c')}70` }}
                           >
                             {t('tests.passingScore')}
@@ -1231,7 +1231,7 @@ const TestsPage = () => {
 
                         {/* Dificultad */}
                         <div 
-                          className="flex flex-col items-center justify-center py-4 transition-all duration-200"
+                          className="flex flex-col items-center justify-center py-3 transition-all duration-200"
                           style={{ 
                             backgroundColor: 'transparent'
                           }}
@@ -1239,12 +1239,12 @@ const TestsPage = () => {
                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
                           <Target 
-                            size={24} 
+                            size={20} 
                             style={{ color: getColor('primary', '#1a202c') }} 
-                            className="mb-2" 
+                            className="mb-1" 
                           />
                           <span 
-                            className="text-sm font-bold px-3 py-1 rounded-full"
+                            className="text-xs font-bold px-2.5 py-0.5 rounded-full"
                             style={{ 
                               backgroundColor: (() => {
                                 const diff = selectedTest.data?.difficulty || 'medium';
@@ -1262,7 +1262,7 @@ const TestsPage = () => {
                             })()}
                           </span>
                           <span 
-                            className="text-xs mt-2"
+                            className="text-[10px] mt-1"
                             style={{ color: `${getColor('primary', '#1a202c')}70` }}
                           >
                             {t('tests.difficulty')}
@@ -1279,7 +1279,7 @@ const TestsPage = () => {
                     />
 
                     {/* Botón de comenzar */}
-                    <div className="p-6">
+                    <div className="p-4">
                       <button
                         onClick={async () => {
                           console.log('🎯 Comenzar test - selectedTest:', selectedTest);
@@ -1302,7 +1302,7 @@ const TestsPage = () => {
                             console.error('❌ No quiz_id found');
                           }
                         }}
-                        className="w-full py-4 rounded-lg font-bold text-lg transition-all flex items-center justify-center gap-3 shadow-md"
+                        className="w-full py-3 rounded-lg font-bold text-base transition-all flex items-center justify-center gap-2 shadow-md"
                         style={{ 
                           backgroundColor: getColor('primary', '#1a202c'),
                           color: '#ffffff'
@@ -1318,7 +1318,7 @@ const TestsPage = () => {
                           e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
                         }}
                       >
-                        <Play size={24} />
+                        <Play size={20} />
                         <span>{isCurrentStepCompleted() ? t('tests.retake') : t('tests.startTest')}</span>
                       </button>
                     </div>
@@ -1336,15 +1336,15 @@ const TestsPage = () => {
                       >
                         {/* Header con fondo de color */}
                         <div 
-                          className="px-6 py-4 flex items-center justify-between"
+                          className="px-4 py-3 flex items-center justify-between"
                           style={{ 
                             backgroundColor: getColor('primary', '#1a202c')
                           }}
                         >
-                          <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: getColor('textColorContrast', '#ffffff') }}>
+                          <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: getColor('textColorContrast', '#ffffff') }}>
                             {t('tests.recentAttempts')}
                           </h3>
-                          <span className="text-xs font-medium" style={{ color: getColor('textColorContrast', '#ffffff'), opacity: 0.8 }}>
+                          <span className="text-[10px] font-medium" style={{ color: getColor('textColorContrast', '#ffffff'), opacity: 0.8 }}>
                             {t('tests.last5Attempts')}
                           </span>
                         </div>
@@ -1363,24 +1363,110 @@ const TestsPage = () => {
                           
                           return (
                             <div key={attempt.attempt_id || attempt.id || index}>
-                              <div className="px-6 py-4 grid grid-cols-5 gap-4 items-center">
+                              {/* Layout Mobile */}
+                              <div className="sm:hidden px-4 py-3 space-y-3">
+                                {/* Header: Fecha + Estado */}
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <Calendar size={14} style={{ color: getColor('textSecondary', '#6b7280') }} />
+                                    <span className="text-xs font-medium" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                                      {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    {attempt.passed ? (
+                                      <>
+                                        <CheckCircle size={14} style={{ color: '#10b981' }} />
+                                        <span className="text-xs font-medium" style={{ color: '#10b981' }}>
+                                          {t('tests.passed')}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <XCircle size={14} style={{ color: '#ef4444' }} />
+                                        <span className="text-xs font-medium" style={{ color: '#ef4444' }}>
+                                          {t('tests.failed')}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Scores */}
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div 
+                                    className="p-2 rounded-lg"
+                                    style={{ backgroundColor: `${getColor('primary', '#1a202c')}05` }}
+                                  >
+                                    <div className="text-[10px] mb-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                      Sin Riesgo
+                                    </div>
+                                    <div className="text-base font-bold" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                                      {formatScore(attempt.score || 0)}
+                                    </div>
+                                    <span 
+                                      className="text-[10px] font-medium"
+                                      style={{ color: percentileWithoutRisk >= 0 ? '#10b981' : '#ef4444' }}
+                                    >
+                                      {percentileWithoutRisk >= 0 ? '+' : ''}{formatScore(percentileWithoutRisk)}
+                                    </span>
+                                  </div>
+
+                                  <div 
+                                    className="p-2 rounded-lg"
+                                    style={{ backgroundColor: `${getColor('accent', '#f59e0b')}10` }}
+                                  >
+                                    <div className="text-[10px] mb-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                      Con Riesgo
+                                    </div>
+                                    <div className="text-base font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
+                                      {formatScore(attempt.score_with_risk || 0)}
+                                    </div>
+                                    <span 
+                                      className="text-[10px] font-medium"
+                                      style={{ color: percentileWithRisk >= 0 ? '#10b981' : '#ef4444' }}
+                                    >
+                                      {percentileWithRisk >= 0 ? '+' : ''}{formatScore(percentileWithRisk)}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Botón Ver Detalles */}
+                                <button
+                                  onClick={() => {
+                                    const attemptId = attempt.attempt_id || attempt.id;
+                                    handleViewAttemptDetails(attemptId);
+                                  }}
+                                  className="w-full px-3 py-2 rounded-lg transition-all flex items-center justify-center gap-2 text-xs"
+                                  style={{ 
+                                    backgroundColor: `${getColor('primary', '#1a202c')}10`,
+                                    color: getColor('primary', '#1a202c')
+                                  }}
+                                >
+                                  <Eye size={14} />
+                                  <span className="font-medium">{t('tests.details')}</span>
+                                </button>
+                              </div>
+
+                              {/* Layout Desktop */}
+                              <div className="hidden sm:grid sm:grid-cols-5 gap-4 items-center px-4 py-3">
                                 {/* Fecha */}
                                 <div className="flex items-center gap-2">
-                                  <Calendar size={16} style={{ color: getColor('textSecondary', '#6b7280') }} />
-                                  <span className="text-sm font-medium" style={{ color: getColor('textPrimary', '#1a202c') }}>
-                                    {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                                  <Calendar size={14} style={{ color: getColor('textSecondary', '#6b7280') }} />
+                                  <span className="text-xs font-medium" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                                    {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                   </span>
                                 </div>
 
                                 {/* Nota Sin Riesgo */}
                                 <div className="flex flex-col">
                                   <div className="flex items-baseline gap-1">
-                                    <span className="text-lg font-bold" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                                    <span className="text-base font-bold" style={{ color: getColor('textPrimary', '#1a202c') }}>
                                       {formatScore(attempt.score || 0)}
                                     </span>
                                   </div>
                                   <span 
-                                    className="text-xs font-medium"
+                                    className="text-[10px] font-medium"
                                     style={{ color: percentileWithoutRisk >= 0 ? '#10b981' : '#ef4444' }}
                                   >
                                     {percentileWithoutRisk >= 0 ? '+' : ''}{formatScore(percentileWithoutRisk)}
@@ -1390,12 +1476,12 @@ const TestsPage = () => {
                                 {/* Nota Con Riesgo */}
                                 <div className="flex flex-col">
                                   <div className="flex items-baseline gap-1">
-                                    <span className="text-lg font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
+                                    <span className="text-base font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
                                       {formatScore(attempt.score_with_risk || 0)}
                                     </span>
                                   </div>
                                   <span 
-                                    className="text-xs font-medium"
+                                    className="text-[10px] font-medium"
                                     style={{ color: percentileWithRisk >= 0 ? '#10b981' : '#ef4444' }}
                                   >
                                     {percentileWithRisk >= 0 ? '+' : ''}{formatScore(percentileWithRisk)}
@@ -1403,18 +1489,18 @@ const TestsPage = () => {
                                 </div>
 
                                 {/* Estado */}
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5">
                                   {attempt.passed ? (
                                     <>
-                                      <CheckCircle size={18} style={{ color: '#10b981' }} />
-                                      <span className="text-sm font-medium" style={{ color: '#10b981' }}>
+                                      <CheckCircle size={16} style={{ color: '#10b981' }} />
+                                      <span className="text-xs font-medium" style={{ color: '#10b981' }}>
                                         {t('tests.passed')}
                                       </span>
                                     </>
                                   ) : (
                                     <>
-                                      <XCircle size={18} style={{ color: '#ef4444' }} />
-                                      <span className="text-sm font-medium" style={{ color: '#ef4444' }}>
+                                      <XCircle size={16} style={{ color: '#ef4444' }} />
+                                      <span className="text-xs font-medium" style={{ color: '#ef4444' }}>
                                         {t('tests.failed')}
                                       </span>
                                     </>
@@ -1428,7 +1514,7 @@ const TestsPage = () => {
                                       const attemptId = attempt.attempt_id || attempt.id;
                                       handleViewAttemptDetails(attemptId);
                                     }}
-                                    className="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm"
+                                    className="px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 text-xs"
                                     style={{ 
                                       backgroundColor: `${getColor('primary', '#1a202c')}10`,
                                       color: getColor('primary', '#1a202c')
@@ -1443,7 +1529,7 @@ const TestsPage = () => {
                                     }}
                                     title={t('tests.viewDetails')}
                                   >
-                                    <Eye size={16} />
+                                    <Eye size={14} />
                                     <span className="font-medium">{t('tests.details')}</span>
                                   </button>
                                 </div>
@@ -1529,12 +1615,12 @@ const TestsPage = () => {
     {/* 🎯 FOCUS MODE: Full-screen Quiz overlay */}
     {isQuizFocusMode && quizToStart && (
       <div 
-        className="fixed inset-0 z-[9999]"
+        className="fixed inset-0 z-[9999] flex flex-col pt-10"
         style={{ 
           backgroundColor: getColor('background', '#ffffff')
         }}
       >
-        <div className="w-full h-full overflow-hidden">
+        <div className="w-full flex-1 overflow-hidden">
           <Quiz
             quizId={quizToStart.id}
             lessonId={selectedLesson?.id}

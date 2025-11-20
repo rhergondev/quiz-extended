@@ -47,13 +47,13 @@ const CourseDashboardPage = () => {
     const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
     return (
-      <div className="flex flex-col items-center justify-center h-full">
-        <div className="relative" style={{ width: '160px', height: '160px' }}>
-          <svg className="transform -rotate-90" width="160" height="160">
+      <div className="flex flex-col items-center justify-center h-full py-4 sm:py-0">
+        <div className="relative" style={{ width: '140px', height: '140px' }}>
+          <svg className="transform -rotate-90" width="140" height="140">
             {/* Background circle */}
             <circle
-              cx="80"
-              cy="80"
+              cx="70"
+              cy="70"
               r={radius}
               stroke={color}
               strokeWidth="10"
@@ -62,8 +62,8 @@ const CourseDashboardPage = () => {
             />
             {/* Progress circle */}
             <circle
-              cx="80"
-              cy="80"
+              cx="70"
+              cy="70"
               r={radius}
               stroke={color}
               strokeWidth="10"
@@ -76,13 +76,13 @@ const CourseDashboardPage = () => {
           </svg>
           {/* Center content */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <Icon size={28} style={{ color }} className="mb-1" />
+            <Icon size={24} style={{ color }} className="mb-1" />
             <span className="text-sm font-bold" style={{ color }}>
               {completed}/{total}
             </span>
           </div>
         </div>
-        <span className="text-sm font-medium mt-3" style={{ color, opacity: 0.8 }}>
+        <span className="text-xs sm:text-sm font-medium mt-2 sm:mt-3" style={{ color, opacity: 0.8 }}>
           {label}
         </span>
       </div>
@@ -151,12 +151,12 @@ const CourseDashboardPage = () => {
       courseName={courseName}
       sectionName={t('courses.dashboard')}
     >
-      <div className="space-y-6">
+      <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-4 sm:space-y-6">
         {/* Primera fila: 3 widgets */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
           {/* Widget Izquierdo - Ranking */}
           <div 
-            className="lg:col-span-1 rounded-lg shadow-sm p-6 min-h-[200px] flex flex-col items-center justify-center transition-all duration-200 hover:shadow-md"
+            className="lg:col-span-1 rounded-lg shadow-sm p-4 sm:p-6 min-h-[200px] flex flex-col items-center justify-center transition-all duration-200 hover:shadow-md"
             style={{ 
               backgroundColor: getColor('background', '#ffffff'),
               borderLeft: `4px solid ${getColor('primary', '#1a202c')}`,
@@ -172,12 +172,12 @@ const CourseDashboardPage = () => {
               </div>
             ) : rankingStatus && rankingStatus.has_completed_all ? (
               <div className="text-center space-y-2">
-                <Trophy size={32} style={{ color: getColor('primary', '#1a202c') }} className="mx-auto" />
+                <Trophy size={28} className="sm:w-8 sm:h-8 mx-auto" style={{ color: getColor('primary', '#1a202c') }} />
                 <div>
                   <p className="text-xs font-medium" style={{ color: `${getColor('primary', '#1a202c')}80` }}>
                     {t('ranking.yourPosition')}
                   </p>
-                  <p className="text-4xl font-bold mt-1" style={{ color: getColor('primary', '#1a202c') }}>
+                  <p className="text-3xl sm:text-4xl font-bold mt-1" style={{ color: getColor('primary', '#1a202c') }}>
                     #{rankingStatus.temporary_position || 'N/A'}
                   </p>
                 </div>
@@ -194,8 +194,8 @@ const CourseDashboardPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="text-center space-y-3">
-                <Trophy size={32} style={{ color: `${getColor('primary', '#1a202c')}40` }} className="mx-auto" />
+              <div className="text-center space-y-2 sm:space-y-3">
+                <Trophy size={28} className="sm:w-8 sm:h-8 mx-auto" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
                 <div>
                   <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full" style={{ 
                     backgroundColor: '#fbbf2420',
@@ -230,14 +230,15 @@ const CourseDashboardPage = () => {
           >
             {availableContentTypes.length > 0 ? (
               <div 
-                className={`grid h-full min-h-[200px]`}
-                style={{ gridTemplateColumns: `repeat(${availableContentTypes.length}, 1fr)` }}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 h-full min-h-[200px]"
               >
                 {availableContentTypes.map((contentType, index) => (
                   <div 
                     key={contentType.type}
                     className={`flex items-center justify-center transition-all duration-200 ${
-                      index < availableContentTypes.length - 1 ? 'border-r' : ''
+                      index < availableContentTypes.length - 1 ? 'border-b sm:border-b-0 sm:border-r' : ''
+                    } ${
+                      availableContentTypes.length === 2 && index === 0 ? 'sm:border-r' : ''
                     }`}
                     style={{ 
                       borderColor: `${getColor('primary', '#1a202c')}20`,
@@ -273,15 +274,15 @@ const CourseDashboardPage = () => {
 
           {/* Widget Derecho - Próximo Evento */}
           <div 
-            className="lg:col-span-1 rounded-lg shadow-sm p-6 min-h-[200px] flex flex-col items-center justify-center transition-all duration-200 hover:shadow-md"
+            className="lg:col-span-1 rounded-lg shadow-sm p-4 sm:p-6 min-h-[200px] flex flex-col items-center justify-center transition-all duration-200 hover:shadow-md"
             style={{ 
               backgroundColor: getColor('background', '#ffffff'),
               borderLeft: `4px solid ${getColor('primary', '#1a202c')}`,
               borderRight: `4px solid ${getColor('primary', '#1a202c')}`
             }}
           >
-            <div className="text-center space-y-3 w-full">
-              <Calendar size={32} style={{ color: `${getColor('primary', '#1a202c')}40` }} className="mx-auto" />
+            <div className="text-center space-y-2 sm:space-y-3 w-full">
+              <Calendar size={28} className="sm:w-8 sm:h-8 mx-auto" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
               
               <div>
                 <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full" style={{ 
@@ -293,8 +294,8 @@ const CourseDashboardPage = () => {
               </div>
 
               {/* Fecha placeholder */}
-              <div className="py-4">
-                <div className="text-5xl font-bold" style={{ color: getColor('primary', '#1a202c') }}>
+              <div className="py-3 sm:py-4">
+                <div className="text-4xl sm:text-5xl font-bold" style={{ color: getColor('primary', '#1a202c') }}>
                   15
                 </div>
                 <div className="text-sm font-medium mt-1" style={{ color: `${getColor('primary', '#1a202c')}80` }}>
@@ -303,7 +304,7 @@ const CourseDashboardPage = () => {
               </div>
 
               {/* Evento placeholder */}
-              <div className="pt-3 border-t" style={{ borderColor: `${getColor('primary', '#1a202c')}20` }}>
+              <div className="pt-2 sm:pt-3 border-t" style={{ borderColor: `${getColor('primary', '#1a202c')}20` }}>
                 <p className="text-sm font-semibold" style={{ color: getColor('primary', '#1a202c') }}>
                   {t('events.nextEvent')}
                 </p>

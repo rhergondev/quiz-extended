@@ -901,6 +901,8 @@
     "noTestsDescription": "No tests have been added to this course yet",
     "test": "test",
     "tests": "tests",
+    "configuration": "Configuration",
+    "generateTest": "Generate Test",
     "start": "Start",
     "startTest": "Start Test",
     "retake": "Retake",

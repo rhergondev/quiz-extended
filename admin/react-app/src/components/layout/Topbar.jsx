@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { BookOpen, FileText, User, LogOut, Home, Sun, Moon } from 'lucide-react';
+import { BookOpen, FileText, User, LogOut, Home, Sun, Moon, Menu } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
-const Topbar = () => {
+const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute }) => {
   const location = useLocation();
   const { t } = useTranslation();
   const { getCurrentColors, theme, isDarkMode, toggleDarkMode } = useTheme();
@@ -56,9 +56,29 @@ const Topbar = () => {
       }}
       className="w-full"
     >
-      <div className="flex items-center justify-between px-10 py-4 w-full max-w-full">
-        {/* Left: Logo or Campus Name */}
-        <div className="flex items-center">
+      <div className="flex items-center justify-between px-4 sm:px-10 py-4 w-full max-w-full">
+        {/* Left: Hamburger (mobile only, course routes only) + Logo or Campus Name */}
+        <div className="flex items-center gap-3">
+          {isInCourseRoute && (
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden flex items-center justify-center p-2 rounded-lg transition-all duration-200"
+              style={{ 
+                backgroundColor: 'transparent',
+                color: currentColors.primary
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = `${currentColors.primary}20`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+              aria-label="Toggle menu"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          )}
+          
           {campusLogo ? (
             <img 
               src={campusLogo} 
@@ -75,8 +95,8 @@ const Topbar = () => {
           )}
         </div>
 
-        {/* Navigation Menu - Centered */}
-        <nav className="flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
+        {/* Navigation Menu - Centered (hidden on mobile) */}
+        <nav className="hidden md:flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
           {menuItems.map((item) => {
             if (item.type === 'exit') {
               return (
@@ -145,8 +165,8 @@ const Topbar = () => {
           })}
         </nav>
 
-        {/* Right Section: Dark Mode Toggle, User Info, Logout */}
-        <div className="flex items-center gap-3">
+        {/* Right Section: Dark Mode Toggle, User Icon, Logout - Hidden on mobile */}
+        <div className="hidden md:flex items-center gap-3">
           {/* Dark Mode Toggle */}
           <button
             onClick={toggleDarkMode}
@@ -166,10 +186,10 @@ const Topbar = () => {
             {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
 
-          {/* User Info - Clickable to Account */}
+          {/* User Icon - Clickable to Account (no name/email) */}
           <a
             href={`${homeUrl}/mi-cuenta/edit-account/`}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200"
+            className="flex items-center justify-center p-2 rounded-lg transition-all duration-200"
             style={{ 
               backgroundColor: 'transparent',
               color: currentColors.primary
@@ -183,14 +203,6 @@ const Topbar = () => {
             title={t('sidebar.myAccount')}
           >
             <User className="w-6 h-6" />
-            <div className="flex flex-col">
-              <p className="m-0 text-sm font-semibold leading-tight">
-                {userName}
-              </p>
-              <p className="text-xs leading-tight opacity-80 m-0">
-                {userEmail}
-              </p>
-            </div>
           </a>
 
           {/* Logout - Icon Only */}

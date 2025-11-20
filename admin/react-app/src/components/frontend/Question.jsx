@@ -65,7 +65,7 @@ const Question = ({
   return (
     <div 
       id={`quiz-question-${displayIndex}`} 
-      className={`rounded-lg overflow-hidden shadow-sm mb-6 scroll-mt-6 transition-all duration-200 ${className}`}
+      className={`rounded-lg overflow-hidden shadow-sm mb-4 scroll-mt-6 transition-all duration-200 ${className}`}
       style={{ 
         backgroundColor: getColor('secondaryBackground', '#ffffff'),
         borderTop: `2px solid ${getQuestionColor('40')}`,
@@ -77,7 +77,7 @@ const Question = ({
       <div>
         {/* Header: Número de pregunta */}
         <div 
-          className="px-6 py-4 border-b"
+          className="px-4 py-3 border-b"
           style={{ 
             backgroundColor: getQuestionColor('08'),
             borderColor: getQuestionColor('10')
@@ -86,10 +86,10 @@ const Question = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div 
-                className="flex items-center justify-center rounded-full font-bold text-sm"
+                className="flex items-center justify-center rounded-full font-bold text-xs"
                 style={{ 
-                  width: '32px',
-                  height: '32px',
+                  width: '28px',
+                  height: '28px',
                   backgroundColor: getQuestionColor(),
                   color: '#ffffff'
                 }}
@@ -98,37 +98,37 @@ const Question = ({
               </div>
               {questionState === 'unanswered' && (
                 <div 
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
                   style={{ 
                     backgroundColor: `${getQuestionColor()}20`,
                     color: getQuestionColor()
                   }}
                 >
-                  <Circle size={14} />
+                  <Circle size={12} />
                   <span>{t('quizzes.question.unanswered')}</span>
                 </div>
               )}
               {questionState === 'risked' && (
                 <div 
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
                   style={{ 
                     backgroundColor: getQuestionColor('20'),
                     color: getQuestionColor()
                   }}
                 >
-                  <TrendingDown size={14} />
+                  <TrendingDown size={12} />
                   <span>{t('quizzes.question.withRisk')}</span>
                 </div>
               )}
               {questionState === 'answered' && (
                 <div 
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
                   style={{ 
                     backgroundColor: getQuestionColor('20'),
                     color: getQuestionColor()
                   }}
                 >
-                  <CheckCircle size={14} />
+                  <CheckCircle size={12} />
                   <span>{t('quizzes.question.answered')}</span>
                 </div>
               )}
@@ -139,7 +139,7 @@ const Question = ({
                 type="button"
                 onClick={() => onClearAnswer(id)}
                 title={t('quizzes.question.clearSelection')}
-                className="p-2 rounded-lg transition-all duration-200"
+                className="p-1.5 rounded-lg transition-all duration-200"
                 style={{ 
                   backgroundColor: 'transparent',
                   color: `${getColor('primary', '#1a202c')}60`
@@ -153,30 +153,30 @@ const Question = ({
                   e.currentTarget.style.color = `${getColor('primary', '#1a202c')}60`;
                 }}
               >
-                <Trash2 size={18} />
+                <Trash2 size={16} />
               </button>
             )}
           </div>
         </div>
 
         {/* Título de la pregunta */}
-        <div className="px-6 py-5">
+        <div className="px-4 py-3">
           <h3 
-            className="text-base font-medium leading-relaxed"
+            className="text-sm font-medium leading-relaxed"
             style={{ color: getColor('primary', '#1a202c') }}
             dangerouslySetInnerHTML={{ __html: questionTitle || '' }}
           />
         </div>
 
         {/* Opciones de respuesta */}
-        <div className="px-6 pb-5 space-y-2">
+        <div className="px-4 pb-3 space-y-2">
           {options.map((option, optionIndex) => {
             const isSelected = selectedAnswer !== null && selectedAnswer !== undefined && option.id === selectedAnswer;
 
             return (
               <label 
                 key={option.id} 
-                className="flex items-start cursor-pointer p-4 rounded-lg transition-all duration-200 group"
+                className="flex items-start cursor-pointer p-3 rounded-lg transition-all duration-200 group"
                 style={{
                   backgroundColor: isSelected 
                     ? getQuestionColor('10')
@@ -204,8 +204,8 @@ const Question = ({
                   <div 
                     className="flex items-center justify-center rounded-full transition-all duration-200"
                     style={{
-                      width: '20px',
-                      height: '20px',
+                      width: '18px',
+                      height: '18px',
                       border: `2px solid ${isSelected 
                         ? getQuestionColor()
                         : `${getColor('primary', '#1a202c')}40`
@@ -219,8 +219,8 @@ const Question = ({
                       <div 
                         className="rounded-full"
                         style={{
-                          width: '8px',
-                          height: '8px',
+                          width: '6px',
+                          height: '6px',
                           backgroundColor: '#ffffff'
                         }}
                       />
@@ -239,10 +239,10 @@ const Question = ({
                   
                   {/* Letra de la opción */}
                   <div 
-                    className="flex items-center justify-center rounded font-bold text-xs transition-all duration-200"
+                    className="flex items-center justify-center rounded font-bold text-[10px] transition-all duration-200"
                     style={{
-                      width: '24px',
-                      height: '24px',
+                      width: '20px',
+                      height: '20px',
                       backgroundColor: isSelected
                         ? getQuestionColor()
                         : `${getColor('primary', '#1a202c')}10`,
@@ -480,7 +480,7 @@ const Question = ({
         {/* Checkbox de Riesgo - Solo si hay respuesta seleccionada y showRiskSelector */}
         {selectedAnswer !== null && selectedAnswer !== undefined && !isSubmitted && showRiskSelector && onToggleRisk && (
           <div 
-            className="px-6 py-4 border-t"
+            className="px-4 py-3 border-t"
             style={{ 
               backgroundColor: `${getColor('primary', '#1a202c')}03`,
               borderColor: getQuestionColor('10')

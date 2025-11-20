@@ -189,7 +189,7 @@ const TestHistoryPage = () => {
         <div className="max-w-7xl w-full mx-auto px-4 py-6">
             {/* Header con filtros */}
             <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
                 <div className="flex items-center gap-3">
                   <div 
                     className="p-3 rounded-xl"
@@ -198,7 +198,7 @@ const TestHistoryPage = () => {
                     <ClipboardList size={28} style={{ color: getColor('primary', '#1a202c') }} />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold" style={{ color: getColor('primary', '#1a202c') }}>
+                    <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: getColor('primary', '#1a202c') }}>
                       Historial de Tests
                     </h1>
                     <p className="text-sm mt-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
@@ -210,7 +210,7 @@ const TestHistoryPage = () => {
                 {/* Botón para mostrar/ocultar filtros */}
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all"
                   style={{
                     backgroundColor: showFilters ? getColor('primary', '#1a202c') : `${getColor('primary', '#1a202c')}10`,
                     color: showFilters ? '#ffffff' : getColor('primary', '#1a202c')
@@ -391,44 +391,194 @@ const TestHistoryPage = () => {
 
                   return (
                     <div key={attempt.attempt_id}>
-                      <div className="px-6 py-5 grid grid-cols-6 gap-4 items-center">
-                        {/* Fecha */}
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="p-2 rounded-lg"
-                            style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
-                          >
-                            <Calendar size={18} style={{ color: getColor('primary', '#1a202c') }} />
-                          </div>
-                          <div>
-                            <div className="text-sm font-semibold" style={{ color: getColor('textPrimary', '#1a202c') }}>
-                              {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { 
-                                day: '2-digit', 
-                                month: 'short'
-                              })}
+                      <div className="px-4 py-4 sm:px-6 sm:py-5">
+                        {/* Layout Mobile */}
+                        <div className="sm:hidden space-y-3">
+                          {/* Header: Fecha + Botón Ver */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="p-2 rounded-lg"
+                                style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+                              >
+                                <Calendar size={16} style={{ color: getColor('primary', '#1a202c') }} />
+                              </div>
+                              <div>
+                                <div className="text-xs font-semibold" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                                  {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { 
+                                    day: '2-digit', 
+                                    month: 'short',
+                                    year: 'numeric'
+                                  })}
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-xs" style={{ color: getColor('textSecondary', '#6b7280') }}>
-                              {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { 
-                                year: 'numeric'
-                              })}
+                            <button
+                              onClick={(e) => handleViewDetails(attempt, e)}
+                              className="p-2 rounded-lg text-xs font-medium transition-all"
+                              style={{ 
+                                backgroundColor: `${getColor('primary', '#1a202c')}10`,
+                                color: getColor('primary', '#1a202c')
+                              }}
+                            >
+                              <Eye size={18} />
+                            </button>
+                          </div>
+
+                          {/* Lección y Quiz */}
+                          <div>
+                            <div className="flex items-center text-xs mb-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                              <BookOpen size={12} className="mr-1.5" />
+                              {attempt.lessonTitle || 'Sin lección'}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm font-medium line-clamp-1" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                                {attempt.quizTitle || 'Cuestionario sin título'}
+                              </div>
+                              <button
+                                onClick={(e) => handleViewQuiz(attempt, e)}
+                                className="p-1 rounded-lg transition-all flex-shrink-0"
+                                style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+                                title="Ir al cuestionario"
+                              >
+                                <ExternalLink size={14} style={{ color: getColor('primary', '#1a202c') }} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Scores */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div 
+                              className="p-3 rounded-lg"
+                              style={{ backgroundColor: `${getColor('primary', '#1a202c')}05` }}
+                            >
+                              <div className="text-xs mb-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                Sin Riesgo
+                              </div>
+                              <div className="text-lg font-bold" style={{ color: getColor('primary', '#1a202c') }}>
+                                {formatScore(attempt.score || 0)}
+                              </div>
+                              {percentileWithoutRisk !== null && (
+                                <span 
+                                  className="text-xs font-medium flex items-center gap-1 mt-1"
+                                  style={{ color: percentileWithoutRisk >= 0 ? '#10b981' : '#ef4444' }}
+                                >
+                                  {percentileWithoutRisk >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                  {percentileWithoutRisk >= 0 ? '+' : ''}{percentileWithoutRisk.toFixed(1)}
+                                </span>
+                              )}
+                            </div>
+
+                            <div 
+                              className="p-3 rounded-lg"
+                              style={{ backgroundColor: `${getColor('accent', '#f59e0b')}10` }}
+                            >
+                              <div className="text-xs mb-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                Con Riesgo
+                              </div>
+                              <div className="text-lg font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
+                                {formatScore(attempt.score_with_risk || 0)}
+                              </div>
+                              {percentileWithRisk !== null && (
+                                <span 
+                                  className="text-xs font-medium flex items-center gap-1 mt-1"
+                                  style={{ color: percentileWithRisk >= 0 ? '#10b981' : '#ef4444' }}
+                                >
+                                  {percentileWithRisk >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                  {percentileWithRisk >= 0 ? '+' : ''}{percentileWithRisk.toFixed(1)}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
 
-                        {/* Lección y Cuestionario */}
-                        <div className="col-span-2">
-                          <div className="flex items-center text-xs mb-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
-                            <BookOpen size={12} className="mr-1.5" />
-                            {attempt.lessonTitle || 'Sin lección'}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="text-sm font-medium truncate" style={{ color: getColor('textPrimary', '#1a202c') }}>
-                              {attempt.quizTitle || 'Cuestionario sin título'}
-                            </div>
-                            <button
-                              onClick={(e) => handleViewQuiz(attempt, e)}
-                              className="p-1.5 rounded-lg transition-all flex-shrink-0"
+                        {/* Layout Desktop */}
+                        <div className="hidden sm:grid sm:grid-cols-6 gap-4 items-center">
+                          {/* Fecha */}
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="p-2 rounded-lg"
                               style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+                            >
+                              <Calendar size={18} style={{ color: getColor('primary', '#1a202c') }} />
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                                {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { 
+                                  day: '2-digit', 
+                                  month: 'short'
+                                })}
+                              </div>
+                              <div className="text-xs" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { 
+                                  year: 'numeric'
+                                })}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Lección y Cuestionario */}
+                          <div className="col-span-2">
+                            <div className="flex items-center text-xs mb-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                              <BookOpen size={12} className="mr-1.5" />
+                              {attempt.lessonTitle || 'Sin lección'}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm font-medium truncate" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                                {attempt.quizTitle || 'Cuestionario sin título'}
+                              </div>
+                              <button
+                                onClick={(e) => handleViewQuiz(attempt, e)}
+                                className="p-1.5 rounded-lg transition-all flex-shrink-0"
+                                style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+                                title="Ir al cuestionario"
+                              >
+                                <ExternalLink size={14} style={{ color: getColor('primary', '#1a202c') }} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Nota Sin Riesgo */}
+                          <div>
+                            <div className="text-lg font-bold mb-1" style={{ color: getColor('primary', '#1a202c') }}>
+                              {formatScore(attempt.score || 0)}
+                            </div>
+                            {percentileWithoutRisk !== null && (
+                              <span 
+                                className="text-xs font-medium flex items-center gap-1"
+                                style={{ color: percentileWithoutRisk >= 0 ? '#10b981' : '#ef4444' }}
+                              >
+                                {percentileWithoutRisk >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                {percentileWithoutRisk >= 0 ? '+' : ''}{percentileWithoutRisk.toFixed(1)}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Nota Con Riesgo */}
+                          <div>
+                            <div className="text-lg font-bold mb-1" style={{ color: getColor('accent', '#f59e0b') }}>
+                              {formatScore(attempt.score_with_risk || 0)}
+                            </div>
+                            {percentileWithRisk !== null && (
+                              <span 
+                                className="text-xs font-medium flex items-center gap-1"
+                                style={{ color: percentileWithRisk >= 0 ? '#10b981' : '#ef4444' }}
+                              >
+                                {percentileWithRisk >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                {percentileWithRisk >= 0 ? '+' : ''}{percentileWithRisk.toFixed(1)}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Acciones */}
+                          <div className="flex items-center justify-end">
+                            <button
+                              onClick={(e) => handleViewDetails(attempt, e)}
+                              className="px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5"
+                              style={{ 
+                                backgroundColor: `${getColor('primary', '#1a202c')}10`,
+                                color: getColor('primary', '#1a202c')
+                              }}
                               onMouseEnter={(e) => {
                                 e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
                                 e.currentTarget.style.transform = 'scale(1.05)';
@@ -437,66 +587,11 @@ const TestHistoryPage = () => {
                                 e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
                                 e.currentTarget.style.transform = 'scale(1)';
                               }}
-                              title="Ir al cuestionario"
                             >
-                              <ExternalLink size={14} style={{ color: getColor('primary', '#1a202c') }} />
+                              <Eye size={14} />
+                              <span>Ver Detalles</span>
                             </button>
                           </div>
-                        </div>
-
-                        {/* Nota Sin Riesgo */}
-                        <div>
-                          <div className="text-lg font-bold mb-1" style={{ color: getColor('primary', '#1a202c') }}>
-                            {formatScore(attempt.score || 0)}
-                          </div>
-                          {percentileWithoutRisk !== null && (
-                            <span 
-                              className="text-xs font-medium flex items-center gap-1"
-                              style={{ color: percentileWithoutRisk >= 0 ? '#10b981' : '#ef4444' }}
-                            >
-                              {percentileWithoutRisk >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                              {percentileWithoutRisk >= 0 ? '+' : ''}{percentileWithoutRisk.toFixed(1)}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Nota Con Riesgo */}
-                        <div>
-                          <div className="text-lg font-bold mb-1" style={{ color: getColor('accent', '#f59e0b') }}>
-                            {formatScore(attempt.score_with_risk || 0)}
-                          </div>
-                          {percentileWithRisk !== null && (
-                            <span 
-                              className="text-xs font-medium flex items-center gap-1"
-                              style={{ color: percentileWithRisk >= 0 ? '#10b981' : '#ef4444' }}
-                            >
-                              {percentileWithRisk >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                              {percentileWithRisk >= 0 ? '+' : ''}{percentileWithRisk.toFixed(1)}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Acciones */}
-                        <div className="flex items-center justify-end">
-                          <button
-                            onClick={(e) => handleViewDetails(attempt, e)}
-                            className="px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5"
-                            style={{ 
-                              backgroundColor: `${getColor('primary', '#1a202c')}10`,
-                              color: getColor('primary', '#1a202c')
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
-                              e.currentTarget.style.transform = 'scale(1.05)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
-                              e.currentTarget.style.transform = 'scale(1)';
-                            }}
-                          >
-                            <Eye size={14} />
-                            <span>Ver Detalles</span>
-                          </button>
                         </div>
                       </div>
                       

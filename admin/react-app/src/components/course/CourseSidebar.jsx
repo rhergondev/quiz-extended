@@ -2,24 +2,29 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  BookOpen, FileText, ChevronLeft, ChevronRight,
-  Calendar, ClipboardList, Video, BarChart3, Sparkles, Clock, FolderOpen, History
+  BookOpen, FileText, ChevronLeft, ChevronRight, X,
+  Calendar, ClipboardList, Video, BarChart3, Sparkles, Clock, FolderOpen, History,
+  User, LogOut, Home, Sun, Moon
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getCourseProgress } from '../../api/services/studentProgressService';
 import useCourse from '../../hooks/useCourse';
 
-const CourseSidebar = () => {
+const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
   const { courseId } = useParams();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [courseProgress, setCourseProgress] = useState(null);
   const { t } = useTranslation();
-  const { getCurrentColors, theme, isDarkMode } = useTheme();
+  const { getCurrentColors, getColor, theme, isDarkMode, toggleDarkMode } = useTheme();
   
   const currentColors = useMemo(() => getCurrentColors(), [theme, isDarkMode, getCurrentColors]);
 
   const { course } = useCourse(courseId);
   const courseName = course?.title?.rendered || course?.title || '';
+  
+  // Get global data
+  const homeUrl = window.qe_data?.home_url || '';
+  const logoutUrl = window.qe_data?.logout_url;
 
   // Fetch course progress
   useEffect(() => {
@@ -141,17 +146,33 @@ const CourseSidebar = () => {
   };
 
   return (
-    <div 
-      className={`relative h-full transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'}`}
-      style={{ backgroundColor: currentColors.backgroundColor }}
-    >
-      <aside className="h-full flex flex-col">
-        {/* Header */}
-        <div className="p-4">
-          <div className={`flex gap-2 mb-2 ${isCollapsed ? 'justify-center' : 'justify-between'}`} style={{ alignItems: 'center', minHeight: '40px' }}>
-            {!isCollapsed && (
+    <>
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div 
+        className={`fixed top-0 left-0 h-full lg:relative lg:top-auto lg:left-auto lg:h-full transition-all duration-300 z-50 lg:z-auto shadow-lg lg:shadow-none border-r w-64 ${
+          isCollapsed && 'lg:w-20'
+        } ${
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+        style={{ 
+          backgroundColor: getColor('background', '#ffffff'),
+          borderRightColor: getColor('borderColor', '#e5e7eb')
+        }}
+      >
+        <aside className="h-full flex flex-col">
+          {/* Header */}
+          <div className="p-4">
+            <div className={`flex gap-2 mb-2 justify-between lg:${isCollapsed ? 'justify-center' : 'justify-between'}`} style={{ alignItems: 'center', minHeight: '40px' }}>
               <h2 
-                className="text-base font-bold truncate flex-1"
+                className={`text-base font-bold truncate flex-1 ${isCollapsed && 'lg:hidden'}`}
                 style={{ 
                   color: currentColors.primary,
                   lineHeight: '24px',
@@ -162,34 +183,164 @@ const CourseSidebar = () => {
               >
                 <span dangerouslySetInnerHTML={{ __html: courseName }} />
               </h2>
-            )}
-            <button
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              type="button"
-              title={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
-              className="transition-colors cursor-pointer flex-shrink-0"
-              style={{ 
-                color: currentColors.primary,
-                width: '24px',
-                height: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 0,
-                border: 'none',
-                background: 'none'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.color = currentColors.accent}
-              onMouseLeave={(e) => e.currentTarget.style.color = currentColors.primary}
-            >
-              {isCollapsed ? <ChevronRight size={24}/> : <ChevronLeft size={24} />}
-            </button>
+              
+              {/* Collapse button for desktop only */}
+              <button
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                type="button"
+                title={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
+                className="hidden lg:flex transition-colors cursor-pointer flex-shrink-0"
+                style={{ 
+                  color: currentColors.primary,
+                  width: '24px',
+                  height: '24px',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  border: 'none',
+                  background: 'none'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = currentColors.accent}
+                onMouseLeave={(e) => e.currentTarget.style.color = currentColors.primary}
+              >
+                {isCollapsed ? <ChevronRight size={24}/> : <ChevronLeft size={24} />}
+              </button>
+            </div>
+            <div 
+              className="w-full h-[2px]"
+              style={{ backgroundColor: `${currentColors.primary}40` }}
+            />
           </div>
-          <div 
-            className="w-full h-[2px]"
-            style={{ backgroundColor: `${currentColors.primary}40` }}
-          />
-        </div>
+
+          {/* Global Navigation & Utilities - Mobile Only */}
+          <div className="lg:hidden px-2 pb-3 space-y-1.5">
+            {/* Main Navigation Buttons */}
+            <NavLink
+              to="/courses"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-2 p-2 rounded-lg transition-all duration-200"
+              style={{ 
+                backgroundColor: 'transparent',
+                color: currentColors.primary,
+                border: `1px solid ${currentColors.primary}40`
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = `${currentColors.primary}10`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <BookOpen className="w-4 h-4" />
+              <span className="text-xs font-medium">{t('sidebar.studyPlanner')}</span>
+            </NavLink>
+
+            <a
+              href={`${homeUrl}/mi-cuenta/downloads/`}
+              className="flex items-center gap-2 p-2 rounded-lg transition-all duration-200"
+              style={{ 
+                backgroundColor: 'transparent',
+                color: currentColors.primary,
+                border: `1px solid ${currentColors.primary}40`
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = `${currentColors.primary}10`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <FileText className="w-4 h-4" />
+              <span className="text-xs font-medium">{t('sidebar.books')}</span>
+            </a>
+
+            <a
+              href={homeUrl}
+              className="flex items-center gap-2 p-2 rounded-lg transition-all duration-200"
+              style={{ 
+                backgroundColor: 'transparent',
+                color: currentColors.primary,
+                border: `1px solid ${currentColors.primary}40`
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = `${currentColors.primary}10`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <Home className="w-4 h-4" />
+              <span className="text-xs font-medium">{t('sidebar.exitCampus')}</span>
+            </a>
+
+            {/* Utilities Row */}
+            <div className="flex gap-1.5 pt-1.5">
+              <button
+                onClick={toggleDarkMode}
+                className="flex-1 flex items-center justify-center gap-1 p-2 rounded-lg transition-all duration-200"
+                style={{ 
+                  backgroundColor: 'transparent',
+                  color: currentColors.primary,
+                  border: `1px solid ${currentColors.primary}40`
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = `${currentColors.primary}10`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+                title={isDarkMode ? t('sidebar.lightMode') : t('sidebar.darkMode')}
+              >
+                {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
+
+              <a
+                href={`${homeUrl}/mi-cuenta/edit-account/`}
+                className="flex-1 flex items-center justify-center gap-1 p-2 rounded-lg transition-all duration-200"
+                style={{ 
+                  backgroundColor: 'transparent',
+                  color: currentColors.primary,
+                  border: `1px solid ${currentColors.primary}40`
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = `${currentColors.primary}10`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+                title={t('sidebar.myAccount')}
+              >
+                <User className="w-4 h-4" />
+              </a>
+
+              {logoutUrl && (
+                <a
+                  href={logoutUrl}
+                  className="flex-1 flex items-center justify-center gap-1 p-2 rounded-lg transition-all duration-200"
+                  style={{ 
+                    backgroundColor: currentColors.primary,
+                    color: '#ffffff',
+                    border: `1px solid ${currentColors.primary}`
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = currentColors.accent;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = currentColors.primary;
+                  }}
+                  title={t('sidebar.logout')}
+                >
+                  <LogOut className="w-4 h-4" />
+                </a>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div 
+              className="w-full h-[2px] mt-4"
+              style={{ backgroundColor: `${currentColors.primary}40` }}
+            />
+          </div>
         
         {/* Navigation */}
         <nav className="flex-1 px-2 space-y-2 overflow-hidden overflow-y-auto">
@@ -198,6 +349,7 @@ const CourseSidebar = () => {
               <NavLink
                 to={item.to}
                 end
+                onClick={() => setIsMobileMenuOpen(false)}
                 className={({ isActive }) => `flex items-center p-2 transition-all duration-200 rounded-lg border-[2px] ${
                   isCollapsed ? 'justify-center' : ''
                 }`}
@@ -254,7 +406,8 @@ const CourseSidebar = () => {
           ))}
         </nav>
       </aside>
-    </div>
+      </div>
+    </>
   );
 };
 

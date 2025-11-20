@@ -1,8 +1,7 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
-import { ChevronRight } from 'lucide-react';
 import CourseSidebar from './CourseSidebar';
 
 /**
@@ -16,16 +15,15 @@ import CourseSidebar from './CourseSidebar';
 const CoursePageTemplate = ({ courseId, courseName, sectionName, children }) => {
   const { t } = useTranslation();
   const { getColor } = useTheme();
+  const { isMobileMenuOpen, setIsMobileMenuOpen } = useOutletContext();
 
   return (
-    <div className="flex h-full w-full overflow-hidden">
-      <CourseSidebar />
-      <div 
-        className="flex-1 flex flex-col h-full w-full overflow-hidden"
-        style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}
-      >
-        {/* Page Content - Sin breadcrumbs header */}
-        <main className="flex-1 w-full h-full overflow-hidden">
+    <div className="flex h-full w-full overflow-hidden" style={{ backgroundColor: getColor('secondaryBackground', '#f8f9fa') }}>
+      <CourseSidebar isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
+      
+      <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
+        {/* Page Content */}
+        <main className="flex-1 w-full h-full overflow-y-auto overflow-x-hidden">
           {children}
         </main>
       </div>

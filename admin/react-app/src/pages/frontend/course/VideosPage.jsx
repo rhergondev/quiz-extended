@@ -211,7 +211,7 @@ const VideosPage = () => {
           }`}
         >
           <div className="h-full overflow-y-auto">
-            <div className="max-w-5xl mx-auto px-4 py-6">
+            <div className="max-w-5xl mx-auto px-4 pt-6 pb-12">
             {loading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map(i => (
@@ -249,30 +249,30 @@ const VideosPage = () => {
                       {/* Lesson Header */}
                       <button
                         onClick={() => toggleLesson(lesson.id)}
-                        className="w-full px-6 py-4 flex items-center justify-between transition-all duration-200"
+                        className="w-full px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-200"
                         style={{ 
                           backgroundColor: `${getColor('primary', '#1a202c')}05`
                         }}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 overflow-hidden">
                           {isExpanded ? (
-                            <ChevronDown size={20} style={{ color: getColor('primary', '#1a202c') }} />
+                            <ChevronDown size={20} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
                           ) : (
-                            <ChevronRight size={20} style={{ color: `${getColor('textSecondary', '#6b7280')}` }} />
+                            <ChevronRight size={20} style={{ color: `${getColor('textSecondary', '#6b7280')}` }} className="flex-shrink-0" />
                           )}
-                          <Video size={20} style={{ color: getColor('primary', '#1a202c') }} />
-                          <span className="font-semibold text-left" style={{ color: getColor('textPrimary', '#1f2937') }}>
+                          <Video size={20} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
+                          <span className="font-semibold text-left truncate" style={{ color: getColor('textPrimary', '#1f2937') }}>
                             {lessonTitle}
                           </span>
                         </div>
                         <span 
-                          className="text-sm font-medium px-3 py-1 rounded-full"
+                          className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full flex-shrink-0 ml-2"
                           style={{ 
                             backgroundColor: `${getColor('primary', '#1a202c')}10`,
                             color: getColor('primary', '#1a202c')
                           }}
                         >
-                          {videoCount} {videoCount === 1 ? t('videos.video') : t('videos.videos')}
+                          {videoCount} <span className="hidden sm:inline">{videoCount === 1 ? t('videos.video') : t('videos.videos')}</span>
                         </span>
                       </button>
 
@@ -293,11 +293,11 @@ const VideosPage = () => {
                                   }}
                                 />
                                 
-                                <div className="px-6 py-4 flex items-center justify-between transition-all duration-200">
-                                <div className="flex items-center gap-3 flex-1">
-                                  <Play size={18} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
-                                  <div className="flex flex-col">
-                                    <span className="text-sm font-medium" style={{ color: getColor('primary', '#1a202c') }}>
+                                <div className="px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-200">
+                                <div className="flex items-center gap-3 flex-1 mr-2">
+                                  <Play size={18} style={{ color: `${getColor('primary', '#1a202c')}60` }} className="flex-shrink-0" />
+                                  <div className="flex flex-col overflow-hidden">
+                                    <span className="text-sm font-medium truncate" style={{ color: getColor('primary', '#1a202c') }}>
                                       {step.title}
                                     </span>
                                     {duration && (
@@ -309,7 +309,7 @@ const VideosPage = () => {
                                 </div>
                                 <button
                                   onClick={() => handleOpenVideo(step, lesson)}
-                                  className="p-2.5 rounded-lg transition-all duration-200 flex items-center gap-2"
+                                  className="p-2.5 rounded-lg transition-all duration-200 flex items-center gap-2 flex-shrink-0"
                                   style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
                                   onMouseEnter={(e) => {
                                     e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
@@ -322,7 +322,7 @@ const VideosPage = () => {
                                   title={t('videos.watch')}
                                 >
                                   <Play size={18} style={{ color: getColor('primary', '#1a202c') }} />
-                                  <span className="text-sm font-medium" style={{ color: getColor('primary', '#1a202c') }}>
+                                  <span className="text-sm font-medium hidden sm:inline" style={{ color: getColor('primary', '#1a202c') }}>
                                     {t('videos.watch')}
                                   </span>
                                 </button>
@@ -364,15 +364,15 @@ const VideosPage = () => {
             <div className="h-full flex flex-col">
               {/* Header Compacto con Breadcrumbs Integrados */}
               <div 
-                className="flex items-center justify-between px-4 py-1.5 border-b flex-shrink-0"
+                className="flex items-center justify-between px-4 py-2 sm:py-1.5 border-b flex-shrink-0 gap-2"
                 style={{ 
                   backgroundColor: getColor('background', '#ffffff'),
                   borderColor: `${getColor('primary', '#1a202c')}15` 
                 }}
               >
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 overflow-hidden">
                   {/* Breadcrumbs compactos */}
-                  <nav className="flex items-center text-xs space-x-1.5">
+                  <nav className="hidden sm:flex items-center text-xs space-x-1.5">
                     <Link 
                       to="/courses"
                       className="transition-colors duration-200 hover:underline font-medium"
@@ -394,15 +394,15 @@ const VideosPage = () => {
                   </nav>
                   {/* Título del video */}
                   <div className="flex items-center gap-2">
-                    <Video size={18} style={{ color: getColor('primary', '#1a202c') }} />
-                    <h2 className="text-base font-semibold leading-none" style={{ color: getColor('primary', '#1a202c') }}>
+                    <Video size={18} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
+                    <h2 className="text-sm sm:text-base font-semibold leading-tight truncate" style={{ color: getColor('primary', '#1a202c') }}>
                       {selectedVideo.title}
                     </h2>
                   </div>
                 </div>
 
                 {/* Navigation and Complete buttons */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                   {/* Previous button */}
                   <button
                     onClick={handlePrevious}
@@ -430,7 +430,7 @@ const VideosPage = () => {
                   <button
                     onClick={handleToggleComplete}
                     disabled={progressLoading}
-                    className="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm"
+                    className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm"
                     style={{ 
                       backgroundColor: isCurrentStepCompleted() 
                         ? `${getColor('primary', '#1a202c')}` 
@@ -447,13 +447,14 @@ const VideosPage = () => {
                         e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
                       }
                     }}
+                    title={isCurrentStepCompleted() ? t('progress.completed') : t('progress.markComplete')}
                   >
                     {isCurrentStepCompleted() ? (
                       <Check size={16} />
                     ) : (
                       <Circle size={16} />
                     )}
-                    <span className="font-medium">
+                    <span className="font-medium hidden sm:inline">
                       {isCurrentStepCompleted() ? t('progress.completed') : t('progress.markComplete')}
                     </span>
                   </button>
@@ -484,7 +485,7 @@ const VideosPage = () => {
                   {/* Close button */}
                   <button
                     onClick={closeVideoViewer}
-                    className="p-1.5 rounded-lg transition-all ml-2"
+                    className="p-1.5 rounded-lg transition-all ml-1 sm:ml-2"
                     style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;

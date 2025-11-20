@@ -6,23 +6,23 @@ import { useTheme } from '../../contexts/ThemeContext';
 
 const StatBox = ({ label, value, icon: Icon, bgColor, textColor }) => (
   <div 
-    className="text-center p-4 rounded-lg border-2"
+    className="text-center p-3 rounded-lg border-2"
     style={{ 
       backgroundColor: '#ffffff',
       borderColor: textColor
     }}
   >
-    <div className="flex items-center justify-center mb-2">
-      <Icon className="w-5 h-5 mr-2" style={{ color: textColor }} />
+    <div className="flex items-center justify-center mb-1.5">
+      <Icon className="w-4 h-4 mr-1.5" style={{ color: textColor }} />
       <span 
-        className="text-xs font-semibold uppercase tracking-wider"
+        className="text-[10px] font-semibold uppercase tracking-wider"
         style={{ color: textColor }}
       >
         {label}
       </span>
     </div>
     <span 
-      className="block text-2xl font-bold"
+      className="block text-xl font-bold"
       style={{ color: textColor }}
     >
       {value}
@@ -78,20 +78,20 @@ const ResultsSidebar = ({ result, questions }) => {
   return (
     <aside className="w-full">
       <div 
-        className="sticky top-4 p-6 rounded-lg border-2 shadow-sm max-h-[calc(100vh-2rem)] overflow-y-auto"
+        className="sticky top-4 p-4 rounded-lg border-2 shadow-sm max-h-[calc(100vh-2rem)] overflow-y-auto"
         style={{
           backgroundColor: getColor('secondaryBackground', '#ffffff'),
           borderColor: getColor('borderColor', getColor('primary', '#1a202c'))
         }}
       >
         <h3 
-          className="text-xl font-bold mb-6 text-center"
+          className="text-lg font-bold mb-4 text-center"
           style={{ color: getColor('primary', '#1a202c') }}
         >
           {t('quizzes.resultsSidebar.title')}
         </h3>
 
-        <div className="grid grid-cols-1 gap-3 mb-6">
+        <div className="grid grid-cols-1 gap-2 mb-4">
           <StatBox
             label={t('quizzes.resultsSidebar.score')}
             value={formatScore(score)}
@@ -116,13 +116,13 @@ const ResultsSidebar = ({ result, questions }) => {
         </div>
 
         <h4 
-          className="text-sm font-semibold mb-3"
+          className="text-xs font-semibold mb-2"
           style={{ color: getColor('primary', '#1a202c') }}
         >
           {t('quizzes.resultsSidebar.questionsMap')}
         </h4>
         <div 
-          className="grid grid-cols-5 gap-2 p-3 rounded-lg"
+          className="grid grid-cols-5 gap-1.5 p-2 rounded-lg"
           style={{ backgroundColor: getColor('primary', '#1a202c') + '05' }}
         >
           {orderedResults && orderedResults.map((res, index) => {
@@ -155,7 +155,7 @@ const ResultsSidebar = ({ result, questions }) => {
               <button
                 key={res.question_id}
                 onClick={() => scrollToQuestion(index + 1)}
-                className="w-full aspect-square rounded-lg text-sm font-bold transition-all duration-200 flex items-center justify-center cursor-pointer border-2"
+                className="w-full aspect-square rounded text-xs font-bold transition-all duration-200 flex items-center justify-center cursor-pointer border"
                 style={{
                   backgroundColor: bgColor,
                   borderColor: borderColor,

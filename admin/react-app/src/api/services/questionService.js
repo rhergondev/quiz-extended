@@ -26,7 +26,11 @@ const buildQuestionQueryParams = (options = {}) => {
 
   // Añade filtros de taxonomía si existen y no son 'all'
   if (options.category && options.category !== 'all') {
-    params.append('qe_category', options.category);
+    // Si es un array, únelo por comas (o usa el formato que prefiera tu backend)
+    const categoryValue = Array.isArray(options.category) 
+      ? options.category.join(',') 
+      : options.category;
+    params.append('qe_category', categoryValue);
   }
 
   if (options.provider && options.provider !== 'all') {
@@ -40,6 +44,11 @@ const buildQuestionQueryParams = (options = {}) => {
 
   if (options.difficulty && options.difficulty !== 'all') {
     params.append('difficulty', options.difficulty);
+  }
+
+  // Filtros de estado (favoritas, fallidas, etc.)
+  if (options.status_filters && Array.isArray(options.status_filters) && options.status_filters.length > 0) {
+    params.append('status_filters', options.status_filters.join(','));
   }
 
   return params;

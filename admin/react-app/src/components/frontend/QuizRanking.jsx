@@ -17,16 +17,16 @@ const RankingRow = ({ rank, isCurrentUser, formatScore }) => {
   });
 
   return (
-    <li className={`flex items-center p-3 rounded-md transition-colors ${rowClass}`}>
+    <li className={`flex items-center p-2 rounded-md transition-colors ${rowClass}`}>
       {/* Columna de Posición */}
-      <span className="font-bold text-gray-500 w-8 text-center">{position}</span>
+      <span className="font-bold text-gray-500 w-6 text-center text-sm">{position}</span>
       
       {/* Columna de Usuario */}
-      <img src={avatar_url} alt={display_name} className="w-8 h-8 rounded-full mx-3" />
+      <img src={avatar_url} alt={display_name} className="w-6 h-6 rounded-full mx-2" />
       <div className="flex-1 min-w-0">
-        <span className="text-sm font-medium text-gray-800 truncate">{display_name}</span>
-        <div className="flex items-center text-xs text-gray-500 mt-1">
-          <Calendar className="w-3 h-3 mr-1" />
+        <span className="text-xs font-medium text-gray-800 truncate">{display_name}</span>
+        <div className="flex items-center text-[10px] text-gray-500 mt-0.5">
+          <Calendar className="w-2.5 h-2.5 mr-1" />
           <span>{formattedDate}</span>
         </div>
       </div>
@@ -34,15 +34,15 @@ const RankingRow = ({ rank, isCurrentUser, formatScore }) => {
       {/* Columna de Puntuación (Modificada) */}
       <div className="flex flex-col items-end">
         {/* Puntuación Principal */}
-        <span className="font-bold text-indigo-600 text-lg">
+        <span className="font-bold text-indigo-600 text-base">
           {formatScore(score)}
         </span>
         {/* Puntuación con Riesgo (siempre visible, más pequeña) */}
         <div 
-            className="flex items-center text-xs text-gray-500 mt-1" 
+            className="flex items-center text-[10px] text-gray-500 mt-0.5" 
             title="Puntuación con penalización por riesgo"
         >
-          <ShieldAlert className="w-3 h-3 mr-1 text-red-500" />
+          <ShieldAlert className="w-2.5 h-2.5 mr-1 text-red-500" />
           <span>{formatScore(score_with_risk ?? score)}</span>
         </div>
       </div>
@@ -57,16 +57,16 @@ const QuizRanking = ({ quizId }) => {
 
   if (loading) {
     return (
-      <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mt-4 flex justify-center items-center h-48">
-        <Loader className="animate-spin text-indigo-500" />
+      <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm mt-3 flex justify-center items-center h-32">
+        <Loader className="animate-spin text-indigo-500 w-5 h-5" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 p-4 rounded-lg border border-red-200 mt-4">
-        <p className="text-sm text-red-700">{error}</p>
+      <div className="bg-red-50 p-3 rounded-lg border border-red-200 mt-3">
+        <p className="text-xs text-red-700">{error}</p>
       </div>
     );
   }
@@ -101,46 +101,46 @@ const QuizRanking = ({ quizId }) => {
   });
 
   return (
-    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mt-4">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center flex items-center justify-center">
-        <Trophy className="w-5 h-5 mr-2 text-yellow-500" />
+    <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm mt-3">
+      <h3 className="text-base font-semibold text-gray-800 mb-3 text-center flex items-center justify-center">
+        <Trophy className="w-4 h-4 mr-1.5 text-yellow-500" />
         Ranking del Cuestionario
       </h3>
       
       {/* Statistics Section */}
       {statistics && (
-        <div className="mb-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2 text-center">
+        <div className="mb-3 p-2 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100">
+          <h4 className="text-xs font-semibold text-gray-700 mb-1.5 text-center">
             Estadísticas Generales
           </h4>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="bg-white p-2 rounded shadow-sm">
+          <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+            <div className="bg-white p-1.5 rounded shadow-sm">
               <div className="text-gray-500 text-center">Media sin riesgo</div>
-              <div className="text-indigo-600 font-bold text-center text-lg">
+              <div className="text-indigo-600 font-bold text-center text-base">
                 {formatScore(statistics.avg_score_without_risk)}
               </div>
             </div>
-            <div className="bg-white p-2 rounded shadow-sm">
+            <div className="bg-white p-1.5 rounded shadow-sm">
               <div className="text-gray-500 text-center">Media con riesgo</div>
-              <div className="text-red-600 font-bold text-center text-lg">
+              <div className="text-red-600 font-bold text-center text-base">
                 {formatScore(statistics.avg_score_with_risk)}
               </div>
             </div>
           </div>
-          <div className="mt-2 text-center text-xs text-gray-500">
+          <div className="mt-1.5 text-center text-[10px] text-gray-500">
             Total de usuarios: {statistics.total_users}
           </div>
         </div>
       )}
 
-      <ul className="space-y-2">
+      <ul className="space-y-1.5">
         {displayList.map((rank) => {
           if (rank.isSeparator) {
             return (
-              <li key={rank.id} className="flex justify-center items-center py-2">
-                <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                <div className="w-1 h-1 bg-gray-300 rounded-full mx-1"></div>
-                <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
+              <li key={rank.id} className="flex justify-center items-center py-1">
+                <div className="w-0.5 h-0.5 bg-gray-300 rounded-full"></div>
+                <div className="w-0.5 h-0.5 bg-gray-300 rounded-full mx-0.5"></div>
+                <div className="w-0.5 h-0.5 bg-gray-300 rounded-full"></div>
               </li>
             );
           }

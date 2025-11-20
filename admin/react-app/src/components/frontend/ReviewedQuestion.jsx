@@ -124,7 +124,7 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
     <>
       <div 
         id={`question-${displayIndex || question.id}`} 
-        className="rounded-lg mb-6 shadow-sm scroll-mt-6 transition-all duration-200"
+        className="rounded-lg mb-4 shadow-sm scroll-mt-6 transition-all duration-200"
         style={{
           backgroundColor: getColor('secondaryBackground', '#ffffff'),
           borderTop: `2px solid ${borderColor}40`,
@@ -135,13 +135,13 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
       >
         {/* Header */}
         <div 
-          className="p-4 border-b flex items-center justify-between"
+          className="p-3 border-b flex items-center justify-between"
           style={{ borderColor: borderColor + '15' }}
         >
           <div className="flex items-center gap-3">
             {/* Número de pregunta */}
             <div 
-              className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm"
+              className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs"
               style={{
                 backgroundColor: borderColor + '15',
                 color: borderColor
@@ -154,49 +154,49 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
             <div className="flex items-center gap-2">
               {questionState === 'correct' && (
                 <div 
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
                   style={{
                     backgroundColor: SUCCESS_COLOR + '15',
                     color: SUCCESS_COLOR
                   }}
                 >
-                  <CheckCircle size={14} strokeWidth={2.5} />
+                  <CheckCircle size={12} strokeWidth={2.5} />
                   {t('quizzes.reviewedQuestion.correct')}
                 </div>
               )}
               {questionState === 'incorrect' && (
                 <div 
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
                   style={{
                     backgroundColor: ERROR_COLOR + '15',
                     color: ERROR_COLOR
                   }}
                 >
-                  <XCircle size={14} strokeWidth={2.5} />
+                  <XCircle size={12} strokeWidth={2.5} />
                   {t('quizzes.reviewedQuestion.incorrect')}
                 </div>
               )}
               {questionState === 'unanswered' && (
                 <div 
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
                   style={{
                     backgroundColor: GRAY_COLOR + '15',
                     color: GRAY_COLOR
                   }}
                 >
-                  <Circle size={14} strokeWidth={2.5} />
+                  <Circle size={12} strokeWidth={2.5} />
                   {t('quizzes.reviewedQuestion.unanswered')}
                 </div>
               )}
               {is_risked && (
                 <div 
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
                   style={{
                     backgroundColor: getColor('accent', '#f59e0b') + '15',
                     color: getColor('accent', '#f59e0b')
                   }}
                 >
-                  <AlertTriangle size={14} strokeWidth={2.5} />
+                  <AlertTriangle size={12} strokeWidth={2.5} />
                   {t('quizzes.reviewedQuestion.withRisk')}
                 </div>
               )}
@@ -204,11 +204,11 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
           </div>
 
           {/* Acciones */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={handleToggleFavorite}
               disabled={isTogglingFavorite}
-              className="p-2 rounded-lg transition-all duration-200 disabled:opacity-50"
+              className="p-1.5 rounded-lg transition-all duration-200 disabled:opacity-50"
               style={{
                 color: isFavorite ? getColor('accent', '#f59e0b') : '#6b7280',
                 backgroundColor: isFavorite ? getColor('accent', '#f59e0b') + '10' : 'transparent'
@@ -225,12 +225,12 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
               }}
               title={t('quizzes.reviewedQuestion.markFavorite')}
             >
-              <Bookmark size={18} fill={isFavorite ? 'currentColor' : 'none'} strokeWidth={2} />
+              <Bookmark size={16} fill={isFavorite ? 'currentColor' : 'none'} strokeWidth={2} />
             </button>
             
             <button
               onClick={() => handleOpenModal('feedback')}
-              className="p-2 rounded-lg transition-all duration-200"
+              className="p-1.5 rounded-lg transition-all duration-200"
               style={{ 
                 color: '#6b7280',
                 backgroundColor: 'transparent'
@@ -245,12 +245,12 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
               }}
               title={t('quizzes.reviewedQuestion.addComment')}
             >
-              <MessageSquare size={18} strokeWidth={2} />
+              <MessageSquare size={16} strokeWidth={2} />
             </button>
 
             <button
               onClick={() => handleOpenModal('challenge')}
-              className="p-2 rounded-lg transition-all duration-200"
+              className="p-1.5 rounded-lg transition-all duration-200"
               style={{ 
                 color: '#6b7280',
                 backgroundColor: 'transparent'
@@ -265,21 +265,21 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
               }}
               title={t('quizzes.reviewedQuestion.challenge')}
             >
-              <AlertTriangle size={18} strokeWidth={2} />
+              <AlertTriangle size={16} strokeWidth={2} />
             </button>
           </div>
         </div>
 
         {/* Título de la pregunta */}
-        <div className="p-6">
+        <div className="p-4">
           <h3
-            className="text-base font-medium mb-4 leading-relaxed"
+            className="text-sm font-medium mb-3 leading-relaxed"
             style={{ color: borderColor }}
             dangerouslySetInnerHTML={{ __html: title }}
           />
 
           {/* Opciones */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             {options.map((option, optionIndex) => {
               const optionStyle = getOptionStyle(option.id);
               const isSelected = option.id == answer_given;
@@ -288,7 +288,7 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
               return (
                 <div
                   key={option.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border-2 transition-all duration-200"
+                  className="flex items-center gap-3 p-2.5 rounded-lg border-2 transition-all duration-200"
                   style={{
                     backgroundColor: optionStyle.backgroundColor,
                     borderColor: optionStyle.borderColor
@@ -298,19 +298,19 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
                   <div className="flex-shrink-0">
                     {isCorrectOption ? (
                       <CheckCircle 
-                        size={20} 
+                        size={18} 
                         strokeWidth={2.5}
                         style={{ color: optionStyle.color }}
                       />
                     ) : isSelected ? (
                       <XCircle 
-                        size={20} 
+                        size={18} 
                         strokeWidth={2.5}
                         style={{ color: optionStyle.color }}
                       />
                     ) : (
                       <Circle 
-                        size={20} 
+                        size={18} 
                         strokeWidth={2}
                         style={{ color: optionStyle.borderColor }}
                       />
@@ -319,7 +319,7 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
 
                   {/* Badge con letra */}
                   <div 
-                    className="flex-shrink-0 w-6 h-6 rounded flex items-center justify-center text-xs font-bold"
+                    className="flex-shrink-0 w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold"
                     style={{
                       backgroundColor: optionStyle.color + '20',
                       color: optionStyle.color
@@ -344,7 +344,7 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
         {/* Estadísticas de la pregunta (one-liner) */}
         {total_answers > 0 && (
           <div 
-            className="px-6 py-3 text-sm border-t"
+            className="px-4 py-2.5 text-xs border-t"
             style={{ 
               borderColor: borderColor + '15',
               color: GRAY_COLOR 
@@ -362,7 +362,7 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
           >
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="flex justify-between items-center w-full px-6 py-4 text-left transition-all duration-200"
+              className="flex justify-between items-center w-full px-4 py-3 text-left transition-all duration-200"
               style={{ 
                 color: GRAY_COLOR,
                 backgroundColor: 'transparent'
@@ -376,24 +376,24 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
                 e.currentTarget.style.color = GRAY_COLOR;
               }}
             >
-              <span className="text-sm font-semibold">
+              <span className="text-xs font-semibold">
                 {t('quizzes.reviewedQuestion.answerExplanation')}
               </span>
               {isExpanded ? (
-                <ChevronUp size={20} strokeWidth={2} />
+                <ChevronUp size={16} strokeWidth={2} />
               ) : (
-                <ChevronDown size={20} strokeWidth={2} />
+                <ChevronDown size={16} strokeWidth={2} />
               )}
             </button>
 
             {isExpanded && (
-              <div className="px-6 pb-4">
+              <div className="px-4 pb-3">
                 <div 
-                  className="rounded-lg p-4"
+                  className="rounded-lg p-3"
                   style={{ backgroundColor: GRAY_COLOR + '08' }}
                 >
                   <div
-                    className="text-sm leading-relaxed"
+                    className="text-xs leading-relaxed"
                     style={{ color: GRAY_COLOR }}
                     dangerouslySetInnerHTML={{ __html: fullExplanation }}
                   />
