@@ -6,7 +6,9 @@ import useCourse from '../../../hooks/useCourse';
 import useStudentProgress from '../../../hooks/useStudentProgress';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
-import { Search, ClipboardList, CheckCircle, Circle, Clock, Award, Play, Filter, Target, Calendar } from 'lucide-react';
+import { Search, ClipboardList, CheckCircle, Circle, Clock, Award, Play, Filter, Target, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const ITEMS_PER_PAGE = 20;
 
 const TestBrowserPage = () => {
   const { t } = useTranslation();
@@ -19,6 +21,7 @@ const TestBrowserPage = () => {
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Hook para manejar el progreso del estudiante
   const { 
@@ -96,6 +99,56 @@ const TestBrowserPage = () => {
     );
   }, [allTests, searchTerm]);
 
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredTests.length / ITEMS_PER_PAGE);
+  const paginatedTests = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredTests.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredTests, currentPage]);
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    // Scroll to top of list
+    const listContainer = document.querySelector('.test-browser-list');
+    if (listContainer) {
+      listContainer.scrollTop = 0;
+    }
+  };
+
+  // Generate page numbers array
+  const getPageNumbers = () => {
+    const pages = [];
+    
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
+
   const handleStartTest = (test) => {
     // Navegar a TestsPage con el quiz seleccionado
     // Usamos la ruta /tests que configuraremos en FrontendApp
@@ -149,14 +202,20 @@ const TestBrowserPage = () => {
             </div>
             <div className="mt-2 flex items-center justify-between text-sm">
               <span style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                {filteredTests.length} {filteredTests.length === 1 ? t('tests.test') : t('tests.tests')} {t('common.found')}
+                {filteredTests.length > 0 ? (
+                  <>
+                    {t('pagination.showing') || 'Mostrando'} {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredTests.length)} {t('pagination.of') || 'de'} {filteredTests.length} {t('pagination.results') || 'resultados'}
+                  </>
+                ) : (
+                  <>0 {t('pagination.results') || 'resultados'}</>
+                )}
               </span>
             </div>
           </div>
         </div>
 
         {/* Main Content - Lista plana de tests */}
-        <div className="flex-1 overflow-y-auto bg-gray-50" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
+        <div className="flex-1 overflow-y-auto bg-gray-50 test-browser-list" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
           <div className="max-w-5xl mx-auto px-6 py-6">
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -187,7 +246,7 @@ const TestBrowserPage = () => {
                     borderColor: getColor('borderColor', '#e5e7eb')
                   }}
                 >
-                {filteredTests.map((test, index) => {
+                {paginatedTests.map((test, index) => {
                   const isCompleted = isQuizCompleted(test.lessonId, test.originalStepIndex);
                   const passingScore = test.data?.passing_score || 70;
                   const timeLimit = test.data?.time_limit || null;
@@ -329,6 +388,101 @@ const TestBrowserPage = () => {
                   );
                 })}
                 </div>
+
+                {/* Paginación */}
+                {totalPages > 1 && (
+                  <div className="mt-6 flex items-center justify-center">
+                    <div className="flex items-center gap-2">
+                      {/* Botón anterior */}
+                      <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{
+                          backgroundColor: `${getColor('primary', '#1a202c')}10`,
+                          color: getColor('primary', '#1a202c')
+                        }}
+                        onMouseEnter={(e) => {
+                          if (currentPage !== 1) {
+                            e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                        }}
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+
+                      {/* Números de página */}
+                      <div className="flex items-center gap-1">
+                        {getPageNumbers().map((page, index) => {
+                          if (page === '...') {
+                            return (
+                              <span 
+                                key={`ellipsis-${index}`} 
+                                className="px-3 py-2"
+                                style={{ color: getColor('textSecondary', '#6b7280') }}
+                              >
+                                ...
+                              </span>
+                            );
+                          }
+
+                          const isActive = page === currentPage;
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => handlePageChange(page)}
+                              className="min-w-[40px] px-3 py-2 rounded-lg font-medium transition-all flex justify-center items-center"
+                              style={{
+                                backgroundColor: isActive 
+                                  ? getColor('primary', '#1a202c') 
+                                  : `${getColor('primary', '#1a202c')}05`,
+                                color: isActive 
+                                  ? '#ffffff' 
+                                  : getColor('primary', '#1a202c')
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isActive) {
+                                  e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}15`;
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isActive) {
+                                  e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`;
+                                }
+                              }}
+                            >
+                              {page}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Botón siguiente */}
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{
+                          backgroundColor: `${getColor('primary', '#1a202c')}10`,
+                          color: getColor('primary', '#1a202c')
+                        }}
+                        onMouseEnter={(e) => {
+                          if (currentPage !== totalPages) {
+                            e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                        }}
+                      >
+                        <ChevronRight size={20} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
