@@ -310,8 +310,20 @@ const Quiz = ({
             await clearAutosave();
           }
 
-          // Save the full question list we used for results display
-          const fullQuestions = questionsForSubmission || quizQuestions;
+          // 🔥 FIX: Recargar las preguntas para obtener el estado actualizado de is_favorite
+          let fullQuestions = questionsForSubmission || quizQuestions;
+          try {
+            const questionIdsToRefresh = fullQuestions.map(q => q.id);
+            const refreshedQuestions = await getQuestionsByIds(questionIdsToRefresh, { batchSize: 50 });
+            if (refreshedQuestions && refreshedQuestions.length > 0) {
+              console.log('✅ Questions refreshed with updated is_favorite status');
+              fullQuestions = refreshedQuestions;
+            }
+          } catch (refreshError) {
+            console.warn('⚠️ Could not refresh questions, using cached data:', refreshError);
+            // Si falla el refresh, usar las preguntas que ya teníamos
+          }
+
           setFinalQuestions(fullQuestions);
 
           setQuizResult(result);

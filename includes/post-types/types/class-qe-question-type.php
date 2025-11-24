@@ -24,9 +24,9 @@ class QE_Question_Type extends QE_Post_Types_Base
     {
         parent::__construct('qe_question');
         add_action('rest_after_insert_qe_question', [$this, 'sync_question_with_quizzes'], 10, 3);
-        add_action('rest_after_insert_qe_question', [$this, 'sync_question_with_course'], 20, 3);
+        add_action('rest_after_insert_qe_question', [$this, 'derive_course_and_lesson_associations'], 20, 3);
         add_action('before_delete_post', [$this, 'clear_quiz_associations_on_delete'], 10, 1);
-        add_action('before_delete_post', [$this, 'clear_course_association_on_delete'], 10, 1);
+        add_action('before_delete_post', [$this, 'clear_all_associations_on_delete'], 10, 1);
 
         // 🔥 Add custom query filters for REST API
         add_filter('rest_qe_question_query', [$this, 'add_custom_query_filters'], 10, 2);
@@ -68,7 +68,108 @@ class QE_Question_Type extends QE_Post_Types_Base
             }
         }
 
-        // 2. Handle status_filters
+        // 2. Handle course_id filter (supports both legacy _course_id and array _course_ids)
+        if ($request->get_param('course_id')) {
+            $course_id = absint($request->get_param('course_id'));
+
+            if ($course_id > 0) {
+                if (!isset($args['meta_query'])) {
+                    $args['meta_query'] = [];
+                }
+
+                // OR relation to check both fields
+                $args['meta_query'][] = [
+                    'relation' => 'OR',
+                    // Check legacy single field
+                    [
+                        'key' => '_course_id',
+                        'value' => $course_id,
+                        'compare' => '=',
+                        'type' => 'NUMERIC'
+                    ],
+                    // Check array field (integer format i:123;)
+                    [
+                        'key' => '_course_ids',
+                        'value' => 'i:' . $course_id . ';',
+                        'compare' => 'LIKE'
+                    ],
+                    // Check array field (string format s:3:"123";)
+                    [
+                        'key' => '_course_ids',
+                        'value' => 's:' . strlen((string) $course_id) . ':"' . $course_id . '";',
+                        'compare' => 'LIKE'
+                    ]
+                ];
+            }
+        }
+
+        // 3. Handle lessons filter (supports both legacy _question_lesson and array _lesson_ids)
+        if ($request->get_param('lessons')) {
+            $lessons = $request->get_param('lessons');
+            if (is_string($lessons)) {
+                $lessons = explode(',', $lessons);
+            }
+
+            if (!empty($lessons) && is_array($lessons)) {
+                $lessons = array_map('absint', $lessons);
+
+                if (!isset($args['meta_query'])) {
+                    $args['meta_query'] = [];
+                }
+
+                // Build OR query for each lesson across both fields
+                $lesson_query = ['relation' => 'OR'];
+
+                // Legacy field - can use IN operator
+                $lesson_query[] = [
+                    'key' => '_question_lesson',
+                    'value' => $lessons,
+                    'compare' => 'IN',
+                    'type' => 'NUMERIC'
+                ];
+
+                // Array field - need LIKE for each ID
+                foreach ($lessons as $lesson_id) {
+                    $lesson_query[] = [
+                        'key' => '_lesson_ids',
+                        'value' => 'i:' . $lesson_id . ';',
+                        'compare' => 'LIKE'
+                    ];
+                    $lesson_query[] = [
+                        'key' => '_lesson_ids',
+                        'value' => 's:' . strlen((string) $lesson_id) . ':"' . $lesson_id . '";',
+                        'compare' => 'LIKE'
+                    ];
+                }
+
+                $args['meta_query'][] = $lesson_query;
+            }
+        }
+
+        // 4. Handle difficulty filter (meta field _difficulty_level)
+        // Support both 'difficulty' and 'qe_difficulty' params
+        $difficulty = $request->get_param('difficulty') ?: $request->get_param('qe_difficulty');
+
+        if ($difficulty) {
+            $difficulty = sanitize_text_field($difficulty);
+
+            // Valid values: 'easy', 'medium', 'hard', 'beginner', 'intermediate', 'advanced'
+            $valid_difficulties = ['easy', 'medium', 'hard', 'beginner', 'intermediate', 'advanced'];
+
+            if (in_array($difficulty, $valid_difficulties)) {
+                if (!isset($args['meta_query'])) {
+                    $args['meta_query'] = [];
+                }
+
+                $args['meta_query'][] = [
+                    'key' => '_difficulty_level',
+                    'value' => $difficulty,
+                    'compare' => '='
+                ];
+            }
+        }
+
+        // 5. Handle status_filters
         $status_filters = $request->get_param('status_filters');
         if ($status_filters && is_string($status_filters)) {
             $status_filters = explode(',', $status_filters);
@@ -90,90 +191,81 @@ class QE_Question_Type extends QE_Post_Types_Base
                 $include_ids = array_merge($include_ids, $fav_ids);
             }
 
-            // Failed (Questions answered incorrectly at least once)
+            // Failed (Questions answered incorrectly in the LATEST attempt)
             if (in_array('failed', $status_filters)) {
                 $has_inclusion_filter = true;
                 $answers_table = $wpdb->prefix . 'qe_attempt_answers';
                 $attempts_table = $wpdb->prefix . 'qe_quiz_attempts';
 
+                // 🔥 FIX: Select questions where the LATEST answer is incorrect AND was answered
+                // We use a subquery to find the latest attempt_id for each question/user pair
                 $failed_ids = $wpdb->get_col($wpdb->prepare(
                     "SELECT DISTINCT a.question_id 
                      FROM {$answers_table} a
                      INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
-                     WHERE att.user_id = %d AND a.is_correct = 0",
+                     WHERE att.user_id = %d 
+                     AND a.attempt_id = (
+                        SELECT MAX(a2.attempt_id)
+                        FROM {$answers_table} a2
+                        INNER JOIN {$attempts_table} att2 ON a2.attempt_id = att2.attempt_id
+                        WHERE att2.user_id = %d AND a2.question_id = a.question_id
+                     )
+                     AND a.is_correct = 0
+                     AND a.answer_given IS NOT NULL",
+                    $user_id,
                     $user_id
                 ));
                 $include_ids = array_merge($include_ids, $failed_ids);
             }
 
-            // Risked (Questions answered with risk)
+            // Risked (Questions answered with risk in the LATEST attempt)
             if (in_array('risked', $status_filters)) {
                 $has_inclusion_filter = true;
                 $answers_table = $wpdb->prefix . 'qe_attempt_answers';
                 $attempts_table = $wpdb->prefix . 'qe_quiz_attempts';
 
+                // 🔥 FIX: Select questions where the LATEST answer was risked AND was answered
                 $risked_ids = $wpdb->get_col($wpdb->prepare(
                     "SELECT DISTINCT a.question_id 
                      FROM {$answers_table} a
                      INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
-                     WHERE att.user_id = %d AND a.is_risked = 1",
+                     WHERE att.user_id = %d 
+                     AND a.attempt_id = (
+                        SELECT MAX(a2.attempt_id)
+                        FROM {$answers_table} a2
+                        INNER JOIN {$attempts_table} att2 ON a2.attempt_id = att2.attempt_id
+                        WHERE att2.user_id = %d AND a2.question_id = a.question_id
+                     )
+                     AND a.is_risked = 1
+                     AND a.answer_given IS NOT NULL",
+                    $user_id,
                     $user_id
                 ));
                 $include_ids = array_merge($include_ids, $risked_ids);
             }
 
-            // Unanswered (Questions never answered by user)
+            // Unanswered (Questions seen in LATEST attempt but left blank)
             if (in_array('unanswered', $status_filters)) {
-                // For unanswered, we want to EXCLUDE questions the user HAS answered
+                $has_inclusion_filter = true;
                 $answers_table = $wpdb->prefix . 'qe_attempt_answers';
                 $attempts_table = $wpdb->prefix . 'qe_quiz_attempts';
 
-                $answered_ids = $wpdb->get_col($wpdb->prepare(
+                $unanswered_ids = $wpdb->get_col($wpdb->prepare(
                     "SELECT DISTINCT a.question_id 
                      FROM {$answers_table} a
                      INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
-                     WHERE att.user_id = %d",
+                     WHERE att.user_id = %d 
+                     AND a.attempt_id = (
+                        SELECT MAX(a2.attempt_id)
+                        FROM {$answers_table} a2
+                        INNER JOIN {$attempts_table} att2 ON a2.attempt_id = att2.attempt_id
+                        WHERE att2.user_id = %d AND a2.question_id = a.question_id
+                     )
+                     AND (a.answer_given IS NULL OR a.answer_given = '')",
+                    $user_id,
                     $user_id
                 ));
-
-                // If we have other inclusion filters (e.g. favorites), we need to intersect
-                // But "unanswered" and "failed" are mutually exclusive for a single question instance usually,
-                // but a user might have failed it once and then it's not unanswered.
-                // If user selects "Failed" AND "Unanswered", they probably want (Failed OR Unanswered).
-                // But WP_Query post__in is an AND with post__not_in.
-
-                // Strategy: If "Unanswered" is selected, we cannot simply use post__not_in if we also have post__in from others.
-                // We need to build a complex query or handle the logic carefully.
-
-                // If ONLY unanswered is selected:
-                if (!$has_inclusion_filter) {
-                    $args['post__not_in'] = array_merge($args['post__not_in'] ?? [], $answered_ids);
-                } else {
-                    // If mixed filters (e.g. Favorites OR Unanswered), it's tricky with standard WP_Query args.
-                    // Usually filters are AND. "Favorites AND Unanswered" -> Impossible if favorites implies interaction? 
-                    // Actually, you can favorite a question without answering it? Maybe.
-
-                    // Let's assume the user wants questions that match ANY of the selected criteria (OR logic)
-                    // But standard UI filters usually imply AND or OR depending on context.
-                    // In a generator, "Favorites" AND "Failed" usually means "Favorites that I also failed".
-                    // But "Unanswered" is special.
-
-                    // Let's stick to:
-                    // If Unanswered is selected, we exclude answered IDs.
-                    // If other filters are selected, we include those IDs.
-                    // If both, we might get 0 results if they are mutually exclusive.
-
-                    // However, if the user selects "Failed" and "Unanswered", they likely want questions that are EITHER failed OR unanswered.
-                    // Implementing OR logic in WP_Query is hard without raw SQL.
-
-                    // For now, let's implement as:
-                    // If Unanswered is selected, add answered_ids to exclude list.
-                    // BUT if we have include_ids, we need to be careful.
-
-                    // Let's assume AND logic for now as it's standard.
-                    // "Favorites" AND "Unanswered" = Favorites that I haven't answered yet.
-                    $exclude_ids = array_merge($exclude_ids, $answered_ids);
-                }
+                $include_ids = array_merge($include_ids, $unanswered_ids);
             }
 
             // Apply inclusions
@@ -205,74 +297,104 @@ class QE_Question_Type extends QE_Post_Types_Base
     }
 
     /**
-     * Syncs the question with its parent course after saving.
+     * 🆕 Deriva las asociaciones de curso y lección desde los quizzes.
+     * Una pregunta pertenece a los cursos/lecciones de todos sus quizzes.
      *
      * @param WP_Post         $post_inserted  The post of the question being saved.
      * @param WP_REST_Request $request        The REST API request.
      * @param bool            $creating       True if creating, false if updating.
      */
-    public function sync_question_with_course($post_inserted, $request, $creating)
+    public function derive_course_and_lesson_associations($post_inserted, $request, $creating)
     {
         $question_id = $post_inserted->ID;
 
-        // Get new course ID from the request
-        $new_course_id = $request->get_param('meta')['_course_id'] ?? 0;
-        $new_course_id = absint($new_course_id);
-
-        // Get old course ID (before save)
-        $old_course_id = get_post_meta($question_id, '_course_id_before_save', true);
-        $old_course_id = absint($old_course_id);
-
-        // If the course hasn't changed, do nothing
-        if ($old_course_id === $new_course_id) {
-            return;
+        // Obtener todos los quizzes de esta pregunta
+        $quiz_ids = get_post_meta($question_id, '_quiz_ids', true);
+        if (!is_array($quiz_ids)) {
+            $quiz_ids = [];
         }
 
-        // Remove question from old course's _question_ids
-        if ($old_course_id > 0) {
-            $question_ids = get_post_meta($old_course_id, '_question_ids', true);
-            if (is_array($question_ids)) {
-                $updated_ids = array_diff($question_ids, [$question_id]);
-                update_post_meta($old_course_id, '_question_ids', array_values($updated_ids));
+        $course_ids = [];
+        $lesson_ids = [];
+
+        // Para cada quiz, obtener sus cursos y lecciones
+        foreach ($quiz_ids as $quiz_id) {
+            // Obtener cursos del quiz
+            $quiz_course_ids = get_post_meta($quiz_id, '_course_ids', true);
+            if (!is_array($quiz_course_ids)) {
+                // Fallback al campo legacy
+                $legacy_course_id = get_post_meta($quiz_id, '_course_id', true);
+                if ($legacy_course_id) {
+                    $quiz_course_ids = [absint($legacy_course_id)];
+                } else {
+                    $quiz_course_ids = [];
+                }
             }
+            $course_ids = array_merge($course_ids, $quiz_course_ids);
+
+            // Obtener lecciones del quiz
+            $quiz_lesson_ids = get_post_meta($quiz_id, '_lesson_ids', true);
+            if (!is_array($quiz_lesson_ids)) {
+                $quiz_lesson_ids = [];
+            }
+            $lesson_ids = array_merge($lesson_ids, $quiz_lesson_ids);
         }
 
-        // Add question to new course's _question_ids
-        if ($new_course_id > 0) {
-            $question_ids = get_post_meta($new_course_id, '_question_ids', true);
-            if (!is_array($question_ids)) {
-                $question_ids = [];
-            }
-            if (!in_array($question_id, $question_ids)) {
-                $question_ids[] = $question_id;
-                update_post_meta($new_course_id, '_question_ids', $question_ids);
-            }
+        // Eliminar duplicados
+        $course_ids = array_unique(array_filter(array_map('absint', $course_ids)));
+        $lesson_ids = array_unique(array_filter(array_map('absint', $lesson_ids)));
+
+        // Actualizar meta fields de la pregunta
+        update_post_meta($question_id, '_course_ids', $course_ids);
+        update_post_meta($question_id, '_lesson_ids', $lesson_ids);
+
+        // Actualizar campos legacy para compatibilidad
+        if (!empty($course_ids)) {
+            update_post_meta($question_id, '_course_id', $course_ids[0]);
+        } else {
+            delete_post_meta($question_id, '_course_id');
         }
 
-        // Save current state for next update
-        update_post_meta($question_id, '_course_id_before_save', $new_course_id);
+        if (!empty($lesson_ids)) {
+            update_post_meta($question_id, '_question_lesson', $lesson_ids[0]);
+        } else {
+            delete_post_meta($question_id, '_question_lesson');
+        }
     }
 
     /**
-     * Cleans the course association when a question is permanently deleted.
+     * Limpia todas las asociaciones cuando una pregunta se elimina.
      *
      * @param int $post_id The ID of the post being deleted.
      */
-    public function clear_course_association_on_delete($post_id)
+    public function clear_all_associations_on_delete($post_id)
     {
         if (get_post_type($post_id) !== 'qe_question') {
             return;
         }
 
-        $course_id = get_post_meta($post_id, '_course_id_before_save', true);
-        if (!$course_id) {
-            return;
+        // Limpiar asociaciones con cursos
+        $course_ids = get_post_meta($post_id, '_course_ids', true);
+        if (is_array($course_ids)) {
+            foreach ($course_ids as $course_id) {
+                $question_ids = get_post_meta($course_id, '_question_ids', true);
+                if (is_array($question_ids)) {
+                    $updated_ids = array_diff($question_ids, [$post_id]);
+                    update_post_meta($course_id, '_question_ids', array_values($updated_ids));
+                }
+            }
         }
 
-        $question_ids = get_post_meta($course_id, '_question_ids', true);
-        if (is_array($question_ids)) {
-            $updated_ids = array_diff($question_ids, [$post_id]);
-            update_post_meta($course_id, '_question_ids', array_values($updated_ids));
+        // Limpiar asociaciones con lecciones
+        $lesson_ids = get_post_meta($post_id, '_lesson_ids', true);
+        if (is_array($lesson_ids)) {
+            foreach ($lesson_ids as $lesson_id) {
+                $question_ids = get_post_meta($lesson_id, '_question_ids', true);
+                if (is_array($question_ids)) {
+                    $updated_ids = array_diff($question_ids, [$post_id]);
+                    update_post_meta($lesson_id, '_question_ids', array_values($updated_ids));
+                }
+            }
         }
     }
 

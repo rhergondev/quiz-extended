@@ -99,10 +99,10 @@ const CoursesPage = () => {
       className="h-full w-full overflow-y-auto p-6" 
       style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}
     >
-      {/* Botón hamburguesa flotante */}
+      {/* Botón hamburguesa flotante - solo móvil */}
       <button
         onClick={() => setIsMenuOpen(true)}
-        className="fixed top-6 right-6 z-40 p-4 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+        className="md:hidden fixed top-6 right-6 z-40 p-4 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
         style={{
           backgroundColor: getColor('primary', '#3b82f6'),
           color: '#ffffff'

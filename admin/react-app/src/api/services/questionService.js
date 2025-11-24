@@ -17,7 +17,11 @@ import {
 
 // 🔥 AÑADIDO: Constructor de parámetros personalizado para preguntas
 const buildQuestionQueryParams = (options = {}) => {
-  const params = buildQueryParams(options); // Llama al constructor base
+  // 🐛 FIX: Extraemos 'difficulty' para evitar que baseService añada 'qe_difficulty' automáticamente.
+  // Esto previene el error 400 de validación de taxonomía y nos permite controlar el parámetro manualmente.
+  const { difficulty, ...baseOptions } = options;
+  
+  const params = buildQueryParams(baseOptions); // Llama al constructor base sin difficulty
 
   // Añade el filtro específico de quiz si existe
   if (options.quizId) {
@@ -42,8 +46,9 @@ const buildQuestionQueryParams = (options = {}) => {
     params.append('type', options.type);
   }
 
-  if (options.difficulty && options.difficulty !== 'all') {
-    params.append('difficulty', options.difficulty);
+  // 🔥 AÑADIDO: Añadimos 'difficulty' explícitamente como parámetro de texto
+  if (difficulty && difficulty !== 'all') {
+    params.append('difficulty', difficulty);
   }
 
   // Filtros de estado (favoritas, fallidas, etc.)
@@ -73,7 +78,18 @@ const baseQuestionService = createResourceService('question', 'questions', {
  * @returns {Promise<Object>} Questions and pagination
  */
 export const getAll = async (options = {}) => {
-  return baseQuestionService.getAll(options);
+  const result = await baseQuestionService.getAll(options);
+  
+  // 🔍 DEBUG: Log is_favorite status for each question
+  if (result.data && Array.isArray(result.data)) {
+    console.log('🔍 Questions received from API:', result.data.map(q => ({
+      id: q.id,
+      title: q.title?.rendered || q.title,
+      is_favorite: q.is_favorite
+    })));
+  }
+  
+  return result;
 };
 
 /**

@@ -73,6 +73,9 @@ export const useQuestions = (options = {}) => {
       type: options.type || null,
       difficulty: options.difficulty || null,
       category: options.category || null,
+      course_id: options.course_id || null,
+      lessons: options.lessons || null,
+      status_filters: options.status_filters || null,
       status: options.status || 'publish,draft,private'
     },
     dataProcessor,

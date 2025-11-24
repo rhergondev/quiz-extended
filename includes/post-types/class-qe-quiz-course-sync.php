@@ -99,6 +99,9 @@ class QE_Quiz_Course_Sync
 
         // Rebuild course_ids from scratch by finding all lessons that contain this quiz
         $this->rebuild_quiz_course_ids($quiz_id);
+
+        // Sync questions to ensure they inherit course/lesson relationships
+        $this->sync_questions_on_quiz_save($quiz_id);
     }
 
     /**
@@ -188,6 +191,85 @@ class QE_Quiz_Course_Sync
         error_log("REBUILD_QUIZ_COURSE_IDS - Quiz ID: $quiz_id, Found courses: " . implode(',', $course_ids));
 
         update_post_meta($quiz_id, '_course_ids', $course_ids);
+    }
+
+    /**
+     * Sync questions when a quiz is saved
+     * Ensures all questions in the quiz have the correct course and lesson associations
+     * 
+     * @param int $quiz_id The quiz post ID
+     */
+    private function sync_questions_on_quiz_save($quiz_id)
+    {
+        $questions = get_post_meta($quiz_id, '_quiz_question_ids', true);
+        if (empty($questions) || !is_array($questions)) {
+            return;
+        }
+
+        $quiz_courses = get_post_meta($quiz_id, '_course_ids', true);
+        $quiz_lessons = get_post_meta($quiz_id, '_lesson_ids', true);
+
+        if (!is_array($quiz_courses))
+            $quiz_courses = [];
+        if (!is_array($quiz_lessons))
+            $quiz_lessons = [];
+
+        // Fallback for legacy
+        if (empty($quiz_courses)) {
+            $legacy_course = get_post_meta($quiz_id, '_course_id', true);
+            if ($legacy_course)
+                $quiz_courses[] = $legacy_course;
+        }
+
+        foreach ($questions as $question_id) {
+            $this->add_relationships_to_question($question_id, $quiz_courses, $quiz_lessons);
+        }
+    }
+
+    /**
+     * Add course and lesson relationships to a question
+     * 
+     * @param int $question_id
+     * @param array $course_ids
+     * @param array $lesson_ids
+     */
+    private function add_relationships_to_question($question_id, $course_ids, $lesson_ids)
+    {
+        // Update Courses
+        if (!empty($course_ids)) {
+            $current_courses = get_post_meta($question_id, '_course_ids', true);
+            if (!is_array($current_courses))
+                $current_courses = [];
+
+            $new_courses = array_unique(array_merge($current_courses, $course_ids));
+            $new_courses = array_map('absint', $new_courses);
+            sort($new_courses);
+
+            $current_courses = array_map('absint', $current_courses);
+            sort($current_courses);
+
+            if ($new_courses !== $current_courses) {
+                update_post_meta($question_id, '_course_ids', $new_courses);
+            }
+        }
+
+        // Update Lessons
+        if (!empty($lesson_ids)) {
+            $current_lessons = get_post_meta($question_id, '_lesson_ids', true);
+            if (!is_array($current_lessons))
+                $current_lessons = [];
+
+            $new_lessons = array_unique(array_merge($current_lessons, $lesson_ids));
+            $new_lessons = array_map('absint', $new_lessons);
+            sort($new_lessons);
+
+            $current_lessons = array_map('absint', $current_lessons);
+            sort($current_lessons);
+
+            if ($new_lessons !== $current_lessons) {
+                update_post_meta($question_id, '_lesson_ids', $new_lessons);
+            }
+        }
     }
 
     /**

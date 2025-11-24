@@ -246,6 +246,75 @@ const MigrationPage = () => {
             </div>
           )}
         </div>
+
+        {/* Tarjeta de Migración: Migrar Preguntas a Multi-Relación */}
+        <div 
+          className="p-6 rounded-xl border-2"
+          style={{
+            backgroundColor: getColor('background', '#ffffff'),
+            borderColor: getColor('borderColor', '#e5e7eb')
+          }}
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div 
+                className="p-3 rounded-lg"
+                style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+              >
+                <Database size={24} style={{ color: getColor('primary', '#1a202c') }} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold" style={{ color: getColor('primary', '#1a202c') }}>
+                  Migrar Preguntas a Multi-Relación
+                </h3>
+                <p className="text-sm mt-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                  Convierte las asociaciones antiguas de preguntas (<code>_course_id</code>, <code>_lesson_id</code>) al nuevo formato de arrays (<code>_course_ids</code>, <code>_lesson_ids</code>).
+                  Necesario para el filtrado avanzado en el Generador de Quizzes.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => runMigration('migrate_questions_to_multirelationship')}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all disabled:opacity-50"
+              style={{
+                backgroundColor: getColor('primary', '#1a202c'),
+                color: '#ffffff'
+              }}
+            >
+              {loading ? <Loader size={18} className="animate-spin" /> : <Play size={18} />}
+              <span>Ejecutar</span>
+            </button>
+          </div>
+
+          {/* Resultados */}
+          {result && result.stats && result.stats.updated !== undefined && (
+            <div className="mt-4 p-4 rounded-lg bg-green-50 border border-green-200">
+              <div className="flex items-center gap-2 mb-2 text-green-700 font-bold">
+                <CheckCircle size={18} />
+                <span>Migración Completada</span>
+              </div>
+              <div className="grid grid-cols-4 gap-4 text-sm text-green-800">
+                <div>
+                  <span className="block font-semibold">Total:</span>
+                  {result.stats?.total}
+                </div>
+                <div>
+                  <span className="block font-semibold">Actualizados:</span>
+                  {result.stats?.updated}
+                </div>
+                <div>
+                  <span className="block font-semibold">Omitidos:</span>
+                  {result.stats?.skipped}
+                </div>
+                <div>
+                  <span className="block font-semibold">Errores:</span>
+                  {result.stats?.errors}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

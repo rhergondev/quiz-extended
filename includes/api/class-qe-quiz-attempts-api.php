@@ -195,6 +195,14 @@ class QE_Quiz_Attempts_API extends QE_API_Base
 
         $all_question_ids = array_unique(array_merge($question_ids_from_answers, $all_question_ids_in_quiz));
 
+        // Get user favorites
+        $user_id = get_current_user_id();
+        $fav_table = $wpdb->prefix . 'qe_favorite_questions';
+        $favorites = $wpdb->get_col($wpdb->prepare(
+            "SELECT question_id FROM {$fav_table} WHERE user_id = %d",
+            $user_id
+        ));
+
         $questions_data = [];
         if (!empty($all_question_ids)) {
             $posts = get_posts([
@@ -209,6 +217,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                     'id' => $post->ID,
                     'title' => get_the_title($post->ID),
                     'content' => $post->post_content, // Include content (explanation)
+                    'is_favorite' => in_array($post->ID, $favorites),
                     'meta' => [ // Replicamos la estructura que el frontend espera
                         '_question_options' => get_post_meta($post->ID, '_question_options', true),
                         '_explanation' => get_post_meta($post->ID, '_explanation', true), // Include explanation meta

@@ -122,6 +122,7 @@ export const sanitizeQuestionData = (questionData) => {
         status: sanitizePostStatus(questionData.status, 'draft'),
         date: questionData.date || '',
         modified: questionData.modified || '',
+        is_favorite: sanitizeBoolean(questionData.is_favorite),
         
         // Taxonomies
         qe_category: sanitizeIdArray(questionData.qe_category),
@@ -205,5 +206,6 @@ export const formatQuestionForDisplay = (question) => {
     shortExplanation: truncateText(explanationPlainText, 100), // Versión sin HTML para preview
     fullExplanation: explanationHTML, // HTML completo para el editor
     isPublished: sanitized.status === 'publish',
+    isFavorite: sanitized.is_favorite || false,
   };
 };

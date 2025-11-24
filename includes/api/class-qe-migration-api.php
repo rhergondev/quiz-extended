@@ -62,8 +62,152 @@ class QE_Migration_API extends QE_API_Base
                 return $this->sync_quiz_course_ids();
             case 'update_database_schema':
                 return $this->update_database_schema();
+            case 'migrate_questions_to_multirelationship':
+                return $this->migrate_questions_to_multirelationship();
             default:
                 return $this->error_response('invalid_migration', 'Invalid migration type.', 400);
+        }
+    }
+
+    /**
+     * Migrate Questions to Multi-Relationship
+     * 
+     * Populates _course_ids and _lesson_ids from legacy single fields
+     * AND from associated Quizzes
+     */
+    private function migrate_questions_to_multirelationship()
+    {
+        try {
+            // 1. Get all Quizzes and their relationships to build a map
+            $quizzes = get_posts([
+                'post_type' => 'qe_quiz',
+                'posts_per_page' => -1,
+                'post_status' => 'any',
+            ]);
+
+            $question_map = []; // question_id => ['courses' => [], 'lessons' => []]
+
+            foreach ($quizzes as $quiz) {
+                $quiz_id = $quiz->ID;
+                $quiz_questions = get_post_meta($quiz_id, '_quiz_question_ids', true);
+                $quiz_courses = get_post_meta($quiz_id, '_course_ids', true);
+                $quiz_lessons = get_post_meta($quiz_id, '_lesson_ids', true);
+
+                if (!is_array($quiz_questions))
+                    $quiz_questions = [];
+                if (!is_array($quiz_courses))
+                    $quiz_courses = [];
+                if (!is_array($quiz_lessons))
+                    $quiz_lessons = [];
+
+                // Fallback for legacy quiz data
+                if (empty($quiz_courses)) {
+                    $legacy_course = get_post_meta($quiz_id, '_course_id', true);
+                    if ($legacy_course)
+                        $quiz_courses[] = $legacy_course;
+                }
+
+                foreach ($quiz_questions as $q_id) {
+                    if (!isset($question_map[$q_id])) {
+                        $question_map[$q_id] = ['courses' => [], 'lessons' => []];
+                    }
+                    $question_map[$q_id]['courses'] = array_merge($question_map[$q_id]['courses'], $quiz_courses);
+                    $question_map[$q_id]['lessons'] = array_merge($question_map[$q_id]['lessons'], $quiz_lessons);
+                }
+            }
+
+            // 2. Process all Questions
+            $questions = get_posts([
+                'post_type' => 'qe_question',
+                'posts_per_page' => -1,
+                'post_status' => 'any',
+                'fields' => 'ids',
+            ]);
+
+            $stats = [
+                'total' => count($questions),
+                'updated' => 0,
+                'skipped' => 0,
+                'errors' => 0
+            ];
+
+            foreach ($questions as $question_id) {
+                try {
+                    $needs_update = false;
+
+                    // Current values
+                    $current_courses = get_post_meta($question_id, '_course_ids', true);
+                    $current_lessons = get_post_meta($question_id, '_lesson_ids', true);
+
+                    if (!is_array($current_courses))
+                        $current_courses = [];
+                    if (!is_array($current_lessons))
+                        $current_lessons = [];
+
+                    // Legacy values
+                    $legacy_course = get_post_meta($question_id, '_course_id', true);
+                    if ($legacy_course)
+                        $current_courses[] = $legacy_course;
+
+                    $legacy_lesson = get_post_meta($question_id, '_lesson_id', true);
+                    if ($legacy_lesson)
+                        $current_lessons[] = $legacy_lesson;
+
+                    // Merge from map (Quizzes)
+                    if (isset($question_map[$question_id])) {
+                        $current_courses = array_merge($current_courses, $question_map[$question_id]['courses']);
+                        $current_lessons = array_merge($current_lessons, $question_map[$question_id]['lessons']);
+                    }
+
+                    // Unique and clean
+                    $new_courses = array_unique(array_map('absint', array_filter($current_courses)));
+                    $new_lessons = array_unique(array_map('absint', array_filter($current_lessons)));
+
+                    // Sort for consistency
+                    sort($new_courses);
+                    sort($new_lessons);
+
+                    // Check if update is needed
+                    $old_courses = get_post_meta($question_id, '_course_ids', true);
+                    $old_lessons = get_post_meta($question_id, '_lesson_ids', true);
+
+                    if (!is_array($old_courses))
+                        $old_courses = [];
+                    if (!is_array($old_lessons))
+                        $old_lessons = [];
+
+                    sort($old_courses);
+                    sort($old_lessons);
+
+                    if ($old_courses !== $new_courses) {
+                        update_post_meta($question_id, '_course_ids', $new_courses);
+                        $needs_update = true;
+                    }
+
+                    if ($old_lessons !== $new_lessons) {
+                        update_post_meta($question_id, '_lesson_ids', $new_lessons);
+                        $needs_update = true;
+                    }
+
+                    if ($needs_update) {
+                        $stats['updated']++;
+                    } else {
+                        $stats['skipped']++;
+                    }
+
+                } catch (Exception $e) {
+                    $stats['errors']++;
+                    error_log("Error migrating question $question_id: " . $e->getMessage());
+                }
+            }
+
+            return $this->success_response([
+                'message' => 'Questions migration completed successfully.',
+                'stats' => $stats
+            ]);
+
+        } catch (Exception $e) {
+            return $this->error_response('migration_failed', $e->getMessage(), 500);
         }
     }
 

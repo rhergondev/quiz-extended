@@ -49,6 +49,82 @@ class QE_Question_Meta
 
         // Question options (complex structure)
         $this->register_question_options();
+
+        // Computed fields
+        $this->register_computed_fields();
+    }
+
+    /**
+     * Register computed fields
+     *
+     * @return void
+     */
+    private function register_computed_fields()
+    {
+        error_log("🔧 Registering is_favorite field for {$this->post_type}");
+
+        register_rest_field($this->post_type, 'is_favorite', [
+            'get_callback' => [$this, 'get_is_favorite'],
+            'schema' => [
+                'description' => __('Is this question favorited by the current user', 'quiz-extended'),
+                'type' => 'boolean',
+                'context' => ['view', 'edit'],
+            ],
+        ]);
+
+        // 🔥 FORCE: Hook into rest_prepare to ensure is_favorite is always included
+        add_filter("rest_prepare_{$this->post_type}", [$this, 'force_is_favorite_in_response'], 10, 3);
+    }
+
+    /**
+     * Force is_favorite field in REST response
+     *
+     * @param WP_REST_Response $response Response object
+     * @param WP_Post $post Post object
+     * @param WP_REST_Request $request Request object
+     * @return WP_REST_Response
+     */
+    public function force_is_favorite_in_response($response, $post, $request)
+    {
+        $data = $response->get_data();
+
+        // Only add if not already present
+        if (!isset($data['is_favorite'])) {
+            $data['is_favorite'] = $this->get_is_favorite(['id' => $post->ID]);
+            $response->set_data($data);
+            error_log("🔥 FORCED is_favorite for question {$post->ID}: " . ($data['is_favorite'] ? 'TRUE' : 'FALSE'));
+        }
+
+        return $response;
+    }
+
+    /**
+     * Get is_favorite status
+     *
+     * @param array $object Post object
+     * @return bool
+     */
+    public function get_is_favorite($object)
+    {
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            error_log("🚫 get_is_favorite: No user logged in");
+            return false;
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'qe_favorite_questions';
+
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT favorite_id FROM $table_name WHERE user_id = %d AND question_id = %d",
+            $user_id,
+            $object['id']
+        ));
+
+        $is_fav = !empty($exists);
+        error_log("🔍 get_is_favorite Q#{$object['id']} U#{$user_id}: " . ($is_fav ? 'TRUE' : 'FALSE') . " (favorite_id={$exists})");
+
+        return $is_fav;
     }
 
     /**
@@ -58,20 +134,52 @@ class QE_Question_Meta
      */
     private function register_relationship_fields()
     {
+        // 🔥 NUEVO: Array de course IDs (múltiples cursos)
+        register_post_meta($this->post_type, '_course_ids', [
+            'show_in_rest' => [
+                'schema' => [
+                    'description' => __('Array of course IDs where this question appears', 'quiz-extended'),
+                    'type' => 'array',
+                    'items' => ['type' => 'integer'],
+                ]
+            ],
+            'single' => true,
+            'type' => 'array',
+            'description' => __('Courses containing this question', 'quiz-extended'),
+            'sanitize_callback' => [$this, 'sanitize_id_array'],
+            'auth_callback' => [$this, 'auth_callback'],
+        ]);
+
+        // 🔥 NUEVO: Array de lesson IDs (múltiples lecciones)
+        register_post_meta($this->post_type, '_lesson_ids', [
+            'show_in_rest' => [
+                'schema' => [
+                    'description' => __('Array of lesson IDs where this question appears', 'quiz-extended'),
+                    'type' => 'array',
+                    'items' => ['type' => 'integer'],
+                ]
+            ],
+            'single' => true,
+            'type' => 'array',
+            'description' => __('Lessons containing this question', 'quiz-extended'),
+            'sanitize_callback' => [$this, 'sanitize_id_array'],
+            'auth_callback' => [$this, 'auth_callback'],
+        ]);
+
+        // 🔄 LEGACY: Mantener compatibilidad con campos antiguos
         register_post_meta($this->post_type, '_course_id', [
             'show_in_rest' => [
                 'schema' => [
                     'type' => 'integer',
-                    'description' => __('Parent course ID', 'quiz-extended'),
+                    'description' => __('Legacy: Primary course ID', 'quiz-extended'),
                     'default' => 0,
                 ],
             ],
             'single' => true,
             'type' => 'integer',
-            'description' => __('Parent course ID', 'quiz-extended'),
+            'description' => __('Legacy: Primary course ID', 'quiz-extended'),
             'default' => 0,
             'sanitize_callback' => function ($value) {
-                // Allow empty values to be saved as 0
                 return $value ? absint($value) : 0;
             },
             'auth_callback' => [$this, 'auth_callback'],
@@ -81,7 +189,7 @@ class QE_Question_Meta
             'show_in_rest' => true,
             'single' => true,
             'type' => 'integer',
-            'description' => __('Associated lesson ID', 'quiz-extended'),
+            'description' => __('Legacy: Primary lesson ID', 'quiz-extended'),
             'sanitize_callback' => 'absint',
             'auth_callback' => [$this, 'auth_callback'],
         ]);

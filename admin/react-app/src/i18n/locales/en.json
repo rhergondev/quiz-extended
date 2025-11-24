@@ -106,6 +106,11 @@
     "statistics": "Statistics",
     "noContent": "No content available",
     "noContentDescription": "This course has no content added yet",
+    "questionTypes": "Question Types",
+    "favorites": "Favorites",
+    "failed": "Failed",
+    "atRisk": "At Risk",
+    "notAnswered": "Unanswered",
     "fields": {
       "title": "Course Title",
       "description": "Description",
@@ -526,6 +531,7 @@
       "unanswered": "Unanswered",
       "withRisk": "With risk",
       "markFavorite": "Mark as favorite",
+      "removeFromFavorites": "Remove from favorites",
       "addComment": "Add comment",
       "challenge": "Challenge",
       "questionStatistics": "Question statistics",
@@ -939,7 +945,11 @@
     "attemptDetails": "Attempt Details",
     "searchPlaceholder": "Search tests...",
     "noTestsFound": "No tests found",
-    "tryDifferentSearch": "Try a different search"
+    "tryDifferentSearch": "Try a different search",
+    "customTestDescription": "Create a custom test based on your needs",
+    "customTest": "Custom Test",
+    "noQuestionsFound": "No questions found",
+    "adjustFilters": "Adjust filters to find available questions"
   },
   "navigation": {
     "previous": "Previous",

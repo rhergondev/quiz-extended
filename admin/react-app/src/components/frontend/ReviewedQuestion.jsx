@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp, Bookmark, MessageSquare, Circle } from 'lucide-react';
 import { formatQuestionForDisplay } from '../../api/utils/questionDataUtils';
 import { useTranslation } from 'react-i18next';
@@ -15,26 +15,13 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
   const { t } = useTranslation();
   const { getColor } = useTheme();
 
-  const handleToggleFavorite = async () => {
-    if (isTogglingFavorite) return;
-    
-    setIsTogglingFavorite(true);
-    try {
-      const response = await toggleFavoriteQuestion(question.id);
-      setIsFavorite(response.is_favorited);
-    } catch (error) {
-      // Error silenciado - el usuario puede intentar de nuevo
-    } finally {
-      setIsTogglingFavorite(false);
+  const formattedQuestion = React.useMemo(() => formatQuestionForDisplay(question), [question]);
+
+  useEffect(() => {
+    if (formattedQuestion) {
+      setIsFavorite(formattedQuestion.isFavorite);
     }
-  };
-
-  const handleOpenModal = (type) => {
-    setFeedbackType(type);
-    setIsFeedbackModalOpen(true);
-  };
-
-  const formattedQuestion = formatQuestionForDisplay(question);
+  }, [formattedQuestion]);
 
   if (!formattedQuestion || !result) {
     return (
@@ -118,6 +105,40 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
       borderColor: '#e5e7eb',
       color: GRAY_COLOR
     };
+  };
+
+  const handleToggleFavorite = async () => {
+    if (isTogglingFavorite) return;
+    
+    console.log(`🎯 BEFORE Toggle - Question ${question.id}:`, {
+      currentState: isFavorite,
+      questionDataIsFavorite: question.is_favorite,
+      formattedQuestionIsFavorite: formattedQuestion.isFavorite
+    });
+    
+    setIsTogglingFavorite(true);
+    try {
+      const response = await toggleFavoriteQuestion(question.id);
+      console.log(`🎯 AFTER Toggle - Question ${question.id}:`, {
+        response,
+        apiReturned_is_favorited: response.is_favorited,
+        previousLocalState: isFavorite,
+        newLocalState: response.is_favorited,
+        shouldBeOppositeOf: isFavorite,
+        expectedNewState: !isFavorite
+      });
+      setIsFavorite(response.is_favorited);
+    } catch (error) {
+      console.error(`❌ Error toggling favorite for question ${question.id}:`, error);
+      // Error silenciado - el usuario puede intentar de nuevo
+    } finally {
+      setIsTogglingFavorite(false);
+    }
+  };
+
+  const handleOpenModal = (type) => {
+    setFeedbackType(type);
+    setIsFeedbackModalOpen(true);
   };
 
   return (
