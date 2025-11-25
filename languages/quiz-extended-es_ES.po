@@ -209,3 +209,7 @@ msgstr "Tu dirección IP ha sido bloqueada debido a actividad sospechosa."
 #: includes/security/class-qe-rate-limiter.php:414
 msgid "Access Denied"
 msgstr "Acceso denegado"
+
+#: includes/api/class-qe-user-stats-api.php:106
+msgid "You must be logged in."
+msgstr "Debes iniciar sesión."

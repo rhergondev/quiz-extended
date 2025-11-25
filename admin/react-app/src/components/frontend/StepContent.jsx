@@ -313,6 +313,9 @@ const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId, onOpenR
             drawingTool={drawingTool}
             drawingColor={drawingColor}
             drawingLineWidth={drawingLineWidth}
+            onDrawingToolChange={setDrawingTool}
+            onDrawingColorChange={setDrawingColor}
+            onDrawingLineWidthChange={setDrawingLineWidth}
             onClearCanvas={setClearCanvasFunction}
             onQuizComplete={() => {
               // Marcar el paso del quiz como completado automáticamente

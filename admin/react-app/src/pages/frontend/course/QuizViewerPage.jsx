@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, Check } from 'lucide-react';
+import { X, Check, Highlighter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
 import Quiz from '../../../components/frontend/Quiz';
+import DrawingToolbar from '../../../components/frontend/DrawingToolbar';
 import useStudentProgress from '../../../hooks/useStudentProgress';
 
 const QuizViewerPage = ({ quiz, courseId, onClose }) => {
@@ -43,8 +44,26 @@ const QuizViewerPage = ({ quiz, courseId, onClose }) => {
     }
   };
 
-  const handleClearCanvas = () => {
-    // Canvas clearing logic handled by DrawingCanvas component
+  const [clearCanvasCallback, setClearCanvasCallback] = useState(null);
+
+  const handleClearCanvas = (callback) => {
+    setClearCanvasCallback(() => callback);
+  };
+
+  const handleClearCanvasClick = () => {
+    if (clearCanvasCallback) {
+      clearCanvasCallback();
+    }
+  };
+
+  const toggleDrawingToolbar = () => {
+    const newState = !showDrawingToolbar;
+    setShowDrawingToolbar(newState);
+    setIsDrawingEnabled(newState);
+    if (!newState) {
+      // When closing toolbar, keep drawings but disable drawing mode
+      setIsDrawingEnabled(false);
+    }
   };
 
   if (!quiz) {
@@ -81,6 +100,19 @@ const QuizViewerPage = ({ quiz, courseId, onClose }) => {
             </div>
 
             <div className="flex items-center gap-3">
+              {/* Drawing Toolbar Toggle */}
+              <button
+                onClick={toggleDrawingToolbar}
+                className="p-2 rounded-lg transition-colors duration-200"
+                style={{
+                  backgroundColor: showDrawingToolbar ? getColor('primary', '#3b82f6') : `${getColor('primary', '#1a202c')}10`,
+                  color: showDrawingToolbar ? '#ffffff' : getColor('primary', '#1a202c')
+                }}
+                title="Activar/Desactivar Subrayador"
+              >
+                <Highlighter size={20} />
+              </button>
+
               {/* Close Button */}
               <button
                 onClick={onClose}
@@ -117,9 +149,25 @@ const QuizViewerPage = ({ quiz, courseId, onClose }) => {
             drawingTool={drawingTool}
             drawingColor={drawingColor}
             drawingLineWidth={drawingLineWidth}
+            onDrawingToolChange={setDrawingTool}
+            onDrawingColorChange={setDrawingColor}
+            onDrawingLineWidthChange={setDrawingLineWidth}
             onClearCanvas={handleClearCanvas}
           />
         </div>
+
+        {/* Drawing Toolbar */}
+        <DrawingToolbar
+          isActive={showDrawingToolbar}
+          tool={drawingTool}
+          onToolChange={setDrawingTool}
+          color={drawingColor}
+          onColorChange={setDrawingColor}
+          lineWidth={drawingLineWidth}
+          onLineWidthChange={setDrawingLineWidth}
+          onClear={handleClearCanvasClick}
+          onClose={toggleDrawingToolbar}
+        />
       </div>
     </div>
   );

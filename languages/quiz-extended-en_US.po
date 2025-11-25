@@ -1174,3 +1174,7 @@ msgid ""
 "\n"
 "This is an automated security notification."
 msgstr ""
+
+#: includes/api/class-qe-user-stats-api.php:106
+msgid "You must be logged in."
+msgstr ""

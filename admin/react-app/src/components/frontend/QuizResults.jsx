@@ -78,7 +78,7 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
             ${noPadding ? 'lg:sticky lg:top-4' : ''}
           `}
           style={{
-            backgroundColor: getColor('background', '#ffffff')
+            backgroundColor: isResultsSidebarOpen ? getColor('background', '#ffffff') : 'transparent'
           }}
           >
             {/* Header del sidebar móvil */}

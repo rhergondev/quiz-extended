@@ -178,13 +178,39 @@ const TestsPage = () => {
     fetchLessons();
   }, [courseId]);
 
-  // Handle navigation from external sources (like TestHistoryPage)
+  // Handle navigation from external sources (like TestHistoryPage or StatisticsPage)
   useEffect(() => {
     // 🔥 Si ya procesamos la navegación, no hacer nada
     if (hasProcessedNavigation.current) return;
     
     // Solo ejecutar si hay estado de navegación Y tenemos lecciones cargadas
     if (!location.state || lessons.length === 0) return;
+    
+    // 📊 Handle navigation from StatisticsPage - expand lesson
+    if (location.state?.openLessonId) {
+      const lessonId = location.state.openLessonId;
+      console.log('TestsPage - received openLessonId from StatisticsPage:', lessonId);
+      
+      // Expand the lesson
+      setExpandedLessons(new Set([lessonId]));
+      
+      // Scroll to lesson if requested
+      if (location.state.scrollToLesson) {
+        setTimeout(() => {
+          const lessonElement = document.getElementById(`lesson-${lessonId}`);
+          if (lessonElement) {
+            lessonElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
+      }
+      
+      // Mark as processed
+      hasProcessedNavigation.current = true;
+      
+      // Clear state
+      window.history.replaceState({}, document.title);
+      return;
+    }
     
     if (location.state?.viewAttemptId) {
       const quizId = location.state.selectedQuizId;
@@ -487,7 +513,7 @@ const TestsPage = () => {
                     const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
 
                     return (
-                      <div key={lesson.id}>
+                      <div key={lesson.id} id={`lesson-${lesson.id}`}>
                         {/* Lesson Header */}
                         <button
                           onClick={() => toggleLesson(lesson.id)}
@@ -1567,6 +1593,9 @@ const TestsPage = () => {
                       drawingTool={drawingTool}
                       drawingColor={drawingColor}
                       drawingLineWidth={drawingLineWidth}
+                      onDrawingToolChange={setDrawingTool}
+                      onDrawingColorChange={setDrawingColor}
+                      onDrawingLineWidthChange={setDrawingLineWidth}
                       onClearCanvas={handleClearCanvas}
                     />
                   )
@@ -1634,6 +1663,9 @@ const TestsPage = () => {
             drawingTool={drawingTool}
             drawingColor={drawingColor}
             drawingLineWidth={drawingLineWidth}
+            onDrawingToolChange={setDrawingTool}
+            onDrawingColorChange={setDrawingColor}
+            onDrawingLineWidthChange={setDrawingLineWidth}
             onClearCanvas={handleClearCanvas}
           />
         </div>

@@ -156,6 +156,7 @@ class QE_Course_Ranking_API extends QE_API_Base
                 COUNT(*) as total_attempts
             FROM {$table_name}
             WHERE quiz_id IN (" . implode(',', array_fill(0, count($quiz_ids), '%d')) . ")
+            AND status = 'completed'
             GROUP BY user_id
             HAVING quizzes_completed = %d
             ORDER BY {$score_column} DESC, total_attempts ASC
@@ -324,18 +325,42 @@ class QE_Course_Ranking_API extends QE_API_Base
         global $wpdb;
         $table_name = $wpdb->prefix . 'qe_quiz_attempts';
 
-        // Get user's stats for this course
-        $user_stats = $wpdb->get_row($wpdb->prepare("
-            SELECT 
-                COUNT(DISTINCT quiz_id) as quizzes_completed,
-                AVG(score) as average_score,
-                SUM(score) as total_score,
-                COUNT(*) as total_attempts,
-                MAX(completed_at) as last_attempt
-            FROM {$table_name}
-            WHERE quiz_id IN (" . implode(',', array_fill(0, count($quiz_ids), '%d')) . ")
-            AND user_id = %d
-        ", array_merge($quiz_ids, [$user_id])));
+        // 🔥 Get user's stats using ONLY the last attempt of each quiz
+        $last_attempts_scores = [];
+        $total_attempts_count = 0;
+        $last_attempt_time = null;
+
+        foreach ($quiz_ids as $quiz_id) {
+            $last_attempt = $wpdb->get_row($wpdb->prepare("
+                SELECT score, end_time
+                FROM {$table_name}
+                WHERE user_id = %d 
+                AND quiz_id = %d
+                AND status = 'completed'
+                ORDER BY end_time DESC
+                LIMIT 1
+            ", $user_id, $quiz_id));
+
+            if ($last_attempt) {
+                $last_attempts_scores[] = (float) $last_attempt->score;
+                $total_attempts_count++;
+
+                if (!$last_attempt_time || $last_attempt->end_time > $last_attempt_time) {
+                    $last_attempt_time = $last_attempt->end_time;
+                }
+            }
+        }
+
+        // Calculate stats from last attempts only
+        $quizzes_completed = count($last_attempts_scores);
+        $average_score = $quizzes_completed > 0 ? array_sum($last_attempts_scores) / $quizzes_completed : 0;
+
+        $user_stats = (object) [
+            'quizzes_completed' => $quizzes_completed,
+            'average_score' => $average_score,
+            'total_attempts' => $total_attempts_count,
+            'last_attempt' => $last_attempt_time
+        ];
 
         $completed_quizzes = $user_stats ? (int) $user_stats->quizzes_completed : 0;
         $has_completed_all = $completed_quizzes === $total_quizzes;
@@ -362,6 +387,7 @@ class QE_Course_Ranking_API extends QE_API_Base
                         COUNT(DISTINCT quiz_id) as completed
                     FROM {$table_name}
                     WHERE quiz_id IN (" . implode(',', array_fill(0, count($quiz_ids), '%d')) . ")
+                    AND status = 'completed'
                     GROUP BY user_id
                     HAVING completed = %d AND avg_score > %f
                 ) as temp_ranking
@@ -369,6 +395,25 @@ class QE_Course_Ranking_API extends QE_API_Base
 
             $response_data['temporary_position'] = (int) $temp_position;
             $response_data['is_temporary'] = true;
+        } elseif ($has_completed_all && $user_stats) {
+            // Calculate actual position among users who completed ALL quizzes
+            $position = $wpdb->get_var($wpdb->prepare("
+                SELECT COUNT(*) + 1
+                FROM (
+                    SELECT 
+                        user_id,
+                        AVG(score) as avg_score,
+                        COUNT(DISTINCT quiz_id) as completed
+                    FROM {$table_name}
+                    WHERE quiz_id IN (" . implode(',', array_fill(0, count($quiz_ids), '%d')) . ")
+                    AND status = 'completed'
+                    GROUP BY user_id
+                    HAVING completed = %d AND avg_score > %f
+                ) as real_ranking
+            ", array_merge($quiz_ids, [$total_quizzes, $user_stats->average_score])));
+
+            $response_data['position'] = (int) $position;
+            $response_data['is_temporary'] = false;
         }
 
         return new WP_REST_Response([
@@ -382,16 +427,17 @@ class QE_Course_Ranking_API extends QE_API_Base
      */
     private function get_course_quizzes($course_id)
     {
-        // Get lessons for this course
+        // Get lesson IDs from course meta
+        $lesson_ids = get_post_meta($course_id, '_lesson_ids', true);
+
+        if (empty($lesson_ids) || !is_array($lesson_ids)) {
+            return [];
+        }
+
+        // Get lessons
         $lessons = get_posts([
             'post_type' => 'qe_lesson',
-            'meta_query' => [
-                [
-                    'key' => '_course_ids',
-                    'value' => sprintf(':"%d";', $course_id),
-                    'compare' => 'LIKE'
-                ]
-            ],
+            'include' => $lesson_ids,
             'posts_per_page' => -1,
             'fields' => 'ids'
         ]);
@@ -400,16 +446,27 @@ class QE_Course_Ranking_API extends QE_API_Base
             return [];
         }
 
-        // Get quizzes for these lessons
+        // Collect all quiz IDs from lessons
         $quiz_ids = [];
         foreach ($lessons as $lesson_id) {
+            // Get from _quiz_ids meta
             $lesson_quizzes = get_post_meta($lesson_id, '_quiz_ids', true);
             if (is_array($lesson_quizzes)) {
                 $quiz_ids = array_merge($quiz_ids, $lesson_quizzes);
             }
+
+            // Get from _lesson_steps
+            $lesson_steps = get_post_meta($lesson_id, '_lesson_steps', true);
+            if (!empty($lesson_steps) && is_array($lesson_steps)) {
+                foreach ($lesson_steps as $step) {
+                    if (isset($step['type']) && $step['type'] === 'quiz' && isset($step['data']['quiz_id'])) {
+                        $quiz_ids[] = (int) $step['data']['quiz_id'];
+                    }
+                }
+            }
         }
 
-        return array_unique($quiz_ids);
+        return array_unique(array_filter($quiz_ids));
     }
 
     public function check_read_permission($request)

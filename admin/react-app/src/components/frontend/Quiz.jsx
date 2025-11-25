@@ -9,6 +9,7 @@ import Question from './Question';
 import QuizSidebar from './QuizSidebar';
 import Timer from './Timer';
 import DrawingCanvas from './DrawingCanvas';
+import DrawingToolbar from './DrawingToolbar';
 import { Loader, Menu, X } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useQuizAutosave from '../../hooks/useQuizAutosave';
@@ -29,6 +30,9 @@ const Quiz = ({
   drawingTool,
   drawingColor,
   drawingLineWidth,
+  onDrawingToolChange,
+  onDrawingColorChange,
+  onDrawingLineWidthChange,
   onClearCanvas
 }) => {
   const [quizInfo, setQuizInfo] = useState(null);
@@ -45,6 +49,52 @@ const Quiz = ({
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isQuizSidebarOpen, setIsQuizSidebarOpen] = useState(false);
+  const [clearCanvasCallback, setClearCanvasCallback] = useState(null);
+  
+  // Internal drawing states (fallback if not provided via props)
+  const [internalDrawingMode, setInternalDrawingMode] = useState(false);
+  const [internalDrawingEnabled, setInternalDrawingEnabled] = useState(false);
+  const [internalShowToolbar, setInternalShowToolbar] = useState(false);
+  const [internalDrawingTool, setInternalDrawingTool] = useState('highlighter');
+  const [internalDrawingColor, setInternalDrawingColor] = useState('#ffff00');
+  const [internalDrawingLineWidth, setInternalDrawingLineWidth] = useState(2);
+  
+  // Use props if provided, otherwise use internal state
+  const currentDrawingMode = isDrawingMode !== undefined ? isDrawingMode : internalDrawingMode;
+  const currentDrawingEnabled = isDrawingEnabled !== undefined ? isDrawingEnabled : internalDrawingEnabled;
+  const currentShowToolbar = showDrawingToolbar !== undefined ? showDrawingToolbar : internalShowToolbar;
+  const currentDrawingTool = drawingTool || internalDrawingTool;
+  const currentDrawingColor = drawingColor || internalDrawingColor;
+  const currentDrawingLineWidth = drawingLineWidth || internalDrawingLineWidth;
+  
+  const handleSetDrawingMode = (value) => setIsDrawingMode ? setIsDrawingMode(value) : setInternalDrawingMode(value);
+  const handleSetDrawingEnabled = (value) => setIsDrawingEnabled ? setIsDrawingEnabled(value) : setInternalDrawingEnabled(value);
+  const handleSetShowToolbar = (value) => setShowDrawingToolbar ? setShowDrawingToolbar(value) : setInternalShowToolbar(value);
+  const handleSetDrawingTool = (value) => {
+    console.log('🔧 Setting drawing tool:', value);
+    if (onDrawingToolChange) {
+      onDrawingToolChange(value);
+    } else {
+      setInternalDrawingTool(value);
+    }
+  };
+  const handleSetDrawingColor = (value) => {
+    console.log('🎨 Setting drawing color:', value);
+    if (onDrawingColorChange) {
+      onDrawingColorChange(value);
+    } else {
+      setInternalDrawingColor(value);
+    }
+  };
+  const handleSetDrawingLineWidth = (value) => {
+    console.log('📏 Setting line width:', value);
+    if (onDrawingLineWidthChange) {
+      onDrawingLineWidthChange(value);
+    } else {
+      setInternalDrawingLineWidth(value);
+    }
+  };
+  
   const { getColor } = useTheme();
   const { t } = useTranslation();
   const questionsContainerRef = useRef(null);
@@ -388,6 +438,38 @@ const Quiz = ({
         />
       )}
 
+      {/* Botón flotante para el subrayador */}
+      <button
+        onClick={() => {
+          const newState = !currentShowToolbar;
+          handleSetShowToolbar(newState);
+          handleSetDrawingEnabled(newState);
+          handleSetDrawingMode(true);
+        }}
+        className="fixed bottom-6 left-6 z-50 p-4 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+        style={{
+          backgroundColor: currentShowToolbar ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6'),
+          color: '#ffffff'
+        }}
+        aria-label="Activar/Desactivar subrayador"
+      >
+        <svg 
+          xmlns="http://www.w3.org/2000/svg" 
+          width="24" 
+          height="24" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+        >
+          <path d="m9 11-6 6v3h3l6-6"/>
+          <path d="m22 2-7 7"/>
+          <path d="M21 3 3 21"/>
+        </svg>
+      </button>
+
       {/* Botón flotante para abrir sidebar en móvil */}
       <button
         onClick={() => setIsQuizSidebarOpen(true)}
@@ -406,19 +488,19 @@ const Quiz = ({
           {/* Columna de Preguntas (con scroll y canvas de dibujo) */}
           <main ref={questionsContainerRef} className="w-full lg:w-2/3 lg:pr-4 relative overflow-y-auto pb-24 lg:pb-8">
             {/* Canvas de dibujo relativo al contenedor */}
-            {isDrawingMode && (
+            {currentDrawingMode && (
               <DrawingCanvas 
-                isActive={isDrawingMode}
-                isDrawingEnabled={isDrawingEnabled}
-                tool={drawingTool}
-                color={drawingColor}
-                lineWidth={drawingLineWidth}
+                isActive={currentDrawingMode}
+                isDrawingEnabled={currentDrawingEnabled}
+                tool={currentDrawingTool}
+                color={currentDrawingColor}
+                lineWidth={currentDrawingLineWidth}
                 onClose={() => {
-                  setIsDrawingMode(false);
-                  setIsDrawingEnabled(false);
-                  setShowDrawingToolbar(false);
+                  handleSetDrawingMode(false);
+                  handleSetDrawingEnabled(false);
+                  handleSetShowToolbar(false);
                 }}
-                onClear={onClearCanvas}
+                onClear={(callback) => setClearCanvasCallback(() => callback)}
                 containerRef={questionsContainerRef}
                 showToolbar={false}
               />
@@ -495,7 +577,7 @@ const Quiz = ({
         ${isQuizSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
       `}
       style={{
-        backgroundColor: getColor('background', '#ffffff')
+        backgroundColor: isQuizSidebarOpen ? getColor('background', '#ffffff') : 'transparent'
       }}
       >
         {/* Header del sidebar móvil */}
@@ -535,6 +617,26 @@ const Quiz = ({
       </aside>
         </div>
       </div>
+
+      {/* Drawing Toolbar */}
+      <DrawingToolbar
+        isActive={currentShowToolbar}
+        tool={currentDrawingTool}
+        onToolChange={handleSetDrawingTool}
+        color={currentDrawingColor}
+        onColorChange={handleSetDrawingColor}
+        lineWidth={currentDrawingLineWidth}
+        onLineWidthChange={handleSetDrawingLineWidth}
+        onClear={() => {
+          if (clearCanvasCallback) {
+            clearCanvasCallback();
+          }
+        }}
+        onClose={() => {
+          handleSetShowToolbar(false);
+          handleSetDrawingEnabled(false);
+        }}
+      />
     </div>
   );
 };
