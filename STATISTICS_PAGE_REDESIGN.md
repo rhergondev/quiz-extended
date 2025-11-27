@@ -2,9 +2,82 @@
 
 ## 🎯 Objetivo
 
-Rediseñar la página de estadísticas del curso para que sea consistente con el Dashboard y TestsPage, e integrar correctamente el sistema de formato de notas (Base 10 / Porcentaje).
+Rediseñar la página de estadísticas del curso con nuevas funcionalidades y mejoras visuales solicitadas por el usuario.
 
-## ✨ Mejoras Implementadas
+## ✨ Mejoras Implementadas (Actualización Nov 2025)
+
+### 1. **Ranking con Nota de Corte Top 10%**
+
+- ✅ Añadido cálculo de `top_10_cutoff_without_risk` y `top_10_cutoff_with_risk` en API
+- ✅ Mostrado en la tarjeta de Ranking: "Nota de corte Top 10%: X.X"
+- ✅ El cutoff representa la nota mínima para estar en el top 10%
+
+### 2. **Análisis de Temas (Todas las Lecciones Ordenables)**
+
+- ✅ Reemplazado "Lecciones a Repasar" por lista completa de temas
+- ✅ **Ordenación**: Toggle entre mayor-a-menor y menor-a-mayor nota
+- ✅ Muestra posición, título, tests completados y nota
+- ✅ Lista scrollable (max 384px)
+- ✅ Click en fila navega al quiz de la lección
+
+### 3. **Análisis de Preguntas con Desglose de Riesgo**
+
+- ✅ Toggle **"Sin Riesgo" / "Con Riesgo"** en el header
+- ✅ Tabs por dificultad (Fácil/Medio/Difícil)
+- ✅ Barras de porcentaje: Correctas, Incorrectas, Sin contestar
+- ✅ Indicador de preguntas marcadas con riesgo
+- ✅ Link rápido "Ver detalle →" para cambiar a vista con riesgo
+
+### 4. **Mejoras Visuales - Colores Más Suaves**
+
+Paleta actualizada para reducir intensidad:
+
+- Tests Completados: `#64748b` (slate) en lugar de `#3b82f6`
+- Mejor Lección: `#10b981` (emerald) en lugar de `#22c55e`
+- Análisis Preguntas: `#6b7280` (gray) en lugar de `#6366f1`
+- Barras: Tonos más suaves (emerald-300, rose-300)
+
+### 5. **Layout Dos Columnas**
+
+- Columna izquierda: Análisis de Temas (lista ordenable)
+- Columna derecha: Análisis de Preguntas (con/sin riesgo)
+
+---
+
+## 🔧 Cambios Técnicos
+
+### Nuevas Claves de Traducción
+
+```json
+// es.json
+"lessonAnalysis": "Análisis de Temas",
+"sortHighToLow": "Mayor a menor nota",
+"sortLowToHigh": "Menor a mayor nota",
+"questionAnalysis": "Análisis de Preguntas",
+"withRisk": "Con Riesgo",
+"withoutRisk": "Sin Riesgo",
+"top10Cutoff": "Nota de corte Top 10%"
+```
+
+### Nuevos Estados
+
+```javascript
+const [lessonSortOrder, setLessonSortOrder] = useState("desc");
+const [riskViewMode, setRiskViewMode] = useState("without");
+const [rankingStatistics, setRankingStatistics] = useState(null);
+```
+
+### API Actualizada
+
+```php
+// class-qe-course-ranking-api.php
+$statistics['top_10_cutoff_without_risk'] = ...;
+$statistics['top_10_cutoff_with_risk'] = ...;
+```
+
+---
+
+## ✨ Mejoras Previas
 
 ### 1. **Diseño Visual Consistente**
 

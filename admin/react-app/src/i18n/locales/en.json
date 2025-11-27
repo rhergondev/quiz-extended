@@ -71,7 +71,27 @@
     "collapse": "Collapse",
     "logoAlt": "Company Logo",
     "logoText": "Your Logo",
-    "onlineClasses": "Online Classes"
+    "onlineClasses": "Online Classes",
+    "menu": "Menu",
+    "quickMenu": "Quick Menu"
+  },
+  "header": {
+    "notifications": "Notifications",
+    "messages": "Messages"
+  },
+  "messages": {
+    "totalMessages": "messages",
+    "unread": "unread",
+    "loading": "Loading messages...",
+    "error": "Error loading messages",
+    "emptyInbox": "Your inbox is empty",
+    "emptyInboxDescription": "You don't have any messages right now. When you receive feedback on your questions, they will appear here.",
+    "selectToRead": "Select a message to read",
+    "system": "System",
+    "yesterday": "Yesterday",
+    "markAsRead": "Mark as read",
+    "delete": "Delete",
+    "loadMore": "Load more messages"
   },
   "courses": {
     "title": "Courses",
@@ -106,6 +126,12 @@
     "statistics": "Statistics",
     "noContent": "No content available",
     "noContentDescription": "This course has no content added yet",
+    "overallProgress": "Overall Progress",
+    "contentProgress": "Content Progress",
+    "completed": "completed",
+    "remaining": "remaining",
+    "testsCompleted": "Tests Completed",
+    "totalProgress": "Total Progress",
     "questionTypes": "Question Types",
     "favorites": "Favorites",
     "failed": "Failed",
@@ -462,6 +488,7 @@
   "quizzes": {
     "title": "Quizzes",
     "description": "Create and manage quizzes to assess student learning",
+    "timeRemaining": "Time Remaining",
     "addNew": "Add New Quiz",
     "createQuiz": "Create Quiz",
     "editQuiz": "Edit Quiz",
@@ -871,11 +898,20 @@
     "mustBePositive": "Must be a positive number"
   },
   "ranking": {
+    "title": "Test Ranking",
     "yourPosition": "Your Position",
     "averageScore": "Average Score",
     "pending": "Pending",
     "quizzesCompleted": "Quizzes Completed",
-    "completeAllQuizzes": "Complete all course quizzes to see your rank"
+    "completeAllQuizzes": "Complete all course quizzes to see your rank",
+    "loading": "Loading ranking...",
+    "error": "Error loading ranking",
+    "noData": "No rankings yet",
+    "noDataDescription": "Be the first to complete this test",
+    "avgWithoutRisk": "Avg without risk",
+    "avgWithRisk": "Avg with risk",
+    "totalUsers": "Participants",
+    "viewRanking": "View Ranking"
   },
   "events": {
     "pending": "Pending",
@@ -888,6 +924,8 @@
     "noMaterialsDescription": "No support materials have been added to this course yet",
     "document": "document",
     "documents": "documents",
+    "file": "file",
+    "files": "files",
     "download": "Download",
     "read": "Read",
     "noPreview": "Preview not available",
@@ -949,7 +987,28 @@
     "customTestDescription": "Create a custom test based on your needs",
     "customTest": "Custom Test",
     "noQuestionsFound": "No questions found",
-    "adjustFilters": "Adjust filters to find available questions"
+    "adjustFilters": "Adjust filters to find available questions",
+    "testHistory": "Test History",
+    "attempt": "attempt",
+    "attempts": "attempts",
+    "searchQuiz": "Search quiz",
+    "quizNamePlaceholder": "Quiz name...",
+    "lesson": "Lesson",
+    "allLessons": "All lessons",
+    "dateFrom": "From",
+    "dateTo": "To",
+    "showing": "Showing",
+    "of": "of",
+    "results": "results",
+    "clearFilters": "Clear filters",
+    "loadingHistory": "Loading history...",
+    "noAttemptsYet": "No attempts recorded yet",
+    "startTests": "Start taking tests to see your history",
+    "errorLoadingHistory": "Error loading history",
+    "tryAgain": "Try again",
+    "viewQuiz": "View quiz",
+    "aboveAverage": "above average",
+    "belowAverage": "below average"
   },
   "navigation": {
     "previous": "Previous",
@@ -977,6 +1036,9 @@
     "averageScore": "Average Score",
     "ranking": "Ranking",
     "topPercent": "Top {{percent}}%",
+    "cutoffScore": "Cutoff score",
+    "passedCutoff": "You passed the cutoff score",
+    "noCutoffDataYet": "Cutoff score available soon",
     "completedQuizzes": "Completed Quizzes",
     "lessonsCompleted": "Completed Lessons",
     "lessonsWithProgress": "Lessons with progress",
@@ -987,6 +1049,11 @@
     "completeTestsToSeeStats": "Complete tests to see statistics",
     "areasToImprove": "Areas to Improve",
     "lessonsToReview": "Lessons to Review",
+    "lessonAnalysis": "Lesson Analysis",
+    "allLessonsInCourse": "All lessons in the course",
+    "sortHighToLow": "Highest to lowest score",
+    "sortLowToHigh": "Lowest to highest score",
+    "noLessonsData": "No lesson data available",
     "review": "Review",
     "reviewLesson": "View Lesson",
     "greatJob": "Excellent!",
@@ -997,6 +1064,11 @@
     "needsImprovement": "Needs Work",
     "good": "Good",
     "difficultyAnalysis": "Difficulty Analysis",
+    "questionAnalysis": "Question Analysis",
+    "withRisk": "With Risk",
+    "withoutRisk": "Without Risk",
+    "filterByLesson": "Filter by lesson",
+    "allLessonsFilter": "All lessons",
     "easy": "Easy",
     "medium": "Medium",
     "hard": "Hard",
@@ -1006,6 +1078,7 @@
     "incorrect": "Incorrect",
     "unanswered": "Unanswered",
     "markedWithRisk": "Marked at risk",
+    "viewDetail": "View detail",
     "riskAnalysis": "Risk Analysis",
     "noRiskData": "No risk data available",
     "noRiskDataForDifficulty": "No questions marked at risk for this difficulty level",
@@ -1028,6 +1101,22 @@
         "month": "30 days",
         "all": "All time"
       }
+    }
+  },
+  "courseNotifications": {
+    "title": "Notifications",
+    "unread": "unread",
+    "markAllRead": "Mark all as read",
+    "loadMore": "Load more",
+    "empty": "No notifications yet",
+    "emptyDescription": "When new lessons, tests, videos or materials are added to this course, you'll receive notifications here.",
+    "types": {
+      "new_lesson": "New Lesson",
+      "new_quiz": "New Test",
+      "new_video": "New Video",
+      "new_pdf": "New PDF",
+      "new_text": "New Content",
+      "lesson_updated": "Lesson Updated"
     }
   }
 }

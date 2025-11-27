@@ -4,18 +4,31 @@ import React, { useEffect, useState } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { Users, TrendingUp, Trophy, Award } from 'lucide-react';
 
-const PerformanceComparison = ({ userAccuracy, selectedCourse }) => {
+const PerformanceComparison = ({ 
+  userAccuracy, 
+  selectedCourse,
+  compact = false,
+  isDarkMode = false,
+  pageColors = null 
+}) => {
   const { getColor } = useTheme();
   const [comparisonData, setComparisonData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Use provided pageColors or generate defaults
+  const colors = pageColors || {
+    text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
+    textMuted: getColor('textSecondary', '#6b7280'),
+    primary: getColor('primary', '#3b82f6'),
+    accent: getColor('accent', '#f59e0b'),
+    background: getColor('background', '#ffffff'),
+    secondaryBg: getColor('secondaryBackground', '#f3f4f6'),
+  };
+
   useEffect(() => {
-    // Simulated data - En producción, esto vendría de una API
-    // que calcule promedios de todos los estudiantes
     const fetchComparisonData = async () => {
       setLoading(true);
       
-      // Simulación de datos del servidor
       setTimeout(() => {
         const averageAccuracy = 68.5;
         const topPerformers = 85.0;
@@ -40,36 +53,37 @@ const PerformanceComparison = ({ userAccuracy, selectedCourse }) => {
   if (loading || !comparisonData) {
     return (
       <div 
-        className="p-6 rounded-xl shadow-lg flex items-center justify-center"
-        style={{ backgroundColor: getColor('background', '#ffffff') }}
+        className="p-4 rounded-lg border flex items-center justify-center"
+        style={{ 
+          backgroundColor: colors.background,
+          borderColor: isDarkMode ? colors.primary + '40' : '#e5e7eb',
+          minHeight: '120px'
+        }}
       >
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2" 
-             style={{ borderColor: getColor('primary', '#3b82f6') }}></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2" 
+             style={{ borderColor: colors.primary }}></div>
       </div>
     );
   }
 
   const comparisons = [
     {
-      label: 'Tu Precisión',
+      label: 'Tú',
       value: userAccuracy,
-      color: getColor('primary', '#3b82f6'),
+      color: colors.primary,
       icon: Trophy,
-      description: 'Tu rendimiento actual'
     },
     {
-      label: 'Promedio General',
+      label: 'Promedio',
       value: comparisonData.average,
-      color: getColor('secondary', '#94a3b8'),
+      color: '#94a3b8',
       icon: Users,
-      description: `Entre ${comparisonData.totalStudents} estudiantes`
     },
     {
-      label: 'Top Performers',
+      label: 'Top 10%',
       value: comparisonData.topPerformers,
-      color: getColor('accent', '#f59e0b'),
+      color: colors.accent,
       icon: Award,
-      description: '10% mejores estudiantes'
     }
   ];
 
@@ -79,112 +93,87 @@ const PerformanceComparison = ({ userAccuracy, selectedCourse }) => {
 
   return (
     <div 
-      className="p-6 rounded-xl shadow-lg border-2"
+      className={`p-4 rounded-lg border ${compact ? '' : 'shadow-lg'}`}
       style={{ 
-        backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
-        borderColor: getColor('primary', '#3b82f6')
+        backgroundColor: colors.background,
+        borderColor: isDarkMode ? colors.primary + '40' : '#e5e7eb'
       }}
     >
-      <div className="flex items-center gap-3 mb-4 pb-4 border-b-2" style={{ borderColor: getColor('primary', '#3b82f6') + '30' }}>
-        <Users className="w-6 h-6" style={{ color: getColor('primary', '#3b82f6') }} />
-        <h2 className="text-xl font-bold qe-text-primary">Comparación de Rendimiento</h2>
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-3 pb-2 border-b" style={{ borderColor: isDarkMode ? colors.primary + '30' : '#e5e7eb' }}>
+        <Users className="w-4 h-4" style={{ color: colors.primary }} />
+        <h2 className="text-sm font-semibold" style={{ color: colors.text }}>Comparación</h2>
       </div>
 
-      {/* Performance comparison bars */}
-      <div className="space-y-6 mb-8">
+      {/* Compact comparison bars */}
+      <div className="space-y-2.5 mb-3">
         {comparisons.map((item, index) => {
           const Icon = item.icon;
           const percentage = (item.value / maxValue) * 100;
           
           return (
-            <div key={index} className="space-y-2">
+            <div key={index} className="space-y-1">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Icon className="w-5 h-5" style={{ color: item.color }} />
-                  <span className="font-semibold qe-text-primary">{item.label}</span>
+                <div className="flex items-center gap-1.5">
+                  <Icon className="w-3.5 h-3.5" style={{ color: item.color }} />
+                  <span className="text-xs font-medium" style={{ color: colors.text }}>{item.label}</span>
                 </div>
-                <span className="text-xl font-bold" style={{ color: item.color }}>
+                <span className="text-sm font-bold" style={{ color: item.color }}>
                   {item.value.toFixed(1)}%
                 </span>
               </div>
               
-              <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
+              <div className="relative h-2 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? colors.primary + '20' : '#e5e7eb' }}>
                 <div 
-                  className="h-full rounded-full transition-all duration-1000 flex items-center justify-end px-3"
+                  className="h-full rounded-full transition-all duration-700"
                   style={{ 
                     width: `${percentage}%`,
                     backgroundColor: item.color
                   }}
-                >
-                  {percentage > 20 && (
-                    <span className="text-xs font-bold text-white">
-                      {item.value.toFixed(1)}%
-                    </span>
-                  )}
-                </div>
+                />
               </div>
-              
-              <p className="text-sm qe-text-secondary ml-7">{item.description}</p>
             </div>
           );
         })}
       </div>
 
-      {/* Insights */}
+      {/* Insight - Compact */}
       <div 
-        className="p-4 rounded-lg border-l-4"
+        className="p-2 rounded border-l-2"
         style={{ 
-          backgroundColor: isAboveAverage ? '#10b98110' : getColor('accent', '#f59e0b') + '10',
-          borderColor: isAboveAverage ? '#10b981' : getColor('accent', '#f59e0b')
+          backgroundColor: isAboveAverage ? '#10b98110' : colors.accent + '10',
+          borderColor: isAboveAverage ? '#10b981' : colors.accent
         }}
       >
-        <div className="flex items-start gap-3">
+        <div className="flex items-center gap-2">
           <TrendingUp 
-            className={`w-6 h-6 mt-1 ${isAboveAverage ? '' : 'rotate-180'}`}
-            style={{ color: isAboveAverage ? '#10b981' : getColor('accent', '#f59e0b') }}
+            className={`w-4 h-4 ${isAboveAverage ? '' : 'rotate-180'}`}
+            style={{ color: isAboveAverage ? '#10b981' : colors.accent }}
           />
-          <div>
-            <p className="font-bold qe-text-primary mb-1">
-              {isAboveAverage ? '¡Excelente trabajo!' : 'Sigue mejorando'}
-            </p>
-            <p className="qe-text-secondary text-sm">
-              {isAboveAverage ? (
-                <>
-                  Estás <strong style={{ color: '#10b981' }}>{Math.abs(difference).toFixed(1)}%</strong> por encima del promedio.
-                  Te encuentras en el <strong>percentil {comparisonData.percentile.toFixed(0)}</strong>, 
-                  superando a la mayoría de estudiantes.
-                </>
-              ) : (
-                <>
-                  Estás <strong style={{ color: getColor('accent', '#f59e0b') }}>{Math.abs(difference).toFixed(1)}%</strong> por debajo del promedio.
-                  Con un poco más de práctica, puedes alcanzar el nivel promedio y superarlo.
-                </>
-              )}
-            </p>
-          </div>
+          <p className="text-xs" style={{ color: colors.text }}>
+            {isAboveAverage ? (
+              <><strong style={{ color: '#10b981' }}>+{Math.abs(difference).toFixed(1)}%</strong> sobre el promedio</>
+            ) : (
+              <><strong style={{ color: colors.accent }}>{Math.abs(difference).toFixed(1)}%</strong> para alcanzar promedio</>
+            )}
+          </p>
         </div>
       </div>
 
-      {/* Rankings info */}
-      <div className="grid grid-cols-2 gap-4 mt-6">
-        <div className="p-4 rounded-lg text-center" style={{ 
-          backgroundColor: getColor('primary', '#3b82f6') + '15'
-        }}>
-          <p className="text-sm font-medium text-gray-600">Tu Posición</p>
-          <p className="text-3xl font-bold mt-1" style={{ color: getColor('primary', '#3b82f6') }}>
+      {/* Rank info - Compact */}
+      <div className="grid grid-cols-2 gap-2 mt-3">
+        <div className="p-2 rounded text-center" style={{ backgroundColor: isDarkMode ? colors.primary + '15' : '#f3f4f6' }}>
+          <p className="text-xs" style={{ color: colors.textMuted }}>Posición</p>
+          <p className="text-lg font-bold" style={{ color: colors.primary }}>
             #{comparisonData.userRank}
           </p>
-          <p className="text-xs text-gray-500 mt-1">de {comparisonData.totalStudents}</p>
         </div>
         
-        <div className="p-4 rounded-lg text-center" style={{ 
-          backgroundColor: getColor('secondary', '#8b5cf6') + '15'
-        }}>
-          <p className="text-sm font-medium text-gray-600">Percentil</p>
-          <p className="text-3xl font-bold mt-1" style={{ color: getColor('secondary', '#8b5cf6') }}>
+        <div className="p-2 rounded text-center" style={{ backgroundColor: isDarkMode ? '#8b5cf615' : '#f5f3ff' }}>
+          <p className="text-xs" style={{ color: colors.textMuted }}>Percentil</p>
+          <p className="text-lg font-bold" style={{ color: '#8b5cf6' }}>
             {comparisonData.percentile.toFixed(0)}%
           </p>
-          <p className="text-xs text-gray-500 mt-1">mejor que otros</p>
         </div>
       </div>
     </div>

@@ -1,38 +1,127 @@
-import React, { useMemo } from 'react';
-import { NavLink, useLocation, Link } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { BookOpen, FileText, User, LogOut, Home, Sun, Moon, Menu } from 'lucide-react';
+import { BookOpen, FileText, User, LogOut, Home, Sun, Moon, Menu, Bell, MessageSquare, BarChart3, Building2, ChevronDown } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useMessagesContextSafe } from '../../contexts/MessagesContext';
+import { getUnreadNotificationCount } from '../../api/services/notificationsService';
 
-const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute }) => {
+const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, courseId }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { t } = useTranslation();
-  const { getCurrentColors, theme, isDarkMode, toggleDarkMode } = useTheme();
+  const { getColor, isDarkMode, toggleDarkMode } = useTheme();
   
-  const currentColors = useMemo(() => getCurrentColors(), [theme, isDarkMode, getCurrentColors]);
+  // Dropdown state
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  
+  // Unread notifications count
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Fetch unread notifications count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      // courseId puede ser string desde la URL, lo convertimos
+      const parsedCourseId = courseId ? parseInt(courseId, 10) : null;
+      
+      if (parsedCourseId && isInCourseRoute) {
+        try {
+          const response = await getUnreadNotificationCount(parsedCourseId);
+          // API returns { success: true, data: { unread_count: N } }
+          const count = response?.data?.unread_count || response?.unread_count || 0;
+          setUnreadNotifications(count);
+        } catch (error) {
+          console.error('Error fetching unread notifications:', error);
+          setUnreadNotifications(0);
+        }
+      }
+    };
+
+    fetchUnreadCount();
+
+    // Listen for notification read events to update the badge
+    const handleNotificationRead = () => {
+      fetchUnreadCount();
+    };
+    
+    window.addEventListener('notificationRead', handleNotificationRead);
+    window.addEventListener('notificationsMarkedAllRead', handleNotificationRead);
+    
+    return () => {
+      window.removeEventListener('notificationRead', handleNotificationRead);
+      window.removeEventListener('notificationsMarkedAllRead', handleNotificationRead);
+    };
+  }, [courseId, isInCourseRoute]);
+
+  // Get unread messages count from context (safe - returns null if no provider)
+  const messagesContext = useMessagesContextSafe();
+  const unreadCount = messagesContext?.computed?.unreadMessages || 0;
 
   const userName = window.qe_data?.user?.name;
   const userEmail = window.qe_data?.user?.email;
   const logoutUrl = window.qe_data?.logout_url;
   const homeUrl = window.qe_data?.home_url || '';
   const campusLogo = window.qe_data?.campus_logo || '';
+  const campusLogoDark = window.qe_data?.campus_logo_dark || '';
 
-  const menuItems = [
+  // Colores del tema
+  const primary = getColor('primary', '#3b82f6');
+  const secondary = getColor('secondary', '#8b5cf6');
+  const accent = getColor('accent', '#f59e0b');
+  const textPrimary = getColor('textPrimary', '#f9fafb');
+  const secondaryBackground = getColor('secondaryBackground', '#ffffff');
+
+  // Colores del topbar según el modo (misma lógica que el sidebar)
+  const topbarColors = {
+    text: isDarkMode ? textPrimary : primary,
+    hoverBg: isDarkMode ? accent : primary,
+    hoverBoxShadow: isDarkMode ? 'none' : 'inset 0 0 0 2px #ffffff',
+    activeBg: primary,
+  };
+
+  // Determinar qué logo usar
+  const currentLogo = isDarkMode && campusLogoDark ? campusLogoDark : campusLogo;
+
+  // Menu items when NOT in a course (global navigation)
+  const globalMenuItems = [
     { to: '/courses', text: t('sidebar.studyPlanner'), icon: BookOpen, type: 'internal' },
     { to: `${homeUrl}/mi-cuenta/downloads/`, text: t('sidebar.books'), icon: FileText, type: 'external' },
     { to: homeUrl, text: t('sidebar.exitCampus'), icon: Home, type: 'exit' },
   ];
 
+  // Menu items when IN a course (course navigation)
+  const courseMenuItems = courseId ? [
+    { to: `/courses/${courseId}/dashboard`, text: t('courses.dashboard'), icon: BookOpen, type: 'internal' },
+    { to: `/courses/${courseId}/notifications`, text: t('header.notifications'), icon: Bell, type: 'internal', badge: unreadNotifications },
+    { to: `/courses/${courseId}/messages`, text: t('header.messages'), icon: MessageSquare, type: 'internal', badge: unreadCount },
+    { to: `/courses/${courseId}/statistics`, text: t('courses.statistics'), icon: BarChart3, type: 'internal' },
+  ] : [];
+
+  // Use course menu if in course route, otherwise global menu
+  const menuItems = isInCourseRoute ? courseMenuItems : globalMenuItems;
+
   const getLinkStyle = (isActive) => {
     if (isActive) {
       return {
-        backgroundColor: currentColors.primary,
+        backgroundColor: topbarColors.activeBg,
         color: '#ffffff'
       };
     }
     return {
       backgroundColor: 'transparent',
-      color: currentColors.primary
+      color: topbarColors.text
     };
   };
 
@@ -40,24 +129,26 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute }) => {
     if (isActive) return;
     
     if (isEnter) {
-      e.currentTarget.style.backgroundColor = currentColors.primary;
+      e.currentTarget.style.backgroundColor = topbarColors.hoverBg;
       e.currentTarget.style.color = '#ffffff';
+      e.currentTarget.style.boxShadow = topbarColors.hoverBoxShadow;
     } else {
       e.currentTarget.style.backgroundColor = 'transparent';
-      e.currentTarget.style.color = currentColors.primary;
+      e.currentTarget.style.color = topbarColors.text;
+      e.currentTarget.style.boxShadow = 'none';
     }
   };
 
   return (
     <header 
       style={{ 
-        backgroundColor: currentColors.secondaryBackground,
-        borderBottom: `1px solid ${currentColors.primary}33`
+        backgroundColor: secondaryBackground,
+        borderBottom: `1px solid ${topbarColors.text}33`
       }}
       className="w-full"
     >
       <div className="flex items-center justify-between px-4 sm:px-10 py-4 w-full max-w-full">
-        {/* Left: Hamburger (mobile only, course routes only) + Logo or Campus Name */}
+        {/* Left: Hamburger (mobile only, course routes only) + Logo */}
         <div className="flex items-center gap-3">
           {isInCourseRoute && (
             <button
@@ -65,10 +156,10 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute }) => {
               className="lg:hidden flex items-center justify-center p-2 rounded-lg transition-all duration-200"
               style={{ 
                 backgroundColor: 'transparent',
-                color: currentColors.primary
+                color: topbarColors.text
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = `${currentColors.primary}20`;
+                e.currentTarget.style.backgroundColor = `${topbarColors.hoverBg}20`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -79,24 +170,112 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute }) => {
             </button>
           )}
           
-          {campusLogo ? (
-            <img 
-              src={campusLogo} 
-              alt="Campus" 
-              className="h-10 max-w-[200px] object-contain"
-            />
-          ) : (
-            <h1 
-              className="text-2xl font-bold m-0"
-              style={{ color: currentColors.primary }}
-            >
-              Campus
-            </h1>
-          )}
+          {/* Logo clickeable que lleva a la URL principal */}
+          <a 
+            href={homeUrl || '/'} 
+            className="flex items-center transition-opacity hover:opacity-80"
+            title="Ir a la página principal"
+          >
+            {currentLogo ? (
+              <img 
+                src={currentLogo} 
+                alt="Campus" 
+                className="h-10 max-w-[200px] object-contain"
+              />
+            ) : (
+              <h1 
+                className="text-2xl font-bold m-0"
+                style={{ color: topbarColors.text }}
+              >
+                Campus
+              </h1>
+            )}
+          </a>
         </div>
 
         {/* Navigation Menu - Centered (hidden on mobile) */}
         <nav className="hidden md:flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
+          {/* Quick Menu Dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex items-center justify-center gap-1 p-2 rounded-lg transition-all duration-200"
+              style={{ 
+                backgroundColor: isDropdownOpen ? `${topbarColors.hoverBg}20` : 'transparent',
+                color: topbarColors.text
+              }}
+              onMouseEnter={(e) => {
+                if (!isDropdownOpen) {
+                  e.currentTarget.style.backgroundColor = `${topbarColors.hoverBg}20`;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isDropdownOpen) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }
+              }}
+              title={t('sidebar.quickMenu')}
+            >
+              <Building2 className="w-5 h-5" />
+              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <div 
+                className="absolute left-0 top-full mt-2 w-48 rounded-lg shadow-lg border overflow-hidden z-50"
+                style={{ 
+                  backgroundColor: secondaryBackground,
+                  borderColor: `${topbarColors.text}20`
+                }}
+              >
+                {/* Mis Cursos */}
+                <button
+                  onClick={() => {
+                    navigate('/courses');
+                    setIsDropdownOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 transition-all duration-200 text-left"
+                  style={{ 
+                    color: topbarColors.text,
+                    backgroundColor: 'transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `${topbarColors.hoverBg}15`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <BookOpen className="w-5 h-5" />
+                  <span className="font-medium">{t('sidebar.studyPlanner')}</span>
+                </button>
+                
+                {/* Separator */}
+                <div style={{ height: '1px', backgroundColor: `${topbarColors.text}15` }} />
+                
+                {/* Mis Libros */}
+                <a
+                  href={`${homeUrl}/mi-cuenta/downloads/`}
+                  onClick={() => setIsDropdownOpen(false)}
+                  className="w-full flex items-center gap-3 px-4 py-3 transition-all duration-200"
+                  style={{ 
+                    color: topbarColors.text,
+                    backgroundColor: 'transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `${topbarColors.hoverBg}15`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <FileText className="w-5 h-5" />
+                  <span className="font-medium">{t('sidebar.books')}</span>
+                </a>
+              </div>
+            )}
+          </div>
           {menuItems.map((item) => {
             if (item.type === 'exit') {
               return (
@@ -106,7 +285,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute }) => {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium"
                   style={{
                     backgroundColor: 'transparent',
-                    color: currentColors.primary
+                    color: topbarColors.text
                   }}
                   onMouseEnter={(e) => handleLinkHover(e, true, false)}
                   onMouseLeave={(e) => handleLinkHover(e, false, false)}
@@ -127,7 +306,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute }) => {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium"
                   style={{
                     backgroundColor: 'transparent',
-                    color: currentColors.primary
+                    color: topbarColors.text
                   }}
                   onMouseEnter={(e) => handleLinkHover(e, true, false)}
                   onMouseLeave={(e) => handleLinkHover(e, false, false)}
@@ -156,7 +335,20 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute }) => {
               >
                 {({ isActive }) => (
                   <>
-                    <item.icon className="w-5 h-5" style={{ color: isActive ? '#ffffff' : 'currentColor' }} />
+                    <div className="relative">
+                      <item.icon className="w-5 h-5" style={{ color: isActive ? '#ffffff' : 'currentColor' }} />
+                      {item.badge > 0 && (
+                        <span 
+                          className="absolute -top-2 -right-2 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold rounded-full"
+                          style={{ 
+                            backgroundColor: isActive ? '#ffffff' : accent,
+                            color: isActive ? primary : '#ffffff'
+                          }}
+                        >
+                          {item.badge > 99 ? '99+' : item.badge}
+                        </span>
+                      )}
+                    </div>
                     <span style={{ color: isActive ? '#ffffff' : 'currentColor' }}>{item.text}</span>
                   </>
                 )}
@@ -166,17 +358,17 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute }) => {
         </nav>
 
         {/* Right Section: Dark Mode Toggle, User Icon, Logout - Hidden on mobile */}
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-3 relative z-10">
           {/* Dark Mode Toggle */}
           <button
             onClick={toggleDarkMode}
             className="flex items-center justify-center p-2 rounded-lg transition-all duration-200"
             style={{ 
               backgroundColor: 'transparent',
-              color: currentColors.primary
+              color: topbarColors.text
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = `${currentColors.primary}20`;
+              e.currentTarget.style.backgroundColor = `${topbarColors.hoverBg}20`;
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
@@ -192,10 +384,10 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute }) => {
             className="flex items-center justify-center p-2 rounded-lg transition-all duration-200"
             style={{ 
               backgroundColor: 'transparent',
-              color: currentColors.primary
+              color: topbarColors.text
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = `${currentColors.primary}20`;
+              e.currentTarget.style.backgroundColor = `${topbarColors.hoverBg}20`;
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
@@ -211,14 +403,14 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute }) => {
               href={logoutUrl}
               className="flex items-center justify-center p-2 rounded-lg transition-all duration-200"
               style={{ 
-                backgroundColor: currentColors.primary,
+                backgroundColor: topbarColors.activeBg,
                 color: '#ffffff'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = currentColors.accent;
+                e.currentTarget.style.backgroundColor = accent;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = currentColors.primary;
+                e.currentTarget.style.backgroundColor = topbarColors.activeBg;
               }}
               title={t('sidebar.logout')}
             >

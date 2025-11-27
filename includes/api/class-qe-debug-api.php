@@ -63,10 +63,161 @@ class QE_Debug_API extends QE_API_Base
             'callback' => [$this, 'sync_quiz_course_ids'],
             'permission_callback' => [$this, 'permissions_check']
         ]);
+
+        // 🔔 Debug endpoint para notificaciones
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/notifications', [
+            'methods' => 'GET',
+            'callback' => [$this, 'debug_notifications'],
+            'permission_callback' => [$this, 'permissions_check']
+        ]);
+
+        // 🔔 Test: Crear notificación de prueba
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/notifications/test', [
+            'methods' => 'POST',
+            'callback' => [$this, 'test_create_notification'],
+            'permission_callback' => [$this, 'permissions_check']
+        ]);
+
+        // 🔔 Debug logs de notificaciones
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/notificationlogs', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_notification_logs'],
+            'permission_callback' => [$this, 'permissions_check']
+        ]);
+
+        // 🔔 Limpiar logs de notificaciones
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/notificationlogs/clear', [
+            'methods' => 'POST',
+            'callback' => [$this, 'clear_notification_logs'],
+            'permission_callback' => [$this, 'permissions_check']
+        ]);
     }
 
     /**
-     * Get capabilities debug info
+     * Debug notifications system
+     */
+    public function debug_notifications($request)
+    {
+        global $wpdb;
+
+        $notifications_table = $wpdb->prefix . 'qe_course_notifications';
+        $reads_table = $wpdb->prefix . 'qe_notification_reads';
+
+        // Check if tables exist
+        $notifications_exists = $wpdb->get_var("SHOW TABLES LIKE '{$notifications_table}'") === $notifications_table;
+        $reads_exists = $wpdb->get_var("SHOW TABLES LIKE '{$reads_table}'") === $reads_table;
+
+        // Get notification count
+        $notification_count = 0;
+        if ($notifications_exists) {
+            $notification_count = $wpdb->get_var("SELECT COUNT(*) FROM {$notifications_table}");
+        }
+
+        // Get recent notifications
+        $recent_notifications = [];
+        if ($notifications_exists) {
+            $recent_notifications = $wpdb->get_results(
+                "SELECT * FROM {$notifications_table} ORDER BY created_at DESC LIMIT 10",
+                ARRAY_A
+            );
+        }
+
+        // Get DB version info
+        $db_version = get_option('qe_db_version', 'not set');
+
+        return new WP_REST_Response([
+            'success' => true,
+            'data' => [
+                'tables' => [
+                    'notifications' => [
+                        'name' => $notifications_table,
+                        'exists' => $notifications_exists
+                    ],
+                    'reads' => [
+                        'name' => $reads_table,
+                        'exists' => $reads_exists
+                    ]
+                ],
+                'db_version' => $db_version,
+                'expected_version' => '2.0.3',
+                'notification_count' => (int) $notification_count,
+                'recent_notifications' => $recent_notifications,
+                'hooks_class_loaded' => class_exists('QE_Notification_Hooks'),
+                'api_class_loaded' => class_exists('QE_Notifications_API')
+            ]
+        ], 200);
+    }
+
+    /**
+     * Test create notification
+     */
+    public function test_create_notification($request)
+    {
+        global $wpdb;
+
+        $course_id = $request->get_param('course_id') ?: 1;
+
+        // Load API class
+        if (!class_exists('QE_Notifications_API')) {
+            require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/api/class-qe-notifications-api.php';
+        }
+
+        // Try to create notification
+        $result = QE_Notifications_API::create_notification_record(
+            $course_id,
+            'new_quiz',
+            'Test Notification',
+            'This is a test notification created via debug endpoint',
+            null,
+            null
+        );
+
+        return new WP_REST_Response([
+            'success' => $result !== false,
+            'data' => [
+                'notification_id' => $result,
+                'course_id' => $course_id,
+                'wpdb_last_error' => $wpdb->last_error,
+                'wpdb_last_query' => $wpdb->last_query
+            ]
+        ], $result !== false ? 200 : 500);
+    }
+
+    /**
+     * Get notification debug logs
+     */
+    public function get_notification_logs($request)
+    {
+        // Cargar la clase de hooks si existe
+        if (!class_exists('QE_Notification_Hooks')) {
+            require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-notification-hooks.php';
+        }
+
+        $logs = QE_Notification_Hooks::get_debug_logs();
+
+        return new WP_REST_Response([
+            'success' => true,
+            'data' => [
+                'logs' => $logs,
+                'count' => count($logs),
+                'timestamp' => current_time('mysql')
+            ]
+        ], 200);
+    }
+
+    /**
+     * Clear notification debug logs
+     */
+    public function clear_notification_logs($request)
+    {
+        delete_option('qe_notification_debug_log');
+
+        return new WP_REST_Response([
+            'success' => true,
+            'message' => 'Notification logs cleared',
+            'timestamp' => current_time('mysql')
+        ], 200);
+    }
 
     /**
      * Get capabilities debug info

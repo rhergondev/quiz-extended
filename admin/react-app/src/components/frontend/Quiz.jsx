@@ -95,9 +95,13 @@ const Quiz = ({
     }
   };
   
-  const { getColor } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
   const { t } = useTranslation();
   const questionsContainerRef = useRef(null);
+
+  // Dark mode aware colors
+  const textPrimary = isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c');
+  const textMuted = isDarkMode ? getColor('textSecondary', '#9ca3af') : '#6b7280';
 
   // Use paginated hook for loading questions
   const { 
@@ -407,7 +411,7 @@ const Quiz = ({
   if (quizState === 'error' || questionsError) {
       const errorMessage = questionsError?.message || t('quizzes.quiz.errorLoadingQuiz');
       return (
-        <div className="text-center p-8 text-red-600">
+        <div className="text-center p-8" style={{ color: '#ef4444' }}>
           <p className="font-semibold mb-2">{t('quizzes.quiz.errorTitle')}</p>
           <p className="text-sm">{errorMessage}</p>
         </div>
@@ -423,7 +427,7 @@ const Quiz = ({
   }
   
   if (quizInfo && quizQuestions.length === 0 && !questionsLoading && questionIds.length === 0) {
-      return <div className="text-center p-8 text-gray-600">{t('quizzes.quiz.noQuestionsAssigned')}</div>
+      return <div className="text-center p-8" style={{ color: textMuted }}>{t('quizzes.quiz.noQuestionsAssigned')}</div>
   }
 
   const timeLimit = quizInfo?.meta?._time_limit || 0;
@@ -532,7 +536,7 @@ const Quiz = ({
                   <p className="font-medium" style={{ color: getColor('primary', '#3b82f6') }}>
                     {t('quizzes.quiz.loadingMoreQuestions')}
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm mt-1" style={{ color: textMuted }}>
                     {t('quizzes.quiz.questionsLoadedCount', { loaded: loadedCount, total: totalQuestions })}
                   </p>
                 </div>
@@ -557,7 +561,7 @@ const Quiz = ({
                 {t('quizzes.sidebar.loadMore')}
               </button>
             )}
-            <p className="text-sm text-gray-500">
+            <p className="text-sm" style={{ color: textMuted }}>
               {t('quizzes.quiz.questionsLoadedCount', { loaded: loadedCount, total: totalQuestions })}
             </p>
           </div>
@@ -584,13 +588,13 @@ const Quiz = ({
         <div className="lg:hidden flex items-center justify-between px-4 py-5 border-b" style={{
           borderColor: getColor('borderColor', '#e5e7eb')
         }}>
-          <h3 className="font-bold text-xl" style={{ color: getColor('primary', '#1a202c') }}>
+          <h3 className="font-bold text-xl" style={{ color: textPrimary }}>
             {t('quizzes.quiz.quizProgress')}
           </h3>
           <button
             onClick={() => setIsQuizSidebarOpen(false)}
             className="p-2 rounded-lg transition-colors"
-            style={{ color: getColor('primary', '#1a202c') }}
+            style={{ color: textPrimary }}
           >
             <X className="w-6 h-6" />
           </button>

@@ -23,7 +23,7 @@ class QE_Database
      *
      * @var string
      */
-    const DB_VERSION = '2.0.1';
+    const DB_VERSION = '2.0.3';
 
     /**
      * Option name for storing database version
@@ -64,6 +64,7 @@ class QE_Database
             $results['messages'] = self::create_comm_messages_table($prefix, $charset_collate);
             $results['quiz_autosave'] = self::create_quiz_autosave_table($prefix, $charset_collate);
             $results['user_question_stats'] = self::create_user_question_stats_table($prefix, $charset_collate);
+            $results['course_notifications'] = self::create_course_notifications_table($prefix, $charset_collate);
 
             // Check if all tables were created successfully
             $all_success = !in_array(false, $results, true);
@@ -516,6 +517,74 @@ class QE_Database
 
         } catch (Exception $e) {
             self::log_error('Failed to create user_question_stats table', [
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Create course notifications table
+     *
+     * Stores notifications about course changes (new lessons, quizzes, etc.)
+     *
+     * @param string $prefix Table prefix
+     * @param string $charset_collate Charset collation
+     * @return bool True if successful
+     * @since 2.0.2
+     */
+    private static function create_course_notifications_table($prefix, $charset_collate)
+    {
+        try {
+            global $wpdb;
+
+            $table_name = $prefix . 'qe_course_notifications';
+
+            $sql = "CREATE TABLE $table_name (
+                id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+                course_id BIGINT(20) UNSIGNED NOT NULL,
+                notification_type VARCHAR(50) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                message TEXT NOT NULL,
+                related_object_id BIGINT(20) UNSIGNED DEFAULT NULL,
+                related_object_type VARCHAR(50) DEFAULT NULL,
+                created_by BIGINT(20) UNSIGNED NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY course_id (course_id),
+                KEY notification_type (notification_type),
+                KEY created_at (created_at),
+                KEY related_object_id (related_object_id)
+            ) $charset_collate;";
+
+            dbDelta($sql);
+
+            // Create user read status table
+            $read_table = $prefix . 'qe_notification_reads';
+
+            $sql_reads = "CREATE TABLE $read_table (
+                id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+                notification_id BIGINT(20) UNSIGNED NOT NULL,
+                user_id BIGINT(20) UNSIGNED NOT NULL,
+                read_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY user_notification (user_id, notification_id),
+                KEY notification_id (notification_id),
+                KEY user_id (user_id)
+            ) $charset_collate;";
+
+            dbDelta($sql_reads);
+
+            if (self::table_exists($table_name) && self::table_exists($read_table)) {
+                self::log_info("Table created: {$table_name} and {$read_table}");
+                return true;
+            } else {
+                self::log_error("Table creation failed: {$table_name} or {$read_table}");
+                return false;
+            }
+
+        } catch (Exception $e) {
+            self::log_error('Failed to create course_notifications table', [
                 'error' => $e->getMessage()
             ]);
             return false;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Save, Plus, GripVertical, Trash2, UploadCloud, ImageIcon, X } from 'lucide-react';
+import { Save, Plus, GripVertical, Trash2, UploadCloud, ImageIcon, X, Users } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -15,7 +15,8 @@ import useLessons from '../../hooks/useLessons';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
 import Tabs from '../common/layout/Tabs';
 import Button from '../common/Button';
-import ResourceSelectorModal from '../common/ResourceSelectorModal'; // Importamos el nuevo modal
+import ResourceSelectorModal from '../common/ResourceSelectorModal';
+import GhostUsersPanel from './GhostUsersPanel';
 
 const getCourseTitle = (course) => course?.title?.rendered || course?.title || 'Curso sin título';
 
@@ -372,9 +373,14 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
     </div>
   );
 
+  const ghostUsersTabContent = (
+    <GhostUsersPanel courseId={courseId} />
+  );
+
   const tabs = [
     { name: t('common.settings'), content: settingsTabContent },
     { name: 'Constructor', content: builderTabContent },
+    ...(mode === 'edit' ? [{ name: 'Usuarios Fantasma', content: ghostUsersTabContent, icon: Users }] : []),
   ];
   
   if (isLoading) return <div className="flex items-center justify-center h-full"><p>{t('common.loading')}</p></div>;

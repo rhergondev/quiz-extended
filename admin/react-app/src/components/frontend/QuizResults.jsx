@@ -10,12 +10,16 @@ import { useTheme } from '../../contexts/ThemeContext';
 const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
   const { t } = useTranslation();
   const { formatScore } = useScoreFormat();
-  const { getColor } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
   const [isResultsSidebarOpen, setIsResultsSidebarOpen] = useState(false);
 
   const SUCCESS_COLOR = '#22c55e';
   const ERROR_COLOR = '#ef4444';
-  const GRAY_COLOR = '#6b7280';
+  const GRAY_COLOR = isDarkMode ? '#9ca3af' : '#6b7280';
+
+  // Dark mode aware colors
+  const textPrimary = isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c');
+  const bgCard = isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff';
 
   if (!result) {
     return (
@@ -85,13 +89,13 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
             <div className="lg:hidden flex items-center justify-between px-4 py-5 border-b" style={{
               borderColor: getColor('borderColor', '#e5e7eb')
             }}>
-              <h3 className="font-bold text-xl" style={{ color: getColor('primary', '#1a202c') }}>
+              <h3 className="font-bold text-xl" style={{ color: textPrimary }}>
                 {t('quizzes.results.summary')}
               </h3>
               <button
                 onClick={() => setIsResultsSidebarOpen(false)}
                 className="p-2 rounded-lg transition-colors"
-                style={{ color: getColor('primary', '#1a202c') }}
+                style={{ color: textPrimary }}
               >
                 <X className="w-6 h-6" />
               </button>
@@ -129,24 +133,24 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
           <div 
             className="p-3 sm:p-4 lg:p-6"
             style={{
-              backgroundColor: getColor('background', '#ffffff'),
+              backgroundColor: bgCard,
             }}
           >
             <div className="flex items-center justify-between mb-2 sm:mb-3">
               <h3 
                 className="text-xs sm:text-sm lg:text-base font-bold"
-                style={{ color: getColor('primary', '#1a202c') }}
+                style={{ color: textPrimary }}
               >
                 {t('quizzes.results.scoreWithoutRisk')}
               </h3>
               <Award 
                 className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" 
-                style={{ color: getColor('primary', '#1a202c') }}
+                style={{ color: textPrimary }}
               />
             </div>
             <div 
               className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2 sm:mb-3"
-              style={{ color: getColor('primary', '#1a202c') }}
+              style={{ color: textPrimary }}
             >
               {formatScore(score)}
             </div>
@@ -161,7 +165,7 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
                 </span>
                 <span 
                   className="font-semibold text-xs"
-                  style={{ color: getColor('primary', '#1a202c') }}
+                  style={{ color: textPrimary }}
                 >
                   {correctAnswers}
                 </span>
@@ -176,7 +180,7 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
                 </span>
                 <span 
                   className="font-semibold text-xs"
-                  style={{ color: getColor('primary', '#1a202c') }}
+                  style={{ color: textPrimary }}
                 >
                   {unanswered}
                 </span>
@@ -191,7 +195,7 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
                 </span>
                 <span 
                   className="font-semibold text-xs"
-                  style={{ color: getColor('primary', '#1a202c') }}
+                  style={{ color: textPrimary }}
                 >
                   {incorrectAnswers}
                 </span>
@@ -200,7 +204,7 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
                 <>
                   <div 
                     className="border-t my-2"
-                    style={{ borderColor: getColor('primary', '#1a202c') + '20' }}
+                    style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('primary', '#1a202c') + '20' }}
                   />
                   <div className="flex items-center justify-between">
                     <span style={{ color: GRAY_COLOR }} className="text-xs">
@@ -208,7 +212,7 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
                     </span>
                     <span 
                       className="font-semibold text-xs"
-                      style={{ color: getColor('primary', '#1a202c') }}
+                      style={{ color: textPrimary }}
                     >
                       {formatScore(averageScore)}
                     </span>
@@ -245,7 +249,7 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
           <div 
             className="p-3 sm:p-4 lg:p-6"
             style={{
-              backgroundColor: getColor('background', '#ffffff'),
+              backgroundColor: bgCard,
             }}
           >
             <div className="flex items-center justify-between mb-2 sm:mb-3">

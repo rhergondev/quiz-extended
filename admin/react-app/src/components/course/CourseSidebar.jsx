@@ -15,9 +15,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [courseProgress, setCourseProgress] = useState(null);
   const { t } = useTranslation();
-  const { getCurrentColors, getColor, theme, isDarkMode, toggleDarkMode } = useTheme();
-  
-  const currentColors = useMemo(() => getCurrentColors(), [theme, isDarkMode, getCurrentColors]);
+  const { getColor, isDarkMode, toggleDarkMode } = useTheme();
 
   const { course } = useCourse(courseId);
   const courseName = course?.title?.rendered || course?.title || '';
@@ -51,12 +49,11 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
     return () => window.removeEventListener('courseProgressUpdated', handleProgressUpdate);
   }, [courseId]);
 
-  // Menu items with stats
+  // Menu items with stats (Dashboard and Statistics moved to header)
   const menuItems = useMemo(() => {
     const stepsByType = courseProgress?.steps_by_type || {};
     
     const items = [
-      { to: `/courses/${courseId}/dashboard`, text: t('courses.dashboard'), icon: BookOpen, divider: true },
       { to: `/courses/${courseId}/study-planner`, text: t('courses.studyPlanner'), icon: Calendar, divider: true },
     ];
 
@@ -94,26 +91,43 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
     items.push(
       { to: `/courses/${courseId}/test-generator`, text: t('courses.testGenerator'), icon: Sparkles },
       { to: `/courses/${courseId}/self-paced-tests`, text: t('courses.selfPacedTests'), icon: Clock },
-      { to: `/courses/${courseId}/test-browser`, text: t('courses.testBrowser'), icon: FolderOpen },
-      { to: `/courses/${courseId}/test-history`, text: t('courses.testHistory'), icon: History, divider: true },
-      { to: `/courses/${courseId}/statistics`, text: t('courses.statistics'), icon: BarChart3 }
+      { to: `/courses/${courseId}/test-history`, text: t('courses.testHistory'), icon: History }
     );
 
     return items;
   }, [courseId, courseProgress, t]);
 
+  // Colores del sidebar según el modo
+  // Modo claro: texto primary, hover fondo primary + texto blanco + borde interno
+  // Modo oscuro: texto claro (textPrimary), hover fondo accent + texto blanco, sin borde interno
+  const primary = getColor('primary', '#3b82f6');
+  const secondary = getColor('secondary', '#8b5cf6');
+  const accent = getColor('accent', '#f59e0b');
+  const textPrimary = getColor('textPrimary', '#f9fafb');
+  
+  const sidebarColors = {
+    text: isDarkMode ? textPrimary : primary,
+    hoverBg: isDarkMode ? accent : primary,
+    hoverBorder: isDarkMode ? 'transparent' : secondary,
+    hoverBoxShadow: isDarkMode ? 'none' : 'inset 0 0 0 2px #ffffff',
+    activeBg: primary,
+    activeBorder: primary,
+    badgeBg: isDarkMode ? `${textPrimary}20` : `${primary}20`,
+    badgeText: isDarkMode ? textPrimary : primary,
+  };
+
   const getLinkStyle = (isActive) => {
     if (isActive) {
       return {
-        backgroundColor: currentColors.primary,
-        borderColor: currentColors.primary,
+        backgroundColor: sidebarColors.activeBg,
+        borderColor: sidebarColors.activeBorder,
         color: '#ffffff'
       };
     }
     return {
       backgroundColor: 'transparent',
       borderColor: 'transparent',
-      color: currentColors.primary
+      color: sidebarColors.text
     };
   };
 
@@ -121,10 +135,10 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
     if (isActive) return;
     
     if (isEnter) {
-      e.currentTarget.style.backgroundColor = currentColors.primary;
-      e.currentTarget.style.borderColor = currentColors.secondary;
+      e.currentTarget.style.backgroundColor = sidebarColors.hoverBg;
+      e.currentTarget.style.borderColor = sidebarColors.hoverBorder;
       e.currentTarget.style.color = '#ffffff';
-      e.currentTarget.style.boxShadow = 'inset 0 0 0 2px #ffffff';
+      e.currentTarget.style.boxShadow = sidebarColors.hoverBoxShadow;
       
       const badge = e.currentTarget.querySelector('.badge-course');
       if (badge) {
@@ -134,16 +148,17 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
     } else {
       e.currentTarget.style.backgroundColor = 'transparent';
       e.currentTarget.style.borderColor = 'transparent';
-      e.currentTarget.style.color = currentColors.primary;
+      e.currentTarget.style.color = sidebarColors.text;
       e.currentTarget.style.boxShadow = 'none';
       
       const badge = e.currentTarget.querySelector('.badge-course');
       if (badge) {
-        badge.style.backgroundColor = `${currentColors.primary}20`;
-        badge.style.color = currentColors.primary;
+        badge.style.backgroundColor = sidebarColors.badgeBg;
+        badge.style.color = sidebarColors.badgeText;
       }
     }
   };
+
 
   return (
     <>
@@ -174,7 +189,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
               <h2 
                 className={`text-base font-bold truncate flex-1 ${isCollapsed && 'lg:hidden'}`}
                 style={{ 
-                  color: currentColors.primary,
+                  color: sidebarColors.text,
                   lineHeight: '24px',
                   display: 'flex',
                   alignItems: 'center'
@@ -191,7 +206,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
                 title={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
                 className="hidden lg:flex transition-colors cursor-pointer flex-shrink-0"
                 style={{ 
-                  color: currentColors.primary,
+                  color: sidebarColors.text,
                   width: '24px',
                   height: '24px',
                   alignItems: 'center',
@@ -200,15 +215,15 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
                   border: 'none',
                   background: 'none'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.color = currentColors.accent}
-                onMouseLeave={(e) => e.currentTarget.style.color = currentColors.primary}
+                onMouseEnter={(e) => e.currentTarget.style.color = accent}
+                onMouseLeave={(e) => e.currentTarget.style.color = sidebarColors.text}
               >
                 {isCollapsed ? <ChevronRight size={24}/> : <ChevronLeft size={24} />}
               </button>
             </div>
             <div 
               className="w-full h-[2px]"
-              style={{ backgroundColor: `${currentColors.primary}40` }}
+              style={{ backgroundColor: `${sidebarColors.text}40` }}
             />
           </div>
 
@@ -221,14 +236,16 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
               className="flex items-center gap-2 p-2 rounded-lg transition-all duration-200"
               style={{ 
                 backgroundColor: 'transparent',
-                color: currentColors.primary,
-                border: `1px solid ${currentColors.primary}40`
+                color: sidebarColors.text,
+                border: `1px solid ${sidebarColors.text}40`
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = `${currentColors.primary}10`;
+                e.currentTarget.style.backgroundColor = sidebarColors.hoverBg;
+                e.currentTarget.style.color = '#ffffff';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = sidebarColors.text;
               }}
             >
               <BookOpen className="w-4 h-4" />
@@ -240,14 +257,16 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
               className="flex items-center gap-2 p-2 rounded-lg transition-all duration-200"
               style={{ 
                 backgroundColor: 'transparent',
-                color: currentColors.primary,
-                border: `1px solid ${currentColors.primary}40`
+                color: sidebarColors.text,
+                border: `1px solid ${sidebarColors.text}40`
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = `${currentColors.primary}10`;
+                e.currentTarget.style.backgroundColor = sidebarColors.hoverBg;
+                e.currentTarget.style.color = '#ffffff';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = sidebarColors.text;
               }}
             >
               <FileText className="w-4 h-4" />
@@ -259,14 +278,16 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
               className="flex items-center gap-2 p-2 rounded-lg transition-all duration-200"
               style={{ 
                 backgroundColor: 'transparent',
-                color: currentColors.primary,
-                border: `1px solid ${currentColors.primary}40`
+                color: sidebarColors.text,
+                border: `1px solid ${sidebarColors.text}40`
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = `${currentColors.primary}10`;
+                e.currentTarget.style.backgroundColor = sidebarColors.hoverBg;
+                e.currentTarget.style.color = '#ffffff';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = sidebarColors.text;
               }}
             >
               <Home className="w-4 h-4" />
@@ -280,14 +301,16 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
                 className="flex-1 flex items-center justify-center gap-1 p-2 rounded-lg transition-all duration-200"
                 style={{ 
                   backgroundColor: 'transparent',
-                  color: currentColors.primary,
-                  border: `1px solid ${currentColors.primary}40`
+                  color: sidebarColors.text,
+                  border: `1px solid ${sidebarColors.text}40`
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = `${currentColors.primary}10`;
+                  e.currentTarget.style.backgroundColor = sidebarColors.hoverBg;
+                  e.currentTarget.style.color = '#ffffff';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = sidebarColors.text;
                 }}
                 title={isDarkMode ? t('sidebar.lightMode') : t('sidebar.darkMode')}
               >
@@ -299,14 +322,16 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
                 className="flex-1 flex items-center justify-center gap-1 p-2 rounded-lg transition-all duration-200"
                 style={{ 
                   backgroundColor: 'transparent',
-                  color: currentColors.primary,
-                  border: `1px solid ${currentColors.primary}40`
+                  color: sidebarColors.text,
+                  border: `1px solid ${sidebarColors.text}40`
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = `${currentColors.primary}10`;
+                  e.currentTarget.style.backgroundColor = sidebarColors.hoverBg;
+                  e.currentTarget.style.color = '#ffffff';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = sidebarColors.text;
                 }}
                 title={t('sidebar.myAccount')}
               >
@@ -318,15 +343,15 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
                   href={logoutUrl}
                   className="flex-1 flex items-center justify-center gap-1 p-2 rounded-lg transition-all duration-200"
                   style={{ 
-                    backgroundColor: currentColors.primary,
+                    backgroundColor: sidebarColors.activeBg,
                     color: '#ffffff',
-                    border: `1px solid ${currentColors.primary}`
+                    border: `1px solid ${sidebarColors.activeBg}`
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = currentColors.accent;
+                    e.currentTarget.style.backgroundColor = accent;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = currentColors.primary;
+                    e.currentTarget.style.backgroundColor = sidebarColors.activeBg;
                   }}
                   title={t('sidebar.logout')}
                 >
@@ -338,7 +363,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
             {/* Divider */}
             <div 
               className="w-full h-[2px] mt-4"
-              style={{ backgroundColor: `${currentColors.primary}40` }}
+              style={{ backgroundColor: `${sidebarColors.text}40` }}
             />
           </div>
         
@@ -382,8 +407,8 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
                           <span 
                             className="badge-course text-xs font-semibold px-2 py-0.5 rounded relative z-10"
                             style={{ 
-                              backgroundColor: isActive ? 'rgba(255, 255, 255, 0.2)' : `${currentColors.primary}20`,
-                              color: isActive ? '#ffffff' : currentColors.primary
+                              backgroundColor: isActive ? 'rgba(255, 255, 255, 0.2)' : sidebarColors.badgeBg,
+                              color: isActive ? '#ffffff' : sidebarColors.badgeText
                             }}
                           >
                             {item.badge}
@@ -398,7 +423,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
                 <div className="px-4 py-2">
                   <div 
                     className="w-full h-[2px]"
-                    style={{ backgroundColor: `${currentColors.primary}40` }}
+                    style={{ backgroundColor: `${sidebarColors.text}40` }}
                   />
                 </div>
               )}

@@ -121,21 +121,37 @@ class QE_Course_Ranking_API extends QE_API_Base
         // Determine which score column to use
         $score_column = $with_risk ? 'score_with_risk' : 'score';
 
+        // Build the quiz_ids placeholders
+        $quiz_placeholders = implode(',', array_fill(0, count($quiz_ids), '%d'));
+
         // Get GLOBAL statistics (all users who completed all quizzes)
+        // Using ONLY the last attempt per quiz per user
         $global_stats = $wpdb->get_row($wpdb->prepare("
             SELECT 
                 COUNT(DISTINCT user_id) as total_users,
-                AVG(score) as avg_score_without_risk,
-                AVG(score_with_risk) as avg_score_with_risk
+                AVG(avg_score) as avg_score_without_risk,
+                AVG(avg_score_with_risk) as avg_score_with_risk
             FROM (
                 SELECT 
-                    user_id,
-                    AVG(score) as score,
-                    AVG(score_with_risk) as score_with_risk
-                FROM {$table_name}
-                WHERE quiz_id IN (" . implode(',', array_fill(0, count($quiz_ids), '%d')) . ")
-                GROUP BY user_id
-                HAVING COUNT(DISTINCT quiz_id) = %d
+                    la.user_id,
+                    AVG(la.score) as avg_score,
+                    AVG(la.score_with_risk) as avg_score_with_risk
+                FROM (
+                    SELECT t1.user_id, t1.quiz_id, t1.score, t1.score_with_risk
+                    FROM {$table_name} t1
+                    INNER JOIN (
+                        SELECT user_id, quiz_id, MAX(end_time) as max_end_time
+                        FROM {$table_name}
+                        WHERE quiz_id IN ({$quiz_placeholders})
+                        AND status = 'completed'
+                        GROUP BY user_id, quiz_id
+                    ) t2 ON t1.user_id = t2.user_id 
+                        AND t1.quiz_id = t2.quiz_id 
+                        AND t1.end_time = t2.max_end_time
+                    WHERE t1.status = 'completed'
+                ) la
+                GROUP BY la.user_id
+                HAVING COUNT(DISTINCT la.quiz_id) = %d
             ) as user_averages
         ", array_merge($quiz_ids, [$total_quizzes])));
 
@@ -143,24 +159,49 @@ class QE_Course_Ranking_API extends QE_API_Base
             'total_users' => $global_stats ? (int) $global_stats->total_users : 0,
             'avg_score_without_risk' => $global_stats ? round((float) $global_stats->avg_score_without_risk, 2) : 0,
             'avg_score_with_risk' => $global_stats ? round((float) $global_stats->avg_score_with_risk, 2) : 0,
+            'top_10_cutoff_without_risk' => 0,
+            'top_10_cutoff_with_risk' => 0,
         ];
 
         // Get ALL users who completed all quizzes (for finding current user position)
+        // Using ONLY the last attempt per quiz per user
+        $order_column = $with_risk ? 'average_score_with_risk' : 'average_score_without_risk';
         $all_users = $wpdb->get_results($wpdb->prepare("
             SELECT 
-                user_id,
-                COUNT(DISTINCT quiz_id) as quizzes_completed,
-                AVG(score) as average_score_without_risk,
-                AVG(score_with_risk) as average_score_with_risk,
-                SUM(score) as total_score,
+                la.user_id,
+                COUNT(DISTINCT la.quiz_id) as quizzes_completed,
+                AVG(la.score) as average_score_without_risk,
+                AVG(la.score_with_risk) as average_score_with_risk,
+                SUM(la.score) as total_score,
                 COUNT(*) as total_attempts
-            FROM {$table_name}
-            WHERE quiz_id IN (" . implode(',', array_fill(0, count($quiz_ids), '%d')) . ")
-            AND status = 'completed'
-            GROUP BY user_id
+            FROM (
+                SELECT t1.user_id, t1.quiz_id, t1.score, t1.score_with_risk
+                FROM {$table_name} t1
+                INNER JOIN (
+                    SELECT user_id, quiz_id, MAX(end_time) as max_end_time
+                    FROM {$table_name}
+                    WHERE quiz_id IN ({$quiz_placeholders})
+                    AND status = 'completed'
+                    GROUP BY user_id, quiz_id
+                ) t2 ON t1.user_id = t2.user_id 
+                    AND t1.quiz_id = t2.quiz_id 
+                    AND t1.end_time = t2.max_end_time
+                WHERE t1.status = 'completed'
+            ) la
+            GROUP BY la.user_id
             HAVING quizzes_completed = %d
-            ORDER BY {$score_column} DESC, total_attempts ASC
         ", array_merge($quiz_ids, [$total_quizzes])));
+
+        // Fix the ORDER BY to use the correct column name
+        // Re-sort in PHP since ORDER BY uses alias
+        usort($all_users, function ($a, $b) use ($with_risk) {
+            $a_score = $with_risk ? $a->average_score_with_risk : $a->average_score_without_risk;
+            $b_score = $with_risk ? $b->average_score_with_risk : $b->average_score_without_risk;
+            if ($b_score != $a_score) {
+                return $b_score > $a_score ? 1 : -1;
+            }
+            return $a->total_attempts - $b->total_attempts;
+        });
 
         $total_users = count($all_users);
         $total_pages = ceil($total_users / $per_page);
@@ -190,6 +231,19 @@ class QE_Course_Ranking_API extends QE_API_Base
                 return $score_diff > 0 ? 1 : -1;
             return $a->total_attempts - $b->total_attempts;
         });
+
+        // Calculate top 10% cutoff scores
+        $users_for_top10 = count($users_sorted_without_risk);
+        if ($users_for_top10 > 0) {
+            $top_10_index = max(0, (int) ceil($users_for_top10 * 0.1) - 1);
+
+            if (isset($users_sorted_without_risk[$top_10_index])) {
+                $statistics['top_10_cutoff_without_risk'] = round((float) $users_sorted_without_risk[$top_10_index]->average_score_without_risk, 2);
+            }
+            if (isset($users_sorted_with_risk[$top_10_index])) {
+                $statistics['top_10_cutoff_with_risk'] = round((float) $users_sorted_with_risk[$top_10_index]->average_score_with_risk, 2);
+            }
+        }
 
         // Find positions
         foreach ($users_sorted_without_risk as $index => $user_data) {
@@ -378,17 +432,29 @@ class QE_Course_Ranking_API extends QE_API_Base
         // If not completed all, get temporary position
         if (!$has_completed_all && $user_stats && $completed_quizzes > 0) {
             // Calculate temporary ranking among users with same number of completed quizzes
+            // Using ONLY the last attempt per quiz per user
             $temp_position = $wpdb->get_var($wpdb->prepare("
                 SELECT COUNT(*) + 1
                 FROM (
                     SELECT 
-                        user_id,
-                        AVG(score) as avg_score,
-                        COUNT(DISTINCT quiz_id) as completed
-                    FROM {$table_name}
-                    WHERE quiz_id IN (" . implode(',', array_fill(0, count($quiz_ids), '%d')) . ")
-                    AND status = 'completed'
-                    GROUP BY user_id
+                        la.user_id,
+                        AVG(la.score) as avg_score,
+                        COUNT(DISTINCT la.quiz_id) as completed
+                    FROM (
+                        SELECT t1.user_id, t1.quiz_id, t1.score
+                        FROM {$table_name} t1
+                        INNER JOIN (
+                            SELECT user_id, quiz_id, MAX(end_time) as max_end_time
+                            FROM {$table_name}
+                            WHERE quiz_id IN (" . implode(',', array_fill(0, count($quiz_ids), '%d')) . ")
+                            AND status = 'completed'
+                            GROUP BY user_id, quiz_id
+                        ) t2 ON t1.user_id = t2.user_id 
+                            AND t1.quiz_id = t2.quiz_id 
+                            AND t1.end_time = t2.max_end_time
+                        WHERE t1.status = 'completed'
+                    ) la
+                    GROUP BY la.user_id
                     HAVING completed = %d AND avg_score > %f
                 ) as temp_ranking
             ", array_merge($quiz_ids, [$completed_quizzes, $user_stats->average_score])));
@@ -397,17 +463,29 @@ class QE_Course_Ranking_API extends QE_API_Base
             $response_data['is_temporary'] = true;
         } elseif ($has_completed_all && $user_stats) {
             // Calculate actual position among users who completed ALL quizzes
+            // Using ONLY the last attempt per quiz per user
             $position = $wpdb->get_var($wpdb->prepare("
                 SELECT COUNT(*) + 1
                 FROM (
                     SELECT 
-                        user_id,
-                        AVG(score) as avg_score,
-                        COUNT(DISTINCT quiz_id) as completed
-                    FROM {$table_name}
-                    WHERE quiz_id IN (" . implode(',', array_fill(0, count($quiz_ids), '%d')) . ")
-                    AND status = 'completed'
-                    GROUP BY user_id
+                        la.user_id,
+                        AVG(la.score) as avg_score,
+                        COUNT(DISTINCT la.quiz_id) as completed
+                    FROM (
+                        SELECT t1.user_id, t1.quiz_id, t1.score
+                        FROM {$table_name} t1
+                        INNER JOIN (
+                            SELECT user_id, quiz_id, MAX(end_time) as max_end_time
+                            FROM {$table_name}
+                            WHERE quiz_id IN (" . implode(',', array_fill(0, count($quiz_ids), '%d')) . ")
+                            AND status = 'completed'
+                            GROUP BY user_id, quiz_id
+                        ) t2 ON t1.user_id = t2.user_id 
+                            AND t1.quiz_id = t2.quiz_id 
+                            AND t1.end_time = t2.max_end_time
+                        WHERE t1.status = 'completed'
+                    ) la
+                    GROUP BY la.user_id
                     HAVING completed = %d AND avg_score > %f
                 ) as real_ranking
             ", array_merge($quiz_ids, [$total_quizzes, $user_stats->average_score])));

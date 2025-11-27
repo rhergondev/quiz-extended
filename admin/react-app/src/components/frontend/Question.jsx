@@ -22,7 +22,7 @@ const Question = ({
 }) => {
   const [showExplanation, setShowExplanation] = useState(false);
   const [showStats, setShowStats] = useState(false);
-  const { getColor } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
   const { t } = useTranslation();
 
   if (!question) {
@@ -40,6 +40,13 @@ const Question = ({
   const hasAnswer = selectedAnswer !== null && selectedAnswer !== undefined;
   const questionState = !hasAnswer ? 'unanswered' : (isRisked ? 'risked' : 'answered');
   
+  // Dark mode aware colors
+  const textPrimary = isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c');
+  const textSecondary = isDarkMode ? getColor('textSecondary', '#9ca3af') : '#6b7280';
+  const bgCard = isDarkMode ? getColor('secondaryBackground', '#1f2937') : getColor('secondaryBackground', '#ffffff');
+  const bgSubtle = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
+  const borderSubtle = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+  
   // Función para obtener colores según el estado
   const getQuestionColor = (opacity = '') => {
     switch (questionState) {
@@ -49,7 +56,7 @@ const Question = ({
         return `${getColor('accent', '#f59e0b')}${opacity}`; // Naranja
       case 'answered':
       default:
-        return `${getColor('primary', '#1a202c')}${opacity}`; // Azul
+        return `${getColor('primary', '#3b82f6')}${opacity}`; // Azul
     }
   };
 
@@ -67,7 +74,7 @@ const Question = ({
       id={`quiz-question-${displayIndex}`} 
       className={`rounded-lg overflow-hidden shadow-sm mb-4 scroll-mt-6 transition-all duration-200 ${className}`}
       style={{ 
-        backgroundColor: getColor('secondaryBackground', '#ffffff'),
+        backgroundColor: bgCard,
         borderTop: `2px solid ${getQuestionColor('40')}`,
         borderRight: `2px solid ${getQuestionColor('40')}`,
         borderBottom: `2px solid ${getQuestionColor('40')}`,
@@ -142,15 +149,15 @@ const Question = ({
                 className="p-1.5 rounded-lg transition-all duration-200"
                 style={{ 
                   backgroundColor: 'transparent',
-                  color: `${getColor('primary', '#1a202c')}60`
+                  color: textSecondary
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#fee2e2';
+                  e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(239,68,68,0.2)' : '#fee2e2';
                   e.currentTarget.style.color = '#dc2626';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = `${getColor('primary', '#1a202c')}60`;
+                  e.currentTarget.style.color = textSecondary;
                 }}
               >
                 <Trash2 size={16} />
@@ -163,7 +170,7 @@ const Question = ({
         <div className="px-4 py-3">
           <h3 
             className="text-sm font-medium leading-relaxed"
-            style={{ color: getColor('primary', '#1a202c') }}
+            style={{ color: textPrimary }}
             dangerouslySetInnerHTML={{ __html: questionTitle || '' }}
           />
         </div>
@@ -179,23 +186,23 @@ const Question = ({
                 className="flex items-start cursor-pointer p-3 rounded-lg transition-all duration-200 group"
                 style={{
                   backgroundColor: isSelected 
-                    ? getQuestionColor('10')
+                    ? getQuestionColor('15')
                     : 'transparent',
                   border: `2px solid ${isSelected 
                     ? getQuestionColor()
-                    : `${getColor('primary', '#1a202c')}15`
+                    : isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'
                   }`
                 }}
                 onMouseEnter={(e) => {
                   if (!isSelected) {
-                    e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`;
-                    e.currentTarget.style.borderColor = `${getColor('primary', '#1a202c')}30`;
+                    e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
+                    e.currentTarget.style.borderColor = isDarkMode ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!isSelected) {
                     e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.borderColor = `${getColor('primary', '#1a202c')}15`;
+                    e.currentTarget.style.borderColor = isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
                   }
                 }}
               >
@@ -208,7 +215,7 @@ const Question = ({
                       height: '18px',
                       border: `2px solid ${isSelected 
                         ? getQuestionColor()
-                        : `${getColor('primary', '#1a202c')}40`
+                        : isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.25)'
                       }`,
                       backgroundColor: isSelected 
                         ? getQuestionColor()
@@ -245,8 +252,8 @@ const Question = ({
                       height: '20px',
                       backgroundColor: isSelected
                         ? getQuestionColor()
-                        : `${getColor('primary', '#1a202c')}10`,
-                      color: isSelected ? '#ffffff' : getColor('primary', '#1a202c')
+                        : isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+                      color: isSelected ? '#ffffff' : textPrimary
                     }}
                   >
                     {String.fromCharCode(65 + optionIndex)}
@@ -257,8 +264,8 @@ const Question = ({
                     className="text-sm leading-relaxed transition-colors duration-200"
                     style={{ 
                       color: isSelected 
-                        ? getColor('primary', '#1a202c')
-                        : `${getColor('primary', '#1a202c')}90`,
+                        ? textPrimary
+                        : isDarkMode ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)',
                       fontWeight: isSelected ? '600' : '400'
                     }}
                   >
@@ -274,19 +281,19 @@ const Question = ({
         {isPracticeMode && (
           <div 
             className="border-t"
-            style={{ borderColor: `${getColor('primary', '#1a202c')}10` }}
+            style={{ borderColor: borderSubtle }}
           >
             <button
               onClick={() => setShowExplanation(!showExplanation)}
               className="flex items-center justify-between w-full text-left px-6 py-4 transition-colors duration-200"
               style={{ 
                 backgroundColor: showExplanation 
-                  ? `${getColor('primary', '#1a202c')}05`
+                  ? bgSubtle
                   : 'transparent'
               }}
               onMouseEnter={(e) => {
                 if (!showExplanation) {
-                  e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}03`;
+                  e.currentTarget.style.backgroundColor = bgSubtle;
                 }
               }}
               onMouseLeave={(e) => {
@@ -301,14 +308,14 @@ const Question = ({
                   style={{ 
                     width: '36px',
                     height: '36px',
-                    backgroundColor: `${getColor('primary', '#1a202c')}10`
+                    backgroundColor: isDarkMode ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.1)'
                   }}
                 >
-                  <Info size={18} style={{ color: getColor('primary', '#1a202c') }} />
+                  <Info size={18} style={{ color: getColor('primary', '#3b82f6') }} />
                 </div>
                 <span 
                   className="text-sm font-semibold"
-                  style={{ color: getColor('primary', '#1a202c') }}
+                  style={{ color: textPrimary }}
                 >
                   {t('quizzes.question.answerExplanation')}
                 </span>
@@ -319,7 +326,7 @@ const Question = ({
                   transform: showExplanation ? 'rotate(180deg)' : 'rotate(0deg)'
                 }}
               >
-                <ChevronDown size={20} style={{ color: getColor('primary', '#1a202c') }} />
+                <ChevronDown size={20} style={{ color: textPrimary }} />
               </div>
             </button>
             
@@ -327,19 +334,19 @@ const Question = ({
               <div 
                 className="px-6 pb-5"
                 style={{ 
-                  backgroundColor: `${getColor('primary', '#1a202c')}03`
+                  backgroundColor: bgSubtle
                 }}
               >
                 <div 
                   className="p-4 rounded-lg"
                   style={{ 
-                    backgroundColor: getColor('background', '#ffffff'),
-                    border: `1px solid ${getColor('primary', '#1a202c')}15`
+                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : getColor('background', '#ffffff'),
+                    border: `1px solid ${borderSubtle}`
                   }}
                 >
                   <p 
                     className="text-sm leading-relaxed"
-                    style={{ color: `${getColor('primary', '#1a202c')}90` }}
+                    style={{ color: textSecondary }}
                   >
                     {meta?._question_explanation || t('quizzes.question.noExplanationAvailable')}
                   </p>
@@ -353,19 +360,19 @@ const Question = ({
         {isPracticeMode && (
           <div 
             className="border-t"
-            style={{ borderColor: `${getColor('primary', '#1a202c')}10` }}
+            style={{ borderColor: borderSubtle }}
           >
             <button
               onClick={() => setShowStats(!showStats)}
               className="flex items-center justify-between w-full text-left px-6 py-4 transition-colors duration-200"
               style={{ 
                 backgroundColor: showStats 
-                  ? `${getColor('accent', '#f59e0b')}08`
+                  ? `${getColor('accent', '#f59e0b')}15`
                   : 'transparent'
               }}
               onMouseEnter={(e) => {
                 if (!showStats) {
-                  e.currentTarget.style.backgroundColor = `${getColor('accent', '#f59e0b')}05`;
+                  e.currentTarget.style.backgroundColor = `${getColor('accent', '#f59e0b')}08`;
                 }
               }}
               onMouseLeave={(e) => {
@@ -380,7 +387,7 @@ const Question = ({
                   style={{ 
                     width: '36px',
                     height: '36px',
-                    backgroundColor: `${getColor('accent', '#f59e0b')}15`
+                    backgroundColor: `${getColor('accent', '#f59e0b')}20`
                   }}
                 >
                   <TrendingDown size={18} style={{ color: getColor('accent', '#f59e0b') }} />
@@ -406,13 +413,13 @@ const Question = ({
               <div 
                 className="px-6 pb-5"
                 style={{ 
-                  backgroundColor: `${getColor('accent', '#f59e0b')}08`
+                  backgroundColor: `${getColor('accent', '#f59e0b')}10`
                 }}
               >
                 <div 
                   className="p-4 rounded-lg"
                   style={{ 
-                    backgroundColor: getColor('background', '#ffffff'),
+                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : getColor('background', '#ffffff'),
                     border: `1px solid ${getColor('accent', '#f59e0b')}30`
                   }}
                 >
@@ -421,7 +428,7 @@ const Question = ({
                       <div className="flex items-center justify-between">
                         <span 
                           className="text-sm"
-                          style={{ color: `${getColor('primary', '#1a202c')}80` }}
+                          style={{ color: textSecondary }}
                         >
                           {t('quizzes.question.failureRate')}:
                         </span>
@@ -438,7 +445,7 @@ const Question = ({
                         className="w-full rounded-full overflow-hidden"
                         style={{ 
                           height: '8px',
-                          backgroundColor: `${getColor('accent', '#f59e0b')}15`
+                          backgroundColor: `${getColor('accent', '#f59e0b')}20`
                         }}
                       >
                         <div 
@@ -454,7 +461,7 @@ const Question = ({
                         <div 
                           className="flex items-start gap-2 p-3 rounded-lg text-xs"
                           style={{ 
-                            backgroundColor: `${getColor('accent', '#f59e0b')}10`,
+                            backgroundColor: `${getColor('accent', '#f59e0b')}15`,
                             color: getColor('accent', '#f59e0b')
                           }}
                         >
@@ -466,7 +473,7 @@ const Question = ({
                   ) : (
                     <p 
                       className="text-sm"
-                      style={{ color: `${getColor('primary', '#1a202c')}60` }}
+                      style={{ color: textSecondary }}
                     >
                       {t('quizzes.question.noStatisticsAvailable')}
                     </p>
@@ -482,7 +489,7 @@ const Question = ({
           <div 
             className="px-4 py-3 border-t"
             style={{ 
-              backgroundColor: `${getColor('primary', '#1a202c')}03`,
+              backgroundColor: bgSubtle,
               borderColor: getQuestionColor('10')
             }}
           >
@@ -493,7 +500,7 @@ const Question = ({
                 style={{
                   width: '20px',
                   height: '20px',
-                  border: `2px solid ${isRisked ? getColor('accent', '#f59e0b') : `${getColor('primary', '#1a202c')}40`}`,
+                  border: `2px solid ${isRisked ? getColor('accent', '#f59e0b') : isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.25)'}`,
                   backgroundColor: isRisked ? getColor('accent', '#f59e0b') : 'transparent'
                 }}
               >
@@ -523,7 +530,7 @@ const Question = ({
                 style={{ 
                   color: isRisked 
                     ? getColor('accent', '#f59e0b')
-                    : `${getColor('primary', '#1a202c')}70`
+                    : textSecondary
                 }}
               >
                 {t('quizzes.question.markWithRisk')}

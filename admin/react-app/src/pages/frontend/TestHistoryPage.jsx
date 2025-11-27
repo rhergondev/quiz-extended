@@ -15,8 +15,20 @@ const TestHistoryPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { courseId } = useParams();
-  const { getColor } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
   const { formatScore } = useScoreFormat();
+  
+  // Dark mode aware colors
+  const pageColors = {
+    text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
+    textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : getColor('textSecondary', '#6b7280'),
+    accent: getColor('accent', '#f59e0b'),
+    bgCard: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    bgSubtle: isDarkMode ? 'rgba(255,255,255,0.05)' : `${getColor('primary', '#1a202c')}05`,
+    hoverBg: isDarkMode ? 'rgba(255,255,255,0.1)' : `${getColor('primary', '#1a202c')}10`,
+    hoverBgStrong: isDarkMode ? 'rgba(255,255,255,0.15)' : `${getColor('primary', '#1a202c')}20`,
+    primaryBg: getColor('primary', '#1a202c'), // Para fondos de botones activos
+  };
   
   // Estados para filtros
   const [searchText, setSearchText] = useState('');
@@ -164,45 +176,45 @@ const TestHistoryPage = () => {
       >
         {/* Breadcrumbs Header */}
         <header className="px-6 py-3 border-b sticky top-0 z-10 flex-shrink-0" style={{ 
-          borderBottomColor: `${getColor('primary', '#1a202c')}15`,
+          borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : `${getColor('primary', '#1a202c')}15`,
           backgroundColor: getColor('secondaryBackground', '#f3f4f6')
         }}>
           <nav className="flex items-center text-sm space-x-2">
             <Link 
               to="/courses"
               className="transition-colors duration-200 hover:underline font-medium"
-              style={{ color: getColor('primary', '#1a202c') }}
+              style={{ color: pageColors.text }}
             >
               {t('sidebar.studyPlanner')}
             </Link>
-            <ChevronRight size={16} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
+            <ChevronRight size={16} style={{ color: pageColors.textMuted }} />
             <span 
               className="font-medium"
-              style={{ color: getColor('primary', '#1a202c') }}
+              style={{ color: pageColors.text }}
             >
-              Historial de Tests
+              {t('tests.testHistory')}
             </span>
           </nav>
         </header>
 
         {/* Page Content */}
-        <div className="max-w-7xl w-full mx-auto px-4 py-6">
+        <div className="max-w-7xl w-full mx-auto px-4 py-6 pb-24">
             {/* Header con filtros */}
             <div className="mb-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
                 <div className="flex items-center gap-3">
                   <div 
                     className="p-3 rounded-xl"
-                    style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+                    style={{ backgroundColor: pageColors.hoverBg }}
                   >
-                    <ClipboardList size={28} style={{ color: getColor('primary', '#1a202c') }} />
+                    <ClipboardList size={28} style={{ color: pageColors.text }} />
                   </div>
                   <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: getColor('primary', '#1a202c') }}>
-                      Historial de Tests
+                    <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: pageColors.text }}>
+                      {t('tests.testHistory')}
                     </h1>
-                    <p className="text-sm mt-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
-                      {pagination.total} {pagination.total === 1 ? 'intento' : 'intentos'} en total
+                    <p className="text-sm mt-1" style={{ color: pageColors.textMuted }}>
+                      {pagination.total} {pagination.total === 1 ? t('tests.attempt') : t('tests.attempts')} {t('common.total')}
                     </p>
                   </div>
                 </div>
@@ -212,18 +224,18 @@ const TestHistoryPage = () => {
                   onClick={() => setShowFilters(!showFilters)}
                   className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all"
                   style={{
-                    backgroundColor: showFilters ? getColor('primary', '#1a202c') : `${getColor('primary', '#1a202c')}10`,
-                    color: showFilters ? '#ffffff' : getColor('primary', '#1a202c')
+                    backgroundColor: showFilters ? pageColors.primaryBg : pageColors.hoverBg,
+                    color: showFilters ? '#ffffff' : pageColors.text
                   }}
                 >
                   <Filter size={18} />
-                  <span>Filtros</span>
+                  <span>{t('common.filters')}</span>
                   {hasActiveFilters && (
                     <span 
                       className="px-2 py-0.5 rounded-full text-xs font-bold"
                       style={{
-                        backgroundColor: showFilters ? '#ffffff' : getColor('primary', '#1a202c'),
-                        color: showFilters ? getColor('primary', '#1a202c') : '#ffffff'
+                        backgroundColor: showFilters ? '#ffffff' : pageColors.primaryBg,
+                        color: showFilters ? pageColors.primaryBg : '#ffffff'
                       }}
                     >
                       {[searchText, selectedLesson, dateFrom, dateTo].filter(Boolean).length}
@@ -237,28 +249,28 @@ const TestHistoryPage = () => {
                 <div 
                   className="p-4 rounded-xl border-2 mb-4"
                   style={{
-                    backgroundColor: getColor('background', '#ffffff'),
+                    backgroundColor: pageColors.bgCard,
                     borderColor: getColor('borderColor', '#e5e7eb')
                   }}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Buscador de texto */}
                     <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: getColor('textPrimary', '#1a202c') }}>
-                        Buscar quiz
+                      <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>
+                        {t('tests.searchQuiz')}
                       </label>
                       <div className="relative">
-                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: getColor('textSecondary', '#6b7280') }} />
+                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: pageColors.textMuted }} />
                         <input
                           type="text"
                           value={searchText}
                           onChange={(e) => { setSearchText(e.target.value); setCurrentPage(1); }}
-                          placeholder="Nombre del quiz..."
+                          placeholder={t('tests.quizNamePlaceholder')}
                           className="w-full pl-10 pr-3 py-2 rounded-lg border"
                           style={{
                             borderColor: getColor('borderColor', '#e5e7eb'),
                             backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
-                            color: getColor('textPrimary', '#1a202c')
+                            color: pageColors.text
                           }}
                         />
                       </div>
@@ -266,8 +278,8 @@ const TestHistoryPage = () => {
 
                     {/* Filtro por lección */}
                     <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: getColor('textPrimary', '#1a202c') }}>
-                        Lección
+                      <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>
+                        {t('tests.lesson')}
                       </label>
                       <select
                         value={selectedLesson}
@@ -276,13 +288,13 @@ const TestHistoryPage = () => {
                         style={{
                           borderColor: getColor('borderColor', '#e5e7eb'),
                           backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
-                          color: getColor('textPrimary', '#1a202c')
+                          color: pageColors.text
                         }}
                       >
-                        <option value="">Todas las lecciones</option>
+                        <option value="">{t('tests.allLessons')}</option>
                         {lessons.map(lesson => (
                           <option key={lesson.id} value={lesson.id}>
-                            {lesson.title?.rendered || lesson.title || 'Sin título'}
+                            {lesson.title?.rendered || lesson.title || t('courses.untitledLesson')}
                           </option>
                         ))}
                       </select>
@@ -290,8 +302,8 @@ const TestHistoryPage = () => {
 
                     {/* Filtro fecha desde */}
                     <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: getColor('textPrimary', '#1a202c') }}>
-                        Desde
+                      <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>
+                        {t('tests.dateFrom')}
                       </label>
                       <input
                         type="date"
@@ -301,15 +313,15 @@ const TestHistoryPage = () => {
                         style={{
                           borderColor: getColor('borderColor', '#e5e7eb'),
                           backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
-                          color: getColor('textPrimary', '#1a202c')
+                          color: pageColors.text
                         }}
                       />
                     </div>
 
                     {/* Filtro fecha hasta */}
                     <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: getColor('textPrimary', '#1a202c') }}>
-                        Hasta
+                      <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>
+                        {t('tests.dateTo')}
                       </label>
                       <input
                         type="date"
@@ -319,7 +331,7 @@ const TestHistoryPage = () => {
                         style={{
                           borderColor: getColor('borderColor', '#e5e7eb'),
                           backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
-                          color: getColor('textPrimary', '#1a202c')
+                          color: pageColors.text
                         }}
                       />
                     </div>
@@ -331,14 +343,12 @@ const TestHistoryPage = () => {
                       onClick={handleClearFilters}
                       className="mt-4 flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all"
                       style={{
-                        backgroundColor: `${getColor('primary', '#1a202c')}10`,
-                        color: getColor('primary', '#1a202c')
+                        backgroundColor: pageColors.hoverBg,
+                        color: pageColors.text
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`}
                     >
                       <X size={16} />
-                      <span>Limpiar filtros</span>
+                      <span>{t('common.clearFilters')}</span>
                     </button>
                   )}
                 </div>
@@ -348,13 +358,13 @@ const TestHistoryPage = () => {
             {/* Loading State */}
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader className="w-8 h-8 animate-spin" style={{ color: getColor('primary', '#1a202c') }} />
+                <Loader className="w-8 h-8 animate-spin" style={{ color: pageColors.text }} />
               </div>
             ) : error ? (
               <div 
                 className="p-6 rounded-lg border-2"
                 style={{
-                  backgroundColor: '#fef2f2',
+                  backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.1)' : '#fef2f2',
                   borderColor: '#ef4444',
                   color: '#ef4444'
                 }}
@@ -365,16 +375,16 @@ const TestHistoryPage = () => {
               <div 
                 className="p-12 text-center rounded-xl border-2"
                 style={{
-                  backgroundColor: getColor('background', '#ffffff'),
+                  backgroundColor: pageColors.bgCard,
                   borderColor: getColor('borderColor', '#e5e7eb')
                 }}
               >
-                <ClipboardList size={64} className="mx-auto mb-4" style={{ color: `${getColor('primary', '#1a202c')}30` }} />
-                <h3 className="text-xl font-semibold mb-2" style={{ color: getColor('primary', '#1a202c') }}>
-                  No hay intentos todavía
+                <ClipboardList size={64} className="mx-auto mb-4" style={{ color: pageColors.textMuted }} />
+                <h3 className="text-xl font-semibold mb-2" style={{ color: pageColors.text }}>
+                  {t('tests.noAttemptsYet')}
                 </h3>
-                <p style={{ color: getColor('textSecondary', '#6b7280') }}>
-                  ¡Completa tu primer cuestionario y tus resultados aparecerán aquí!
+                <p style={{ color: pageColors.textMuted }}>
+                  {t('tests.noAttemptsDescription')}
                 </p>
               </div>
             ) : (
@@ -399,12 +409,12 @@ const TestHistoryPage = () => {
                             <div className="flex items-center gap-2">
                               <div 
                                 className="p-2 rounded-lg"
-                                style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+                                style={{ backgroundColor: pageColors.hoverBg }}
                               >
-                                <Calendar size={16} style={{ color: getColor('primary', '#1a202c') }} />
+                                <Calendar size={16} style={{ color: pageColors.text }} />
                               </div>
                               <div>
-                                <div className="text-xs font-semibold" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                                <div className="text-xs font-semibold" style={{ color: pageColors.text }}>
                                   {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { 
                                     day: '2-digit', 
                                     month: 'short',
@@ -417,8 +427,8 @@ const TestHistoryPage = () => {
                               onClick={(e) => handleViewDetails(attempt, e)}
                               className="p-2 rounded-lg text-xs font-medium transition-all"
                               style={{ 
-                                backgroundColor: `${getColor('primary', '#1a202c')}10`,
-                                color: getColor('primary', '#1a202c')
+                                backgroundColor: pageColors.hoverBg,
+                                color: pageColors.text
                               }}
                             >
                               <Eye size={18} />
@@ -427,21 +437,21 @@ const TestHistoryPage = () => {
 
                           {/* Lección y Quiz */}
                           <div>
-                            <div className="flex items-center text-xs mb-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                            <div className="flex items-center text-xs mb-1" style={{ color: pageColors.textMuted }}>
                               <BookOpen size={12} className="mr-1.5" />
-                              {attempt.lessonTitle || 'Sin lección'}
+                              {attempt.lessonTitle || t('tests.noLesson')}
                             </div>
                             <div className="flex items-center gap-2">
-                              <div className="text-sm font-medium line-clamp-1" style={{ color: getColor('textPrimary', '#1a202c') }}>
-                                {attempt.quizTitle || 'Cuestionario sin título'}
+                              <div className="text-sm font-medium line-clamp-1" style={{ color: pageColors.text }}>
+                                {attempt.quizTitle || t('tests.untitledQuiz')}
                               </div>
                               <button
                                 onClick={(e) => handleViewQuiz(attempt, e)}
                                 className="p-1 rounded-lg transition-all flex-shrink-0"
-                                style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
-                                title="Ir al cuestionario"
+                                style={{ backgroundColor: pageColors.hoverBg }}
+                                title={t('tests.goToQuiz')}
                               >
-                                <ExternalLink size={14} style={{ color: getColor('primary', '#1a202c') }} />
+                                <ExternalLink size={14} style={{ color: pageColors.text }} />
                               </button>
                             </div>
                           </div>
@@ -450,12 +460,12 @@ const TestHistoryPage = () => {
                           <div className="grid grid-cols-2 gap-3">
                             <div 
                               className="p-3 rounded-lg"
-                              style={{ backgroundColor: `${getColor('primary', '#1a202c')}05` }}
+                              style={{ backgroundColor: pageColors.bgSubtle }}
                             >
-                              <div className="text-xs mb-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
-                                Sin Riesgo
+                              <div className="text-xs mb-1" style={{ color: pageColors.textMuted }}>
+                                {t('tests.withoutRisk')}
                               </div>
-                              <div className="text-lg font-bold" style={{ color: getColor('primary', '#1a202c') }}>
+                              <div className="text-lg font-bold" style={{ color: pageColors.text }}>
                                 {formatScore(attempt.score || 0)}
                               </div>
                               {percentileWithoutRisk !== null && (
@@ -471,12 +481,12 @@ const TestHistoryPage = () => {
 
                             <div 
                               className="p-3 rounded-lg"
-                              style={{ backgroundColor: `${getColor('accent', '#f59e0b')}10` }}
+                              style={{ backgroundColor: `${pageColors.accent}15` }}
                             >
-                              <div className="text-xs mb-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
-                                Con Riesgo
+                              <div className="text-xs mb-1" style={{ color: pageColors.textMuted }}>
+                                {t('tests.withRisk')}
                               </div>
-                              <div className="text-lg font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
+                              <div className="text-lg font-bold" style={{ color: pageColors.accent }}>
                                 {formatScore(attempt.score_with_risk || 0)}
                               </div>
                               {percentileWithRisk !== null && (
@@ -498,18 +508,18 @@ const TestHistoryPage = () => {
                           <div className="flex items-center gap-3">
                             <div 
                               className="p-2 rounded-lg"
-                              style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+                              style={{ backgroundColor: pageColors.hoverBg }}
                             >
-                              <Calendar size={18} style={{ color: getColor('primary', '#1a202c') }} />
+                              <Calendar size={18} style={{ color: pageColors.text }} />
                             </div>
                             <div>
-                              <div className="text-sm font-semibold" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                              <div className="text-sm font-semibold" style={{ color: pageColors.text }}>
                                 {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { 
                                   day: '2-digit', 
                                   month: 'short'
                                 })}
                               </div>
-                              <div className="text-xs" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                              <div className="text-xs" style={{ color: pageColors.textMuted }}>
                                 {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { 
                                   year: 'numeric'
                                 })}
@@ -519,28 +529,28 @@ const TestHistoryPage = () => {
 
                           {/* Lección y Cuestionario */}
                           <div className="col-span-2">
-                            <div className="flex items-center text-xs mb-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                            <div className="flex items-center text-xs mb-1" style={{ color: pageColors.textMuted }}>
                               <BookOpen size={12} className="mr-1.5" />
-                              {attempt.lessonTitle || 'Sin lección'}
+                              {attempt.lessonTitle || t('tests.noLesson')}
                             </div>
                             <div className="flex items-center gap-2">
-                              <div className="text-sm font-medium truncate" style={{ color: getColor('textPrimary', '#1a202c') }}>
-                                {attempt.quizTitle || 'Cuestionario sin título'}
+                              <div className="text-sm font-medium truncate" style={{ color: pageColors.text }}>
+                                {attempt.quizTitle || t('tests.untitledQuiz')}
                               </div>
                               <button
                                 onClick={(e) => handleViewQuiz(attempt, e)}
                                 className="p-1.5 rounded-lg transition-all flex-shrink-0"
-                                style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
-                                title="Ir al cuestionario"
+                                style={{ backgroundColor: pageColors.hoverBg }}
+                                title={t('tests.goToQuiz')}
                               >
-                                <ExternalLink size={14} style={{ color: getColor('primary', '#1a202c') }} />
+                                <ExternalLink size={14} style={{ color: pageColors.text }} />
                               </button>
                             </div>
                           </div>
 
                           {/* Nota Sin Riesgo */}
                           <div>
-                            <div className="text-lg font-bold mb-1" style={{ color: getColor('primary', '#1a202c') }}>
+                            <div className="text-lg font-bold mb-1" style={{ color: pageColors.text }}>
                               {formatScore(attempt.score || 0)}
                             </div>
                             {percentileWithoutRisk !== null && (
@@ -556,7 +566,7 @@ const TestHistoryPage = () => {
 
                           {/* Nota Con Riesgo */}
                           <div>
-                            <div className="text-lg font-bold mb-1" style={{ color: getColor('accent', '#f59e0b') }}>
+                            <div className="text-lg font-bold mb-1" style={{ color: pageColors.accent }}>
                               {formatScore(attempt.score_with_risk || 0)}
                             </div>
                             {percentileWithRisk !== null && (
@@ -576,20 +586,12 @@ const TestHistoryPage = () => {
                               onClick={(e) => handleViewDetails(attempt, e)}
                               className="px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5"
                               style={{ 
-                                backgroundColor: `${getColor('primary', '#1a202c')}10`,
-                                color: getColor('primary', '#1a202c')
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
-                                e.currentTarget.style.transform = 'scale(1.05)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
-                                e.currentTarget.style.transform = 'scale(1)';
+                                backgroundColor: pageColors.hoverBg,
+                                color: pageColors.text
                               }}
                             >
                               <Eye size={14} />
-                              <span>Ver Detalles</span>
+                              <span>{t('tests.viewDetails')}</span>
                             </button>
                           </div>
                         </div>
@@ -614,8 +616,8 @@ const TestHistoryPage = () => {
             {!loading && pagination.totalPages > 1 && (
               <div className="mt-6 flex items-center justify-between">
                 {/* Info de página actual */}
-                <div className="text-sm" style={{ color: getColor('textSecondary', '#6b7280') }}>
-                  Mostrando {((currentPage - 1) * 10) + 1} - {Math.min(currentPage * 10, pagination.total)} de {pagination.total} resultados
+                <div className="text-sm" style={{ color: pageColors.textMuted }}>
+                  {t('tests.showing')} {((currentPage - 1) * 10) + 1} - {Math.min(currentPage * 10, pagination.total)} {t('tests.of')} {pagination.total} {t('tests.results')}
                 </div>
 
                 {/* Controles de paginación */}
@@ -626,16 +628,8 @@ const TestHistoryPage = () => {
                     disabled={currentPage === 1}
                     className="p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     style={{
-                      backgroundColor: `${getColor('primary', '#1a202c')}10`,
-                      color: getColor('primary', '#1a202c')
-                    }}
-                    onMouseEnter={(e) => {
-                      if (currentPage !== 1) {
-                        e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                      backgroundColor: pageColors.hoverBg,
+                      color: pageColors.text
                     }}
                   >
                     <ChevronLeft size={20} />
@@ -649,7 +643,7 @@ const TestHistoryPage = () => {
                           <span 
                             key={`ellipsis-${index}`} 
                             className="px-3 py-2"
-                            style={{ color: getColor('textSecondary', '#6b7280') }}
+                            style={{ color: pageColors.textMuted }}
                           >
                             ...
                           </span>
@@ -664,21 +658,11 @@ const TestHistoryPage = () => {
                           className="min-w-[40px] px-3 py-2 rounded-lg font-medium transition-all flex justify-center items-center"
                           style={{
                             backgroundColor: isActive 
-                              ? getColor('primary', '#1a202c') 
-                              : `${getColor('primary', '#1a202c')}05`,
+                              ? pageColors.primaryBg
+                              : pageColors.bgSubtle,
                             color: isActive 
                               ? '#ffffff' 
-                              : getColor('primary', '#1a202c')
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isActive) {
-                              e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}15`;
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!isActive) {
-                              e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`;
-                            }
+                              : pageColors.text
                           }}
                         >
                           {page}
@@ -693,16 +677,8 @@ const TestHistoryPage = () => {
                     disabled={currentPage === pagination.totalPages}
                     className="p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     style={{
-                      backgroundColor: `${getColor('primary', '#1a202c')}10`,
-                      color: getColor('primary', '#1a202c')
-                    }}
-                    onMouseEnter={(e) => {
-                      if (currentPage !== pagination.totalPages) {
-                        e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                      backgroundColor: pageColors.hoverBg,
+                      color: pageColors.text
                     }}
                   >
                     <ChevronRightNav size={20} />

@@ -5,11 +5,11 @@ import { Circle, CheckCircle, TrendingDown, AlertCircle } from 'lucide-react';
 
 // --- COMPONENTES AUXILIARES ---
 
-const StatBox = ({ label, value, bgColor, textColor }) => (
+const StatBox = ({ label, value, bgColor, textColor, bgCard }) => (
   <div 
     className="text-center p-2 rounded-lg border-2 transition-all duration-200"
     style={{ 
-      backgroundColor: '#ffffff',
+      backgroundColor: bgCard,
       borderColor: textColor
     }}
   >
@@ -40,7 +40,7 @@ const QuizSidebar = ({
   onSubmit,
   loadedCount = 0
 }) => {
-  const { getColor } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
   const { t } = useTranslation();
   
   const answeredCount = Object.keys(userAnswers).length;
@@ -49,10 +49,18 @@ const QuizSidebar = ({
   const unansweredCount = Math.max(0, effectiveTotal - answeredCount);
   const impugnedCount = 0;
 
+  // Dark mode aware colors
+  const bgCard = isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff';
+  const textPrimary = isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c');
+  
+  // Color primario para fondos de botones (siempre oscuro para tener contraste con texto blanco)
+  const primaryBg = getColor('primary', '#1a202c');
+
   // Colores del sistema de 3 estados
   const colors = {
-    unanswered: '#6b7280', // gray-500
-    answered: getColor('primary', '#1a202c'),
+    unanswered: isDarkMode ? '#9ca3af' : '#6b7280', // gray-500 / gray-400 in dark
+    answered: textPrimary, // Para texto e iconos - adaptativo
+    answeredBg: primaryBg, // Para fondos de botones - siempre oscuro
     risked: getColor('accent', '#f59e0b'),
     impugned: '#9ca3af' // gray-400
   };
@@ -121,31 +129,35 @@ const QuizSidebar = ({
               value={answeredCount} 
               bgColor={colors.answered + '10'}
               textColor={colors.answered}
+              bgCard={bgCard}
             />
             <StatBox 
               label={t('quizzes.sidebar.withRisk')} 
               value={riskedCount} 
               bgColor={colors.risked + '10'}
               textColor={colors.risked}
+              bgCard={bgCard}
             />
             <StatBox 
               label={t('quizzes.sidebar.withoutRisk')} 
               value={answeredCount - riskedCount} 
               bgColor={colors.answered + '10'}
               textColor={colors.answered}
+              bgCard={bgCard}
             />
             <StatBox 
               label={t('quizzes.sidebar.unanswered')} 
               value={unansweredCount} 
               bgColor={colors.unanswered + '10'}
               textColor={colors.unanswered}
+              bgCard={bgCard}
             />
           </div>
         </div>
 
         {/* Mapa de preguntas */}
         <div className="p-3 border-b" style={{ borderColor: getColor('borderColor', colors.answered) + '30' }}>
-          <h3 className="text-xs font-semibold mb-2" style={{ color: colors.answered }}>
+          <h3 className="text-xs font-semibold mb-2" style={{ color: textPrimary }}>
             {t('quizzes.sidebar.questionsMap')}
           </h3>
           <div className="grid grid-cols-10 gap-1">
@@ -170,8 +182,8 @@ const QuizSidebar = ({
                 borderColor = colors.risked;
                 textColor = '#ffffff';
               } else if (isAnswered) {
-                bgColor = colors.answered;
-                borderColor = colors.answered;
+                bgColor = colors.answeredBg;
+                borderColor = colors.answeredBg;
                 textColor = '#ffffff';
               } else {
                 bgColor = colors.unanswered + '10';
@@ -205,7 +217,7 @@ const QuizSidebar = ({
           <button
             onClick={onSubmit}
             className="w-full px-4 py-3 text-sm text-white font-semibold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98]"
-            style={{ backgroundColor: colors.answered }}
+            style={{ backgroundColor: colors.answeredBg }}
           >
             {t('quizzes.sidebar.finishExam')}
           </button>

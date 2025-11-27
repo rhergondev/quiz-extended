@@ -379,6 +379,7 @@ class QE_Frontend
                 'isDarkMode' => $is_dark_mode,
                 'scoreFormat' => $score_format,
                 'campus_logo' => get_option('qe_plugin_settings')['campus_logo'] ?? '',
+                'campus_logo_dark' => get_option('qe_plugin_settings')['campus_logo_dark'] ?? '',
                 'locale' => get_locale(),
                 'endpoints' => [
                     'courses' => $api_url_base . '/wp/v2/qe_course',

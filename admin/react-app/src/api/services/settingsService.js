@@ -172,6 +172,13 @@ const settingsService = {
    */
   updateCampusLogo: async (logoUrl) => {
     return settingsService.updateSettings({ campus_logo: logoUrl });
+  },
+
+  /**
+   * Update campus logo URL for dark mode (admin only)
+   */
+  updateCampusLogoDark: async (logoUrl) => {
+    return settingsService.updateSettings({ campus_logo_dark: logoUrl });
   }
 };
 

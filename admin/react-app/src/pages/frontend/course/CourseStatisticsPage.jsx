@@ -11,7 +11,7 @@ import {
   getWeakSpots, 
   getDifficultyStats 
 } from '../../../api/services/userStatsService';
-import { getMyRankingStatus } from '../../../api/services/courseRankingService';
+import { getMyRankingStatus, getCourseRanking } from '../../../api/services/courseRankingService';
 import { 
   TrendingUp, 
   Award, 
@@ -26,7 +26,12 @@ import {
   X,
   AlertTriangle,
   TrendingDown,
-  Activity
+  Activity,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Filter,
+  ChevronDown
 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -44,8 +49,12 @@ const CourseStatisticsPage = () => {
   const [weakSpots, setWeakSpots] = useState([]);
   const [difficultyStats, setDifficultyStats] = useState(null);
   const [rankingStatus, setRankingStatus] = useState(null);
+  const [rankingStatistics, setRankingStatistics] = useState(null);
   const [showAllLessons, setShowAllLessons] = useState(false);
-  const [selectedDifficulty, setSelectedDifficulty] = useState('easy'); // Added state for difficulty tab
+  const [selectedDifficulty, setSelectedDifficulty] = useState('easy');
+  const [lessonSortOrder, setLessonSortOrder] = useState('desc'); // 'desc' = high to low, 'asc' = low to high
+  const [riskViewMode, setRiskViewMode] = useState('without'); // 'with' or 'without' risk
+  const [selectedLessonFilter, setSelectedLessonFilter] = useState(null); // For question analysis filter
 
   useEffect(() => {
     const fetchData = async () => {
@@ -53,32 +62,21 @@ const CourseStatisticsPage = () => {
       
       setLoading(true);
       try {
-        const [lessonsData, weakData, difficultyData, rankingData] = await Promise.all([
+        const [lessonsData, weakData, difficultyData, rankingData, rankingFullData] = await Promise.all([
           getPerformanceByLesson(courseId),
           getWeakSpots(courseId),
           getDifficultyStats(courseId),
-          getMyRankingStatus(courseId)
+          getMyRankingStatus(courseId),
+          getCourseRanking(courseId, { page: 1, perPage: 20, withRisk: false })
         ]);
 
         const lessonsArray = lessonsData.data?.lessons || lessonsData.data || [];
-        
-        console.log('📊 Statistics Debug - Full Data:', {
-          lessonsData,
-          rankingData,
-          weakData,
-          difficultyData
-        });
-
-        console.log('🧠 Difficulty Data Raw:', difficultyData);
-        console.log('🧠 Difficulty Data .data:', difficultyData?.data);
-
-        console.log('🏆 Ranking Status Raw:', rankingData);
-        console.log('🏆 Ranking Status Data:', rankingData.data);
         
         setPerformanceByLesson(lessonsArray);
         setWeakSpots(weakData.data || []);
         setDifficultyStats(difficultyData.data || {});
         setRankingStatus(rankingData.data);
+        setRankingStatistics(rankingFullData?.data?.statistics || null);
       } catch (error) {
         console.error('❌ Error fetching statistics:', error);
       } finally {
@@ -145,6 +143,30 @@ const CourseStatisticsPage = () => {
     };
   }, [rankingStatus, performanceByLesson]);
 
+  // All lessons sorted by user preference (for expanded lesson analysis modal)
+  const sortedAllLessons = useMemo(() => {
+    if (!performanceByLesson || performanceByLesson.length === 0) {
+      return [];
+    }
+    // Include all lessons that have quizzes
+    const lessonsWithQuizzes = performanceByLesson.filter(lesson => lesson.total_quizzes > 0);
+    return [...lessonsWithQuizzes].sort((a, b) => {
+      if (lessonSortOrder === 'desc') {
+        return b.avg_score - a.avg_score; // High to low
+      }
+      return a.avg_score - b.avg_score; // Low to high
+    });
+  }, [performanceByLesson, lessonSortOrder]);
+
+  // Lessons sorted by score LOW to HIGH (for main statistics panel - always shows worst first)
+  const lessonsLowToHigh = useMemo(() => {
+    if (!performanceByLesson || performanceByLesson.length === 0) {
+      return [];
+    }
+    const lessonsWithQuizzes = performanceByLesson.filter(lesson => lesson.total_quizzes > 0);
+    return [...lessonsWithQuizzes].sort((a, b) => a.avg_score - b.avg_score);
+  }, [performanceByLesson]);
+
   // Filtrar lecciones que tienen quizzes y calcular lecciones a repasar (top 5 con peor rendimiento)
   const lessonsToReview = useMemo(() => {
     if (!performanceByLesson || performanceByLesson.length === 0) {
@@ -160,10 +182,8 @@ const CourseStatisticsPage = () => {
       .slice(0, 5);
   }, [performanceByLesson]);
 
-  // 🎨 Helper: Obtener estilo según el score (rangos en base10)
-  const getReviewStyle = (percentageScore) => {
-    const base10Score = percentageScore / 10;
-    
+  // 🎨 Helper: Obtener estilo según el score (ya viene en base10 0-10)
+  const getReviewStyle = (base10Score) => {
     if (base10Score < 6) {
       return {
         priority: 'critical',
@@ -245,18 +265,18 @@ const CourseStatisticsPage = () => {
     </div>
   );
 
-  // Helper: Obtener color según el score (espera valor en porcentaje 0-100)
-  const getScoreColor = (percentageScore) => {
-    if (percentageScore >= 80) return '#22c55e'; // green
-    if (percentageScore >= 60) return '#eab308'; // yellow
+  // Helper: Obtener color según el score (espera valor en base10 0-10)
+  const getScoreColor = (base10Score) => {
+    if (base10Score >= 8) return '#22c55e'; // green
+    if (base10Score >= 6) return '#eab308'; // yellow
     return '#ef4444'; // red
   };
 
-  // 🔥 IMPORTANTE: El backend actualmente devuelve scores en porcentaje (0-100)
-  // Convertir de porcentaje a base10 para usar ScoreFormatContext
+  // 🔥 IMPORTANTE: El backend ahora devuelve scores en base10 (0-10)
+  // No necesita conversión, pasamos directamente a formatScore()
   const convertFromBackend = (backendScore) => {
-    // Backend devuelve en porcentaje (0-100), dividimos por 10 para obtener base10 (0-10)
-    return backendScore / 10;
+    // Backend devuelve en base10 (0-10), devolvemos tal cual
+    return backendScore;
   };
 
   if (loading) {
@@ -295,52 +315,107 @@ const CourseStatisticsPage = () => {
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Nota Media */}
-                  <div 
-                    className="rounded-xl overflow-hidden border-2 transition-all duration-200 hover:shadow-md"
-                    style={{ 
-                      backgroundColor: getColor('secondaryBackground'),
-                      borderColor: getColor('borderColor')
-                    }}
-                  >
-                    <div 
-                      className="px-4 py-2 flex items-center justify-between"
-                      style={{ backgroundColor: getColor('primary', '#1a202c') }}
-                    >
-                      <span className="text-xs font-bold uppercase tracking-wider" style={{ color: getColor('textColorContrast', '#ffffff') }}>
-                        {t('statistics.averageScore')}
-                      </span>
-                      <TrendingUp size={16} style={{ color: getColor('textColorContrast', '#ffffff') }} />
-                    </div>
-                    <div 
-                      style={{ 
-                        height: '1px', 
-                        backgroundColor: 'rgba(156, 163, 175, 0.2)'
-                      }} 
-                    />
-                    <div className="p-4">
-                      <div className="flex items-baseline gap-2 mb-1">
-                        <span className="text-4xl font-bold" style={{ color: getColor('primary', '#1a202c') }}>
-                          {computedStats ? formatScore(computedStats.avgScore / 10) : '-'}
-                        </span>
-                        <span className="text-sm" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                          / {isPercentage ? '100' : '10'}
-                        </span>
-                      </div>
-                      {rankingStatus?.is_temporary && (
-                        <div className="flex items-center gap-1 mt-2">
-                          <span 
-                            className="text-xs px-2 py-0.5 rounded-full font-medium"
-                            style={{ 
-                              backgroundColor: `${getColor('warning', '#f59e0b')}15`,
-                              color: getColor('warning', '#f59e0b')
-                            }}
-                          >
-                            {t('statistics.temporary')}
+                  {(() => {
+                    const top10Cutoff = rankingStatistics?.top_10_cutoff_without_risk;
+                    const userScore = computedStats?.avgScore || 0;
+                    const hasTop10Data = top10Cutoff !== undefined && top10Cutoff !== null && top10Cutoff > 0;
+                    const isInTop10 = hasTop10Data && userScore >= top10Cutoff;
+                    
+                    return (
+                      <div 
+                        className="rounded-xl overflow-hidden border-2 transition-all duration-200 hover:shadow-md"
+                        style={{ 
+                          backgroundColor: getColor('secondaryBackground'),
+                          borderColor: isInTop10 ? '#22c55e' : getColor('borderColor')
+                        }}
+                      >
+                        <div 
+                          className="px-4 py-2 flex items-center justify-between"
+                          style={{ backgroundColor: isInTop10 ? '#22c55e' : getColor('primary', '#1a202c') }}
+                        >
+                          <span className="text-xs font-bold uppercase tracking-wider" style={{ color: getColor('textColorContrast', '#ffffff') }}>
+                            {t('statistics.averageScore')}
                           </span>
+                          {isInTop10 ? (
+                            <Award size={16} style={{ color: getColor('textColorContrast', '#ffffff') }} />
+                          ) : (
+                            <TrendingUp size={16} style={{ color: getColor('textColorContrast', '#ffffff') }} />
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
+                        <div 
+                          style={{ 
+                            height: '1px', 
+                            backgroundColor: 'rgba(156, 163, 175, 0.2)'
+                          }} 
+                        />
+                        <div className="p-4">
+                          <div className="flex items-baseline gap-2 mb-1">
+                            <span className="text-4xl font-bold" style={{ color: isInTop10 ? '#22c55e' : getColor('primary', '#1a202c') }}>
+                              {computedStats ? formatScore(computedStats.avgScore) : '-'}
+                            </span>
+                            <span className="text-sm" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                              / {isPercentage ? '100' : '10'}
+                            </span>
+                          </div>
+                          
+                          {/* Top 10% Cutoff info */}
+                          {hasTop10Data ? (
+                            <div 
+                              className="flex items-center gap-2 mt-2 p-2 rounded-lg"
+                              style={{ 
+                                backgroundColor: isInTop10 ? '#dcfce7' : '#fef3c7',
+                                border: `1px solid ${isInTop10 ? '#86efac' : '#fcd34d'}`
+                              }}
+                            >
+                              {isInTop10 ? (
+                                <>
+                                  <CheckCircle size={14} className="text-green-600 flex-shrink-0" />
+                                  <span className="text-xs font-medium text-green-800">
+                                    {t('statistics.passedCutoff')}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <Target size={14} className="text-amber-600 flex-shrink-0" />
+                                  <span className="text-xs text-amber-800">
+                                    <span className="font-medium">{t('statistics.cutoffScore')}:</span>{' '}
+                                    <strong>{formatScore(top10Cutoff)}</strong>
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          ) : (
+                            <div 
+                              className="flex items-center gap-2 mt-2 p-2 rounded-lg"
+                              style={{ 
+                                backgroundColor: '#f3f4f6',
+                                border: '1px solid #e5e7eb'
+                              }}
+                            >
+                              <AlertCircle size={14} className="text-gray-400 flex-shrink-0" />
+                              <span className="text-xs text-gray-500">
+                                {t('statistics.noCutoffDataYet')}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {rankingStatus?.is_temporary && (
+                            <div className="flex items-center gap-1 mt-2">
+                              <span 
+                                className="text-xs px-2 py-0.5 rounded-full font-medium"
+                                style={{ 
+                                  backgroundColor: `${getColor('warning', '#f59e0b')}15`,
+                                  color: getColor('warning', '#f59e0b')
+                                }}
+                              >
+                                {t('statistics.temporary')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Ranking */}
                   <div 
@@ -400,7 +475,7 @@ const CourseStatisticsPage = () => {
                   >
                     <div 
                       className="px-4 py-2 flex items-center justify-between"
-                      style={{ backgroundColor: '#3b82f6' }}
+                      style={{ backgroundColor: '#64748b' }}
                     >
                       <span className="text-xs font-bold uppercase tracking-wider text-white">
                         {t('statistics.completedQuizzes')}
@@ -415,7 +490,7 @@ const CourseStatisticsPage = () => {
                     />
                     <div className="p-4">
                       <div className="flex items-baseline gap-2 mb-1">
-                        <span className="text-4xl font-bold" style={{ color: '#3b82f6' }}>
+                        <span className="text-4xl font-bold" style={{ color: '#475569' }}>
                           {computedStats?.completedQuizzes || 0}
                         </span>
                         <span className="text-sm" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
@@ -426,7 +501,7 @@ const CourseStatisticsPage = () => {
                         <div className="mt-2">
                           <ProgressBar 
                             value={computedStats.progressPercentage} 
-                            color="#3b82f6"
+                            color="#64748b"
                             height="h-1.5"
                           />
                         </div>
@@ -444,7 +519,7 @@ const CourseStatisticsPage = () => {
                   >
                     <div 
                       className="px-4 py-2 flex items-center justify-between"
-                      style={{ backgroundColor: '#22c55e' }}
+                      style={{ backgroundColor: '#10b981' }}
                     >
                       <span className="text-xs font-bold uppercase tracking-wider text-white">
                         {t('statistics.bestPerformance')}
@@ -461,8 +536,8 @@ const CourseStatisticsPage = () => {
                       {computedStats?.bestLesson ? (
                         <>
                           <div className="flex items-baseline gap-2 mb-1">
-                            <span className="text-4xl font-bold text-green-600">
-                              {formatScore(computedStats.bestLesson.avg_score / 10)}
+                            <span className="text-4xl font-bold" style={{ color: '#059669' }}>
+                              {formatScore(computedStats.bestLesson.avg_score)}
                             </span>
                             <span className="text-sm" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
                               / {isPercentage ? '100' : '10'}
@@ -490,7 +565,7 @@ const CourseStatisticsPage = () => {
               {/* Main Content Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
                 
-                {/* Áreas de Mejora - Lista de Repaso */}
+                {/* Análisis de Temas - Lista de TODAS las lecciones con orden */}
                 <div 
                   className="rounded-xl overflow-hidden border-2"
                   style={{ 
@@ -507,21 +582,22 @@ const CourseStatisticsPage = () => {
                       <div className="flex items-center gap-2">
                         <BookOpen size={20} style={{ color: getColor('textColorContrast', '#ffffff') }} />
                         <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: getColor('textColorContrast', '#ffffff') }}>
-                          {t('statistics.lessonsToReview')}
+                          {t('statistics.lessonAnalysis')}
                         </h3>
                       </div>
+                      {/* Ver Todas las Lecciones */}
                       <button
                         onClick={() => setShowAllLessons(true)}
                         className="text-xs font-medium flex items-center gap-1 px-2 py-1 rounded transition-all"
                         style={{ 
                           color: getColor('textColorContrast', '#ffffff'),
-                          backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                          backgroundColor: 'rgba(255, 255, 255, 0.15)'
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
                         }}
                       >
                         {t('statistics.allLessons')}
@@ -538,73 +614,58 @@ const CourseStatisticsPage = () => {
                     }} 
                   />
                   
-                  {/* Content */}
-                  <div className="p-6">
-                    {lessonsToReview.length > 0 ? (
-                      <div className="space-y-3">
-                        {lessonsToReview.map((lesson) => {
-                          const lessonScore = lesson.avg_score / 10;
-                          const style = getReviewStyle(lesson.avg_score);
+                  {/* Content - Scrollable list of ALL lessons (sorted low to high) */}
+                  <div className="p-4 max-h-96 overflow-y-auto">
+                    {lessonsLowToHigh.length > 0 ? (
+                      <div className="space-y-2">
+                        {lessonsLowToHigh.map((lesson, index) => {
+                          const lessonScore = lesson.avg_score;
+                          const scoreColor = getScoreColor(lesson.avg_score);
                           
                           return (
                             <div 
                               key={lesson.lesson_id} 
-                              className="p-3 rounded-lg border-2 transition-all duration-200 hover:shadow-md cursor-pointer"
+                              className="p-3 rounded-lg border transition-all duration-200 hover:shadow-sm cursor-pointer"
                               style={{ 
                                 backgroundColor: getColor('background', '#ffffff'),
-                                borderColor: style.borderColor
+                                borderColor: getColor('borderColor', '#e5e7eb')
                               }}
                               onClick={() => handleNavigateToLesson(lesson.lesson_id)}
                             >
-                              <div className="flex items-start justify-between gap-2 mb-2">
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-semibold text-sm truncate" style={{ color: getColor('primary', '#1a202c') }}>
-                                    {lesson.lesson_title}
-                                  </h4>
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <span 
-                                      className="text-xs font-bold px-2 py-0.5 rounded-full"
-                                      style={{ 
-                                        backgroundColor: `${style.iconColor}15`,
-                                        color: style.textColor
-                                      }}
-                                    >
-                                      {style.label}
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                  <span 
+                                    className="text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                                    style={{ 
+                                      backgroundColor: `${scoreColor}15`,
+                                      color: scoreColor
+                                    }}
+                                  >
+                                    {index + 1}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-medium text-sm truncate" style={{ color: getColor('primary', '#1a202c') }}>
+                                      {lesson.lesson_title}
+                                    </h4>
+                                    <span className="text-xs" style={{ color: `${getColor('primary', '#1a202c')}50` }}>
+                                      {lesson.quizzes_completed} / {lesson.total_quizzes} {t('statistics.quizzesCompleted')}
                                     </span>
                                   </div>
                                 </div>
-                                <div className="flex items-baseline gap-1 flex-shrink-0">
-                                  <span className="font-bold text-lg" style={{ color: style.textColor }}>
-                                    {formatScore(lessonScore)}
-                                  </span>
-                                  <span className="text-xs" style={{ color: `${style.textColor}80` }}>
-                                    / {isPercentage ? '100' : '10'}
-                                  </span>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <div 
+                                    className="text-right px-2 py-1 rounded"
+                                    style={{ backgroundColor: `${scoreColor}10` }}
+                                  >
+                                    <span className="font-bold text-sm" style={{ color: scoreColor }}>
+                                      {formatScore(lessonScore)}
+                                    </span>
+                                    <span className="text-xs ml-1" style={{ color: `${scoreColor}80` }}>
+                                      / {isPercentage ? '100' : '10'}
+                                    </span>
+                                  </div>
+                                  <ChevronRight size={16} style={{ color: `${getColor('primary', '#1a202c')}30` }} />
                                 </div>
-                              </div>
-                              <div className="flex justify-end">
-                                <button 
-                                  className="text-xs px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1 font-medium"
-                                  style={{
-                                    backgroundColor: style.iconColor,
-                                    color: '#ffffff'
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = 'scale(1.05)';
-                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = 'scale(1)';
-                                    e.currentTarget.style.boxShadow = 'none';
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleNavigateToLesson(lesson.lesson_id);
-                                  }}
-                                >
-                                  <Target size={12} />
-                                  {t('statistics.review')}
-                                </button>
                               </div>
                             </div>
                           );
@@ -612,19 +673,16 @@ const CourseStatisticsPage = () => {
                       </div>
                     ) : (
                       <div className="text-center py-8 rounded-lg" style={{ backgroundColor: `${getColor('primary', '#1a202c')}05` }}>
-                        <Zap size={32} className="mx-auto mb-2 text-green-500" />
+                        <BookOpen size={32} className="mx-auto mb-2" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
                         <p className="text-sm font-medium" style={{ color: getColor('primary', '#1a202c') }}>
-                          {t('statistics.greatJob')}
-                        </p>
-                        <p className="text-xs mt-1" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                          {t('statistics.allLessonsAbove8')}
+                          {t('statistics.noLessonsData')}
                         </p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Análisis de Dificultad */}
+                {/* Análisis de Preguntas - Con toggle Sin/Con Riesgo */}
                 <div 
                   className="rounded-xl overflow-hidden border-2 flex flex-col"
                   style={{ 
@@ -632,16 +690,48 @@ const CourseStatisticsPage = () => {
                     borderColor: getColor('borderColor')
                   }}
                 >
-                  {/* Header */}
+                  {/* Header - cambia de color según riskViewMode */}
                   <div 
-                    className="px-4 py-3"
-                    style={{ backgroundColor: '#3b82f6' }}
+                    className="px-4 py-3 transition-colors duration-300"
+                    style={{ backgroundColor: riskViewMode === 'with' ? getColor('accent', '#f59e0b') : getColor('primary', '#1a202c') }}
                   >
-                    <div className="flex items-center gap-2">
-                      <Target size={20} className="text-white" />
-                      <h3 className="text-sm font-bold uppercase tracking-wide text-white">
-                        {t('statistics.difficultyAnalysis')}
-                      </h3>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Target size={20} style={{ color: getColor('textColorContrast', '#ffffff') }} />
+                        <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: getColor('textColorContrast', '#ffffff') }}>
+                          {t('statistics.questionAnalysis')}
+                        </h3>
+                      </div>
+                      {/* Risk Toggle */}
+                      <div className="flex items-center gap-1 bg-white/20 rounded-lg p-0.5">
+                        <button
+                          onClick={() => setRiskViewMode('without')}
+                          className={`px-3 py-1.5 text-xs font-bold rounded transition-all ${
+                            riskViewMode === 'without' 
+                              ? 'bg-white shadow-sm' 
+                              : 'text-white/90 hover:text-white hover:bg-white/10'
+                          }`}
+                          style={{
+                            color: riskViewMode === 'without' ? getColor('primary', '#1a202c') : undefined
+                          }}
+                        >
+                          {t('statistics.withoutRisk')}
+                        </button>
+                        <button
+                          onClick={() => setRiskViewMode('with')}
+                          className={`px-3 py-1.5 text-xs font-bold rounded transition-all flex items-center gap-1 ${
+                            riskViewMode === 'with' 
+                              ? 'bg-white shadow-sm' 
+                              : 'text-white/90 hover:text-white hover:bg-white/10'
+                          }`}
+                          style={{
+                            color: riskViewMode === 'with' ? getColor('accent', '#f59e0b') : undefined
+                          }}
+                        >
+                          <AlertTriangle size={12} />
+                          {t('statistics.withRisk')}
+                        </button>
+                      </div>
                     </div>
                   </div>
                   
@@ -654,115 +744,160 @@ const CourseStatisticsPage = () => {
                   />
                   
                   {difficultyStats && Object.keys(difficultyStats).length > 0 ? (
-                    <div className="flex-1 flex flex-col p-6">
-                      {/* Tabs */}
-                      <div className="flex p-1 rounded-lg mb-6" style={{ backgroundColor: `${getColor('primary', '#1a202c')}08` }}>
-                        {['easy', 'medium', 'hard'].map((level) => (
-                          <button
-                            key={level}
-                            onClick={() => setSelectedDifficulty(level)}
-                            className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition-all capitalize ${
-                              selectedDifficulty === level ? 'shadow-md' : ''
-                            }`}
-                            style={{
-                              backgroundColor: selectedDifficulty === level ? getColor('background', '#ffffff') : 'transparent',
-                              color: selectedDifficulty === level ? getColor('primary', '#1a202c') : `${getColor('primary', '#1a202c')}60`
-                            }}
-                          >
-                            {t(`statistics.${level}`)}
-                          </button>
-                        ))}
+                    <div className="flex-1 flex flex-col p-4">
+                      {/* Difficulty Tabs - Mejorados */}
+                      <div 
+                        className="flex p-1 rounded-xl mb-4 border"
+                        style={{ 
+                          backgroundColor: getColor('background', '#ffffff'),
+                          borderColor: getColor('borderColor', '#e5e7eb')
+                        }}
+                      >
+                        {['easy', 'medium', 'hard'].map((level) => {
+                          const isSelected = selectedDifficulty === level;
+                          const tabColors = {
+                            easy: { bg: '#10b981', text: 'white' },
+                            medium: { bg: '#f59e0b', text: 'white' },
+                            hard: { bg: '#ef4444', text: 'white' }
+                          };
+                          return (
+                            <button
+                              key={level}
+                              onClick={() => setSelectedDifficulty(level)}
+                              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all text-center ${
+                                isSelected ? 'shadow-md' : 'hover:bg-gray-50'
+                              }`}
+                              style={{
+                                backgroundColor: isSelected ? tabColors[level].bg : 'transparent',
+                                color: isSelected ? tabColors[level].text : getColor('primary', '#1a202c')
+                              }}
+                            >
+                              {t(`statistics.${level}`)}
+                            </button>
+                          );
+                        })}
                       </div>
 
-                      {/* Chart Content */}
+                      {/* Stats Content */}
                       {(() => {
-                        const stats = difficultyStats[selectedDifficulty] || { total: 0, correct: 0, incorrect: 0, unanswered: 0, risked: 0 };
-                        const data = [
-                          { name: t('statistics.correct'), value: stats.correct, color: '#22c55e' },
-                          { name: t('statistics.incorrect'), value: stats.incorrect, color: '#ef4444' },
-                          { name: t('statistics.unanswered'), value: stats.unanswered, color: '#9ca3af' }
-                        ].filter(d => d.value > 0);
+                        const stats = difficultyStats[selectedDifficulty] || { 
+                          total: 0, correct: 0, incorrect: 0, unanswered: 0, 
+                          risked: 0, risked_correct: 0, risked_incorrect: 0, risked_unanswered: 0 
+                        };
+                        
+                        // Calculate stats based on risk mode
+                        const displayStats = riskViewMode === 'with' 
+                          ? {
+                              total: stats.risked || 0,
+                              correct: stats.risked_correct || 0,
+                              incorrect: stats.risked_incorrect || 0,
+                              unanswered: stats.risked_unanswered || 0
+                            }
+                          : {
+                              total: stats.total || 0,
+                              correct: stats.correct || 0,
+                              incorrect: stats.incorrect || 0,
+                              unanswered: stats.unanswered || 0
+                            };
+                        
+                        // Calculate percentages
+                        const calcPercent = (val) => displayStats.total > 0 ? ((val / displayStats.total) * 100).toFixed(1) : 0;
 
                         return (
-                          <div className="flex-1 flex flex-col items-center justify-center">
-                            {stats.total > 0 ? (
-                              <>
-                                <div className="w-48 h-48 relative mb-4">
-                                  <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                      <Pie
-                                        data={data}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                      >
-                                        {data.map((entry, index) => (
-                                          <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={0} />
-                                        ))}
-                                      </Pie>
-                                      <Tooltip 
-                                        contentStyle={{ 
-                                          backgroundColor: getColor('background', '#ffffff'),
-                                          borderColor: getColor('borderColor', '#e5e7eb'),
-                                          borderRadius: '0.5rem',
-                                          fontSize: '0.75rem'
-                                        }}
+                          <div className="flex-1">
+                            {displayStats.total > 0 ? (
+                              <div className="space-y-3">
+                                {/* Quick stats row */}
+                                <div className="text-center mb-2">
+                                  <span className="text-2xl font-bold" style={{ color: getColor('primary', '#1a202c') }}>
+                                    {displayStats.total}
+                                  </span>
+                                  <span className="text-xs ml-2" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                                    {riskViewMode === 'with' ? t('statistics.markedWithRisk') : 'preguntas totales'}
+                                  </span>
+                                </div>
+
+                                {/* Stats bars */}
+                                <div className="space-y-2">
+                                  {/* Correct */}
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-20 text-xs font-medium" style={{ color: '#059669' }}>{t('statistics.correct')}</div>
+                                    <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden relative">
+                                      <div 
+                                        className="h-full transition-all duration-500"
+                                        style={{ width: `${calcPercent(displayStats.correct)}%`, backgroundColor: '#34d399' }}
                                       />
-                                    </PieChart>
-                                  </ResponsiveContainer>
-                                  {/* Center Text */}
-                                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                    <span className="text-3xl font-bold" style={{ color: getColor('primary', '#1a202c') }}>
-                                      {stats.total}
-                                    </span>
-                                    <span className="text-xs uppercase tracking-wider" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                                      Total
-                                    </span>
+                                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold" 
+                                            style={{ color: calcPercent(displayStats.correct) > 50 ? 'white' : '#059669' }}>
+                                        {displayStats.correct} ({calcPercent(displayStats.correct)}%)
+                                      </span>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Incorrect */}
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-20 text-xs font-medium" style={{ color: '#dc2626' }}>{t('statistics.incorrect')}</div>
+                                    <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden relative">
+                                      <div 
+                                        className="h-full transition-all duration-500"
+                                        style={{ width: `${calcPercent(displayStats.incorrect)}%`, backgroundColor: '#f87171' }}
+                                      />
+                                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold"
+                                            style={{ color: calcPercent(displayStats.incorrect) > 50 ? 'white' : '#dc2626' }}>
+                                        {displayStats.incorrect} ({calcPercent(displayStats.incorrect)}%)
+                                      </span>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Unanswered */}
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-20 text-xs font-medium text-gray-500">{t('statistics.unanswered')}</div>
+                                    <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden relative">
+                                      <div 
+                                        className="h-full bg-gray-400 transition-all duration-500"
+                                        style={{ width: `${calcPercent(displayStats.unanswered)}%` }}
+                                      />
+                                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold"
+                                            style={{ color: calcPercent(displayStats.unanswered) > 50 ? 'white' : '#6b7280' }}>
+                                        {displayStats.unanswered} ({calcPercent(displayStats.unanswered)}%)
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
 
-                                {/* Legend & Details */}
-                                <div className="w-full space-y-3">
-                                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                                    <div className="p-3 rounded-lg border-2 border-green-200" style={{ backgroundColor: '#f0fdf4' }}>
-                                      <div className="font-bold text-lg text-green-600">{stats.correct}</div>
-                                      <div className="text-green-800 opacity-70 font-medium mt-1">{t('statistics.correct')}</div>
+                                {/* Risk indicator when viewing without risk */}
+                                {riskViewMode === 'without' && stats.risked > 0 && (
+                                  <div 
+                                    className="flex items-center justify-between p-2 rounded-lg border mt-3"
+                                    style={{ 
+                                      backgroundColor: '#fef3c7',
+                                      borderColor: '#fcd34d'
+                                    }}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <AlertTriangle size={14} className="text-amber-600" />
+                                      <span className="text-xs font-medium text-amber-800">
+                                        {stats.risked} {t('statistics.markedWithRisk')}
+                                      </span>
                                     </div>
-                                    <div className="p-3 rounded-lg border-2 border-red-200" style={{ backgroundColor: '#fef2f2' }}>
-                                      <div className="font-bold text-lg text-red-600">{stats.incorrect}</div>
-                                      <div className="text-red-800 opacity-70 font-medium mt-1">{t('statistics.incorrect')}</div>
-                                    </div>
-                                    <div className="p-3 rounded-lg border-2 border-gray-200" style={{ backgroundColor: '#f9fafb' }}>
-                                      <div className="font-bold text-lg text-gray-600">{stats.unanswered}</div>
-                                      <div className="text-gray-800 opacity-70 font-medium mt-1">{t('statistics.unanswered')}</div>
-                                    </div>
-                                  </div>
-
-                                  {/* Risked Stat */}
-                                  {stats.risked > 0 && (
-                                    <div 
-                                      className="flex items-center justify-between p-3 rounded-lg border-2 border-orange-200"
-                                      style={{ backgroundColor: '#fff7ed' }}
+                                    <button
+                                      onClick={() => setRiskViewMode('with')}
+                                      className="text-xs font-medium transition-colors"
+                                      style={{ color: getColor('accent', '#3b82f6') }}
                                     >
-                                      <div className="flex items-center gap-2">
-                                        <AlertTriangle size={16} className="text-orange-500" />
-                                        <span className="text-xs font-bold text-orange-800">
-                                          {t('statistics.markedWithRisk')}
-                                        </span>
-                                      </div>
-                                      <span className="font-bold text-lg text-orange-600">{stats.risked}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </>
+                                      {t('statistics.viewDetail')} →
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             ) : (
-                              <div className="text-center py-8">
-                                <Target size={32} className="mx-auto mb-2" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
+                              <div className="text-center py-6">
+                                <Target size={28} className="mx-auto mb-2" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
                                 <p className="text-xs" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                                  {t('statistics.noDataForDifficulty')}
+                                  {riskViewMode === 'with' 
+                                    ? t('statistics.noRiskDataForDifficulty')
+                                    : t('statistics.noDataForDifficulty')
+                                  }
                                 </p>
                               </div>
                             )}
@@ -781,149 +916,6 @@ const CourseStatisticsPage = () => {
                 </div>
 
               </div>
-
-              {/* Segunda fila - Análisis de Riesgo en ancho completo */}
-              <div 
-                className="rounded-xl overflow-hidden border-2 flex flex-col mt-4"
-                style={{ 
-                  backgroundColor: getColor('secondaryBackground'),
-                  borderColor: getColor('borderColor')
-                }}
-              >
-                {/* Header */}
-                <div 
-                  className="px-4 py-3"
-                  style={{ backgroundColor: '#f59e0b' }}
-                >
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle size={20} className="text-white" />
-                    <h3 className="text-sm font-bold uppercase tracking-wide text-white">
-                      {t('statistics.riskAnalysis')}
-                    </h3>
-                  </div>
-                </div>
-                
-                {/* Separador */}
-                <div 
-                  style={{ 
-                    height: '1px', 
-                    backgroundColor: 'rgba(156, 163, 175, 0.2)'
-                  }} 
-                />
-                
-                {difficultyStats && Object.keys(difficultyStats).length > 0 ? (
-                  <div className="flex-1 flex flex-col p-6">
-                    {/* Tabs */}
-                    <div className="flex p-1 rounded-lg mb-6" style={{ backgroundColor: `${getColor('primary', '#1a202c')}08` }}>
-                      {['easy', 'medium', 'hard'].map((level) => (
-                        <button
-                          key={level}
-                          onClick={() => setSelectedDifficulty(level)}
-                          className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition-all capitalize ${
-                            selectedDifficulty === level ? 'shadow-md' : ''
-                          }`}
-                          style={{
-                            backgroundColor: selectedDifficulty === level ? getColor('background', '#ffffff') : 'transparent',
-                            color: selectedDifficulty === level ? getColor('primary', '#1a202c') : `${getColor('primary', '#1a202c')}60`
-                          }}
-                        >
-                          {t(`statistics.${level}`)}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Chart Content */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {(() => {
-                        const stats = difficultyStats[selectedDifficulty] || { risked: 0, risked_correct: 0, risked_incorrect: 0, risked_unanswered: 0 };
-                        const data = [
-                          { name: t('statistics.correct'), value: stats.risked_correct || 0, color: '#22c55e' },
-                          { name: t('statistics.incorrect'), value: stats.risked_incorrect || 0, color: '#ef4444' },
-                          { name: t('statistics.unanswered'), value: stats.risked_unanswered || 0, color: '#9ca3af' }
-                        ].filter(d => d.value > 0);
-
-                        return stats.risked > 0 ? (
-                          <>
-                            {/* Chart */}
-                            <div className="flex flex-col items-center justify-center">
-                              <div className="w-48 h-48 relative mb-4">
-                                <ResponsiveContainer width="100%" height="100%">
-                                  <PieChart>
-                                    <Pie
-                                      data={data}
-                                      cx="50%"
-                                      cy="50%"
-                                      innerRadius={60}
-                                      outerRadius={80}
-                                      paddingAngle={5}
-                                      dataKey="value"
-                                    >
-                                      {data.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={0} />
-                                      ))}
-                                    </Pie>
-                                    <Tooltip 
-                                      contentStyle={{ 
-                                        backgroundColor: getColor('background', '#ffffff'),
-                                        borderColor: getColor('borderColor', '#e5e7eb'),
-                                        borderRadius: '0.5rem',
-                                        fontSize: '0.75rem'
-                                      }}
-                                    />
-                                  </PieChart>
-                                </ResponsiveContainer>
-                                {/* Center Text */}
-                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                  <span className="text-3xl font-bold" style={{ color: getColor('primary', '#1a202c') }}>
-                                    {stats.risked}
-                                  </span>
-                                  <span className="text-xs uppercase tracking-wider" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                                    Total
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Stats Grid */}
-                            <div className="flex items-center">
-                              <div className="w-full space-y-3">
-                                <div className="grid grid-cols-3 gap-3 text-center text-xs">
-                                  <div className="p-3 rounded-lg border-2 border-green-200" style={{ backgroundColor: '#f0fdf4' }}>
-                                    <div className="font-bold text-lg text-green-600">{stats.risked_correct || 0}</div>
-                                    <div className="text-green-800 opacity-70 font-medium mt-1">{t('statistics.correct')}</div>
-                                  </div>
-                                  <div className="p-3 rounded-lg border-2 border-red-200" style={{ backgroundColor: '#fef2f2' }}>
-                                    <div className="font-bold text-lg text-red-600">{stats.risked_incorrect || 0}</div>
-                                    <div className="text-red-800 opacity-70 font-medium mt-1">{t('statistics.incorrect')}</div>
-                                  </div>
-                                  <div className="p-3 rounded-lg border-2 border-gray-200" style={{ backgroundColor: '#f9fafb' }}>
-                                    <div className="font-bold text-lg text-gray-600">{stats.risked_unanswered || 0}</div>
-                                    <div className="text-gray-800 opacity-70 font-medium mt-1">{t('statistics.unanswered')}</div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="col-span-2 text-center py-8">
-                            <AlertTriangle size={32} className="mx-auto mb-2 text-orange-300" />
-                            <p className="text-xs" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                              {t('statistics.noRiskDataForDifficulty')}
-                            </p>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 p-6">
-                    <AlertTriangle size={32} className="mx-auto mb-2 text-orange-300" />
-                    <p className="text-xs" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                      {t('statistics.noRiskData')}
-                    </p>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
@@ -937,54 +929,77 @@ const CourseStatisticsPage = () => {
         >
           {showAllLessons && (
             <div className="h-full flex flex-col">
-              {/* Header Compacto */}
+              {/* Header Compacto con ordenación */}
               <div 
-                className="flex items-center justify-between px-4 py-2 sm:py-1.5 border-b flex-shrink-0 gap-2"
+                className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0 gap-2"
                 style={{ 
-                  backgroundColor: getColor('background', '#ffffff'),
-                  borderColor: `${getColor('primary', '#1a202c')}15` 
+                  backgroundColor: getColor('primary', '#1a202c'),
+                  borderColor: `${getColor('primary', '#1a202c')}` 
                 }}
               >
                 <div className="flex items-center gap-2 overflow-hidden">
-                  <BarChart2 size={18} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
-                  <h2 className="text-sm sm:text-base font-semibold leading-tight truncate" style={{ color: getColor('primary', '#1a202c') }}>
+                  <BarChart2 size={18} style={{ color: getColor('textColorContrast', '#ffffff') }} className="flex-shrink-0" />
+                  <h2 className="text-sm sm:text-base font-bold leading-tight truncate uppercase tracking-wide" style={{ color: getColor('textColorContrast', '#ffffff') }}>
                     {t('statistics.performanceByLesson')}
                   </h2>
                   <span 
                     className="text-xs px-2 py-0.5 rounded-full flex-shrink-0 ml-1"
                     style={{ 
-                      backgroundColor: `${getColor('primary', '#1a202c')}10`,
-                      color: getColor('primary', '#1a202c')
+                      backgroundColor: 'rgba(255,255,255,0.2)',
+                      color: getColor('textColorContrast', '#ffffff')
                     }}
                   >
-                    {performanceByLesson.length} {t('lessons.title').toLowerCase()}
+                    {sortedAllLessons.length}
                   </span>
                 </div>
 
-                {/* Close button */}
-                <button
-                  onClick={() => setShowAllLessons(false)}
-                  className="p-1.5 rounded-lg transition-all flex-shrink-0"
-                  style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
-                  }}
-                  title={t('common.back')}
-                >
-                  <X size={20} style={{ color: getColor('primary', '#1a202c') }} />
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Sort Toggle */}
+                  <button
+                    onClick={() => setLessonSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                    className="text-xs font-medium flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all"
+                    style={{ 
+                      color: getColor('textColorContrast', '#ffffff'),
+                      backgroundColor: 'rgba(255, 255, 255, 0.15)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+                    }}
+                  >
+                    {lessonSortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
+                    <span className="hidden sm:inline">
+                      {lessonSortOrder === 'desc' ? t('statistics.sortHighToLow') : t('statistics.sortLowToHigh')}
+                    </span>
+                  </button>
+
+                  {/* Close button */}
+                  <button
+                    onClick={() => setShowAllLessons(false)}
+                    className="p-1.5 rounded-lg transition-all flex-shrink-0"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.25)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)';
+                    }}
+                    title={t('common.back')}
+                  >
+                    <X size={20} style={{ color: getColor('textColorContrast', '#ffffff') }} />
+                  </button>
+                </div>
               </div>
 
               {/* Content */}
               <div className="flex-1 overflow-y-auto">
                 <div className="p-6 max-w-5xl mx-auto">
-                  {performanceByLesson.length > 0 ? (
+                  {sortedAllLessons.length > 0 ? (
                     <div className="space-y-4">
-                      {performanceByLesson.map((lesson) => {
-                        const lessonScore = lesson.avg_score / 10;
+                      {sortedAllLessons.map((lesson, index) => {
+                        const lessonScore = lesson.avg_score;
                         const scoreColor = getScoreColor(lesson.avg_score);
                         
                         return (
@@ -997,22 +1012,30 @@ const CourseStatisticsPage = () => {
                             }}
                           >
                             <div 
-                              className="px-4 py-2"
-                              style={{ backgroundColor: scoreColor }}
-                            >
-                              <div className="flex justify-between items-center">
-                                <span className="font-bold text-sm text-white truncate flex-1 mr-3">
+                            className="px-4 py-2"
+                            style={{ backgroundColor: scoreColor }}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-3 flex-1 min-w-0 mr-3">
+                                <span 
+                                  className="text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                                  style={{ backgroundColor: 'rgba(255,255,255,0.25)' }}
+                                >
+                                  {index + 1}
+                                </span>
+                                <span className="font-bold text-sm text-white truncate">
                                   {lesson.lesson_title}
                                 </span>
-                                <div className="flex items-baseline gap-1 flex-shrink-0">
-                                  <span className="font-bold text-lg text-white">
-                                    {formatScore(lessonScore)}
-                                  </span>
-                                  <span className="text-xs text-white opacity-80">
-                                    / {isPercentage ? '100' : '10'}
-                                  </span>
-                                </div>
                               </div>
+                              <div className="flex items-baseline gap-1 flex-shrink-0">
+                                <span className="font-bold text-lg text-white">
+                                  {formatScore(lessonScore)}
+                                </span>
+                                <span className="text-xs text-white opacity-80">
+                                  / {isPercentage ? '100' : '10'}
+                                </span>
+                              </div>
+                            </div>
                             </div>
                             
                             <div 

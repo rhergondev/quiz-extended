@@ -1,11 +1,21 @@
 // src/components/frontend/Timer.jsx
 import React, { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 const Timer = ({ durationMinutes, onTimeUp, isPaused, initialTimeRemaining = null, onTick = null }) => {
+  const { getColor, isDarkMode } = useTheme();
+  const { t } = useTranslation();
   const [remainingTime, setRemainingTime] = useState(
     initialTimeRemaining !== null ? initialTimeRemaining : durationMinutes * 60
   );
+
+  // Dark mode colors
+  const bgCard = isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff';
+  const textPrimary = isDarkMode ? getColor('textPrimary', '#f9fafb') : '#111827';
+  const textSecondary = isDarkMode ? getColor('textSecondary', '#9ca3af') : '#374151';
+  const borderColor = isDarkMode ? getColor('borderColor', '#374151') : '#e5e7eb';
 
   // Actualizar tiempo inicial cuando se resume desde autoguardado
   useEffect(() => {
@@ -52,12 +62,18 @@ const Timer = ({ durationMinutes, onTimeUp, isPaused, initialTimeRemaining = nul
   }
 
   return (
-    <div className="mt-4 bg-white p-4 rounded-lg border border-gray-200 shadow-sm text-center">
-      <div className="flex items-center justify-center text-gray-700">
+    <div 
+      className="mt-4 p-4 rounded-lg border shadow-sm text-center"
+      style={{ 
+        backgroundColor: bgCard,
+        borderColor: borderColor
+      }}
+    >
+      <div className="flex items-center justify-center" style={{ color: textSecondary }}>
         <Clock className="w-5 h-5 mr-2" />
-        <span className="text-lg font-semibold">Tiempo Restante</span>
+        <span className="text-lg font-semibold">{t('quizzes.timeRemaining')}</span>
       </div>
-      <p className="text-3xl font-bold text-gray-900 mt-2">
+      <p className="text-3xl font-bold mt-2" style={{ color: textPrimary }}>
         {formatTime(remainingTime)}
       </p>
     </div>

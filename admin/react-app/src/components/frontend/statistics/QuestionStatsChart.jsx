@@ -4,9 +4,23 @@ import React, { useState } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { PieChart, CheckCircle, XCircle, HelpCircle } from 'lucide-react';
 
-const QuestionStatsChart = ({ statsData, compact = false }) => {
+const QuestionStatsChart = ({ 
+  statsData, 
+  compact = false,
+  isDarkMode = false,
+  pageColors = null 
+}) => {
   const { getColor } = useTheme();
   const [hoveredSegment, setHoveredSegment] = useState(null);
+
+  // Use provided pageColors or generate defaults
+  const colors = pageColors || {
+    text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
+    textMuted: getColor('textSecondary', '#6b7280'),
+    primary: getColor('primary', '#3b82f6'),
+    background: getColor('background', '#ffffff'),
+    secondaryBg: getColor('secondaryBackground', '#f3f4f6'),
+  };
 
   const data = [
     { 
@@ -32,7 +46,7 @@ const QuestionStatsChart = ({ statsData, compact = false }) => {
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
   // Calculate angles for donut chart
-  let currentAngle = -90; // Start from top
+  let currentAngle = -90;
   const segments = data.map((item, index) => {
     const percentage = total > 0 ? (item.value / total) * 100 : 0;
     const angle = (percentage / 100) * 360;
@@ -74,30 +88,29 @@ const QuestionStatsChart = ({ statsData, compact = false }) => {
 
   return (
     <div 
-      className={`${compact ? '' : 'p-6 rounded-xl shadow-lg border-2'} flex flex-col h-full`}
-      style={compact ? {} : { 
-        backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
-        borderColor: getColor('primary', '#3b82f6')
+      className={`p-4 rounded-lg border flex flex-col ${compact ? '' : 'shadow-lg'}`}
+      style={{ 
+        backgroundColor: colors.background,
+        borderColor: isDarkMode ? colors.primary + '40' : '#e5e7eb'
       }}
     >
-      {!compact && (
-        <div className="flex items-center gap-3 mb-4 pb-4 border-b-2" style={{ borderColor: getColor('primary', '#3b82f6') + '30' }}>
-          <PieChart className="w-6 h-6" style={{ color: getColor('primary', '#3b82f6') }} />
-          <h2 className="text-xl font-bold qe-text-primary">Distribución</h2>
-        </div>
-      )}
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-3 pb-2 border-b" style={{ borderColor: isDarkMode ? colors.primary + '30' : '#e5e7eb' }}>
+        <PieChart className="w-4 h-4" style={{ color: colors.primary }} />
+        <h2 className="text-sm font-semibold" style={{ color: colors.text }}>Distribución de Respuestas</h2>
+      </div>
 
-      <div className="flex flex-col lg:flex-row items-center gap-4 flex-1">
-        {/* Donut Chart */}
-        <div className="relative flex-shrink-0 w-48 h-48">
+      <div className="flex items-center gap-4 flex-1">
+        {/* Donut Chart - Smaller */}
+        <div className="relative flex-shrink-0 w-28 h-28">
           <svg viewBox="0 0 100 100" className="w-full h-full">
-            {/* Shadow/Background circle */}
+            {/* Background circle */}
             <circle
               cx="50"
               cy="50"
               r="42"
               fill="none"
-              stroke="#f3f4f6"
+              stroke={isDarkMode ? colors.primary + '20' : '#f3f4f6'}
               strokeWidth="16"
             />
             
@@ -114,7 +127,7 @@ const QuestionStatsChart = ({ statsData, compact = false }) => {
                     fill={segment.color}
                     className="transition-all duration-300 cursor-pointer"
                     style={{ 
-                      filter: isHovered ? 'brightness(1.1) drop-shadow(0 4px 6px rgba(0,0,0,0.2))' : 'none',
+                      filter: isHovered ? 'brightness(1.1) drop-shadow(0 2px 4px rgba(0,0,0,0.2))' : 'none',
                       transformOrigin: '50% 50%'
                     }}
                     onMouseEnter={() => setHoveredSegment(index)}
@@ -127,21 +140,13 @@ const QuestionStatsChart = ({ statsData, compact = false }) => {
           
           {/* Center content */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <p className="text-4xl font-bold qe-text-primary mb-1">{total}</p>
-            <p className="text-xs qe-text-secondary font-medium">Total</p>
-            {hoveredSegment !== null && (
-              <div className="mt-1 px-2 py-0.5 rounded-full animate-fade-in" 
-                   style={{ backgroundColor: segments[hoveredSegment].color + '20' }}>
-                <p className="text-xs font-semibold" style={{ color: segments[hoveredSegment].color }}>
-                  {segments[hoveredSegment].label}: {segments[hoveredSegment].value}
-                </p>
-              </div>
-            )}
+            <p className="text-2xl font-bold" style={{ color: colors.text }}>{total}</p>
+            <p className="text-xs" style={{ color: colors.textMuted }}>Total</p>
           </div>
         </div>
 
-        {/* Legend Cards - Más compactas */}
-        <div className="flex-1 space-y-2 w-full">
+        {/* Legend - Compact */}
+        <div className="flex-1 space-y-1.5">
           {data.map((item, index) => {
             const Icon = item.icon;
             const percentage = total > 0 ? ((item.value / total) * 100).toFixed(1) : 0;
@@ -150,74 +155,26 @@ const QuestionStatsChart = ({ statsData, compact = false }) => {
             return (
               <div 
                 key={index}
-                className="p-2 rounded-lg border transition-all duration-300 cursor-pointer"
+                className="flex items-center justify-between p-1.5 rounded transition-all cursor-pointer"
                 style={{ 
-                  borderColor: isHovered ? item.color : '#e5e7eb',
-                  backgroundColor: isHovered ? `${item.color}15` : `${item.color}08`,
-                  transform: isHovered ? 'scale(1.02)' : 'scale(1)',
-                  boxShadow: isHovered ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'
+                  backgroundColor: isHovered ? `${item.color}15` : 'transparent'
                 }}
                 onMouseEnter={() => setHoveredSegment(index)}
                 onMouseLeave={() => setHoveredSegment(null)}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="p-0.5 rounded transition-transform"
-                      style={{ 
-                        backgroundColor: item.color + '20',
-                        transform: isHovered ? 'scale(1.1)' : 'scale(1)'
-                      }}
-                    >
-                      <Icon className="w-3 h-3" style={{ color: item.color }} />
-                    </div>
-                    <span className="font-semibold text-xs qe-text-primary">{item.label}</span>
-                  </div>
-                  <div className="text-right flex items-baseline gap-1">
-                    <p className="text-lg font-bold" style={{ color: item.color }}>
-                      {item.value}
-                    </p>
-                    <p className="text-xs qe-text-secondary font-medium">({percentage}%)</p>
-                  </div>
+                <div className="flex items-center gap-1.5">
+                  <Icon className="w-3.5 h-3.5" style={{ color: item.color }} />
+                  <span className="text-xs font-medium" style={{ color: colors.text }}>{item.label}</span>
                 </div>
-                
-                {/* Progress bar más delgada */}
-                <div className="relative h-1 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full rounded-full transition-all duration-700 ease-out relative"
-                    style={{ 
-                      width: `${percentage}%`,
-                      backgroundColor: item.color
-                    }}
-                  >
-                    {/* Shine effect */}
-                    <div 
-                      className="absolute inset-0 opacity-30"
-                      style={{
-                        background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)',
-                        animation: isHovered ? 'shine 1.5s infinite' : 'none'
-                      }}
-                    />
-                  </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-bold" style={{ color: item.color }}>{item.value}</span>
+                  <span className="text-xs" style={{ color: colors.textMuted }}>({percentage}%)</span>
                 </div>
               </div>
             );
           })}
         </div>
       </div>
-
-      {/* Summary más compacto - solo mostrar si no es compact */}
-      {!compact && (
-        <div className="mt-4 pt-3 border-t-2" style={{ borderColor: getColor('primary', '#3b82f6') + '20' }}>
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-xs font-medium qe-text-secondary">Total:</span>
-            <span className="text-lg font-bold" style={{ color: getColor('primary', '#3b82f6') }}>
-              {total}
-            </span>
-            <span className="text-xs qe-text-secondary">preguntas</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

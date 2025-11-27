@@ -12,17 +12,30 @@ import { getCourseLessons } from '../../../api/services/courseLessonService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import Quiz from '../../../components/frontend/Quiz';
 import QuizResults from '../../../components/frontend/QuizResults';
-import { ChevronDown, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, XCircle, Loader } from 'lucide-react';
+import QuizRankingModal from '../../../components/frontend/QuizRankingModal';
+import { ChevronDown, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, XCircle, Loader, Trophy } from 'lucide-react';
 
 const TestsPage = () => {
   const { t } = useTranslation();
   const { courseId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { getColor } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
   const { formatScore } = useScoreFormat();
   const { course } = useCourse(courseId);
   const courseName = course?.title?.rendered || course?.title || '';
+
+  // Dark mode aware colors
+  const pageColors = {
+    text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
+    textMuted: getColor('textSecondary', '#6b7280'),
+    accent: getColor('accent', '#f59e0b'),
+    bgCard: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    bgSubtle: isDarkMode ? 'rgba(255,255,255,0.05)' : `${getColor('primary', '#1a202c')}05`,
+    borderSubtle: isDarkMode ? 'rgba(255,255,255,0.1)' : `${getColor('primary', '#1a202c')}15`,
+    hoverBg: isDarkMode ? 'rgba(255,255,255,0.1)' : `${getColor('primary', '#1a202c')}10`,
+    hoverBgStrong: isDarkMode ? 'rgba(255,255,255,0.15)' : `${getColor('primary', '#1a202c')}15`,
+  };
   
   // 🔥 Ref para controlar que la navegación externa solo se procese una vez
   const hasProcessedNavigation = React.useRef(false);
@@ -42,6 +55,9 @@ const TestsPage = () => {
   
   // 🆕 Estado para vista de intento previo
   const [viewingAttemptId, setViewingAttemptId] = useState(null);
+  
+  // 🏆 Estado para modal de ranking
+  const [showRankingModal, setShowRankingModal] = useState(false);
   
   // Drawing mode states for Quiz component
   const [isDrawingMode, setIsDrawingMode] = useState(false);
@@ -488,12 +504,12 @@ const TestsPage = () => {
                 ))}
               </div>
             ) : lessons.length === 0 ? (
-              <div className="text-center py-12 rounded-lg" style={{ backgroundColor: getColor('background', '#ffffff') }}>
-                <ClipboardList size={48} className="mx-auto mb-4" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
-                <p className="text-lg font-medium" style={{ color: getColor('primary', '#1a202c') }}>
+              <div className="text-center py-12 rounded-lg" style={{ backgroundColor: pageColors.bgCard }}>
+                <ClipboardList size={48} className="mx-auto mb-4" style={{ color: `${pageColors.text}40` }} />
+                <p className="text-lg font-medium" style={{ color: pageColors.text }}>
                   {t('tests.noTests')}
                 </p>
-                <p className="text-sm mt-2" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                <p className="text-sm mt-2" style={{ color: pageColors.textMuted }}>
                   {t('tests.noTestsDescription')}
                 </p>
               </div>
@@ -519,25 +535,25 @@ const TestsPage = () => {
                           onClick={() => toggleLesson(lesson.id)}
                           className="w-full px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-200"
                           style={{ 
-                            backgroundColor: `${getColor('primary', '#1a202c')}05`
+                            backgroundColor: pageColors.bgSubtle
                           }}
                         >
                           <div className="flex items-center gap-3 overflow-hidden">
                             {isExpanded ? (
-                              <ChevronDown size={20} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
+                              <ChevronDown size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
                             ) : (
-                              <ChevronRight size={20} style={{ color: `${getColor('textSecondary', '#6b7280')}` }} className="flex-shrink-0" />
+                              <ChevronRight size={20} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
                             )}
-                            <ClipboardList size={20} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
-                            <span className="font-semibold text-left truncate" style={{ color: getColor('textPrimary', '#1f2937') }}>
+                            <ClipboardList size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
+                            <span className="font-semibold text-left truncate" style={{ color: pageColors.text }}>
                               {lessonTitle}
                             </span>
                           </div>
                           <span 
                             className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full flex-shrink-0 ml-2"
                             style={{ 
-                              backgroundColor: `${getColor('primary', '#1a202c')}10`,
-                              color: getColor('primary', '#1a202c')
+                              backgroundColor: pageColors.hoverBg,
+                              color: pageColors.text
                             }}
                           >
                             {testsCount} <span className="hidden sm:inline">{testsCount === 1 ? t('tests.test') : t('tests.tests')}</span>
@@ -599,10 +615,10 @@ const TestsPage = () => {
                                       {isCompleted ? (
                                         <CheckCircle size={18} style={{ color: '#10b981' }} className="flex-shrink-0" />
                                       ) : (
-                                        <Circle size={18} style={{ color: getColor('textSecondary', '#6b7280') }} className="flex-shrink-0" />
+                                        <Circle size={18} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
                                       )}
                                       <div className="flex flex-col flex-1 overflow-hidden">
-                                        <span className="text-sm font-medium mb-1.5 truncate" style={{ color: getColor('textPrimary', '#1f2937') }}>
+                                        <span className="text-sm font-medium mb-1.5 truncate" style={{ color: pageColors.text }}>
                                           {step.title}
                                         </span>
                                         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -622,8 +638,8 @@ const TestsPage = () => {
                                           {/* Tiempo límite */}
                                           {timeLimit && (
                                             <div className="flex items-center gap-1 flex-shrink-0">
-                                              <Clock size={12} style={{ color: getColor('textSecondary', '#6b7280') }} />
-                                              <span className="text-xs" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                              <Clock size={12} style={{ color: pageColors.textMuted }} />
+                                              <span className="text-xs" style={{ color: pageColors.textMuted }}>
                                                 {timeLimit} min
                                               </span>
                                             </div>
@@ -631,8 +647,8 @@ const TestsPage = () => {
                                           
                                           {/* Fecha de inicio */}
                                           <div className="flex items-center gap-1 flex-shrink-0">
-                                            <Calendar size={12} style={{ color: getColor('textSecondary', '#6b7280') }} />
-                                            <span className="text-xs" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                            <Calendar size={12} style={{ color: pageColors.textMuted }} />
+                                            <span className="text-xs" style={{ color: pageColors.textMuted }}>
                                               <span className="hidden sm:inline">{t('tests.startDate')}: </span>{formatStartDate(startDate)}
                                             </span>
                                           </div>
@@ -645,19 +661,19 @@ const TestsPage = () => {
                                       style={{ 
                                         backgroundColor: isCompleted 
                                           ? getColor('primary', '#1a202c')
-                                          : `${getColor('primary', '#1a202c')}10`,
-                                        color: isCompleted ? '#ffffff' : getColor('primary', '#1a202c')
+                                          : pageColors.hoverBg,
+                                        color: isCompleted ? '#ffffff' : pageColors.text
                                       }}
                                       onMouseEnter={(e) => {
                                         e.currentTarget.style.transform = 'scale(1.05)';
                                         if (!isCompleted) {
-                                          e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}15`;
+                                          e.currentTarget.style.backgroundColor = pageColors.hoverBgStrong;
                                         }
                                       }}
                                       onMouseLeave={(e) => {
                                         e.currentTarget.style.transform = 'scale(1)';
                                         if (!isCompleted) {
-                                          e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                                          e.currentTarget.style.backgroundColor = pageColors.hoverBg;
                                         }
                                       }}
                                       title={isCompleted ? t('tests.retake') : t('tests.start')}
@@ -706,8 +722,8 @@ const TestsPage = () => {
               <div 
                 className="flex items-center justify-between px-4 py-2 sm:py-1.5 border-b flex-shrink-0 gap-2"
                 style={{ 
-                  backgroundColor: getColor('background', '#ffffff'),
-                  borderColor: `${getColor('primary', '#1a202c')}15` 
+                  backgroundColor: pageColors.bgCard,
+                  borderColor: pageColors.borderSubtle 
                 }}
               >
                 <div className="flex flex-col gap-1 overflow-hidden">
@@ -716,26 +732,26 @@ const TestsPage = () => {
                     <Link 
                       to="/courses"
                       className="transition-colors duration-200 hover:underline font-medium"
-                      style={{ color: getColor('primary', '#1a202c') }}
+                      style={{ color: pageColors.text }}
                     >
                       {t('sidebar.studyPlanner')}
                     </Link>
-                    <ChevronRight size={12} style={{ color: `${getColor('primary', '#1a202c')}50` }} />
+                    <ChevronRight size={12} style={{ color: pageColors.textMuted }} />
                     <Link 
                       to={`/courses/${courseId}/dashboard`}
                       className="transition-colors duration-200 hover:underline font-medium"
-                      style={{ color: getColor('primary', '#1a202c') }}
+                      style={{ color: pageColors.text }}
                       dangerouslySetInnerHTML={{ __html: courseName }}
                     />
-                    <ChevronRight size={12} style={{ color: `${getColor('primary', '#1a202c')}50` }} />
-                    <span className="font-medium" style={{ color: `${getColor('primary', '#1a202c')}70` }}>
+                    <ChevronRight size={12} style={{ color: pageColors.textMuted }} />
+                    <span className="font-medium" style={{ color: pageColors.textMuted }}>
                       {t('courses.tests')}
                     </span>
                   </nav>
                   {/* Título del test */}
                   <div className="flex items-center gap-2">
-                    <ClipboardList size={18} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
-                    <h2 className="text-sm sm:text-base font-semibold leading-tight truncate" style={{ color: getColor('primary', '#1a202c') }}>
+                    <ClipboardList size={18} style={{ color: pageColors.text }} className="flex-shrink-0" />
+                    <h2 className="text-sm sm:text-base font-semibold leading-tight truncate" style={{ color: pageColors.text }}>
                       {selectedTest.title}
                     </h2>
                   </div>
@@ -749,21 +765,21 @@ const TestsPage = () => {
                     disabled={!hasPrevious}
                     className="p-1.5 rounded-lg transition-all"
                     style={{ 
-                      backgroundColor: `${getColor('primary', '#1a202c')}10`,
+                      backgroundColor: pageColors.hoverBg,
                       opacity: hasPrevious ? 1 : 0.4,
                       cursor: hasPrevious ? 'pointer' : 'not-allowed'
                     }}
                     onMouseEnter={(e) => {
                       if (hasPrevious) {
-                        e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                        e.currentTarget.style.backgroundColor = pageColors.hoverBgStrong;
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                      e.currentTarget.style.backgroundColor = pageColors.hoverBg;
                     }}
                     title={t('navigation.previous')}
                   >
-                    <ChevronLeft size={20} style={{ color: getColor('primary', '#1a202c') }} />
+                    <ChevronLeft size={20} style={{ color: pageColors.text }} />
                   </button>
 
                   {/* Complete button */}
@@ -773,18 +789,18 @@ const TestsPage = () => {
                     className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm"
                     style={{ 
                       backgroundColor: isCurrentStepCompleted() 
-                        ? `${getColor('primary', '#1a202c')}` 
-                        : `${getColor('primary', '#1a202c')}10`,
-                      color: isCurrentStepCompleted() ? '#ffffff' : getColor('primary', '#1a202c')
+                        ? getColor('primary', '#1a202c')
+                        : pageColors.hoverBg,
+                      color: isCurrentStepCompleted() ? '#ffffff' : pageColors.text
                     }}
                     onMouseEnter={(e) => {
                       if (!isCurrentStepCompleted()) {
-                        e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                        e.currentTarget.style.backgroundColor = pageColors.hoverBgStrong;
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!isCurrentStepCompleted()) {
-                        e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                        e.currentTarget.style.backgroundColor = pageColors.hoverBg;
                       }
                     }}
                     title={isCurrentStepCompleted() ? t('progress.completed') : t('progress.markComplete')}
@@ -805,37 +821,37 @@ const TestsPage = () => {
                     disabled={!hasNext}
                     className="p-1.5 rounded-lg transition-all"
                     style={{ 
-                      backgroundColor: `${getColor('primary', '#1a202c')}10`,
+                      backgroundColor: pageColors.hoverBg,
                       opacity: hasNext ? 1 : 0.4,
                       cursor: hasNext ? 'pointer' : 'not-allowed'
                     }}
                     onMouseEnter={(e) => {
                       if (hasNext) {
-                        e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                        e.currentTarget.style.backgroundColor = pageColors.hoverBgStrong;
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                      e.currentTarget.style.backgroundColor = pageColors.hoverBg;
                     }}
                     title={t('navigation.next')}
                   >
-                    <ChevronRightNav size={20} style={{ color: getColor('primary', '#1a202c') }} />
+                    <ChevronRightNav size={20} style={{ color: pageColors.text }} />
                   </button>
 
                   {/* Close button */}
                   <button
                     onClick={closeTestViewer}
                     className="p-1.5 rounded-lg transition-all ml-1 sm:ml-2"
-                    style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+                    style={{ backgroundColor: pageColors.hoverBg }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                      e.currentTarget.style.backgroundColor = pageColors.hoverBgStrong;
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                      e.currentTarget.style.backgroundColor = pageColors.hoverBg;
                     }}
                     title={t('common.back')}
                   >
-                    <X size={20} style={{ color: getColor('primary', '#1a202c') }} />
+                    <X size={20} style={{ color: pageColors.text }} />
                   </button>
                 </div>
               </div>
@@ -847,8 +863,8 @@ const TestsPage = () => {
                   attemptDetailsLoading ? (
                     <div className="flex items-center justify-center h-full">
                       <div className="text-center">
-                        <Loader className="w-12 h-12 mx-auto mb-4 animate-spin" style={{ color: getColor('primary', '#1a202c') }} />
-                        <p className="text-lg font-medium" style={{ color: getColor('primary', '#1a202c') }}>
+                        <Loader className="w-12 h-12 mx-auto mb-4 animate-spin" style={{ color: pageColors.text }} />
+                        <p className="text-lg font-medium" style={{ color: pageColors.text }}>
                           {t('tests.loadingAttemptDetails')}
                         </p>
                       </div>
@@ -858,7 +874,7 @@ const TestsPage = () => {
                       <div 
                         className="text-center p-6 rounded-lg border-2"
                         style={{
-                          backgroundColor: '#fef2f2',
+                          backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.1)' : '#fef2f2',
                           borderColor: '#ef4444'
                         }}
                       >
@@ -866,7 +882,7 @@ const TestsPage = () => {
                         <p className="text-lg font-medium mb-2" style={{ color: '#ef4444' }}>
                           {t('tests.errorLoadingAttempt')}
                         </p>
-                        <p className="text-sm" style={{ color: '#6b7280' }}>
+                        <p className="text-sm" style={{ color: pageColors.textMuted }}>
                           {attemptDetailsError}
                         </p>
                         <button
@@ -888,20 +904,20 @@ const TestsPage = () => {
                         onClick={handleBackFromAttemptView}
                         className="absolute top-4 left-4 z-10 p-2 rounded-full shadow-lg transition-all"
                         style={{ 
-                          backgroundColor: getColor('background', '#ffffff'),
-                          border: `2px solid ${getColor('primary', '#1a202c')}15`
+                          backgroundColor: pageColors.bgCard,
+                          border: `2px solid ${pageColors.borderSubtle}`
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = getColor('primary', '#1a202c');
                           e.currentTarget.querySelector('svg').style.color = '#ffffff';
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = getColor('background', '#ffffff');
-                          e.currentTarget.querySelector('svg').style.color = getColor('primary', '#1a202c');
+                          e.currentTarget.style.backgroundColor = pageColors.bgCard;
+                          e.currentTarget.querySelector('svg').style.color = pageColors.text;
                         }}
                         title={t('common.back')}
                       >
-                        <ChevronLeft size={24} style={{ color: getColor('primary', '#1a202c') }} />
+                        <ChevronLeft size={24} style={{ color: pageColors.text }} />
                       </button>
                       
                       {/* Renderizar QuizResults - h-full para ocupar todo el espacio */}
@@ -979,11 +995,11 @@ const TestsPage = () => {
                             {/* Media UA */}
                             <div>
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: pageColors.textMuted }}>
                                   {t('tests.avgScore')}
                                 </span>
                               </div>
-                              <div className="text-2xl font-bold" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                              <div className="text-2xl font-bold" style={{ color: pageColors.text }}>
                                 {formatScore(ranking?.statistics?.avg_score_without_risk || 0)}
                               </div>
                             </div>
@@ -991,11 +1007,11 @@ const TestsPage = () => {
                             {/* Mi Nota */}
                             <div>
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: pageColors.textMuted }}>
                                   {t('tests.myScore')}
                                 </span>
                               </div>
-                              <div className="text-2xl font-bold" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                              <div className="text-2xl font-bold" style={{ color: pageColors.text }}>
                                 {formatScore(userStats?.score || 0)}
                               </div>
                             </div>
@@ -1003,7 +1019,7 @@ const TestsPage = () => {
                             {/* Percentil (diferencia) */}
                             <div>
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: pageColors.textMuted }}>
                                   {t('tests.percentile')}
                                 </span>
                               </div>
@@ -1017,7 +1033,7 @@ const TestsPage = () => {
                                   {calculatePercentile(userStats?.score || 0, false) >= 0 ? '+' : ''}
                                   {formatScore(calculatePercentile(userStats?.score || 0, false))}
                                 </span>
-                                <span className="text-xs font-medium" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                <span className="text-xs font-medium" style={{ color: pageColors.textMuted }}>
                                   pts
                                 </span>
                               </div>
@@ -1064,7 +1080,7 @@ const TestsPage = () => {
                             {/* Media UA */}
                             <div>
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: pageColors.textMuted }}>
                                   {t('tests.avgScore')}
                                 </span>
                               </div>
@@ -1076,7 +1092,7 @@ const TestsPage = () => {
                             {/* Mi Nota */}
                             <div>
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: pageColors.textMuted }}>
                                   {t('tests.myScore')}
                                 </span>
                               </div>
@@ -1088,7 +1104,7 @@ const TestsPage = () => {
                             {/* Percentil (diferencia) */}
                             <div>
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: pageColors.textMuted }}>
                                   {t('tests.percentile')}
                                 </span>
                               </div>
@@ -1102,7 +1118,7 @@ const TestsPage = () => {
                                   {calculatePercentile(userStats?.score_with_risk || 0, true) >= 0 ? '+' : ''}
                                   {formatScore(calculatePercentile(userStats?.score_with_risk || 0, true))}
                                 </span>
-                                <span className="text-xs font-medium" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                                <span className="text-xs font-medium" style={{ color: pageColors.textMuted }}>
                                   pts
                                 </span>
                               </div>
@@ -1172,26 +1188,26 @@ const TestsPage = () => {
                         <div 
                           className="flex flex-col items-center justify-center py-3 border-r border-b sm:border-b-0 transition-all duration-200"
                           style={{ 
-                            borderColor: `${getColor('primary', '#1a202c')}20`,
+                            borderColor: pageColors.borderSubtle,
                             backgroundColor: 'transparent'
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = pageColors.bgSubtle}
                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
                           <HelpCircle 
                             size={20} 
-                            style={{ color: getColor('primary', '#1a202c') }} 
+                            style={{ color: pageColors.text }} 
                             className="mb-1" 
                           />
                           <span 
                             className="text-xl font-bold"
-                            style={{ color: getColor('primary', '#1a202c') }}
+                            style={{ color: pageColors.text }}
                           >
                             {selectedTest.data?.question_count || '?'}
                           </span>
                           <span 
                             className="text-[10px] mt-0.5"
-                            style={{ color: `${getColor('primary', '#1a202c')}70` }}
+                            style={{ color: pageColors.textMuted }}
                           >
                             {t('tests.questions')}
                           </span>
@@ -1201,26 +1217,26 @@ const TestsPage = () => {
                         <div 
                           className="flex flex-col items-center justify-center py-3 sm:border-r border-b sm:border-b-0 transition-all duration-200"
                           style={{ 
-                            borderColor: `${getColor('primary', '#1a202c')}20`,
+                            borderColor: pageColors.borderSubtle,
                             backgroundColor: 'transparent'
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = pageColors.bgSubtle}
                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
                           <Clock 
                             size={20} 
-                            style={{ color: getColor('primary', '#1a202c') }} 
+                            style={{ color: pageColors.text }} 
                             className="mb-1" 
                           />
                           <span 
                             className="text-xl font-bold"
-                            style={{ color: getColor('primary', '#1a202c') }}
+                            style={{ color: pageColors.text }}
                           >
                             {selectedTest.data?.time_limit ? `${selectedTest.data.time_limit}` : '∞'}
                           </span>
                           <span 
                             className="text-[10px] mt-0.5"
-                            style={{ color: `${getColor('primary', '#1a202c')}70` }}
+                            style={{ color: pageColors.textMuted }}
                           >
                             {selectedTest.data?.time_limit ? t('tests.minutes') : t('tests.noTimeLimit')}
                           </span>
@@ -1230,26 +1246,26 @@ const TestsPage = () => {
                         <div 
                           className="flex flex-col items-center justify-center py-3 border-r transition-all duration-200"
                           style={{ 
-                            borderColor: `${getColor('primary', '#1a202c')}20`,
+                            borderColor: pageColors.borderSubtle,
                             backgroundColor: 'transparent'
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = pageColors.bgSubtle}
                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
                           <Award 
                             size={20} 
-                            style={{ color: getColor('primary', '#1a202c') }} 
+                            style={{ color: pageColors.text }} 
                             className="mb-1" 
                           />
                           <span 
                             className="text-xl font-bold"
-                            style={{ color: getColor('primary', '#1a202c') }}
+                            style={{ color: pageColors.text }}
                           >
                             {selectedTest.data?.passing_score || 70}%
                           </span>
                           <span 
                             className="text-[10px] mt-0.5"
-                            style={{ color: `${getColor('primary', '#1a202c')}70` }}
+                            style={{ color: pageColors.textMuted }}
                           >
                             {t('tests.passingScore')}
                           </span>
@@ -1261,12 +1277,12 @@ const TestsPage = () => {
                           style={{ 
                             backgroundColor: 'transparent'
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}05`}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = pageColors.bgSubtle}
                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
                           <Target 
                             size={20} 
-                            style={{ color: getColor('primary', '#1a202c') }} 
+                            style={{ color: pageColors.text }} 
                             className="mb-1" 
                           />
                           <span 
@@ -1289,7 +1305,7 @@ const TestsPage = () => {
                           </span>
                           <span 
                             className="text-[10px] mt-1"
-                            style={{ color: `${getColor('primary', '#1a202c')}70` }}
+                            style={{ color: pageColors.textMuted }}
                           >
                             {t('tests.difficulty')}
                           </span>
@@ -1304,8 +1320,29 @@ const TestsPage = () => {
                       }} 
                     />
 
-                    {/* Botón de comenzar */}
-                    <div className="p-4">
+                    {/* Botones de acción */}
+                    <div className="p-4 flex gap-3">
+                      {/* Botón de Ranking */}
+                      <button
+                        onClick={() => setShowRankingModal(true)}
+                        className="flex-1 py-3 rounded-lg font-bold text-base transition-all flex items-center justify-center gap-2 border-2"
+                        style={{ 
+                          backgroundColor: 'transparent',
+                          borderColor: getColor('primary', '#1a202c'),
+                          color: pageColors.text
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = pageColors.hoverBg;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <Trophy size={20} />
+                        <span>{t('ranking.viewRanking')}</span>
+                      </button>
+                      
+                      {/* Botón de comenzar */}
                       <button
                         onClick={async () => {
                           console.log('🎯 Comenzar test - selectedTest:', selectedTest);
@@ -1328,7 +1365,7 @@ const TestsPage = () => {
                             console.error('❌ No quiz_id found');
                           }
                         }}
-                        className="w-full py-3 rounded-lg font-bold text-base transition-all flex items-center justify-center gap-2 shadow-md"
+                        className="flex-1 py-3 rounded-lg font-bold text-base transition-all flex items-center justify-center gap-2 shadow-md"
                         style={{ 
                           backgroundColor: getColor('primary', '#1a202c'),
                           color: '#ffffff'
@@ -1422,12 +1459,12 @@ const TestsPage = () => {
                                 <div className="grid grid-cols-2 gap-2">
                                   <div 
                                     className="p-2 rounded-lg"
-                                    style={{ backgroundColor: `${getColor('primary', '#1a202c')}05` }}
+                                    style={{ backgroundColor: pageColors.bgSubtle }}
                                   >
-                                    <div className="text-[10px] mb-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
-                                      Sin Riesgo
+                                    <div className="text-[10px] mb-1" style={{ color: pageColors.textMuted }}>
+                                      {t('tests.withoutRisk')}
                                     </div>
-                                    <div className="text-base font-bold" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                                    <div className="text-base font-bold" style={{ color: pageColors.text }}>
                                       {formatScore(attempt.score || 0)}
                                     </div>
                                     <span 
@@ -1442,8 +1479,8 @@ const TestsPage = () => {
                                     className="p-2 rounded-lg"
                                     style={{ backgroundColor: `${getColor('accent', '#f59e0b')}10` }}
                                   >
-                                    <div className="text-[10px] mb-1" style={{ color: getColor('textSecondary', '#6b7280') }}>
-                                      Con Riesgo
+                                    <div className="text-[10px] mb-1" style={{ color: pageColors.textMuted }}>
+                                      {t('tests.withRisk')}
                                     </div>
                                     <div className="text-base font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
                                       {formatScore(attempt.score_with_risk || 0)}
@@ -1465,8 +1502,8 @@ const TestsPage = () => {
                                   }}
                                   className="w-full px-3 py-2 rounded-lg transition-all flex items-center justify-center gap-2 text-xs"
                                   style={{ 
-                                    backgroundColor: `${getColor('primary', '#1a202c')}10`,
-                                    color: getColor('primary', '#1a202c')
+                                    backgroundColor: pageColors.hoverBg,
+                                    color: pageColors.text
                                   }}
                                 >
                                   <Eye size={14} />
@@ -1478,8 +1515,8 @@ const TestsPage = () => {
                               <div className="hidden sm:grid sm:grid-cols-5 gap-4 items-center px-4 py-3">
                                 {/* Fecha */}
                                 <div className="flex items-center gap-2">
-                                  <Calendar size={14} style={{ color: getColor('textSecondary', '#6b7280') }} />
-                                  <span className="text-xs font-medium" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                                  <Calendar size={14} style={{ color: pageColors.textMuted }} />
+                                  <span className="text-xs font-medium" style={{ color: pageColors.text }}>
                                     {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                   </span>
                                 </div>
@@ -1487,7 +1524,7 @@ const TestsPage = () => {
                                 {/* Nota Sin Riesgo */}
                                 <div className="flex flex-col">
                                   <div className="flex items-baseline gap-1">
-                                    <span className="text-base font-bold" style={{ color: getColor('textPrimary', '#1a202c') }}>
+                                    <span className="text-base font-bold" style={{ color: pageColors.text }}>
                                       {formatScore(attempt.score || 0)}
                                     </span>
                                   </div>
@@ -1542,15 +1579,15 @@ const TestsPage = () => {
                                     }}
                                     className="px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 text-xs"
                                     style={{ 
-                                      backgroundColor: `${getColor('primary', '#1a202c')}10`,
-                                      color: getColor('primary', '#1a202c')
+                                      backgroundColor: pageColors.hoverBg,
+                                      color: pageColors.text
                                     }}
                                     onMouseEnter={(e) => {
-                                      e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                                      e.currentTarget.style.backgroundColor = pageColors.hoverBgStrong;
                                       e.currentTarget.style.transform = 'scale(1.05)';
                                     }}
                                     onMouseLeave={(e) => {
-                                      e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                                      e.currentTarget.style.backgroundColor = pageColors.hoverBg;
                                       e.currentTarget.style.transform = 'scale(1)';
                                     }}
                                     title={t('tests.viewDetails')}
@@ -1671,6 +1708,14 @@ const TestsPage = () => {
         </div>
       </div>
     )}
+    
+    {/* 🏆 Quiz Ranking Modal */}
+    <QuizRankingModal
+      isOpen={showRankingModal}
+      onClose={() => setShowRankingModal(false)}
+      quizId={quizId}
+      quizTitle={selectedTest?.title}
+    />
   </>
   );
 };

@@ -38,16 +38,16 @@ const ScoreEvolutionChart = ({ courseId }) => {
         console.log('📈 Evolution API Response:', response);
         
         const evolutionData = response.data || [];
-        console.log('📈 Evolution Data Array:', evolutionData);
         
         // Transform data for chart
+        // Backend already returns scores in base10 (0-10)
         const chartData = evolutionData.map(item => ({
           date: new Date(item.date).toLocaleDateString('es-ES', { 
             day: '2-digit', 
             month: '2-digit' 
           }),
           fullDate: item.date,
-          score: item.score / 10, // Convert from 0-100 to 0-10
+          score: item.score, // Already in base10 (0-10)
           attempts: item.attempts
         }));
         

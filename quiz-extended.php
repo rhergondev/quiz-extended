@@ -26,6 +26,7 @@ require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-loader.php';
 require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-database.php';
 require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-frontend.php';
 require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-capabilities.php';
+require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-notification-hooks.php';
 
 // Debug routes (only in development)
 if (defined('WP_DEBUG') && WP_DEBUG) {

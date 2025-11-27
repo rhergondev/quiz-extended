@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import { settingsService } from '../api/services/settingsService';
 
 const ThemeContext = createContext();
@@ -61,17 +61,116 @@ const getInitialTheme = () => {
   return DEFAULT_THEME;
 };
 
-// Get initial dark mode from WordPress
-const getInitialDarkMode = () => {
+// Detectar si WordPress/Tema está en modo oscuro
+const detectWordPressDarkMode = () => {
+  // 1. Verificar el dato inyectado por PHP (configuración del admin)
   const wpData = window.qe_data || {};
-  // Check WordPress preference first, then system preference
   if (wpData.isDarkMode !== undefined) {
     return wpData.isDarkMode;
   }
-  // Fallback to system preference
+  
+  const html = document.documentElement;
+  const body = document.body;
+  
+  // 2. Verificar clases del body de WordPress Admin
+  const darkColorSchemes = ['admin-color-midnight', 'admin-color-coffee', 'admin-color-ectoplasm', 'admin-color-ocean', 'admin-color-modern'];
+  
+  for (const scheme of darkColorSchemes) {
+    if (body.classList.contains(scheme)) {
+      return true;
+    }
+  }
+  
+  // 3. Verificar patrones comunes de modo oscuro en temas de WordPress frontend
+  // Clases comunes en html o body
+  const darkClassPatterns = [
+    'dark-mode', 'dark', 'is-dark', 'is-dark-theme', 'theme-dark',
+    'dark-theme', 'night-mode', 'night', 'darkmode', 'color-scheme-dark'
+  ];
+  
+  for (const className of darkClassPatterns) {
+    if (html.classList.contains(className) || body.classList.contains(className)) {
+      return true;
+    }
+  }
+  
+  // 4. Verificar data attributes comunes
+  const darkDataAttributes = [
+    'data-theme', 'data-color-scheme', 'data-mode', 'data-bs-theme'
+  ];
+  
+  for (const attr of darkDataAttributes) {
+    const htmlValue = html.getAttribute(attr);
+    const bodyValue = body.getAttribute(attr);
+    if (htmlValue === 'dark' || bodyValue === 'dark') {
+      return true;
+    }
+  }
+  
+  // 5. Verificar localStorage de temas populares de WordPress
+  const themeStorageKeys = [
+    'theme', 'color-scheme', 'dark-mode', 'darkMode', 'theme-mode',
+    'flavor', 'flavor-theme', 'flavor-mode', 'flavor-color-scheme' // Tu tema actual
+  ];
+  
+  for (const key of themeStorageKeys) {
+    const value = localStorage.getItem(key);
+    if (value === 'dark' || value === 'true' || value === '1') {
+      return true;
+    }
+  }
+  
+  // 6. Verificar CSS custom property (algunos temas lo usan)
+  const colorScheme = getComputedStyle(html).getPropertyValue('color-scheme').trim();
+  if (colorScheme === 'dark' || colorScheme.includes('dark')) {
+    return true;
+  }
+  
+  return null; // No determinado por WordPress/Tema
+};
+
+// Get initial dark mode: WordPress > localStorage > system preference
+const getInitialDarkMode = () => {
+  // 1. Detectar preferencia de WordPress primero
+  const wpDarkMode = detectWordPressDarkMode();
+  
+  // 2. Si hay una preferencia guardada localmente Y coincide con la de WP inicial,
+  //    o si no hay preferencia de WP, usar la local
+  const storedPreference = localStorage.getItem('qe_dark_mode');
+  const storedWpDarkMode = localStorage.getItem('qe_wp_dark_mode');
+  
+  // Si WordPress cambió su modo desde la última visita, sincronizar
+  if (wpDarkMode !== null && storedWpDarkMode !== null) {
+    const previousWpMode = storedWpDarkMode === 'true';
+    if (previousWpMode !== wpDarkMode) {
+      // WordPress cambió, actualizar localStorage y usar el nuevo valor
+      localStorage.setItem('qe_wp_dark_mode', String(wpDarkMode));
+      localStorage.setItem('qe_dark_mode', String(wpDarkMode));
+      return wpDarkMode;
+    }
+  }
+  
+  // Guardar el estado actual de WordPress para futuras comparaciones
+  if (wpDarkMode !== null) {
+    localStorage.setItem('qe_wp_dark_mode', String(wpDarkMode));
+  }
+  
+  // 3. Si hay preferencia guardada localmente, usarla
+  if (storedPreference !== null) {
+    return storedPreference === 'true';
+  }
+  
+  // 4. Si WordPress tiene preferencia, usarla
+  if (wpDarkMode !== null) {
+    localStorage.setItem('qe_dark_mode', String(wpDarkMode));
+    return wpDarkMode;
+  }
+  
+  // 5. Fallback a preferencia del sistema
   if (window.matchMedia) {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
+  
   return false;
 };
 
@@ -82,24 +181,91 @@ export const ThemeProvider = ({ children }) => {
 
   // Detectar cambios en preferencia de modo oscuro del sistema
   useEffect(() => {
+    // Listener para cambios en preferencia del sistema
     if (window.matchMedia) {
       const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
       
-      // Solo escuchar cambios, no establecer el valor inicial (ya lo hicimos arriba)
-      const handleChange = (e) => {
-        // Solo aplicar si no hay preferencia de WordPress
-        const wpData = window.qe_data || {};
-        if (wpData.isDarkMode === undefined) {
+      const handleSystemChange = (e) => {
+        // Solo aplicar si no hay preferencia manual guardada
+        const storedPreference = localStorage.getItem('qe_dark_mode');
+        if (storedPreference === null) {
           setIsDarkMode(e.matches);
         }
       };
       
-      darkModeQuery.addEventListener('change', handleChange);
+      darkModeQuery.addEventListener('change', handleSystemChange);
       
       return () => {
-        darkModeQuery.removeEventListener('change', handleChange);
+        darkModeQuery.removeEventListener('change', handleSystemChange);
       };
     }
+  }, []);
+
+  // Observer para detectar cambios en el modo oscuro del tema de WordPress
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    
+    // Función que usa la detección completa
+    const checkForDarkMode = () => {
+      const detected = detectWordPressDarkMode();
+      return detected === true;
+    };
+    
+    // Handler para cuando detectamos un cambio
+    const handleDarkModeChange = () => {
+      const newDarkMode = checkForDarkMode();
+      const previousWpMode = localStorage.getItem('qe_wp_dark_mode');
+      
+      // Si el tema cambió su modo, sincronizar
+      if (previousWpMode !== String(newDarkMode)) {
+        localStorage.setItem('qe_wp_dark_mode', String(newDarkMode));
+        localStorage.setItem('qe_dark_mode', String(newDarkMode));
+        setIsDarkMode(newDarkMode);
+      }
+    };
+    
+    // Observer para detectar cambios en clases y data attributes
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'attributes') {
+          // Solo reaccionar a cambios relevantes
+          const attrName = mutation.attributeName;
+          if (attrName === 'class' || 
+              attrName === 'data-theme' || 
+              attrName === 'data-color-scheme' || 
+              attrName === 'data-mode' ||
+              attrName === 'data-bs-theme') {
+            handleDarkModeChange();
+            break; // Solo necesitamos procesar una vez
+          }
+        }
+      }
+    });
+    
+    // Observar tanto html como body
+    const observerConfig = {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme', 'data-color-scheme', 'data-mode', 'data-bs-theme']
+    };
+    
+    observer.observe(html, observerConfig);
+    observer.observe(body, observerConfig);
+    
+    // También escuchar cambios en localStorage (por si otro script cambia el tema)
+    const handleStorageChange = (e) => {
+      const themeKeys = ['theme', 'color-scheme', 'dark-mode', 'darkMode', 'theme-mode', 'flavor', 'flavor-theme'];
+      if (themeKeys.includes(e.key)) {
+        handleDarkModeChange();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   // Aplicar tema al DOM cuando cambia el tema o el modo
@@ -180,7 +346,7 @@ export const ThemeProvider = ({ children }) => {
   };
 
   // Actualizar tema (para admin) - guarda en BD
-  const updateTheme = async (newTheme) => {
+  const updateTheme = useCallback(async (newTheme) => {
     try {
       const response = await settingsService.updateSettings({ theme: newTheme });
       if (response.success) {
@@ -192,45 +358,88 @@ export const ThemeProvider = ({ children }) => {
       console.error('Error updating theme:', error);
       return false;
     }
-  };
+  }, []);
 
   // Actualizar tema solo en el estado (sin guardar en BD) - para preview en Settings
-  const setThemePreview = (newTheme) => {
+  const setThemePreview = useCallback((newTheme) => {
     setTheme(newTheme);
-  };
+  }, []);
 
-  // Toggle modo oscuro
-  const toggleDarkMode = () => {
-    setIsDarkMode(prev => !prev);
-  };
+  // Toggle modo oscuro y persistir en localStorage
+  const toggleDarkMode = useCallback(() => {
+    console.log('toggleDarkMode called, current isDarkMode:', isDarkMode);
+    setIsDarkMode(prev => {
+      const newValue = !prev;
+      console.log('Setting isDarkMode to:', newValue);
+      localStorage.setItem('qe_dark_mode', String(newValue));
+      return newValue;
+    });
+  }, [isDarkMode]);
 
-  const value = {
+  // Establecer modo oscuro directamente y persistir
+  const setDarkMode = useCallback((value) => {
+    localStorage.setItem('qe_dark_mode', String(value));
+    setIsDarkMode(value);
+  }, []);
+
+  // Sincronizar con el modo de WordPress (resetea la preferencia manual)
+  const syncWithWordPress = useCallback(() => {
+    const wpDarkMode = detectWordPressDarkMode();
+    if (wpDarkMode !== null) {
+      localStorage.setItem('qe_dark_mode', String(wpDarkMode));
+      localStorage.setItem('qe_wp_dark_mode', String(wpDarkMode));
+      setIsDarkMode(wpDarkMode);
+      return wpDarkMode;
+    }
+    return isDarkMode;
+  }, [isDarkMode]);
+
+  // Verificar si el usuario tiene una preferencia diferente a WordPress
+  const hasCustomPreference = useCallback(() => {
+    const storedPreference = localStorage.getItem('qe_dark_mode');
+    const wpDarkMode = detectWordPressDarkMode();
+    
+    if (storedPreference === null || wpDarkMode === null) {
+      return false;
+    }
+    
+    return (storedPreference === 'true') !== wpDarkMode;
+  }, []);
+
+  // Memoizar getColor para que use siempre los valores actuales
+  const getColor = useCallback((colorName, fallback = '#000000') => {
+    // Validar que theme tenga la estructura correcta
+    if (!theme || !theme.light || !theme.dark) {
+      console.warn('Theme is invalid in getColor, using DEFAULT_THEME');
+      const currentColors = isDarkMode ? DEFAULT_THEME.dark : DEFAULT_THEME.light;
+      return currentColors[colorName] || fallback;
+    }
+    const currentColors = isDarkMode ? theme.dark : theme.light;
+    return currentColors[colorName] || fallback;
+  }, [theme, isDarkMode]);
+
+  // Memoizar getCurrentColors
+  const getCurrentColors = useCallback(() => {
+    if (!theme || !theme.light || !theme.dark) {
+      console.warn('Theme is invalid in getCurrentColors, using DEFAULT_THEME');
+      return isDarkMode ? DEFAULT_THEME.dark : DEFAULT_THEME.light;
+    }
+    return isDarkMode ? theme.dark : theme.light;
+  }, [theme, isDarkMode]);
+
+  const value = useMemo(() => ({
     theme,
     isDarkMode,
     loading,
     updateTheme,
     setThemePreview,
     toggleDarkMode,
-    // Helper functions para componentes con validación mejorada
-    getCurrentColors: () => {
-      // Validar que theme tenga la estructura correcta
-      if (!theme || !theme.light || !theme.dark) {
-        console.warn('Theme is invalid in getCurrentColors, using DEFAULT_THEME');
-        return isDarkMode ? DEFAULT_THEME.dark : DEFAULT_THEME.light;
-      }
-      return isDarkMode ? theme.dark : theme.light;
-    },
-    getColor: (colorName, fallback = '#000000') => {
-      // Validar que theme tenga la estructura correcta
-      if (!theme || !theme.light || !theme.dark) {
-        console.warn('Theme is invalid in getColor, using DEFAULT_THEME');
-        const currentColors = isDarkMode ? DEFAULT_THEME.dark : DEFAULT_THEME.light;
-        return currentColors[colorName] || fallback;
-      }
-      const currentColors = isDarkMode ? theme.dark : theme.light;
-      return currentColors[colorName] || fallback;
-    }
-  };
+    setDarkMode,
+    syncWithWordPress,
+    hasCustomPreference,
+    getCurrentColors,
+    getColor
+  }), [theme, isDarkMode, loading, updateTheme, setThemePreview, toggleDarkMode, setDarkMode, syncWithWordPress, hasCustomPreference, getCurrentColors, getColor]);
 
   return (
     <ThemeContext.Provider value={value}>

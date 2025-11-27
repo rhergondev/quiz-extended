@@ -13,7 +13,7 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const { t } = useTranslation();
-  const { getColor } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
 
   const formattedQuestion = React.useMemo(() => formatQuestionForDisplay(question), [question]);
 
@@ -23,11 +23,25 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
     }
   }, [formattedQuestion]);
 
+  // Dark mode aware colors
+  const bgCard = isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff';
+  const bgSubtle = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
+  const borderSubtle = isDarkMode ? 'rgba(255,255,255,0.1)' : '#e5e7eb';
+  const textMuted = isDarkMode ? getColor('textSecondary', '#9ca3af') : '#6b7280';
+
   if (!formattedQuestion || !result) {
     return (
-      <div className="p-4 border border-red-200 bg-red-50 rounded-lg flex items-center">
-        <AlertTriangle className="h-5 w-5 text-red-500 mr-3" />
-        <p className="text-sm text-red-700">{t('quizzes.reviewedQuestion.errorInvalidData')}</p>
+      <div 
+        className="p-4 border rounded-lg flex items-center"
+        style={{
+          backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.1)' : '#fef2f2',
+          borderColor: isDarkMode ? 'rgba(239, 68, 68, 0.3)' : '#fecaca'
+        }}
+      >
+        <AlertTriangle className="h-5 w-5 mr-3" style={{ color: '#ef4444' }} />
+        <p className="text-sm" style={{ color: isDarkMode ? '#fca5a5' : '#b91c1c' }}>
+          {t('quizzes.reviewedQuestion.errorInvalidData')}
+        </p>
       </div>
     );
   }
@@ -39,7 +53,7 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
   // Colores específicos para respuestas correctas e incorrectas
   const SUCCESS_COLOR = '#22c55e'; // green-500 más suave
   const ERROR_COLOR = '#ef4444';   // red-500
-  const GRAY_COLOR = '#6b7280';    // gray-500
+  const GRAY_COLOR = textMuted;    // gray-500 (dark mode aware)
 
   // Sistema de colores basado en el estado de la respuesta
   const getQuestionColor = (opacity = '') => {
@@ -66,7 +80,7 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
       if (is_risked) {
         // Con riesgo: fondo sin color, borde verde claro
         return {
-          backgroundColor: '#ffffff',
+          backgroundColor: bgCard,
           borderColor: SUCCESS_COLOR,
           color: SUCCESS_COLOR
         };
@@ -85,7 +99,7 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
       if (is_risked) {
         // Con riesgo: fondo sin color, borde rojo claro
         return {
-          backgroundColor: '#ffffff',
+          backgroundColor: bgCard,
           borderColor: ERROR_COLOR,
           color: ERROR_COLOR
         };
@@ -101,9 +115,9 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
     
     // Opción no seleccionada
     return {
-      backgroundColor: '#ffffff',
-      borderColor: '#e5e7eb',
-      color: GRAY_COLOR
+      backgroundColor: bgCard,
+      borderColor: borderSubtle,
+      color: textMuted
     };
   };
 
@@ -231,7 +245,7 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
               disabled={isTogglingFavorite}
               className="p-1.5 rounded-lg transition-all duration-200 disabled:opacity-50"
               style={{
-                color: isFavorite ? getColor('accent', '#f59e0b') : '#6b7280',
+                color: isFavorite ? getColor('accent', '#f59e0b') : textMuted,
                 backgroundColor: isFavorite ? getColor('accent', '#f59e0b') + '10' : 'transparent'
               }}
               onMouseEnter={(e) => {
@@ -253,16 +267,16 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
               onClick={() => handleOpenModal('feedback')}
               className="p-1.5 rounded-lg transition-all duration-200"
               style={{ 
-                color: '#6b7280',
+                color: textMuted,
                 backgroundColor: 'transparent'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = getColor('primary', '#1a202c') + '10';
-                e.currentTarget.style.color = getColor('primary', '#1a202c');
+                e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('primary', '#1a202c') + '10';
+                e.currentTarget.style.color = isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c');
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = '#6b7280';
+                e.currentTarget.style.color = textMuted;
               }}
               title={t('quizzes.reviewedQuestion.addComment')}
             >
@@ -273,7 +287,7 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
               onClick={() => handleOpenModal('challenge')}
               className="p-1.5 rounded-lg transition-all duration-200"
               style={{ 
-                color: '#6b7280',
+                color: textMuted,
                 backgroundColor: 'transparent'
               }}
               onMouseEnter={(e) => {
@@ -282,7 +296,7 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = '#6b7280';
+                e.currentTarget.style.color = textMuted;
               }}
               title={t('quizzes.reviewedQuestion.challenge')}
             >
@@ -368,7 +382,7 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
             className="px-4 py-2.5 text-xs border-t"
             style={{ 
               borderColor: borderColor + '15',
-              color: GRAY_COLOR 
+              color: textMuted 
             }}
           >
             {t('quizzes.reviewedQuestion.failedBy', { percentage: error_percentage, total: total_answers })}
@@ -385,16 +399,14 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
               onClick={() => setIsExpanded(!isExpanded)}
               className="flex justify-between items-center w-full px-4 py-3 text-left transition-all duration-200"
               style={{ 
-                color: GRAY_COLOR,
+                color: textMuted,
                 backgroundColor: 'transparent'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = GRAY_COLOR + '05';
-                e.currentTarget.style.color = GRAY_COLOR;
+                e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = GRAY_COLOR;
               }}
             >
               <span className="text-xs font-semibold">
@@ -411,11 +423,11 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
               <div className="px-4 pb-3">
                 <div 
                   className="rounded-lg p-3"
-                  style={{ backgroundColor: GRAY_COLOR + '08' }}
+                  style={{ backgroundColor: bgSubtle }}
                 >
                   <div
                     className="text-xs leading-relaxed"
-                    style={{ color: GRAY_COLOR }}
+                    style={{ color: textMuted }}
                     dangerouslySetInnerHTML={{ __html: fullExplanation }}
                   />
                 </div>

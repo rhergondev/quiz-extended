@@ -21,7 +21,7 @@ import Quiz from '../../components/frontend/Quiz';
 import CoursePageTemplate from '../../components/course/CoursePageTemplate';
 
 // Simple MultiSelect Component
-const MultiSelect = ({ label, options, selected, onChange, placeholder = "Seleccionar..." }) => {
+const MultiSelect = ({ label, options, selected, onChange, placeholder = "Seleccionar...", pageColors, isDarkMode }) => {
   const { getColor } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -38,52 +38,61 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
 
   return (
     <div className="relative">
-      <label className="block text-sm font-medium mb-2" style={{ color: getColor('textPrimary', '#1f2937') }}>
+      <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
         {label}
       </label>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-2.5 text-left border-2 rounded-xl flex items-center justify-between transition-all"
+        className="w-full px-3 py-2 text-left border rounded-lg flex items-center justify-between transition-all text-sm"
         style={{ 
-          borderColor: isOpen ? getColor('primary', '#3b82f6') : getColor('borderColor', '#e5e7eb'),
-          backgroundColor: getColor('background', '#ffffff')
+          borderColor: isOpen ? pageColors.accent : getColor('borderColor', '#e5e7eb'),
+          backgroundColor: getColor('background', '#ffffff'),
+          color: pageColors.text
         }}
       >
-        <span className="block truncate text-sm" style={{ color: getColor('textPrimary', '#1f2937') }}>
+        <span className="block truncate">
           {selected.length === 0 
-            ? <span className="text-gray-400">{placeholder}</span>
+            ? <span style={{ color: pageColors.textMuted }}>{placeholder}</span>
             : `${selected.length} seleccionados`
           }
         </span>
-        <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} style={{ color: pageColors.textMuted }} />
       </button>
 
       {isOpen && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
           <div 
-            className="absolute z-20 w-full mt-2 max-h-60 overflow-auto rounded-xl shadow-lg border border-gray-100"
-            style={{ backgroundColor: getColor('background', '#ffffff') }}
+            className="absolute z-20 w-full mt-1 max-h-48 overflow-auto rounded-lg shadow-lg border"
+            style={{ 
+              backgroundColor: getColor('background', '#ffffff'),
+              borderColor: getColor('borderColor', '#e5e7eb')
+            }}
           >
             {options.map(option => (
               <div 
                 key={option.value}
                 onClick={() => handleToggle(option.value)}
-                className="px-4 py-2.5 cursor-pointer flex items-center gap-3 hover:bg-gray-50 transition-colors"
+                className="px-3 py-2 cursor-pointer flex items-center gap-2 transition-colors"
+                style={{ backgroundColor: 'transparent' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}05`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
               >
                 <div 
-                  className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                    selected.includes(option.value) ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
-                  }`}
+                  className="w-4 h-4 rounded border flex items-center justify-center transition-colors flex-shrink-0"
                   style={{ 
-                    backgroundColor: selected.includes(option.value) ? getColor('primary', '#3b82f6') : 'transparent',
-                    borderColor: selected.includes(option.value) ? getColor('primary', '#3b82f6') : '#d1d5db'
+                    backgroundColor: selected.includes(option.value) ? pageColors.accent : 'transparent',
+                    borderColor: selected.includes(option.value) ? pageColors.accent : getColor('borderColor', '#d1d5db')
                   }}
                 >
-                  {selected.includes(option.value) && <Check size={12} className="text-white" />}
+                  {selected.includes(option.value) && <Check size={10} className="text-white" />}
                 </div>
-                <span className="text-sm text-gray-700">{option.label}</span>
+                <span className="text-sm truncate" style={{ color: pageColors.text }}>{option.label}</span>
               </div>
             ))}
           </div>
@@ -92,14 +101,14 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
       
       {/* Selected Tags */}
       {selected.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-3">
+        <div className="flex flex-wrap gap-1.5 mt-2">
           {selectedLabels.map((label, idx) => (
             <span 
               key={idx}
-              className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium"
+              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
               style={{ 
-                backgroundColor: `${getColor('primary', '#3b82f6')}10`,
-                color: getColor('primary', '#3b82f6')
+                backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.text}10`,
+                color: isDarkMode ? pageColors.accent : pageColors.text
               }}
             >
               {label}
@@ -108,9 +117,9 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
                   e.stopPropagation();
                   handleToggle(options.find(o => o.label === label).value);
                 }}
-                className="ml-1.5 hover:opacity-70"
+                className="ml-1 hover:opacity-70"
               >
-                <X size={12} />
+                <X size={10} />
               </button>
             </span>
           ))}
@@ -123,10 +132,18 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
 const QuizGeneratorPage = () => {
   const { t } = useTranslation();
   const { courseId } = useParams();
-  const { getColor } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
   const { course, loading: courseLoading } = useCourse(courseId);
   const courseName = course?.title?.rendered || course?.title || '';
   
+  // Colores adaptativos según el modo (misma lógica que otras páginas)
+  const pageColors = {
+    text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
+    textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : `${getColor('primary', '#1a202c')}60`,
+    accent: getColor('accent', '#f59e0b'),
+    hoverBg: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#1a202c'),
+  };
+
   // State
   const [showQuiz, setShowQuiz] = useState(false);
   const [lessons, setLessons] = useState([]);
@@ -239,90 +256,89 @@ const QuizGeneratorPage = () => {
           }`}
         >
           <div className="h-full overflow-y-auto">
-            <div className="max-w-4xl mx-auto px-4 pt-8 pb-24">
+            <div className="max-w-3xl mx-auto px-4 pt-8 pb-24">
               {isLoading ? (
-                <div className="space-y-4">
-                  {[1, 2].map(i => (
-                    <div key={i} className="rounded-lg p-4 animate-pulse" style={{ backgroundColor: getColor('background', '#ffffff') }}>
-                      <div className="h-6 rounded" style={{ backgroundColor: `${getColor('primary', '#1a202c')}20`, width: '60%' }}></div>
+                <div 
+                  className="rounded-lg border overflow-hidden"
+                  style={{ 
+                    backgroundColor: getColor('background', '#ffffff'),
+                    borderColor: getColor('borderColor', '#e5e7eb')
+                  }}
+                >
+                  {[1, 2, 3].map(i => (
+                    <div 
+                      key={i} 
+                      className="px-4 py-3 flex items-center gap-3 animate-pulse"
+                      style={{ borderBottom: i < 3 ? `1px solid ${getColor('borderColor', '#e5e7eb')}` : 'none' }}
+                    >
+                      <div className="w-5 h-5 rounded" style={{ backgroundColor: pageColors.text + '20' }}></div>
+                      <div className="h-4 rounded flex-1" style={{ backgroundColor: pageColors.text + '15', maxWidth: '200px' }}></div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div 
-                  className="rounded-xl overflow-hidden border-2"
+                  className="rounded-lg border overflow-hidden"
                   style={{ 
-                    backgroundColor: getColor('secondaryBackground'),
-                    borderColor: getColor('borderColor')
+                    backgroundColor: getColor('background', '#ffffff'),
+                    borderColor: getColor('borderColor', '#e5e7eb')
                   }}
                 >
                   {/* Header */}
                   <div 
-                    className="px-4 py-3"
-                    style={{ 
-                      backgroundColor: getColor('primary', '#1a202c')
-                    }}
+                    className="px-4 py-3 flex items-center gap-3"
+                    style={{ backgroundColor: isDarkMode ? pageColors.accent : getColor('primary', '#1a202c') }}
                   >
-                    <div className="flex items-center gap-3">
-                      <Sparkles size={24} style={{ color: getColor('textColorContrast', '#ffffff') }} />
-                      <div>
-                        <h3 className="text-lg font-bold" style={{ color: getColor('textColorContrast', '#ffffff') }}>
-                          {t('courses.testGenerator')}
-                        </h3>
-                        <p className="text-xs mt-0.5" style={{ color: getColor('textColorContrast', '#ffffff'), opacity: 0.8 }}>
-                          {t('tests.customTestDescription')}
-                        </p>
-                      </div>
+                    <Sparkles size={20} className="text-white flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-bold text-white truncate">
+                        {t('courses.testGenerator')}
+                      </h3>
+                      <p className="text-xs text-white/70 truncate">
+                        {t('tests.customTestDescription')}
+                      </p>
                     </div>
                   </div>
-                  
-                  {/* Separador */}
-                  <div 
-                    style={{ 
-                      height: '1px', 
-                      backgroundColor: 'rgba(156, 163, 175, 0.2)'
-                    }} 
-                  />
 
                   {/* Configuration Content */}
-                  <div className="p-6 space-y-6">
+                  <div className="p-4 space-y-5">
                     {/* Filters Section */}
                     <div>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Sliders size={18} style={{ color: getColor('primary', '#1a202c') }} />
-                        <h4 className="text-sm font-bold uppercase tracking-wide" style={{ color: getColor('primary', '#1a202c') }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sliders size={14} style={{ color: pageColors.accent }} />
+                        <h4 className="text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>
                           {t('tests.configuration')}
                         </h4>
                       </div>
 
                       <div className="space-y-4">
                         {/* Row 1: Lessons Multi-Select */}
-                        <div>
-                          <MultiSelect
-                            label={t('lessons.title')}
-                            options={lessonOptions}
-                            selected={config.lessons}
-                            onChange={(selected) => handleConfigChange('lessons', selected)}
-                            placeholder={t('common.all')}
-                          />
-                        </div>
+                        <MultiSelect
+                          label={t('lessons.title')}
+                          options={lessonOptions}
+                          selected={config.lessons}
+                          onChange={(selected) => handleConfigChange('lessons', selected)}
+                          placeholder={t('common.all')}
+                          pageColors={pageColors}
+                          isDarkMode={isDarkMode}
+                        />
 
                         {/* Row 2: Difficulty, Questions & Time */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-3 gap-3">
                           {/* Difficulty */}
                           <div>
-                            <label className="block text-sm font-medium mb-2" style={{ color: getColor('textPrimary', '#1f2937') }}>
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
                               {t('courses.difficulty.label')}
                             </label>
                             <div className="relative">
                               <select
                                 value={config.difficulty}
                                 onChange={(e) => handleConfigChange('difficulty', e.target.value)}
-                                className="w-full px-4 py-2.5 text-sm border-2 rounded-lg appearance-none transition-all"
+                                className="w-full px-3 py-2 text-sm border rounded-lg appearance-none transition-all"
                                 style={{ 
                                   borderColor: getColor('borderColor', '#e5e7eb'),
                                   backgroundColor: getColor('background', '#ffffff'),
-                                  color: getColor('primary', '#1a202c')
+                                  color: pageColors.text
                                 }}
                               >
                                 {difficultyOptions.map(opt => (
@@ -330,16 +346,16 @@ const QuizGeneratorPage = () => {
                                 ))}
                               </select>
                               <ChevronDown 
-                                className="absolute right-3 top-3 pointer-events-none" 
-                                size={16} 
-                                style={{ color: `${getColor('primary', '#1a202c')}60` }}
+                                className="absolute right-2.5 top-2.5 pointer-events-none" 
+                                size={14} 
+                                style={{ color: pageColors.textMuted }}
                               />
                             </div>
                           </div>
 
                           {/* Number of Questions */}
                           <div>
-                            <label className="block text-sm font-medium mb-2" style={{ color: getColor('textPrimary', '#1f2937') }}>
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
                               {t('common.questions')}
                             </label>
                             <input
@@ -348,19 +364,19 @@ const QuizGeneratorPage = () => {
                               max="100"
                               value={config.numQuestions}
                               onChange={(e) => handleConfigChange('numQuestions', parseInt(e.target.value) || 10)}
-                              className="w-full px-4 py-2.5 text-sm border-2 rounded-lg transition-all"
+                              className="w-full px-3 py-2 text-sm border rounded-lg transition-all"
                               style={{ 
                                 borderColor: getColor('borderColor', '#e5e7eb'),
                                 backgroundColor: getColor('background', '#ffffff'),
-                                color: getColor('primary', '#1a202c')
+                                color: pageColors.text
                               }}
                             />
                           </div>
 
                           {/* Time Limit */}
                           <div>
-                            <label className="block text-sm font-medium mb-2" style={{ color: getColor('textPrimary', '#1f2937') }}>
-                              {t('tests.timeLimit')} ({t('tests.minutes')})
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
+                              {t('tests.timeLimit')}
                             </label>
                             <input
                               type="number"
@@ -368,11 +384,11 @@ const QuizGeneratorPage = () => {
                               placeholder="0"
                               value={config.timeLimit}
                               onChange={(e) => handleConfigChange('timeLimit', parseInt(e.target.value) || 0)}
-                              className="w-full px-4 py-2.5 text-sm border-2 rounded-lg transition-all"
+                              className="w-full px-3 py-2 text-sm border rounded-lg transition-all"
                               style={{ 
                                 borderColor: getColor('borderColor', '#e5e7eb'),
                                 backgroundColor: getColor('background', '#ffffff'),
-                                color: getColor('primary', '#1a202c')
+                                color: pageColors.text
                               }}
                             />
                           </div>
@@ -381,23 +397,18 @@ const QuizGeneratorPage = () => {
                     </div>
 
                     {/* Separador */}
-                    <div 
-                      style={{ 
-                        height: '1px', 
-                        backgroundColor: 'rgba(156, 163, 175, 0.2)'
-                      }} 
-                    />
+                    <div style={{ height: '1px', backgroundColor: getColor('borderColor', '#e5e7eb') }} />
 
                     {/* Status Filters */}
                     <div>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Filter size={18} style={{ color: getColor('primary', '#1a202c') }} />
-                        <h4 className="text-sm font-bold uppercase tracking-wide" style={{ color: getColor('primary', '#1a202c') }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Filter size={14} style={{ color: pageColors.accent }} />
+                        <h4 className="text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>
                           {t('courses.questionTypes')}
                         </h4>
                       </div>
                       
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {[
                           { id: 'favorites', label: t('courses.favorites'), icon: Star, colorHex: '#fbbf24' },
                           { id: 'failed', label: t('courses.failed'), icon: XCircle, colorHex: '#ef4444' },
@@ -409,25 +420,35 @@ const QuizGeneratorPage = () => {
                             <button
                               key={status.id}
                               onClick={() => toggleStatusFilter(status.id)}
-                              className="relative px-3 py-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 hover:shadow-md"
+                              className="relative px-2 py-3 rounded-lg border transition-all flex flex-col items-center gap-1.5"
                               style={{ 
                                 borderColor: isSelected ? status.colorHex : getColor('borderColor', '#e5e7eb'),
-                                backgroundColor: isSelected ? `${status.colorHex}10` : getColor('background', '#ffffff')
+                                backgroundColor: isSelected ? `${status.colorHex}15` : 'transparent'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isSelected) {
+                                  e.currentTarget.style.backgroundColor = isDarkMode ? `${status.colorHex}10` : `${pageColors.text}03`;
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isSelected) {
+                                  e.currentTarget.style.backgroundColor = 'transparent';
+                                }
                               }}
                             >
-                              <status.icon size={20} style={{ color: status.colorHex }} />
+                              <status.icon size={16} style={{ color: status.colorHex }} />
                               <span 
                                 className="text-xs font-medium text-center leading-tight"
-                                style={{ color: getColor('textPrimary', '#1f2937') }}
+                                style={{ color: pageColors.text }}
                               >
                                 {status.label}
                               </span>
                               {isSelected && (
                                 <div 
-                                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center"
+                                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
                                   style={{ backgroundColor: status.colorHex }}
                                 >
-                                  <Check size={12} style={{ color: '#ffffff' }} />
+                                  <Check size={10} className="text-white" />
                                 </div>
                               )}
                             </button>
@@ -436,52 +457,41 @@ const QuizGeneratorPage = () => {
                       </div>
                     </div>
 
-                    {/* Separador inferior */}
-                    <div 
-                      style={{ 
-                        height: '1px', 
-                        backgroundColor: 'rgba(156, 163, 175, 0.2)'
-                      }} 
-                    />
+                    {/* Separador */}
+                    <div style={{ height: '1px', backgroundColor: getColor('borderColor', '#e5e7eb') }} />
 
                     {/* Generate Button */}
-                    <div>
-                      <button
-                        onClick={handleGenerate}
-                        disabled={questionsLoading}
-                        className="w-full py-3 rounded-lg font-bold text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
-                        style={{ 
-                          backgroundColor: getColor('accent', '#f59e0b'),
-                          color: '#ffffff'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!questionsLoading) {
-                            e.currentTarget.style.backgroundColor = `${getColor('accent', '#f59e0b')}dd`;
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.15)';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!questionsLoading) {
-                            e.currentTarget.style.backgroundColor = getColor('accent', '#f59e0b');
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
-                          }
-                        }}
-                      >
-                        {questionsLoading ? (
-                          <>
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            <span>{t('common.loading')}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles size={20} />
-                            <span>{t('tests.generateTest')}</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
+                    <button
+                      onClick={handleGenerate}
+                      disabled={questionsLoading}
+                      className="w-full py-2.5 rounded-lg font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      style={{ 
+                        backgroundColor: pageColors.accent,
+                        color: '#ffffff'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!questionsLoading) {
+                          e.currentTarget.style.opacity = '0.9';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!questionsLoading) {
+                          e.currentTarget.style.opacity = '1';
+                        }
+                      }}
+                    >
+                      {questionsLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>{t('common.loading')}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={16} />
+                          <span>{t('tests.generateTest')}</span>
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
               )}
@@ -500,22 +510,22 @@ const QuizGeneratorPage = () => {
             <div className="h-full flex flex-col">
               {/* Header Compacto */}
               <div 
-                className="flex items-center justify-between px-4 py-2 sm:py-1.5 border-b flex-shrink-0 gap-2"
+                className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0 gap-2"
                 style={{ 
                   backgroundColor: getColor('background', '#ffffff'),
-                  borderColor: `${getColor('primary', '#1a202c')}15` 
+                  borderColor: getColor('borderColor', '#e5e7eb')
                 }}
               >
                 <div className="flex items-center gap-2 overflow-hidden">
-                  <Sparkles size={18} style={{ color: getColor('accent', '#f59e0b') }} className="flex-shrink-0" />
-                  <h2 className="text-sm sm:text-base font-semibold leading-tight truncate" style={{ color: getColor('primary', '#1a202c') }}>
+                  <Sparkles size={16} style={{ color: pageColors.accent }} className="flex-shrink-0" />
+                  <h2 className="text-sm font-medium leading-tight truncate" style={{ color: pageColors.text }}>
                     {t('tests.customTest')}
                   </h2>
                   <span 
-                    className="text-xs px-2 py-0.5 rounded-full flex-shrink-0 ml-1"
+                    className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
                     style={{ 
-                      backgroundColor: `${getColor('accent', '#f59e0b')}10`,
-                      color: getColor('accent', '#f59e0b')
+                      backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.text}10`,
+                      color: isDarkMode ? pageColors.accent : pageColors.text
                     }}
                   >
                     {questions.length} {t('common.questions').toLowerCase()}
@@ -526,16 +536,16 @@ const QuizGeneratorPage = () => {
                 <button
                   onClick={handleCloseQuiz}
                   className="p-1.5 rounded-lg transition-all flex-shrink-0"
-                  style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+                  style={{ backgroundColor: isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10` }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                    e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}25` : `${pageColors.text}20`;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                    e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`;
                   }}
                   title={t('common.back')}
                 >
-                  <X size={20} style={{ color: getColor('primary', '#1a202c') }} />
+                  <X size={18} style={{ color: pageColors.text }} />
                 </button>
               </div>
 
@@ -548,33 +558,31 @@ const QuizGeneratorPage = () => {
                     onQuizComplete={() => {}} // Handle completion if needed
                   />
                 ) : (
-                  <div 
-                    className="h-full flex flex-col items-center justify-center p-8 text-center"
-                  >
+                  <div className="h-full flex flex-col items-center justify-center p-8 text-center">
                     <div 
-                      className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-                      style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+                      className="w-14 h-14 rounded-full flex items-center justify-center mb-4"
+                      style={{ backgroundColor: isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10` }}
                     >
-                      <AlertTriangle size={32} style={{ color: `${getColor('primary', '#1a202c')}40` }} />
+                      <AlertTriangle size={28} style={{ color: pageColors.textMuted }} />
                     </div>
-                    <h3 className="text-xl font-bold mb-2" style={{ color: getColor('primary', '#1a202c') }}>
+                    <h3 className="text-base font-bold mb-2" style={{ color: pageColors.text }}>
                       {t('tests.noQuestionsFound')}
                     </h3>
-                    <p className="max-w-md mx-auto mb-6 text-sm" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                    <p className="max-w-md mx-auto mb-5 text-sm" style={{ color: pageColors.textMuted }}>
                       {t('tests.adjustFilters')}
                     </p>
                     <button
                       onClick={handleCloseQuiz}
-                      className="px-6 py-2 rounded-lg font-medium transition-all"
+                      className="px-5 py-2 rounded-lg font-medium text-sm transition-all"
                       style={{ 
-                        backgroundColor: getColor('primary', '#1a202c'),
+                        backgroundColor: pageColors.accent,
                         color: '#ffffff'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}dd`;
+                        e.currentTarget.style.opacity = '0.9';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = getColor('primary', '#1a202c');
+                        e.currentTarget.style.opacity = '1';
                       }}
                     >
                       {t('common.back')}

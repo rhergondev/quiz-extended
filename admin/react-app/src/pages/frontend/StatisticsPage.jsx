@@ -5,17 +5,26 @@ import { useTheme } from '../../contexts/ThemeContext';
 import QuestionStatsChart from '../../components/frontend/statistics/QuestionStatsChart';
 import WeakLessonsPanel from '../../components/frontend/statistics/WeakLessonsPanel';
 import PerformanceComparison from '../../components/frontend/statistics/PerformanceComparison';
-import CourseStatsGrid from '../../components/frontend/statistics/CourseStatsGrid';
 import ProgressOverTime from '../../components/frontend/statistics/ProgressOverTime';
 import StatsFilters from '../../components/frontend/statistics/StatsFilters';
-import { TrendingUp, Award, Target, BarChart3 } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 
 const StatisticsPage = () => {
-  const { getColor } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
   const [selectedCourse, setSelectedCourse] = useState(null);
-  const [timeRange, setTimeRange] = useState('all'); // all, week, month, year
+  const [timeRange, setTimeRange] = useState('all');
   const [statsData, setStatsData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Dark mode colors
+  const pageColors = {
+    text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
+    textMuted: getColor('textSecondary', '#6b7280'),
+    accent: getColor('accent', '#f59e0b'),
+    primary: getColor('primary', '#3b82f6'),
+    background: getColor('background', '#ffffff'),
+    secondaryBg: getColor('secondaryBackground', '#f3f4f6'),
+  };
 
   useEffect(() => {
     fetchStatistics();
@@ -24,11 +33,9 @@ const StatisticsPage = () => {
   const fetchStatistics = async () => {
     setLoading(true);
     try {
-      // TODO: Remove fake data when API is ready
-      const useFakeData = true; // Cambiar a false cuando la API esté lista
+      const useFakeData = true;
       
       if (useFakeData) {
-        // Datos de ejemplo para visualización
         setTimeout(() => {
           setStatsData({
             total_questions: 150,
@@ -61,7 +68,6 @@ const StatisticsPage = () => {
       setStatsData(data.data);
     } catch (error) {
       console.error('Error fetching statistics:', error);
-      // Fallback to fake data on error
       setStatsData({
         total_questions: 150,
         correct_answers: 95,
@@ -78,76 +84,88 @@ const StatisticsPage = () => {
     return ((statsData.correct_answers / statsData.total_questions) * 100).toFixed(1);
   };
 
-  const calculateProgress = () => {
-    if (!statsData || statsData.total_questions === 0) return 0;
-    const answered = statsData.correct_answers + statsData.incorrect_answers;
-    return ((answered / statsData.total_questions) * 100).toFixed(1);
-  };
-
   return (
-    <div className="min-h-full" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
-      <div className="container mx-auto p-6 space-y-8 max-w-full">
-        {/* Header */}
-        <header className="space-y-2">
-          <div className="flex items-center gap-3">
-            <BarChart3 className="w-10 h-10" style={{ color: getColor('primary', '#3b82f6') }} />
-            <h1 className="text-4xl font-bold qe-text-primary">
-              Mis Estadísticas
-            </h1>
+    <div className="min-h-full pt-8" style={{ backgroundColor: pageColors.secondaryBg }}>
+      <div className="container mx-auto px-4 max-w-6xl">
+        {/* Compact Header with inline filters */}
+        <div 
+          className="p-4 rounded-lg border mb-4"
+          style={{ 
+            backgroundColor: pageColors.background,
+            borderColor: isDarkMode ? pageColors.primary + '40' : '#e5e7eb'
+          }}
+        >
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            {/* Title */}
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" style={{ color: pageColors.primary }} />
+              <h1 className="text-lg font-bold" style={{ color: pageColors.text }}>
+                Mis Estadísticas
+              </h1>
+            </div>
+            
+            {/* Inline Filters */}
+            <StatsFilters
+              selectedCourse={selectedCourse}
+              setSelectedCourse={setSelectedCourse}
+              timeRange={timeRange}
+              setTimeRange={setTimeRange}
+              compact={true}
+              isDarkMode={isDarkMode}
+              pageColors={pageColors}
+            />
           </div>
-          <p className="text-lg qe-text-secondary">
-            Analiza tu rendimiento y compáralo con otros estudiantes
-          </p>
-        </header>
-
-      {/* Filters */}
-      <StatsFilters
-        selectedCourse={selectedCourse}
-        setSelectedCourse={setSelectedCourse}
-        timeRange={timeRange}
-        setTimeRange={setTimeRange}
-      />
-
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2" 
-               style={{ borderColor: getColor('primary', '#3b82f6') }}></div>
         </div>
-      ) : (
-        <>
-          {/* Main Layout: 2 columns */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column: Stats Charts */}
-            <div className="lg:col-span-2 space-y-6 flex flex-col">
-              {/* Performance Comparison - Full Width */}
+
+        {loading ? (
+          <div className="flex justify-center items-center h-48">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2" 
+                 style={{ borderColor: pageColors.primary }}></div>
+          </div>
+        ) : (
+          /* Main Layout: 2 columns - Charts left, Info right */
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            {/* Left Column: Charts (3/5 width) */}
+            <div className="lg:col-span-3 space-y-4">
+              {/* Question Stats Donut - Compact */}
+              <QuestionStatsChart 
+                statsData={statsData} 
+                compact={true}
+                isDarkMode={isDarkMode}
+                pageColors={pageColors}
+              />
+
+              {/* Progress Over Time - Compact */}
+              <ProgressOverTime 
+                selectedCourse={selectedCourse}
+                timeRange={timeRange}
+                compact={true}
+                isDarkMode={isDarkMode}
+                pageColors={pageColors}
+              />
+            </div>
+
+            {/* Right Column: Performance + Weak Lessons (2/5 width) */}
+            <div className="lg:col-span-2 space-y-4">
+              {/* Performance Comparison - Compact */}
               <PerformanceComparison 
                 userAccuracy={parseFloat(calculateAccuracy())}
                 selectedCourse={selectedCourse}
+                compact={true}
+                isDarkMode={isDarkMode}
+                pageColors={pageColors}
               />
 
-              {/* Question Stats & Progress - 2 Columns */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1">
-                {/* Question Stats Donut Chart */}
-                <QuestionStatsChart statsData={statsData} />
-
-                {/* Progress Over Time */}
-                <ProgressOverTime 
-                  selectedCourse={selectedCourse}
-                  timeRange={timeRange}
-                />
-              </div>
-            </div>
-
-            {/* Right Column: Weak Lessons Panel */}
-            <div className="lg:col-span-1 flex flex-col">
-              <WeakLessonsPanel selectedCourse={selectedCourse} />
+              {/* Weak Lessons Panel - Compact */}
+              <WeakLessonsPanel 
+                selectedCourse={selectedCourse}
+                compact={true}
+                isDarkMode={isDarkMode}
+                pageColors={pageColors}
+              />
             </div>
           </div>
-
-          {/* Course Stats Grid - Full Width */}
-          <CourseStatsGrid selectedCourse={selectedCourse} />
-        </>
-      )}
+        )}
       </div>
     </div>
   );

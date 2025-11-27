@@ -28,6 +28,7 @@ const SettingsPage = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [campusLogo, setCampusLogo] = useState(window.qe_data?.campus_logo || '');
+  const [campusLogoDark, setCampusLogoDark] = useState(window.qe_data?.campus_logo_dark || '');
 
   // Cargar la configuración actual al montar (verificar si hay cambios)
   useEffect(() => {
@@ -44,6 +45,9 @@ const SettingsPage = () => {
         // Cargar logo si existe
         if (settings.campus_logo) {
           setCampusLogo(settings.campus_logo);
+        }
+        if (settings.campus_logo_dark) {
+          setCampusLogoDark(settings.campus_logo_dark);
         }
         
         if (settings.theme) {
@@ -88,8 +92,12 @@ const SettingsPage = () => {
     try {
       if (activeTab === 'general') {
         await settingsService.updateScoreFormat(scoreFormat);
+        // Guardar logos (claro y oscuro)
         if (campusLogo !== (window.qe_data?.campus_logo || '')) {
           await settingsService.updateCampusLogo(campusLogo);
+        }
+        if (campusLogoDark !== (window.qe_data?.campus_logo_dark || '')) {
+          await settingsService.updateCampusLogoDark(campusLogoDark);
         }
       } else if (activeTab === 'theme') {
         await settingsService.updateTheme(theme);
@@ -141,7 +149,7 @@ const SettingsPage = () => {
 
     // Crear el frame del media uploader
     const frame = window.wp.media({
-      title: 'Seleccionar Logo del Campus',
+      title: 'Seleccionar Logo del Campus (Modo Claro)',
       button: {
         text: 'Usar esta imagen'
       },
@@ -163,6 +171,39 @@ const SettingsPage = () => {
 
   const handleRemoveLogo = () => {
     setCampusLogo('');
+  };
+
+  const handleSelectLogoDark = () => {
+    // Verificar que el media uploader de WordPress está disponible
+    if (!window.wp || !window.wp.media) {
+      toast.error('El media uploader de WordPress no está disponible');
+      return;
+    }
+
+    // Crear el frame del media uploader
+    const frame = window.wp.media({
+      title: 'Seleccionar Logo del Campus (Modo Oscuro)',
+      button: {
+        text: 'Usar esta imagen'
+      },
+      multiple: false,
+      library: {
+        type: 'image'
+      }
+    });
+
+    // Cuando se selecciona una imagen
+    frame.on('select', () => {
+      const attachment = frame.state().get('selection').first().toJSON();
+      setCampusLogoDark(attachment.url);
+    });
+
+    // Abrir el modal
+    frame.open();
+  };
+
+  const handleRemoveLogoDark = () => {
+    setCampusLogoDark('');
   };
 
   const ColorPicker = ({ label, value, onChange, description }) => {
@@ -380,56 +421,113 @@ const SettingsPage = () => {
           <>
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                Logo del Campus
+                Logos del Campus
               </h2>
               <p className="text-gray-600 mb-6">
-                Sube el logo que aparecerá en la barra superior del campus
+                Sube los logos que aparecerán en la barra superior del campus. El logo es clickeable y redirige a la página principal.
               </p>
 
-              <div className="space-y-4">
-                {campusLogo ? (
-                  <div className="flex items-center gap-4">
-                    <div className="flex-shrink-0 w-48 h-16 border-2 border-gray-200 rounded-lg overflow-hidden bg-white flex items-center justify-center p-2">
-                      <img 
-                        src={campusLogo} 
-                        alt="Campus Logo" 
-                        className="max-w-full max-h-full object-contain"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={handleSelectLogo}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                      >
-                        Cambiar Logo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleRemoveLogo}
-                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                      >
-                        Eliminar Logo
-                      </button>
-                    </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Logo Modo Claro */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Sun className="w-5 h-5 text-yellow-500" />
+                    <h3 className="font-medium text-gray-900">Logo Modo Claro</h3>
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleSelectLogo}
-                    className="w-full px-6 py-8 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <Settings className="w-8 h-8 text-gray-400" />
-                      <span className="text-gray-600 font-medium">Haz clic para seleccionar un logo</span>
-                      <span className="text-sm text-gray-500">Formatos: JPG, PNG, SVG</span>
+                  {campusLogo ? (
+                    <div className="space-y-3">
+                      <div className="w-full h-20 border-2 border-gray-200 rounded-lg overflow-hidden bg-white flex items-center justify-center p-3">
+                        <img 
+                          src={campusLogo} 
+                          alt="Campus Logo (Claro)" 
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSelectLogo}
+                          className="flex-1 px-3 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
+                        >
+                          Cambiar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleRemoveLogo}
+                          className="px-3 py-2 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </div>
-                  </button>
-                )}
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSelectLogo}
+                      className="w-full px-4 py-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
+                    >
+                      <div className="flex flex-col items-center gap-1">
+                        <Sun className="w-6 h-6 text-gray-400" />
+                        <span className="text-gray-600 text-sm font-medium">Seleccionar logo</span>
+                        <span className="text-xs text-gray-500">JPG, PNG, SVG</span>
+                      </div>
+                    </button>
+                  )}
+                </div>
+
+                {/* Logo Modo Oscuro */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Moon className="w-5 h-5 text-indigo-500" />
+                    <h3 className="font-medium text-gray-900">Logo Modo Oscuro</h3>
+                  </div>
+                  {campusLogoDark ? (
+                    <div className="space-y-3">
+                      <div className="w-full h-20 border-2 border-gray-700 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center p-3">
+                        <img 
+                          src={campusLogoDark} 
+                          alt="Campus Logo (Oscuro)" 
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSelectLogoDark}
+                          className="flex-1 px-3 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
+                        >
+                          Cambiar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleRemoveLogoDark}
+                          className="px-3 py-2 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSelectLogoDark}
+                      className="w-full px-4 py-6 border-2 border-dashed border-gray-600 rounded-lg hover:border-indigo-500 hover:bg-gray-100 transition-all"
+                    >
+                      <div className="flex flex-col items-center gap-1">
+                        <Moon className="w-6 h-6 text-gray-400" />
+                        <span className="text-gray-600 text-sm font-medium">Seleccionar logo</span>
+                        <span className="text-xs text-gray-500">JPG, PNG, SVG</span>
+                      </div>
+                    </button>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Si no se especifica, se usará el logo del modo claro
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="p-6">
+            <div className="p-6 border-t border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">
                 Formato de Puntuación
               </h2>

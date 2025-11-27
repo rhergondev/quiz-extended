@@ -76,7 +76,27 @@
     "collapse": "Colapsar",
     "logoAlt": "Logo de la empresa",
     "logoText": "Tu Logo",
-    "onlineClasses": "Clases Online"
+    "onlineClasses": "Clases Online",
+    "menu": "Menú",
+    "quickMenu": "Menú Rápido"
+  },
+  "header": {
+    "notifications": "Notificaciones",
+    "messages": "Mensajería"
+  },
+  "messages": {
+    "totalMessages": "mensajes",
+    "unread": "sin leer",
+    "loading": "Cargando mensajes...",
+    "error": "Error al cargar mensajes",
+    "emptyInbox": "Tu bandeja está vacía",
+    "emptyInboxDescription": "No tienes mensajes en este momento. Cuando recibas comentarios sobre tus preguntas, aparecerán aquí.",
+    "selectToRead": "Selecciona un mensaje para leerlo",
+    "system": "Sistema",
+    "yesterday": "Ayer",
+    "markAsRead": "Marcar como leído",
+    "delete": "Eliminar",
+    "loadMore": "Cargar más mensajes"
   },
   "dashboard": {
     "title": "Panel del LMS",
@@ -126,6 +146,12 @@
     "statistics": "Estadísticas",
     "noContent": "Sin contenido disponible",
     "noContentDescription": "Este curso aún no tiene contenido agregado",
+    "overallProgress": "Progreso General",
+    "contentProgress": "Progreso de Contenido",
+    "completed": "completados",
+    "remaining": "pendientes",
+    "testsCompleted": "Tests Completados",
+    "totalProgress": "Progreso Total",
     "questionTypes": "Tipos de Preguntas",
     "favorites": "Favoritas",
     "failed": "Falladas",
@@ -482,6 +508,7 @@
   "quizzes": {
     "title": "Cuestionarios",
     "description": "Crea y gestiona cuestionarios para evaluar el aprendizaje",
+    "timeRemaining": "Tiempo Restante",
     "addNew": "Añadir Nuevo Cuestionario",
     "createQuiz": "Crear Cuestionario",
     "editQuiz": "Editar Cuestionario",
@@ -877,11 +904,20 @@
     "mustBePositive": "Debe ser un número positivo"
   },
   "ranking": {
+    "title": "Ranking del Test",
     "yourPosition": "Tu Posición",
     "averageScore": "Puntuación Media",
     "pending": "Pendiente",
     "quizzesCompleted": "Tests Completados",
-    "completeAllQuizzes": "Completa todos los tests del curso para ver tu posición"
+    "completeAllQuizzes": "Completa todos los tests del curso para ver tu posición",
+    "loading": "Cargando ranking...",
+    "error": "Error al cargar el ranking",
+    "noData": "Aún no hay rankings",
+    "noDataDescription": "Sé el primero en completar este test",
+    "avgWithoutRisk": "Media sin riesgo",
+    "avgWithRisk": "Media con riesgo",
+    "totalUsers": "Participantes",
+    "viewRanking": "Ver Ranking"
   },
   "events": {
     "pending": "Pendiente",
@@ -894,6 +930,8 @@
     "noMaterialsDescription": "Aún no se ha agregado material de apoyo a este curso",
     "document": "documento",
     "documents": "documentos",
+    "file": "archivo",
+    "files": "archivos",
     "download": "Descargar",
     "read": "Leer",
     "noPreview": "Vista previa no disponible",
@@ -964,7 +1002,28 @@
     "wellDone": "¡Muy bien! Has acertado la respuesta.",
     "keepPracticing": "Revisa la explicación y sigue practicando.",
     "explanation": "Explicación",
-    "noQuestionsAvailable": "No hay preguntas disponibles"
+    "noQuestionsAvailable": "No hay preguntas disponibles",
+    "testHistory": "Historial de Tests",
+    "attempt": "intento",
+    "attempts": "intentos",
+    "searchQuiz": "Buscar test",
+    "quizNamePlaceholder": "Nombre del test...",
+    "lesson": "Lección",
+    "allLessons": "Todas las lecciones",
+    "dateFrom": "Desde",
+    "dateTo": "Hasta",
+    "showing": "Mostrando",
+    "of": "de",
+    "results": "resultados",
+    "clearFilters": "Limpiar filtros",
+    "loadingHistory": "Cargando historial...",
+    "noAttemptsYet": "No tienes intentos registrados",
+    "startTests": "Comienza a realizar tests para ver tu historial",
+    "errorLoadingHistory": "Error al cargar el historial",
+    "tryAgain": "Intentar de nuevo",
+    "viewQuiz": "Ver test",
+    "aboveAverage": "sobre la media",
+    "belowAverage": "bajo la media"
   },
   "navigation": {
     "previous": "Anterior",
@@ -992,6 +1051,9 @@
     "averageScore": "Nota Media",
     "ranking": "Ranking",
     "topPercent": "Top {{percent}}%",
+    "cutoffScore": "Nota de corte",
+    "passedCutoff": "Has superado la nota de corte",
+    "noCutoffDataYet": "Nota de corte disponible próximamente",
     "completedQuizzes": "Tests Completados",
     "lessonsCompleted": "Lecciones Completadas",
     "lessonsWithProgress": "Lecciones con progreso",
@@ -1002,6 +1064,11 @@
     "completeTestsToSeeStats": "Completa tests para ver estadísticas",
     "areasToImprove": "Áreas a Mejorar",
     "lessonsToReview": "Lecciones a Repasar",
+    "lessonAnalysis": "Análisis de Temas",
+    "allLessonsInCourse": "Todos los temas del curso",
+    "sortHighToLow": "Mayor a menor nota",
+    "sortLowToHigh": "Menor a mayor nota",
+    "noLessonsData": "No hay datos de lecciones disponibles",
     "review": "Repasar",
     "reviewLesson": "Ver Lección",
     "greatJob": "¡Excelente!",
@@ -1012,6 +1079,11 @@
     "needsImprovement": "Mejorar",
     "good": "Bien",
     "difficultyAnalysis": "Análisis por Dificultad",
+    "questionAnalysis": "Análisis de Preguntas",
+    "withRisk": "Con Riesgo",
+    "withoutRisk": "Sin Riesgo",
+    "filterByLesson": "Filtrar por tema",
+    "allLessonsFilter": "Todos los temas",
     "easy": "Fácil",
     "medium": "Medio",
     "hard": "Difícil",
@@ -1021,6 +1093,7 @@
     "incorrect": "Incorrectas",
     "unanswered": "Sin contestar",
     "markedWithRisk": "Marcadas con riesgo",
+    "viewDetail": "Ver detalle",
     "riskAnalysis": "Análisis de Riesgo",
     "noRiskData": "No hay datos de riesgo disponibles",
     "noRiskDataForDifficulty": "No hay preguntas marcadas con riesgo en esta dificultad",
@@ -1043,6 +1116,22 @@
         "month": "30 días",
         "all": "Todo"
       }
+    }
+  },
+  "courseNotifications": {
+    "title": "Notificaciones",
+    "unread": "sin leer",
+    "markAllRead": "Marcar todas como leídas",
+    "loadMore": "Cargar más",
+    "empty": "No tienes notificaciones",
+    "emptyDescription": "Cuando haya nuevas lecciones, tests, vídeos o materiales en este curso, recibirás notificaciones aquí.",
+    "types": {
+      "new_lesson": "Nueva Lección",
+      "new_quiz": "Nuevo Test",
+      "new_video": "Nuevo Vídeo",
+      "new_pdf": "Nuevo PDF",
+      "new_text": "Nuevo Contenido",
+      "lesson_updated": "Lección Actualizada"
     }
   }
 }

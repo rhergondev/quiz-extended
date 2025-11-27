@@ -4,11 +4,11 @@ import { useScoreFormat } from '../../contexts/ScoreFormatContext';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 
-const StatBox = ({ label, value, icon: Icon, bgColor, textColor }) => (
+const StatBox = ({ label, value, icon: Icon, bgColor, textColor, bgCard }) => (
   <div 
     className="text-center p-3 rounded-lg border-2"
     style={{ 
-      backgroundColor: '#ffffff',
+      backgroundColor: bgCard,
       borderColor: textColor
     }}
   >
@@ -33,11 +33,16 @@ const StatBox = ({ label, value, icon: Icon, bgColor, textColor }) => (
 const ResultsSidebar = ({ result, questions }) => {
   const { formatScore } = useScoreFormat();
   const { t } = useTranslation();
-  const { getColor } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
   
   const SUCCESS_COLOR = '#22c55e';
   const ERROR_COLOR = '#ef4444';
-  const GRAY_COLOR = '#6b7280';
+  const GRAY_COLOR = isDarkMode ? '#9ca3af' : '#6b7280';
+
+  // Dark mode aware colors
+  const textPrimary = isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c');
+  const bgCard = isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff';
+  const bgSubtle = isDarkMode ? 'rgba(255,255,255,0.05)' : getColor('primary', '#1a202c') + '05';
   
   if (!result) {
     return null;
@@ -86,7 +91,7 @@ const ResultsSidebar = ({ result, questions }) => {
       >
         <h3 
           className="text-lg font-bold mb-4 text-center"
-          style={{ color: getColor('primary', '#1a202c') }}
+          style={{ color: textPrimary }}
         >
           {t('quizzes.resultsSidebar.title')}
         </h3>
@@ -97,7 +102,8 @@ const ResultsSidebar = ({ result, questions }) => {
             value={formatScore(score)}
             icon={Award}
             bgColor={getColor('primary', '#1a202c') + '10'}
-            textColor={getColor('primary', '#1a202c')}
+            textColor={isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c')}
+            bgCard={bgCard}
           />
           <StatBox
             label={t('quizzes.resultsSidebar.scoreWithRisk')}
@@ -105,25 +111,27 @@ const ResultsSidebar = ({ result, questions }) => {
             icon={Zap}
             bgColor={getColor('accent', '#f59e0b') + '15'}
             textColor={getColor('accent', '#f59e0b')}
+            bgCard={bgCard}
           />
           <StatBox
             label={t('quizzes.resultsSidebar.timeSpent')}
             value={formatTime(duration_seconds)}
             icon={Clock}
             bgColor={getColor('primary', '#1a202c') + '10'}
-            textColor={getColor('primary', '#1a202c')}
+            textColor={isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c')}
+            bgCard={bgCard}
           />
         </div>
 
         <h4 
           className="text-xs font-semibold mb-2"
-          style={{ color: getColor('primary', '#1a202c') }}
+          style={{ color: textPrimary }}
         >
           {t('quizzes.resultsSidebar.questionsMap')}
         </h4>
         <div 
           className="grid grid-cols-5 gap-1.5 p-2 rounded-lg"
-          style={{ backgroundColor: getColor('primary', '#1a202c') + '05' }}
+          style={{ backgroundColor: bgSubtle }}
         >
           {orderedResults && orderedResults.map((res, index) => {
             const wasAnswered = res.answer_given !== null && res.answer_given !== undefined;
@@ -136,7 +144,7 @@ const ResultsSidebar = ({ result, questions }) => {
               textColor = GRAY_COLOR;
               title = t('quizzes.resultsSidebar.questionUnanswered', { number: index + 1 });
             } else if (res.is_risked) {
-              bgColor = '#ffffff';
+              bgColor = bgCard;
               borderColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
               textColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
               title = res.is_correct 

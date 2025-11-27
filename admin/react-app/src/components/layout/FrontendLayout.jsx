@@ -205,6 +205,12 @@ const FrontendLayout = () => {
 
   const isLmsHome = location.pathname === '/';
 
+  // Extract courseId from URL if we're in a course route
+  const courseIdFromPath = location.pathname.match(/\/courses\/(\d+)/)?.[1] || null;
+  
+  // Recalculate isInCourseRoute using courseIdFromPath for consistency
+  const isInCourseRouteCalculated = location.pathname.startsWith('/courses/') && courseIdFromPath;
+
   return (
     <div 
       ref={layoutRef} 
@@ -214,7 +220,8 @@ const FrontendLayout = () => {
       <Topbar 
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
-        isInCourseRoute={isInCourseRoute}
+        isInCourseRoute={isInCourseRouteCalculated}
+        courseId={courseIdFromPath}
       />
       <div className="flex-1 flex flex-col w-full overflow-hidden">
         <main className="flex-1 w-full overflow-x-hidden overflow-y-auto">

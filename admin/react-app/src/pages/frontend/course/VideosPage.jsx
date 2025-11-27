@@ -6,15 +6,23 @@ import useCourse from '../../../hooks/useCourse';
 import useStudentProgress from '../../../hooks/useStudentProgress';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
-import { ChevronDown, ChevronRight, Video, Play, X, ChevronLeft, Check, Circle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Video, Play, X, ChevronLeft, Check, Circle, Film } from 'lucide-react';
 
 const VideosPage = () => {
   const { t } = useTranslation();
   const { courseId } = useParams();
-  const { getColor } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
   const { course } = useCourse(courseId);
   const courseName = course?.title?.rendered || course?.title || '';
   
+  // Colores adaptativos según el modo (misma lógica que sidebar/topbar/messages/support)
+  const pageColors = {
+    text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
+    textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : `${getColor('primary', '#1a202c')}70`,
+    accent: getColor('accent', '#f59e0b'),
+    hoverBg: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#1a202c'),
+  };
+
   const [expandedLessons, setExpandedLessons] = useState(new Set());
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -211,72 +219,100 @@ const VideosPage = () => {
           }`}
         >
           <div className="h-full overflow-y-auto">
-            <div className="max-w-5xl mx-auto px-4 pt-6 pb-12">
+            <div className="max-w-5xl mx-auto px-4 pt-8 pb-12">
             {loading ? (
-              <div className="space-y-4">
+              <div 
+                className="rounded-lg border overflow-hidden"
+                style={{ 
+                  backgroundColor: getColor('background', '#ffffff'),
+                  borderColor: getColor('borderColor', '#e5e7eb')
+                }}
+              >
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="rounded-lg p-4 animate-pulse" style={{ backgroundColor: getColor('background', '#ffffff') }}>
-                    <div className="h-6 rounded" style={{ backgroundColor: `${getColor('primary', '#1a202c')}20`, width: '60%' }}></div>
+                  <div 
+                    key={i} 
+                    className="px-4 py-3 flex items-center gap-3 animate-pulse"
+                    style={{ borderBottom: i < 3 ? `1px solid ${getColor('borderColor', '#e5e7eb')}` : 'none' }}
+                  >
+                    <div className="w-5 h-5 rounded" style={{ backgroundColor: pageColors.text + '20' }}></div>
+                    <div className="h-4 rounded flex-1" style={{ backgroundColor: pageColors.text + '15', maxWidth: '200px' }}></div>
+                    <div className="h-5 w-8 rounded-full" style={{ backgroundColor: pageColors.text + '10' }}></div>
                   </div>
                 ))}
               </div>
             ) : lessons.length === 0 ? (
-              <div className="text-center py-12 rounded-lg" style={{ backgroundColor: getColor('background', '#ffffff') }}>
-                <Video size={48} className="mx-auto mb-4" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
-                <p className="text-lg font-medium" style={{ color: getColor('primary', '#1a202c') }}>
+              <div 
+                className="text-center py-12 rounded-lg border"
+                style={{ 
+                  backgroundColor: getColor('background', '#ffffff'),
+                  borderColor: getColor('borderColor', '#e5e7eb')
+                }}
+              >
+                <Film size={40} className="mx-auto mb-3" style={{ color: pageColors.text + '30' }} />
+                <p className="text-sm font-medium" style={{ color: pageColors.text }}>
                   {t('videos.noVideos')}
                 </p>
-                <p className="text-sm mt-2" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                <p className="text-xs mt-1" style={{ color: pageColors.textMuted }}>
                   {t('videos.noVideosDescription')}
                 </p>
               </div>
             ) : (
+              /* Contenedor único para todos los videos */
               <div className="py-4">
-                <div 
-                  className="rounded-xl overflow-hidden border-2"
-                  style={{ 
-                    backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
-                    borderColor: getColor('primary', '#1a202c')
-                  }}
-                >
+              <div 
+                className="rounded-xl border-2 overflow-hidden"
+                style={{ 
+                  backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
+                  borderColor: getColor('borderColor', '#e5e7eb')
+                }}
+              >
                 {lessons.map((lesson, lessonIndex) => {
                   const isExpanded = expandedLessons.has(lesson.id);
                   const videoCount = lesson.videoSteps.length;
                   const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
 
                   return (
-                    <div key={lesson.id}>
+                    <div 
+                      key={lesson.id}
+                    >
                       {/* Lesson Header */}
                       <button
                         onClick={() => toggleLesson(lesson.id)}
                         className="w-full px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-200"
                         style={{ 
-                          backgroundColor: `${getColor('primary', '#1a202c')}05`
+                          backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : `${getColor('primary', '#1a202c')}05`
                         }}
                       >
                         <div className="flex items-center gap-3 overflow-hidden">
+                          {/* Chevron */}
                           {isExpanded ? (
-                            <ChevronDown size={20} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
+                            <ChevronDown size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
                           ) : (
-                            <ChevronRight size={20} style={{ color: `${getColor('textSecondary', '#6b7280')}` }} className="flex-shrink-0" />
+                            <ChevronRight size={20} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
                           )}
-                          <Video size={20} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
-                          <span className="font-semibold text-left truncate" style={{ color: getColor('textPrimary', '#1f2937') }}>
-                            {lessonTitle}
-                          </span>
+                          
+                          {/* Icon + Title */}
+                          <Video size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
+                          <span 
+                            className="font-semibold text-left truncate"
+                            style={{ color: pageColors.text }}
+                            dangerouslySetInnerHTML={{ __html: lessonTitle }}
+                          />
                         </div>
+                        
+                        {/* Badge count */}
                         <span 
                           className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full flex-shrink-0 ml-2"
                           style={{ 
-                            backgroundColor: `${getColor('primary', '#1a202c')}10`,
-                            color: getColor('primary', '#1a202c')
+                            backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : `${getColor('primary', '#1a202c')}10`,
+                            color: pageColors.text
                           }}
                         >
                           {videoCount} <span className="hidden sm:inline">{videoCount === 1 ? t('videos.video') : t('videos.videos')}</span>
                         </span>
                       </button>
 
-                      {/* Video Steps */}
+                      {/* Video Steps - expandido */}
                       {isExpanded && (
                         <div>
                           {lesson.videoSteps.map((step, index) => {
@@ -292,42 +328,39 @@ const VideosPage = () => {
                                     backgroundColor: 'rgba(156, 163, 175, 0.2)'
                                   }}
                                 />
-                                
-                                <div className="px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-200">
-                                <div className="flex items-center gap-3 flex-1 mr-2">
-                                  <Play size={18} style={{ color: `${getColor('primary', '#1a202c')}60` }} className="flex-shrink-0" />
-                                  <div className="flex flex-col overflow-hidden">
-                                    <span className="text-sm font-medium truncate" style={{ color: getColor('primary', '#1a202c') }}>
+                                <div 
+                                  className="flex items-center gap-3 px-4 sm:px-6 py-4 transition-colors duration-150 cursor-pointer group"
+                                  onClick={() => handleOpenVideo(step, lesson)}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = isDarkMode 
+                                      ? 'rgba(255,255,255,0.05)' 
+                                      : `${getColor('primary', '#1a202c')}03`;
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                  }}
+                                >
+                                  <Play size={18} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
+                                  <div className="flex flex-col flex-1 min-w-0">
+                                    <span 
+                                      className="text-sm font-medium truncate"
+                                      style={{ color: pageColors.text }}
+                                    >
                                       {step.title}
                                     </span>
                                     {duration && (
-                                      <span className="text-xs mt-0.5" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                                      <span className="text-xs" style={{ color: pageColors.textMuted }}>
                                         {duration}
                                       </span>
                                     )}
                                   </div>
+                                  <Play 
+                                    size={18} 
+                                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    style={{ color: pageColors.accent }} 
+                                  />
                                 </div>
-                                <button
-                                  onClick={() => handleOpenVideo(step, lesson)}
-                                  className="p-2.5 rounded-lg transition-all duration-200 flex items-center gap-2 flex-shrink-0"
-                                  style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
-                                    e.currentTarget.style.transform = 'scale(1.05)';
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
-                                    e.currentTarget.style.transform = 'scale(1)';
-                                  }}
-                                  title={t('videos.watch')}
-                                >
-                                  <Play size={18} style={{ color: getColor('primary', '#1a202c') }} />
-                                  <span className="text-sm font-medium hidden sm:inline" style={{ color: getColor('primary', '#1a202c') }}>
-                                    {t('videos.watch')}
-                                  </span>
-                                </button>
                               </div>
-                            </div>
                             );
                           })}
                         </div>
@@ -346,7 +379,7 @@ const VideosPage = () => {
                     </div>
                   );
                 })}
-                </div>
+              </div>
               </div>
             )}
             </div>
@@ -367,7 +400,7 @@ const VideosPage = () => {
                 className="flex items-center justify-between px-4 py-2 sm:py-1.5 border-b flex-shrink-0 gap-2"
                 style={{ 
                   backgroundColor: getColor('background', '#ffffff'),
-                  borderColor: `${getColor('primary', '#1a202c')}15` 
+                  borderColor: getColor('borderColor', '#e5e7eb')
                 }}
               >
                 <div className="flex flex-col gap-1 overflow-hidden">
@@ -376,26 +409,26 @@ const VideosPage = () => {
                     <Link 
                       to="/courses"
                       className="transition-colors duration-200 hover:underline font-medium"
-                      style={{ color: getColor('primary', '#1a202c') }}
+                      style={{ color: pageColors.text }}
                     >
                       {t('sidebar.studyPlanner')}
                     </Link>
-                    <ChevronRight size={12} style={{ color: `${getColor('primary', '#1a202c')}50` }} />
+                    <ChevronRight size={12} style={{ color: pageColors.textMuted }} />
                     <Link 
                       to={`/courses/${courseId}/dashboard`}
                       className="transition-colors duration-200 hover:underline font-medium"
-                      style={{ color: getColor('primary', '#1a202c') }}
+                      style={{ color: pageColors.text }}
                       dangerouslySetInnerHTML={{ __html: courseName }}
                     />
-                    <ChevronRight size={12} style={{ color: `${getColor('primary', '#1a202c')}50` }} />
-                    <span className="font-medium" style={{ color: `${getColor('primary', '#1a202c')}70` }}>
+                    <ChevronRight size={12} style={{ color: pageColors.textMuted }} />
+                    <span className="font-medium" style={{ color: pageColors.textMuted }}>
                       {t('courses.videos')}
                     </span>
                   </nav>
                   {/* Título del video */}
                   <div className="flex items-center gap-2">
-                    <Video size={18} style={{ color: getColor('primary', '#1a202c') }} className="flex-shrink-0" />
-                    <h2 className="text-sm sm:text-base font-semibold leading-tight truncate" style={{ color: getColor('primary', '#1a202c') }}>
+                    <Video size={16} style={{ color: pageColors.accent }} className="flex-shrink-0" />
+                    <h2 className="text-sm font-medium leading-tight truncate" style={{ color: pageColors.text }}>
                       {selectedVideo.title}
                     </h2>
                   </div>
@@ -409,50 +442,50 @@ const VideosPage = () => {
                     disabled={!hasPrevious}
                     className="p-1.5 rounded-lg transition-all"
                     style={{ 
-                      backgroundColor: `${getColor('primary', '#1a202c')}10`,
+                      backgroundColor: isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`,
                       opacity: hasPrevious ? 1 : 0.4,
                       cursor: hasPrevious ? 'pointer' : 'not-allowed'
                     }}
                     onMouseEnter={(e) => {
                       if (hasPrevious) {
-                        e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                        e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}25` : `${pageColors.text}20`;
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                      e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`;
                     }}
                     title={t('navigation.previous')}
                   >
-                    <ChevronLeft size={20} style={{ color: getColor('primary', '#1a202c') }} />
+                    <ChevronLeft size={18} style={{ color: pageColors.text }} />
                   </button>
 
                   {/* Complete button */}
                   <button
                     onClick={handleToggleComplete}
                     disabled={progressLoading}
-                    className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm"
+                    className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-xs"
                     style={{ 
                       backgroundColor: isCurrentStepCompleted() 
-                        ? `${getColor('primary', '#1a202c')}` 
-                        : `${getColor('primary', '#1a202c')}10`,
-                      color: isCurrentStepCompleted() ? '#ffffff' : getColor('primary', '#1a202c')
+                        ? pageColors.accent
+                        : (isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`),
+                      color: isCurrentStepCompleted() ? '#ffffff' : pageColors.text
                     }}
                     onMouseEnter={(e) => {
                       if (!isCurrentStepCompleted()) {
-                        e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                        e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}25` : `${pageColors.text}20`;
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!isCurrentStepCompleted()) {
-                        e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                        e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`;
                       }
                     }}
                     title={isCurrentStepCompleted() ? t('progress.completed') : t('progress.markComplete')}
                   >
                     {isCurrentStepCompleted() ? (
-                      <Check size={16} />
+                      <Check size={14} />
                     ) : (
-                      <Circle size={16} />
+                      <Circle size={14} />
                     )}
                     <span className="font-medium hidden sm:inline">
                       {isCurrentStepCompleted() ? t('progress.completed') : t('progress.markComplete')}
@@ -465,59 +498,70 @@ const VideosPage = () => {
                     disabled={!hasNext}
                     className="p-1.5 rounded-lg transition-all"
                     style={{ 
-                      backgroundColor: `${getColor('primary', '#1a202c')}10`,
+                      backgroundColor: isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`,
                       opacity: hasNext ? 1 : 0.4,
                       cursor: hasNext ? 'pointer' : 'not-allowed'
                     }}
                     onMouseEnter={(e) => {
                       if (hasNext) {
-                        e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                        e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}25` : `${pageColors.text}20`;
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                      e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`;
                     }}
                     title={t('navigation.next')}
                   >
-                    <ChevronRight size={20} style={{ color: getColor('primary', '#1a202c') }} />
+                    <ChevronRight size={18} style={{ color: pageColors.text }} />
                   </button>
 
                   {/* Close button */}
                   <button
                     onClick={closeVideoViewer}
-                    className="p-1.5 rounded-lg transition-all ml-1 sm:ml-2"
-                    style={{ backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+                    className="p-1.5 rounded-lg transition-all ml-1"
+                    style={{ backgroundColor: isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10` }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}20`;
+                      e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}25` : `${pageColors.text}20`;
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = `${getColor('primary', '#1a202c')}10`;
+                      e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`;
                     }}
                     title={t('common.back')}
                   >
-                    <X size={20} style={{ color: getColor('primary', '#1a202c') }} />
+                    <X size={18} style={{ color: pageColors.text }} />
                   </button>
                 </div>
               </div>
 
-              {/* Video Content */}
-              <div className="flex-1 overflow-hidden" style={{ backgroundColor: '#000000' }}>
+              {/* Video Content - con padding alrededor */}
+              <div 
+                className="flex-1 overflow-hidden flex items-center justify-center p-4 md:p-6"
+                style={{ backgroundColor: getColor('secondaryBackground', '#f8f9fa') }}
+              >
                 {getVideoUrl(selectedVideo) ? (
-                  <iframe
-                    src={getVideoUrl(selectedVideo)}
-                    className="w-full h-full border-0"
-                    title={selectedVideo.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
+                  <div 
+                    className="w-full h-full max-w-5xl rounded-lg overflow-hidden shadow-lg"
+                    style={{ backgroundColor: '#000000' }}
+                  >
+                    <iframe
+                      src={getVideoUrl(selectedVideo)}
+                      className="w-full h-full border-0"
+                      title={selectedVideo.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
                 ) : (
-                  <div className="flex items-center justify-center h-full">
+                  <div 
+                    className="flex items-center justify-center h-full w-full rounded-lg"
+                    style={{ backgroundColor: getColor('background', '#ffffff') }}
+                  >
                     <div className="text-center">
-                      <Video size={64} className="mx-auto mb-4" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
-                      <p className="text-lg font-medium" style={{ color: getColor('primary', '#1a202c') }}>
+                      <Video size={48} className="mx-auto mb-3" style={{ color: pageColors.text + '30' }} />
+                      <p className="text-sm font-medium" style={{ color: pageColors.text }}>
                         {t('videos.noVideoUrl')}
                       </p>
-                      <p className="text-sm mt-2" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                      <p className="text-xs mt-1" style={{ color: pageColors.textMuted }}>
                         {t('videos.noVideoUrlDescription')}
                       </p>
                     </div>
