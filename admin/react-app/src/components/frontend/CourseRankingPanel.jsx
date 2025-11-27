@@ -1,15 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, createContext, useContext } from 'react';
 import { Trophy, TrendingUp, Users, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Clock } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useScoreFormat } from '../../contexts/ScoreFormatContext';
 import { useCourseRanking } from '../../hooks/useCourseRanking';
 import { useTranslation } from 'react-i18next';
 
-const CourseRankingPanel = ({ courseId, courseName }) => {
+// Context para compartir estado entre Trigger y Panel
+const RankingContext = createContext(null);
+
+// Hook para usar el contexto
+const useRankingContext = () => {
+    const context = useContext(RankingContext);
+    if (!context) {
+        throw new Error('useRankingContext must be used within CourseRankingProvider');
+    }
+    return context;
+};
+
+// Provider que maneja el estado y los datos del ranking
+export const CourseRankingProvider = ({ courseId, courseName, isOpen, onOpen, onClose, children }) => {
     const { t } = useTranslation();
     const { getColor, isDarkMode } = useTheme();
     const { formatScore } = useScoreFormat();
-    const [isOpen, setIsOpen] = useState(false);
     
     const {
         loading,
@@ -29,41 +41,147 @@ const CourseRankingPanel = ({ courseId, courseName }) => {
         goToUserPage
     } = useCourseRanking(courseId);
 
-    // Primary color from theme (same pattern as QuizGeneratorPage)
     const primaryColor = getColor('primary', '#1a202c');
     
-    // Theme colors - adaptable like other pages
     const pageColors = {
-        bg: getColor('background', '#ffffff'),
+        bg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
         bgSecondary: getColor('secondaryBackground', '#f9fafb'),
         text: isDarkMode ? getColor('textPrimary', '#f9fafb') : primaryColor,
         textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : `${primaryColor}60`,
         accent: getColor('accent', '#f59e0b'),
-        border: getColor('borderColor', '#e5e7eb'),
+        border: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb'),
         hoverBg: isDarkMode ? getColor('accent', '#f59e0b') : primaryColor,
+        iconColor: isDarkMode ? getColor('textPrimary', '#f9fafb') : primaryColor,
+        positionColor: isDarkMode ? getColor('textPrimary', '#f9fafb') : primaryColor,
+        userNameColor: isDarkMode ? getColor('textPrimary', '#f9fafb') : primaryColor,
     };
 
-    // Check if user has completed all quizzes
     const hasCompletedAllQuizzes = myStatus?.has_completed_all ?? false;
     const completedQuizzes = myStatus?.completed_quizzes ?? 0;
     const totalQuizzes = myStatus?.total_quizzes ?? 0;
-    const pendingQuizzes = myStatus?.pending_quizzes ?? 0;
     const temporaryScore = myStatus?.average_score ?? 0;
-
-    // Debug pagination
-    console.log('🏆 Ranking Pagination:', {
-        currentPage: pagination.currentPage,
-        totalPages: pagination.totalPages,
-        perPage: pagination.perPage,
-        totalUsers: pagination.totalUsers,
-        rankingLength: ranking.length
-    });
 
     useEffect(() => {
         if (isOpen && pagination.userPage && pagination.currentPage === 1) {
             goToUserPage();
         }
     }, [isOpen, pagination.userPage, pagination.currentPage, goToUserPage]);
+
+    const value = {
+        t,
+        isDarkMode,
+        formatScore,
+        primaryColor,
+        pageColors,
+        loading,
+        error,
+        ranking,
+        statistics,
+        myStats,
+        myStatus,
+        pagination,
+        withRisk,
+        toggleRisk,
+        goToPage,
+        nextPage,
+        prevPage,
+        firstPage,
+        lastPage,
+        goToUserPage,
+        hasCompletedAllQuizzes,
+        completedQuizzes,
+        totalQuizzes,
+        temporaryScore,
+        courseId,
+        courseName,
+        isOpen,
+        onOpen,
+        onClose,
+    };
+
+    return (
+        <RankingContext.Provider value={value}>
+            {children}
+        </RankingContext.Provider>
+    );
+};
+
+// Componente Trigger Button (se coloca en la lista de tests)
+export const CourseRankingTrigger = () => {
+    const { 
+        t, 
+        pageColors, 
+        myStats, 
+        hasCompletedAllQuizzes, 
+        withRisk,
+        onOpen 
+    } = useRankingContext();
+
+    return (
+        <div className="flex justify-end mb-4">
+            <button
+                onClick={onOpen}
+                className="px-3 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 text-sm font-medium border"
+                style={{ 
+                    backgroundColor: pageColors.bg,
+                    borderColor: pageColors.border,
+                    color: pageColors.text
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = pageColors.hoverBg;
+                    e.currentTarget.style.borderColor = pageColors.hoverBg;
+                    e.currentTarget.style.color = '#ffffff';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = pageColors.bg;
+                    e.currentTarget.style.borderColor = pageColors.border;
+                    e.currentTarget.style.color = pageColors.text;
+                }}
+            >
+                <Trophy className="w-4 h-4" />
+                <span>{t('ranking.ranking', 'Ranking')}</span>
+                {myStats && hasCompletedAllQuizzes && (
+                    <span 
+                        className="px-1.5 py-0.5 rounded text-xs font-bold"
+                        style={{ backgroundColor: pageColors.hoverBg, color: '#fff' }}
+                    >
+                        #{withRisk ? myStats.position_with_risk : myStats.position_without_risk}
+                    </span>
+                )}
+            </button>
+        </div>
+    );
+};
+
+// Componente Panel (se coloca como hermano del Test Viewer)
+export const CourseRankingSlidePanel = () => {
+    const {
+        t,
+        isDarkMode,
+        formatScore,
+        primaryColor,
+        pageColors,
+        loading,
+        error,
+        ranking,
+        statistics,
+        myStats,
+        pagination,
+        withRisk,
+        toggleRisk,
+        goToPage,
+        nextPage,
+        prevPage,
+        firstPage,
+        lastPage,
+        hasCompletedAllQuizzes,
+        completedQuizzes,
+        totalQuizzes,
+        temporaryScore,
+        courseName,
+        isOpen,
+        onClose,
+    } = useRankingContext();
 
     const renderPageNumbers = () => {
         const pages = [];
@@ -96,7 +214,6 @@ const CourseRankingPanel = ({ courseId, courseName }) => {
         return pages;
     };
 
-    // Incomplete warning
     const IncompleteWarning = () => {
         if (hasCompletedAllQuizzes || completedQuizzes === 0) return null;
         
@@ -122,353 +239,389 @@ const CourseRankingPanel = ({ courseId, courseName }) => {
     };
 
     return (
-        <>
-            {/* Small Trigger Button - Top Right */}
-            <div className="flex justify-end mb-4">
-                <button
-                    onClick={() => setIsOpen(true)}
-                    className="px-3 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 text-sm font-medium border"
-                    style={{ 
-                        backgroundColor: pageColors.bg,
-                        borderColor: pageColors.border,
-                        color: pageColors.text
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = pageColors.hoverBg;
-                        e.currentTarget.style.borderColor = pageColors.hoverBg;
-                        e.currentTarget.style.color = '#ffffff';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = pageColors.bg;
-                        e.currentTarget.style.borderColor = pageColors.border;
-                        e.currentTarget.style.color = pageColors.text;
-                    }}
-                >
-                    <Trophy className="w-4 h-4" />
-                    <span>{t('ranking.ranking', 'Ranking')}</span>
-                    {myStats && hasCompletedAllQuizzes && (
-                        <span 
-                            className="px-1.5 py-0.5 rounded text-xs font-bold"
-                            style={{ backgroundColor: pageColors.hoverBg, color: '#fff' }}
-                        >
-                            #{myStats.position}
-                        </span>
-                    )}
-                </button>
-            </div>
-
-            {/* Full Page View - Slides from right */}
-            <div 
-                className={`absolute inset-0 z-20 transition-transform duration-300 ease-in-out ${
-                    isOpen ? 'translate-x-0' : 'translate-x-full'
-                }`}
-                style={{ backgroundColor: pageColors.bgSecondary }}
-            >
-                {/* Header - Same style as QuizGeneratorPage */}
+        <div 
+            className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
+                isOpen ? 'translate-x-0' : 'translate-x-full'
+            }`}
+            style={{ backgroundColor: pageColors.bgSecondary }}
+        >
+            <div className="h-full flex flex-col">
+                {/* Header */}
                 <div 
-                    className="rounded-t-lg overflow-hidden border"
+                    className="px-4 py-3 flex items-center justify-between flex-shrink-0 border-b"
                     style={{ 
                         backgroundColor: pageColors.bg,
                         borderColor: pageColors.border
                     }}
                 >
-                    <div 
-                        className="px-4 py-3 flex items-center justify-between"
-                        style={{ backgroundColor: isDarkMode ? pageColors.accent : primaryColor }}
-                    >
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => setIsOpen(false)}
-                                className="p-1.5 rounded-lg transition-colors hover:bg-white/20"
-                            >
-                                <ChevronLeft className="w-5 h-5 text-white" />
-                            </button>
-                            <Trophy className="w-5 h-5 text-white flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                                <h3 className="text-sm font-bold text-white truncate">
-                                    {t('ranking.courseRanking', 'Ranking del Curso')}
-                                </h3>
-                                <p className="text-xs text-white/70 truncate">{courseName}</p>
-                            </div>
-                        </div>
-                        
-                        {/* Toggle Risk in header */}
+                    <div className="flex items-center gap-3">
                         <button
-                            onClick={toggleRisk}
-                            className="px-3 py-1.5 rounded-lg font-medium text-xs transition-all flex items-center gap-1.5"
-                            style={{
-                                backgroundColor: withRisk ? 'rgba(245, 158, 11, 0.9)' : 'rgba(16, 185, 129, 0.9)',
-                                color: '#ffffff'
-                            }}
+                            onClick={onClose}
+                            className="p-1.5 rounded-lg transition-colors"
+                            style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : `${primaryColor}10` }}
                             onMouseEnter={(e) => {
-                                e.currentTarget.style.opacity = '0.85';
+                                e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.2)' : `${primaryColor}20`;
                             }}
                             onMouseLeave={(e) => {
-                                e.currentTarget.style.opacity = '1';
+                                e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : `${primaryColor}10`;
                             }}
                         >
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: '#ffffff' }} />
-                            {withRisk ? 'Con Riesgo' : 'Sin Riesgo'}
+                            <ChevronLeft className="w-5 h-5" style={{ color: pageColors.text }} />
                         </button>
+                        <Trophy className="w-5 h-5" style={{ color: isDarkMode ? pageColors.accent : primaryColor }} />
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-bold truncate" style={{ color: pageColors.text }}>
+                                {t('ranking.courseRanking', 'Ranking del Curso')}
+                            </h3>
+                            <p className="text-xs truncate" style={{ color: pageColors.textMuted }}>{courseName}</p>
+                        </div>
                     </div>
+                    
+                    {/* Toggle Risk in header */}
+                    <button
+                        onClick={toggleRisk}
+                        className="px-3 py-1.5 rounded-lg font-medium text-xs transition-all flex items-center gap-1.5"
+                        style={{
+                            backgroundColor: withRisk ? pageColors.accent : '#10b981',
+                            color: '#ffffff'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.opacity = '0.85';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.opacity = '1';
+                        }}
+                    >
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: '#ffffff' }} />
+                        {withRisk ? 'Con Riesgo' : 'Sin Riesgo'}
+                    </button>
                 </div>
 
                 {/* Content */}
-                <div className="h-[calc(100%-56px)] overflow-y-auto p-4">
-                    <div className="max-w-4xl mx-auto space-y-4">
-                        {loading && !ranking.length ? (
-                            <div className="flex items-center justify-center py-12">
-                                <div className="text-center">
-                                    <div 
-                                        className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-3"
-                                        style={{ borderColor: primaryColor }}
-                                    />
-                                    <p className="text-sm" style={{ color: pageColors.textMuted }}>Cargando...</p>
-                                </div>
-                            </div>
-                        ) : error ? (
-                            <div 
-                                className="p-4 rounded-lg"
-                                style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca' }}
-                            >
-                                <p className="font-medium text-red-600">Error al cargar el ranking</p>
-                                <p className="text-sm text-red-500">{error}</p>
-                            </div>
-                        ) : (
-                            <>
-                                {/* Warning + Stats Row */}
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                                    {/* Warning takes full width on mobile, 2 cols on desktop */}
-                                    {!hasCompletedAllQuizzes && completedQuizzes > 0 && (
-                                        <div className="lg:col-span-2">
-                                            <IncompleteWarning />
-                                        </div>
-                                    )}
-                                    
-                                    {/* Stats */}
-                                    <div className={`grid grid-cols-3 gap-2 ${!hasCompletedAllQuizzes && completedQuizzes > 0 ? '' : 'lg:col-span-3'}`}>
+                <div className="flex-1 overflow-y-auto">
+                    <div className="max-w-4xl mx-auto px-4 pt-6 pb-12">
+                        <div className="space-y-4">
+                            {loading && !ranking.length ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <div className="text-center">
                                         <div 
-                                            className="rounded-lg p-3 text-center border"
-                                            style={{ backgroundColor: pageColors.bg, borderColor: pageColors.border }}
-                                        >
-                                            <Users size={16} className="mx-auto mb-1" style={{ color: primaryColor }} />
-                                            <p className="text-[10px]" style={{ color: pageColors.textMuted }}>Total</p>
-                                            <p className="font-bold" style={{ color: pageColors.text }}>{statistics?.total_users || 0}</p>
-                                        </div>
-                                        <div 
-                                            className="rounded-lg p-3 text-center border"
-                                            style={{ backgroundColor: pageColors.bg, borderColor: pageColors.border }}
-                                        >
-                                            <TrendingUp size={16} className="mx-auto mb-1" style={{ color: '#10b981' }} />
-                                            <p className="text-[10px]" style={{ color: pageColors.textMuted }}>Media</p>
-                                            <p className="font-bold" style={{ color: pageColors.text }}>
-                                                {formatScore(withRisk ? statistics?.avg_score_with_risk : statistics?.avg_score_without_risk)}
-                                            </p>
-                                        </div>
-                                        <div 
-                                            className="rounded-lg p-3 text-center"
-                                            style={{ 
-                                                backgroundColor: pageColors.bg, 
-                                                border: myStats && hasCompletedAllQuizzes ? `2px solid ${primaryColor}` : `1px dashed ${pageColors.border}`
-                                            }}
-                                        >
-                                            {myStats && hasCompletedAllQuizzes ? (
-                                                <>
-                                                    <Trophy size={16} className="mx-auto mb-1" style={{ color: primaryColor }} />
-                                                    <p className="text-[10px]" style={{ color: pageColors.textMuted }}>Tu Posición</p>
-                                                    <p className="font-bold" style={{ color: primaryColor }}>
-                                                        #{withRisk ? myStats.position_with_risk : myStats.position_without_risk}
-                                                    </p>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Clock size={16} className="mx-auto mb-1" style={{ color: pageColors.textMuted }} />
-                                                    <p className="text-[10px]" style={{ color: pageColors.textMuted }}>Provisional</p>
-                                                    <p className="font-bold" style={{ color: pageColors.textMuted }}>
-                                                        {completedQuizzes > 0 ? formatScore(temporaryScore) : '-'}
-                                                    </p>
-                                                </>
-                                            )}
-                                        </div>
+                                            className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-3"
+                                            style={{ borderColor: primaryColor }}
+                                        />
+                                        <p className="text-sm" style={{ color: pageColors.textMuted }}>Cargando...</p>
                                     </div>
                                 </div>
-
-                                {/* Ranking Table */}
+                            ) : error ? (
                                 <div 
-                                    className="rounded-lg border overflow-hidden"
-                                    style={{ backgroundColor: pageColors.bg, borderColor: pageColors.border }}
+                                    className="p-4 rounded-lg"
+                                    style={{ 
+                                        backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.1)' : '#fef2f2', 
+                                        border: `1px solid ${isDarkMode ? 'rgba(239, 68, 68, 0.3)' : '#fecaca'}` 
+                                    }}
                                 >
-                                    <table className="w-full">
-                                        <thead>
-                                            <tr style={{ backgroundColor: `${primaryColor}08` }}>
-                                                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>#</th>
-                                                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>Usuario</th>
-                                                <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>Sin Riesgo</th>
-                                                <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>Con Riesgo</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {ranking.map((user, idx) => {
-                                                const isCurrentUser = user.is_current_user;
-                                                const positionColor = 
-                                                    user.position === 1 ? '#eab308' :
-                                                    user.position === 2 ? '#9ca3af' :
-                                                    user.position === 3 ? '#f97316' :
-                                                    pageColors.text;
-
-                                                return (
-                                                    <tr
-                                                        key={user.user_id}
-                                                        className="border-t transition-colors"
-                                                        style={{
-                                                            borderColor: pageColors.border,
-                                                            backgroundColor: isCurrentUser 
-                                                                ? `${primaryColor}08`
-                                                                : 'transparent'
-                                                        }}
-                                                    >
-                                                        <td className="px-4 py-3">
-                                                            <div className="flex items-center gap-1">
-                                                                {user.position <= 3 && (
-                                                                    <Trophy className="w-4 h-4" style={{ color: positionColor }} />
-                                                                )}
-                                                                <span className="font-bold" style={{ color: positionColor }}>
-                                                                    {user.position}
-                                                                </span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <div className="flex items-center gap-2">
-                                                                <img
-                                                                    src={user.avatar_url}
-                                                                    alt=""
-                                                                    className="w-8 h-8 rounded-full"
-                                                                />
-                                                                <span 
-                                                                    className="font-medium"
-                                                                    style={{ color: isCurrentUser ? primaryColor : pageColors.text }}
-                                                                >
-                                                                    {user.display_name}
-                                                                    {isCurrentUser && (
-                                                                        <span 
-                                                                            className="ml-2 text-[10px] px-1.5 py-0.5 rounded"
-                                                                            style={{ backgroundColor: primaryColor, color: '#fff' }}
-                                                                        >
-                                                                            Tú
-                                                                        </span>
-                                                                    )}
-                                                                </span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-center">
-                                                            <span 
-                                                                className={`font-bold ${!withRisk ? 'underline decoration-2' : ''}`}
-                                                                style={{ 
-                                                                    color: isCurrentUser ? primaryColor : pageColors.text,
-                                                                    textDecorationColor: '#10b981'
-                                                                }}
-                                                            >
-                                                                {formatScore(user.score_without_risk ?? 0)}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-center">
-                                                            <span 
-                                                                className={`font-bold ${withRisk ? 'underline decoration-2' : ''}`}
-                                                                style={{ 
-                                                                    color: isCurrentUser ? primaryColor : pageColors.text,
-                                                                    textDecorationColor: pageColors.accent
-                                                                }}
-                                                            >
-                                                                {formatScore(user.score_with_risk ?? 0)}
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-
-                                    {ranking.length === 0 && !loading && (
-                                        <div className="text-center py-8">
-                                            <Trophy className="w-10 h-10 mx-auto mb-3" style={{ color: pageColors.border }} />
-                                            <p className="font-medium" style={{ color: pageColors.textMuted }}>
-                                                No hay usuarios en el ranking
-                                            </p>
-                                        </div>
-                                    )}
+                                    <p className="font-medium" style={{ color: '#ef4444' }}>Error al cargar el ranking</p>
+                                    <p className="text-sm" style={{ color: isDarkMode ? '#fca5a5' : '#dc2626' }}>{error}</p>
                                 </div>
+                            ) : (
+                                <>
+                                    {/* Warning + Stats Row */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                        {/* Warning takes full width on mobile, 2 cols on desktop */}
+                                        {!hasCompletedAllQuizzes && completedQuizzes > 0 && (
+                                            <div className="lg:col-span-2">
+                                                <IncompleteWarning />
+                                            </div>
+                                        )}
+                                        
+                                        {/* Stats */}
+                                        <div className={`grid grid-cols-3 gap-2 ${!hasCompletedAllQuizzes && completedQuizzes > 0 ? '' : 'lg:col-span-3'}`}>
+                                            <div 
+                                                className="rounded-lg p-3 text-center border"
+                                                style={{ backgroundColor: pageColors.bg, borderColor: pageColors.border }}
+                                            >
+                                                <Users size={16} className="mx-auto mb-1" style={{ color: pageColors.iconColor }} />
+                                                <p className="text-[10px]" style={{ color: pageColors.textMuted }}>Total</p>
+                                                <p className="font-bold" style={{ color: pageColors.text }}>{statistics?.total_users || 0}</p>
+                                            </div>
+                                            <div 
+                                                className="rounded-lg p-3 text-center border"
+                                                style={{ backgroundColor: pageColors.bg, borderColor: pageColors.border }}
+                                            >
+                                                <TrendingUp size={16} className="mx-auto mb-1" style={{ color: '#10b981' }} />
+                                                <p className="text-[10px]" style={{ color: pageColors.textMuted }}>Media</p>
+                                                <p className="font-bold" style={{ color: pageColors.text }}>
+                                                    {formatScore(withRisk ? statistics?.avg_score_with_risk : statistics?.avg_score_without_risk)}
+                                                </p>
+                                            </div>
+                                            <div 
+                                                className="rounded-lg p-3 text-center"
+                                                style={{ 
+                                                    backgroundColor: pageColors.bg, 
+                                                    border: myStats && hasCompletedAllQuizzes 
+                                                        ? `2px solid ${isDarkMode ? pageColors.accent : primaryColor}` 
+                                                        : `1px dashed ${pageColors.border}`
+                                                }}
+                                            >
+                                                {myStats && hasCompletedAllQuizzes ? (
+                                                    <>
+                                                        <Trophy size={16} className="mx-auto mb-1" style={{ color: isDarkMode ? pageColors.accent : primaryColor }} />
+                                                        <p className="text-[10px]" style={{ color: pageColors.textMuted }}>Tu Posición</p>
+                                                        <p className="font-bold" style={{ color: isDarkMode ? pageColors.accent : primaryColor }}>
+                                                            #{withRisk ? myStats.position_with_risk : myStats.position_without_risk}
+                                                        </p>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Clock size={16} className="mx-auto mb-1" style={{ color: pageColors.textMuted }} />
+                                                        <p className="text-[10px]" style={{ color: pageColors.textMuted }}>Provisional</p>
+                                                        <p className="font-bold" style={{ color: pageColors.textMuted }}>
+                                                            {completedQuizzes > 0 ? formatScore(temporaryScore) : '-'}
+                                                        </p>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                {/* Pagination - always show if there are users */}
-                                {pagination.totalUsers > 0 && (
+                                    {/* Ranking Table */}
                                     <div 
-                                        className="flex items-center justify-between p-3 rounded-lg border"
+                                        className="rounded-xl border-2 overflow-hidden"
                                         style={{ backgroundColor: pageColors.bg, borderColor: pageColors.border }}
                                     >
-                                        <span className="text-sm" style={{ color: pageColors.textMuted }}>
-                                            {((pagination.currentPage - 1) * pagination.perPage) + 1}-{Math.min(pagination.currentPage * pagination.perPage, pagination.totalUsers)} de {pagination.totalUsers}
-                                            {pagination.totalPages > 1 && ` (Página ${pagination.currentPage} de ${pagination.totalPages})`}
-                                        </span>
-                                        {pagination.totalPages > 1 && (
-                                            <div className="flex items-center gap-1">
-                                                <button 
-                                                    onClick={firstPage} 
-                                                    disabled={pagination.currentPage === 1} 
-                                                    className="p-1.5 rounded border disabled:opacity-30 transition-all hover:bg-gray-100"
-                                                    style={{ 
-                                                        color: pageColors.text,
-                                                        borderColor: pageColors.border,
-                                                        backgroundColor: pageColors.bg
-                                                    }}
-                                                >
-                                                    <ChevronsLeft className="w-4 h-4" />
-                                                </button>
-                                                <button 
-                                                    onClick={prevPage} 
-                                                    disabled={pagination.currentPage === 1} 
-                                                    className="p-1.5 rounded border disabled:opacity-30 transition-all hover:bg-gray-100"
-                                                    style={{ 
-                                                        color: pageColors.text,
-                                                        borderColor: pageColors.border,
-                                                        backgroundColor: pageColors.bg
-                                                    }}
-                                                >
-                                                    <ChevronLeft className="w-4 h-4" />
-                                                </button>
-                                                <div className="flex gap-1">{renderPageNumbers()}</div>
-                                                <button 
-                                                    onClick={nextPage} 
-                                                    disabled={pagination.currentPage === pagination.totalPages} 
-                                                    className="p-1.5 rounded border disabled:opacity-30 transition-all hover:bg-gray-100"
-                                                    style={{ 
-                                                        color: pageColors.text,
-                                                        borderColor: pageColors.border,
-                                                        backgroundColor: pageColors.bg
-                                                    }}
-                                                >
-                                                    <ChevronRight className="w-4 h-4" />
-                                                </button>
-                                                <button 
-                                                    onClick={lastPage} 
-                                                    disabled={pagination.currentPage === pagination.totalPages} 
-                                                    className="p-1.5 rounded border disabled:opacity-30 transition-all hover:bg-gray-100"
-                                                    style={{ 
-                                                        color: pageColors.text,
-                                                        borderColor: pageColors.border,
-                                                        backgroundColor: pageColors.bg
-                                                    }}
-                                                >
-                                                    <ChevronsRight className="w-4 h-4" />
-                                                </button>
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : `${primaryColor}08` }}>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>#</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>Usuario</th>
+                                                    <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>Sin Riesgo</th>
+                                                    <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>Con Riesgo</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {ranking.map((user) => {
+                                                    const isCurrentUser = user.is_current_user;
+                                                    const positionColor = 
+                                                        user.position === 1 ? '#eab308' :
+                                                        user.position === 2 ? '#9ca3af' :
+                                                        user.position === 3 ? '#f97316' :
+                                                        pageColors.text;
+
+                                                    const currentUserColor = isDarkMode ? pageColors.accent : primaryColor;
+
+                                                    return (
+                                                        <tr
+                                                            key={user.user_id}
+                                                            className="border-t transition-colors"
+                                                            style={{
+                                                                borderColor: pageColors.border,
+                                                                backgroundColor: isCurrentUser 
+                                                                    ? isDarkMode ? 'rgba(245, 158, 11, 0.1)' : `${primaryColor}08`
+                                                                    : 'transparent'
+                                                            }}
+                                                        >
+                                                            <td className="px-4 py-3">
+                                                                <div className="flex items-center gap-1">
+                                                                    {user.position <= 3 && (
+                                                                        <Trophy className="w-4 h-4" style={{ color: positionColor }} />
+                                                                    )}
+                                                                    <span className="font-bold" style={{ color: positionColor }}>
+                                                                        {user.position}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <div className="flex items-center gap-2">
+                                                                    <img
+                                                                        src={user.avatar_url}
+                                                                        alt=""
+                                                                        className="w-8 h-8 rounded-full"
+                                                                    />
+                                                                    <span 
+                                                                        className="font-medium"
+                                                                        style={{ color: isCurrentUser ? currentUserColor : pageColors.text }}
+                                                                    >
+                                                                        {user.display_name}
+                                                                        {isCurrentUser && (
+                                                                            <span 
+                                                                                className="ml-2 text-[10px] px-1.5 py-0.5 rounded"
+                                                                                style={{ 
+                                                                                    backgroundColor: isDarkMode ? pageColors.accent : primaryColor, 
+                                                                                    color: '#fff' 
+                                                                                }}
+                                                                            >
+                                                                                Tú
+                                                                            </span>
+                                                                        )}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center">
+                                                                <span 
+                                                                    className={`font-bold ${!withRisk ? 'underline decoration-2' : ''}`}
+                                                                    style={{ 
+                                                                        color: isCurrentUser ? currentUserColor : pageColors.text,
+                                                                        textDecorationColor: '#10b981'
+                                                                    }}
+                                                                >
+                                                                    {formatScore(user.score_without_risk ?? 0)}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center">
+                                                                <span 
+                                                                    className={`font-bold ${withRisk ? 'underline decoration-2' : ''}`}
+                                                                    style={{ 
+                                                                        color: isCurrentUser ? currentUserColor : pageColors.text,
+                                                                        textDecorationColor: pageColors.accent
+                                                                    }}
+                                                                >
+                                                                    {formatScore(user.score_with_risk ?? 0)}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+
+                                        {ranking.length === 0 && !loading && (
+                                            <div className="text-center py-8">
+                                                <Trophy className="w-10 h-10 mx-auto mb-3" style={{ color: pageColors.border }} />
+                                                <p className="font-medium" style={{ color: pageColors.textMuted }}>
+                                                    No hay usuarios en el ranking
+                                                </p>
                                             </div>
                                         )}
                                     </div>
-                                )}
-                            </>
-                        )}
+
+                                    {/* Pagination */}
+                                    {pagination.totalUsers > 0 && (
+                                        <div 
+                                            className="flex flex-col sm:flex-row items-center justify-between p-3 rounded-lg border gap-2"
+                                            style={{ backgroundColor: pageColors.bg, borderColor: pageColors.border }}
+                                        >
+                                            <span className="text-sm" style={{ color: pageColors.textMuted }}>
+                                                {((pagination.currentPage - 1) * pagination.perPage) + 1}-{Math.min(pagination.currentPage * pagination.perPage, pagination.totalUsers)} de {pagination.totalUsers}
+                                                {pagination.totalPages > 1 && ` (Página ${pagination.currentPage} de ${pagination.totalPages})`}
+                                            </span>
+                                            {pagination.totalPages > 1 && (
+                                                <div className="flex items-center gap-1">
+                                                    <button 
+                                                        onClick={firstPage} 
+                                                        disabled={pagination.currentPage === 1} 
+                                                        className="p-1.5 rounded border disabled:opacity-30 transition-all"
+                                                        style={{ 
+                                                            color: pageColors.text,
+                                                            borderColor: pageColors.border,
+                                                            backgroundColor: pageColors.bg
+                                                        }}
+                                                        onMouseEnter={(e) => {
+                                                            if (pagination.currentPage !== 1) {
+                                                                e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6';
+                                                            }
+                                                        }}
+                                                        onMouseLeave={(e) => {
+                                                            e.currentTarget.style.backgroundColor = pageColors.bg;
+                                                        }}
+                                                    >
+                                                        <ChevronsLeft className="w-4 h-4" />
+                                                    </button>
+                                                    <button 
+                                                        onClick={prevPage} 
+                                                        disabled={pagination.currentPage === 1} 
+                                                        className="p-1.5 rounded border disabled:opacity-30 transition-all"
+                                                        style={{ 
+                                                            color: pageColors.text,
+                                                            borderColor: pageColors.border,
+                                                            backgroundColor: pageColors.bg
+                                                        }}
+                                                        onMouseEnter={(e) => {
+                                                            if (pagination.currentPage !== 1) {
+                                                                e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6';
+                                                            }
+                                                        }}
+                                                        onMouseLeave={(e) => {
+                                                            e.currentTarget.style.backgroundColor = pageColors.bg;
+                                                        }}
+                                                    >
+                                                        <ChevronLeft className="w-4 h-4" />
+                                                    </button>
+                                                    <div className="flex gap-1">{renderPageNumbers()}</div>
+                                                    <button 
+                                                        onClick={nextPage} 
+                                                        disabled={pagination.currentPage === pagination.totalPages} 
+                                                        className="p-1.5 rounded border disabled:opacity-30 transition-all"
+                                                        style={{ 
+                                                            color: pageColors.text,
+                                                            borderColor: pageColors.border,
+                                                            backgroundColor: pageColors.bg
+                                                        }}
+                                                        onMouseEnter={(e) => {
+                                                            if (pagination.currentPage !== pagination.totalPages) {
+                                                                e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6';
+                                                            }
+                                                        }}
+                                                        onMouseLeave={(e) => {
+                                                            e.currentTarget.style.backgroundColor = pageColors.bg;
+                                                        }}
+                                                    >
+                                                        <ChevronRight className="w-4 h-4" />
+                                                    </button>
+                                                    <button 
+                                                        onClick={lastPage} 
+                                                        disabled={pagination.currentPage === pagination.totalPages} 
+                                                        className="p-1.5 rounded border disabled:opacity-30 transition-all"
+                                                        style={{ 
+                                                            color: pageColors.text,
+                                                            borderColor: pageColors.border,
+                                                            backgroundColor: pageColors.bg
+                                                        }}
+                                                        onMouseEnter={(e) => {
+                                                            if (pagination.currentPage !== pagination.totalPages) {
+                                                                e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6';
+                                                            }
+                                                        }}
+                                                        onMouseLeave={(e) => {
+                                                            e.currentTarget.style.backgroundColor = pageColors.bg;
+                                                        }}
+                                                    >
+                                                        <ChevronsRight className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
-        </>
+        </div>
+    );
+};
+
+// Componente principal que incluye todo (para compatibilidad con uso simple)
+const CourseRankingPanel = ({ courseId, courseName, isOpen, onOpen, onClose }) => {
+    // Estado interno solo si no se controla externamente
+    const [internalIsOpen, setInternalIsOpen] = useState(false);
+    
+    // Usar estado externo si está disponible, sino interno
+    const isControlled = isOpen !== undefined;
+    const showPanel = isControlled ? isOpen : internalIsOpen;
+    const handleOpen = isControlled ? onOpen : () => setInternalIsOpen(true);
+    const handleClose = isControlled ? onClose : () => setInternalIsOpen(false);
+
+    return (
+        <CourseRankingProvider
+            courseId={courseId}
+            courseName={courseName}
+            isOpen={showPanel}
+            onOpen={handleOpen}
+            onClose={handleClose}
+        >
+            <CourseRankingTrigger />
+            <CourseRankingSlidePanel />
+        </CourseRankingProvider>
     );
 };
 

@@ -121,6 +121,7 @@ class QE_API_Loader
             'user-stats' => 'class-qe-user-stats-api.php',
             'user-enrollments' => 'class-qe-user-enrollments-api.php',
             'course-lessons' => 'class-qe-course-lessons-api.php',
+            'course-quizzes' => 'class-qe-course-quizzes-api.php',
             'courses-bulk' => 'class-qe-courses-bulk-api.php',
             'ghost-users' => 'class-qe-ghost-users-api.php',
             'notifications' => 'class-qe-notifications-api.php',

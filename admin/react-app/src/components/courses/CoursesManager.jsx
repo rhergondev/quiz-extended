@@ -15,12 +15,17 @@ import CourseListItem from './CourseListItem';
 import CourseEditorPanel from './CourseEditorPanel';
 import LessonEditorPanel from '../lessons/LessonEditorPanel';
 import QuizEditorPanel from '../quizzes/QuizEditorPanel';
+import CourseQuizBatchActions from './CourseQuizBatchActions';
 
 const CoursesManager = () => {
   const { t } = useTranslation();
 
   // --- ESTADO PRINCIPAL: GESTIÓN DE LA PILA DE PANELES ---
   const [panelStack, setPanelStack] = useState([{ type: 'courseList' }]);
+  
+  // --- ESTADO PARA BATCH ACTIONS ---
+  const [showBatchPanel, setShowBatchPanel] = useState(false);
+  const [batchCourseId, setBatchCourseId] = useState(null);
 
   // --- HOOKS DE DATOS ---
   const coursesHook = useCourses({ 
@@ -48,6 +53,11 @@ const CoursesManager = () => {
   
   const handleTriggerCreation = (childType, onCreatedCallback) => {
     setPanelStack(prev => [...prev, { type: childType, id: 'new', onCreated: onCreatedCallback }]);
+  };
+
+  const handleOpenBatchActions = (courseId) => {
+    setBatchCourseId(courseId);
+    setShowBatchPanel(true);
   };
 
   const handleSaveAndAttachChild = async (childData, childType) => {
@@ -151,6 +161,7 @@ const CoursesManager = () => {
                       isCollapsed={isCollapsed}
                       categoryOptions={categoryOptions.filter(opt => opt.value !== 'all')}
                       onCategoryCreated={refetchTaxonomies}
+                      onOpenBatchActions={panel.id !== 'new' ? () => handleOpenBatchActions(panel.id) : null}
                   />
               );
           case 'lesson':
@@ -197,6 +208,17 @@ const CoursesManager = () => {
                 {renderPanel(panel, index)}
             </div>
         ))}
+
+        {/* Panel de Acciones por Lotes para Quizzes del Curso */}
+        {showBatchPanel && batchCourseId && (
+          <CourseQuizBatchActions
+            courseId={batchCourseId}
+            onClose={() => {
+              setShowBatchPanel(false);
+              setBatchCourseId(null);
+            }}
+          />
+        )}
     </div>
   );
 };

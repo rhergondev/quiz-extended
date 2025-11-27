@@ -12,7 +12,7 @@ import { getCourseLessons } from '../../../api/services/courseLessonService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import Quiz from '../../../components/frontend/Quiz';
 import QuizResults from '../../../components/frontend/QuizResults';
-import CourseRankingPanel from '../../../components/frontend/CourseRankingPanel';
+import { CourseRankingProvider, CourseRankingTrigger, CourseRankingSlidePanel } from '../../../components/frontend/CourseRankingPanel';
 import { ChevronDown, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, XCircle, Loader, Trophy } from 'lucide-react';
 
 const TestsPage = () => {
@@ -52,6 +52,7 @@ const TestsPage = () => {
   const [resultsQuestions, setResultsQuestions] = useState(null);
   const [resultsQuizInfo, setResultsQuizInfo] = useState(null);
   const [isQuizFocusMode, setIsQuizFocusMode] = useState(false); // 🎯 Focus mode: hide all UI when quiz is running
+  const [isRankingOpen, setIsRankingOpen] = useState(false); // 🏆 Ranking panel state
   
   // 🆕 Estado para vista de intento previo
   const [viewingAttemptId, setViewingAttemptId] = useState(null);
@@ -482,12 +483,19 @@ const TestsPage = () => {
       courseName={courseName}
       sectionName={t('courses.tests')}
     >
+      <CourseRankingProvider
+        courseId={courseId}
+        courseName={courseName}
+        isOpen={isRankingOpen}
+        onOpen={() => setIsRankingOpen(true)}
+        onClose={() => setIsRankingOpen(false)}
+      >
       <div className="relative h-full">
         {/* Main Content - Lista de tests */}
         {!isExternalNavigation && (
           <div 
             className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
-              selectedTest ? '-translate-x-full' : 'translate-x-0'
+              selectedTest || isRankingOpen ? '-translate-x-full' : 'translate-x-0'
             }`}
           >
             <div className="h-full overflow-y-auto">
@@ -513,11 +521,8 @@ const TestsPage = () => {
             ) : (
               // 🎨 Contenedor global con borde único
               <div className="py-4">
-                {/* 🏆 Panel de Ranking del Curso - Arriba de la lista de tests */}
-                <CourseRankingPanel 
-                  courseId={courseId} 
-                  courseName={courseName}
-                />
+                {/* 🏆 Botón de Ranking del Curso - Arriba de la lista de tests */}
+                <CourseRankingTrigger />
                 
                 <div 
                   className="rounded-xl overflow-hidden border-2"
@@ -995,18 +1000,6 @@ const TestsPage = () => {
                               gap: '1rem'
                             }}
                           >
-                            {/* Media UA */}
-                            <div>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: pageColors.textMuted }}>
-                                  {t('tests.avgScore')}
-                                </span>
-                              </div>
-                              <div className="text-2xl font-bold" style={{ color: pageColors.text }}>
-                                {formatScore(ranking?.statistics?.avg_score_without_risk || 0)}
-                              </div>
-                            </div>
-
                             {/* Mi Nota */}
                             <div>
                               <div className="flex items-center justify-between mb-1">
@@ -1019,7 +1012,19 @@ const TestsPage = () => {
                               </div>
                             </div>
 
-                            {/* Percentil (diferencia) */}
+                            {/* Media UA */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: pageColors.textMuted }}>
+                                  {t('tests.avgScore')}
+                                </span>
+                              </div>
+                              <div className="text-2xl font-bold" style={{ color: pageColors.text }}>
+                                {formatScore(ranking?.statistics?.avg_score_without_risk || 0)}
+                              </div>
+                            </div>
+
+                            {/* Mi Percentil (diferencia) */}
                             <div>
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: pageColors.textMuted }}>
@@ -1080,18 +1085,6 @@ const TestsPage = () => {
                               gap: '1rem'
                             }}
                           >
-                            {/* Media UA */}
-                            <div>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: pageColors.textMuted }}>
-                                  {t('tests.avgScore')}
-                                </span>
-                              </div>
-                              <div className="text-2xl font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
-                                {formatScore(ranking?.statistics?.avg_score_with_risk || 0)}
-                              </div>
-                            </div>
-
                             {/* Mi Nota */}
                             <div>
                               <div className="flex items-center justify-between mb-1">
@@ -1104,7 +1097,19 @@ const TestsPage = () => {
                               </div>
                             </div>
 
-                            {/* Percentil (diferencia) */}
+                            {/* Media UA */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: pageColors.textMuted }}>
+                                  {t('tests.avgScore')}
+                                </span>
+                              </div>
+                              <div className="text-2xl font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
+                                {formatScore(ranking?.statistics?.avg_score_with_risk || 0)}
+                              </div>
+                            </div>
+
+                            {/* Mi Percentil (diferencia) */}
                             <div>
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: pageColors.textMuted }}>
@@ -1182,14 +1187,14 @@ const TestsPage = () => {
 
                     {/* Widgets Horizontales - Info del Test */}
                     <div 
-                      className="grid grid-cols-2 sm:grid-cols-4"
+                      className="grid grid-cols-3"
                       style={{ 
                         minHeight: '80px'
                       }}
                     >
                         {/* Preguntas */}
                         <div 
-                          className="flex flex-col items-center justify-center py-3 border-r border-b sm:border-b-0 transition-all duration-200"
+                          className="flex flex-col items-center justify-center py-3 border-r transition-all duration-200"
                           style={{ 
                             borderColor: pageColors.borderSubtle,
                             backgroundColor: 'transparent'
@@ -1218,7 +1223,7 @@ const TestsPage = () => {
 
                         {/* Tiempo Límite */}
                         <div 
-                          className="flex flex-col items-center justify-center py-3 sm:border-r border-b sm:border-b-0 transition-all duration-200"
+                          className="flex flex-col items-center justify-center py-3 border-r transition-all duration-200"
                           style={{ 
                             borderColor: pageColors.borderSubtle,
                             backgroundColor: 'transparent'
@@ -1242,35 +1247,6 @@ const TestsPage = () => {
                             style={{ color: pageColors.textMuted }}
                           >
                             {selectedTest.data?.time_limit ? t('tests.minutes') : t('tests.noTimeLimit')}
-                          </span>
-                        </div>
-
-                        {/* Puntuación de Aprobado */}
-                        <div 
-                          className="flex flex-col items-center justify-center py-3 border-r transition-all duration-200"
-                          style={{ 
-                            borderColor: pageColors.borderSubtle,
-                            backgroundColor: 'transparent'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = pageColors.bgSubtle}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                        >
-                          <Award 
-                            size={20} 
-                            style={{ color: pageColors.text }} 
-                            className="mb-1" 
-                          />
-                          <span 
-                            className="text-xl font-bold"
-                            style={{ color: pageColors.text }}
-                          >
-                            {selectedTest.data?.passing_score || 70}%
-                          </span>
-                          <span 
-                            className="text-[10px] mt-0.5"
-                            style={{ color: pageColors.textMuted }}
-                          >
-                            {t('tests.passingScore')}
                           </span>
                         </div>
 
@@ -1658,7 +1634,11 @@ const TestsPage = () => {
             </div>
           )}
         </div>
+
+        {/* 🏆 Ranking Panel - Slides from right */}
+        <CourseRankingSlidePanel />
       </div>
+      </CourseRankingProvider>
     </CoursePageTemplate>
     
     {/* 🎯 FOCUS MODE: Full-screen Quiz overlay */}

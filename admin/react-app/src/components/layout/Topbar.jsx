@@ -97,7 +97,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
   // Menu items when NOT in a course (global navigation)
   const globalMenuItems = [
     { to: '/courses', text: t('sidebar.studyPlanner'), icon: BookOpen, type: 'internal' },
-    { to: `${homeUrl}/subscripciones`, text: t('sidebar.subscriptions', 'Suscripciones'), icon: CreditCard, type: 'internal' },
+    { to: `${homeUrl}/suscripciones`, text: t('sidebar.subscriptions', 'Suscripciones'), icon: CreditCard, type: 'exit' },
     { to: `${homeUrl}/mi-cuenta/downloads/`, text: t('sidebar.books'), icon: FileText, type: 'external' },
     { to: homeUrl, text: t('sidebar.exitCampus'), icon: Home, type: 'exit' },
   ];

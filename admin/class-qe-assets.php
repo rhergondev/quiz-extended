@@ -94,7 +94,7 @@ class QE_Assets
                     'courseTypes' => $api_url_base . '/wp/v2/course_type',
                     'media' => $api_url_base . '/wp/v2/media',
                     'users' => $api_url_base . '/wp/v2/users',
-                    'custom_api' => $api_url_base . '/quiz-extended/v1',
+                    'custom_api' => $api_url_base . '/qe/v1',
                 ],
                 'debug' => WP_DEBUG,
                 'i18n' => [

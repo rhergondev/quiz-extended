@@ -288,30 +288,66 @@ const MigrationPage = () => {
           </div>
 
           {/* Resultados */}
-          {result && result.stats && result.stats.updated !== undefined && (
+          {result && result.stats && result.stats.updated !== undefined && result.stats.processed !== undefined && (
             <div className="mt-4 p-4 rounded-lg bg-green-50 border border-green-200">
-              <div className="flex items-center gap-2 mb-2 text-green-700 font-bold">
+              <div className="flex items-center gap-2 mb-3 text-green-700 font-bold">
                 <CheckCircle size={18} />
                 <span>Migración Completada</span>
               </div>
-              <div className="grid grid-cols-4 gap-4 text-sm text-green-800">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-green-800 mb-3">
                 <div>
                   <span className="block font-semibold">Total:</span>
-                  {result.stats?.total}
+                  {result.stats?.total?.toLocaleString()}
+                </div>
+                <div>
+                  <span className="block font-semibold">Procesados:</span>
+                  {result.stats?.processed?.toLocaleString()}
                 </div>
                 <div>
                   <span className="block font-semibold">Actualizados:</span>
-                  {result.stats?.updated}
+                  <span className="text-green-600 font-bold">{result.stats?.updated?.toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="block font-semibold">Ya Migrados:</span>
+                  {result.stats?.already_migrated?.toLocaleString()}
+                </div>
+                <div>
+                  <span className="block font-semibold">Sin Relaciones:</span>
+                  {result.stats?.no_relations?.toLocaleString()}
                 </div>
                 <div>
                   <span className="block font-semibold">Omitidos:</span>
-                  {result.stats?.skipped}
+                  {result.stats?.skipped?.toLocaleString()}
+                </div>
+                <div>
+                  <span className="block font-semibold">Batches:</span>
+                  {result.stats?.batches_completed}
                 </div>
                 <div>
                   <span className="block font-semibold">Errores:</span>
-                  {result.stats?.errors}
+                  <span className={result.stats?.errors > 0 ? "text-red-600 font-bold" : ""}>
+                    {result.stats?.errors?.toLocaleString()}
+                  </span>
                 </div>
               </div>
+              
+              {/* Detalles de errores si hay */}
+              {result.stats?.error_details && result.stats.error_details.length > 0 && (
+                <div className="mt-3 p-3 bg-red-50 rounded border border-red-200">
+                  <p className="text-red-700 font-semibold mb-2">Detalles de Errores (primeros 10):</p>
+                  <ul className="text-xs text-red-600 space-y-1">
+                    {result.stats.error_details.map((err, idx) => (
+                      <li key={idx}>
+                        <strong>Pregunta #{err.question_id}:</strong> {err.error}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              <p className="text-xs text-green-600 mt-3 italic">
+                ✅ Es seguro ejecutar esta migración múltiples veces. Los datos no se duplicarán.
+              </p>
             </div>
           )}
         </div>

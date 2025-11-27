@@ -74,9 +74,15 @@ class QE_Migration_API extends QE_API_Base
      * 
      * Populates _course_ids and _lesson_ids from legacy single fields
      * AND from associated Quizzes
+     * 
+     * Processes in batches to handle large datasets
      */
     private function migrate_questions_to_multirelationship()
     {
+        // Increase limits for large migrations
+        @set_time_limit(300);
+        wp_raise_memory_limit('admin');
+
         try {
             // 1. Get all Quizzes and their relationships to build a map
             $quizzes = get_posts([
@@ -116,90 +122,148 @@ class QE_Migration_API extends QE_API_Base
                 }
             }
 
-            // 2. Process all Questions
-            $questions = get_posts([
+            // 2. Count total questions first
+            $total_query = new WP_Query([
                 'post_type' => 'qe_question',
-                'posts_per_page' => -1,
+                'posts_per_page' => 1,
                 'post_status' => 'any',
                 'fields' => 'ids',
             ]);
+            $total_questions = $total_query->found_posts;
 
             $stats = [
-                'total' => count($questions),
+                'total' => $total_questions,
+                'processed' => 0,
                 'updated' => 0,
                 'skipped' => 0,
-                'errors' => 0
+                'already_migrated' => 0,
+                'no_relations' => 0,
+                'errors' => 0,
+                'error_details' => [],
+                'batches_completed' => 0,
             ];
 
-            foreach ($questions as $question_id) {
-                try {
-                    $needs_update = false;
+            // 3. Process in batches
+            $batch_size = 500;
+            $offset = 0;
 
-                    // Current values
-                    $current_courses = get_post_meta($question_id, '_course_ids', true);
-                    $current_lessons = get_post_meta($question_id, '_lesson_ids', true);
+            while ($offset < $total_questions) {
+                $questions = get_posts([
+                    'post_type' => 'qe_question',
+                    'posts_per_page' => $batch_size,
+                    'offset' => $offset,
+                    'post_status' => 'any',
+                    'fields' => 'ids',
+                    'orderby' => 'ID',
+                    'order' => 'ASC',
+                ]);
 
-                    if (!is_array($current_courses))
-                        $current_courses = [];
-                    if (!is_array($current_lessons))
-                        $current_lessons = [];
-
-                    // Legacy values
-                    $legacy_course = get_post_meta($question_id, '_course_id', true);
-                    if ($legacy_course)
-                        $current_courses[] = $legacy_course;
-
-                    $legacy_lesson = get_post_meta($question_id, '_lesson_id', true);
-                    if ($legacy_lesson)
-                        $current_lessons[] = $legacy_lesson;
-
-                    // Merge from map (Quizzes)
-                    if (isset($question_map[$question_id])) {
-                        $current_courses = array_merge($current_courses, $question_map[$question_id]['courses']);
-                        $current_lessons = array_merge($current_lessons, $question_map[$question_id]['lessons']);
-                    }
-
-                    // Unique and clean
-                    $new_courses = array_unique(array_map('absint', array_filter($current_courses)));
-                    $new_lessons = array_unique(array_map('absint', array_filter($current_lessons)));
-
-                    // Sort for consistency
-                    sort($new_courses);
-                    sort($new_lessons);
-
-                    // Check if update is needed
-                    $old_courses = get_post_meta($question_id, '_course_ids', true);
-                    $old_lessons = get_post_meta($question_id, '_lesson_ids', true);
-
-                    if (!is_array($old_courses))
-                        $old_courses = [];
-                    if (!is_array($old_lessons))
-                        $old_lessons = [];
-
-                    sort($old_courses);
-                    sort($old_lessons);
-
-                    if ($old_courses !== $new_courses) {
-                        update_post_meta($question_id, '_course_ids', $new_courses);
-                        $needs_update = true;
-                    }
-
-                    if ($old_lessons !== $new_lessons) {
-                        update_post_meta($question_id, '_lesson_ids', $new_lessons);
-                        $needs_update = true;
-                    }
-
-                    if ($needs_update) {
-                        $stats['updated']++;
-                    } else {
-                        $stats['skipped']++;
-                    }
-
-                } catch (Exception $e) {
-                    $stats['errors']++;
-                    error_log("Error migrating question $question_id: " . $e->getMessage());
+                if (empty($questions)) {
+                    break;
                 }
+
+                foreach ($questions as $question_id) {
+                    $stats['processed']++;
+
+                    try {
+                        $needs_update = false;
+
+                        // Current values
+                        $current_courses = get_post_meta($question_id, '_course_ids', true);
+                        $current_lessons = get_post_meta($question_id, '_lesson_ids', true);
+
+                        if (!is_array($current_courses))
+                            $current_courses = [];
+                        if (!is_array($current_lessons))
+                            $current_lessons = [];
+
+                        // Legacy values
+                        $legacy_course = get_post_meta($question_id, '_course_id', true);
+                        if ($legacy_course)
+                            $current_courses[] = $legacy_course;
+
+                        $legacy_lesson = get_post_meta($question_id, '_lesson_id', true);
+                        if ($legacy_lesson)
+                            $current_lessons[] = $legacy_lesson;
+
+                        // Merge from map (Quizzes)
+                        if (isset($question_map[$question_id])) {
+                            $current_courses = array_merge($current_courses, $question_map[$question_id]['courses']);
+                            $current_lessons = array_merge($current_lessons, $question_map[$question_id]['lessons']);
+                        }
+
+                        // Unique and clean
+                        $new_courses = array_unique(array_map('absint', array_filter($current_courses)));
+                        $new_lessons = array_unique(array_map('absint', array_filter($current_lessons)));
+
+                        // Sort for consistency
+                        sort($new_courses);
+                        sort($new_lessons);
+
+                        // If no relations at all, skip
+                        if (empty($new_courses) && empty($new_lessons)) {
+                            $stats['no_relations']++;
+                            continue;
+                        }
+
+                        // Check if update is needed
+                        $old_courses = get_post_meta($question_id, '_course_ids', true);
+                        $old_lessons = get_post_meta($question_id, '_lesson_ids', true);
+
+                        if (!is_array($old_courses))
+                            $old_courses = [];
+                        if (!is_array($old_lessons))
+                            $old_lessons = [];
+
+                        sort($old_courses);
+                        sort($old_lessons);
+
+                        // Check if already identical
+                        if ($old_courses === $new_courses && $old_lessons === $new_lessons) {
+                            $stats['already_migrated']++;
+                            continue;
+                        }
+
+                        if ($old_courses !== $new_courses) {
+                            update_post_meta($question_id, '_course_ids', $new_courses);
+                            $needs_update = true;
+                        }
+
+                        if ($old_lessons !== $new_lessons) {
+                            update_post_meta($question_id, '_lesson_ids', $new_lessons);
+                            $needs_update = true;
+                        }
+
+                        if ($needs_update) {
+                            $stats['updated']++;
+                        } else {
+                            $stats['skipped']++;
+                        }
+
+                    } catch (Exception $e) {
+                        $stats['errors']++;
+                        // Store first 10 error details
+                        if (count($stats['error_details']) < 10) {
+                            $stats['error_details'][] = [
+                                'question_id' => $question_id,
+                                'error' => $e->getMessage()
+                            ];
+                        }
+                        error_log("Error migrating question $question_id: " . $e->getMessage());
+                    }
+                }
+
+                $stats['batches_completed']++;
+                $offset += $batch_size;
+
+                // Free up memory
+                wp_cache_flush();
             }
+
+            // Calculate skipped (those that didn't need update but weren't already migrated or no relations)
+            $stats['skipped'] = $stats['total'] - $stats['updated'] - $stats['already_migrated'] - $stats['no_relations'] - $stats['errors'];
+            if ($stats['skipped'] < 0)
+                $stats['skipped'] = 0;
 
             return $this->success_response([
                 'message' => 'Questions migration completed successfully.',

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Save, Plus, GripVertical, Trash2, UploadCloud, ImageIcon, X, Users } from 'lucide-react';
+import { Save, Plus, GripVertical, Trash2, UploadCloud, ImageIcon, X, Users, Sliders } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -78,7 +78,7 @@ const SortableLessonItem = ({ lesson, onRemove }) => {
   );
 };
 
-const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation, isCollapsed, categoryOptions, onCategoryCreated }) => {
+const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation, isCollapsed, categoryOptions, onCategoryCreated, onOpenBatchActions }) => {
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -411,7 +411,17 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
               )}
           </div>
           {!isCollapsed && (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              {onOpenBatchActions && (
+                <button 
+                  onClick={onOpenBatchActions} 
+                  className="flex items-center gap-2 bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg text-sm hover:bg-purple-700 transition-colors"
+                  title="Acciones por lotes en Quizzes"
+                >
+                  <Sliders className="h-4 w-4" />
+                  Batch Quizzes
+                </button>
+              )}
               <button onClick={handleSave} disabled={isSaving} className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg text-sm">
                 {isSaving ? t('common.saving') : t('common.save')}
               </button>
