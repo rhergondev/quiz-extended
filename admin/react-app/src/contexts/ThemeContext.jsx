@@ -129,46 +129,27 @@ const detectWordPressDarkMode = () => {
   return null; // No determinado por WordPress/Tema
 };
 
-// Get initial dark mode: WordPress > localStorage > system preference
+// Get initial dark mode: localStorage (user preference) > WordPress > system preference
 const getInitialDarkMode = () => {
-  // 1. Detectar preferencia de WordPress primero
-  const wpDarkMode = detectWordPressDarkMode();
-  
-  // 2. Si hay una preferencia guardada localmente Y coincide con la de WP inicial,
-  //    o si no hay preferencia de WP, usar la local
+  // 1. PRIORIDAD: Preferencia del usuario guardada en localStorage
   const storedPreference = localStorage.getItem('qe_dark_mode');
-  const storedWpDarkMode = localStorage.getItem('qe_wp_dark_mode');
-  
-  // Si WordPress cambió su modo desde la última visita, sincronizar
-  if (wpDarkMode !== null && storedWpDarkMode !== null) {
-    const previousWpMode = storedWpDarkMode === 'true';
-    if (previousWpMode !== wpDarkMode) {
-      // WordPress cambió, actualizar localStorage y usar el nuevo valor
-      localStorage.setItem('qe_wp_dark_mode', String(wpDarkMode));
-      localStorage.setItem('qe_dark_mode', String(wpDarkMode));
-      return wpDarkMode;
-    }
-  }
-  
-  // Guardar el estado actual de WordPress para futuras comparaciones
-  if (wpDarkMode !== null) {
-    localStorage.setItem('qe_wp_dark_mode', String(wpDarkMode));
-  }
-  
-  // 3. Si hay preferencia guardada localmente, usarla
   if (storedPreference !== null) {
     return storedPreference === 'true';
   }
   
-  // 4. Si WordPress tiene preferencia, usarla
+  // 2. Si no hay preferencia guardada, detectar de WordPress
+  const wpDarkMode = detectWordPressDarkMode();
   if (wpDarkMode !== null) {
+    // Guardar como preferencia inicial
     localStorage.setItem('qe_dark_mode', String(wpDarkMode));
     return wpDarkMode;
   }
   
-  // 5. Fallback a preferencia del sistema
+  // 3. Fallback a preferencia del sistema
   if (window.matchMedia) {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const systemPreference = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    localStorage.setItem('qe_dark_mode', String(systemPreference));
+    return systemPreference;
   }
   
   return false;
@@ -199,73 +180,6 @@ export const ThemeProvider = ({ children }) => {
         darkModeQuery.removeEventListener('change', handleSystemChange);
       };
     }
-  }, []);
-
-  // Observer para detectar cambios en el modo oscuro del tema de WordPress
-  useEffect(() => {
-    const html = document.documentElement;
-    const body = document.body;
-    
-    // Función que usa la detección completa
-    const checkForDarkMode = () => {
-      const detected = detectWordPressDarkMode();
-      return detected === true;
-    };
-    
-    // Handler para cuando detectamos un cambio
-    const handleDarkModeChange = () => {
-      const newDarkMode = checkForDarkMode();
-      const previousWpMode = localStorage.getItem('qe_wp_dark_mode');
-      
-      // Si el tema cambió su modo, sincronizar
-      if (previousWpMode !== String(newDarkMode)) {
-        localStorage.setItem('qe_wp_dark_mode', String(newDarkMode));
-        localStorage.setItem('qe_dark_mode', String(newDarkMode));
-        setIsDarkMode(newDarkMode);
-      }
-    };
-    
-    // Observer para detectar cambios en clases y data attributes
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (mutation.type === 'attributes') {
-          // Solo reaccionar a cambios relevantes
-          const attrName = mutation.attributeName;
-          if (attrName === 'class' || 
-              attrName === 'data-theme' || 
-              attrName === 'data-color-scheme' || 
-              attrName === 'data-mode' ||
-              attrName === 'data-bs-theme') {
-            handleDarkModeChange();
-            break; // Solo necesitamos procesar una vez
-          }
-        }
-      }
-    });
-    
-    // Observar tanto html como body
-    const observerConfig = {
-      attributes: true,
-      attributeFilter: ['class', 'data-theme', 'data-color-scheme', 'data-mode', 'data-bs-theme']
-    };
-    
-    observer.observe(html, observerConfig);
-    observer.observe(body, observerConfig);
-    
-    // También escuchar cambios en localStorage (por si otro script cambia el tema)
-    const handleStorageChange = (e) => {
-      const themeKeys = ['theme', 'color-scheme', 'dark-mode', 'darkMode', 'theme-mode', 'flavor', 'flavor-theme'];
-      if (themeKeys.includes(e.key)) {
-        handleDarkModeChange();
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('storage', handleStorageChange);
-    };
   }, []);
 
   // Aplicar tema al DOM cuando cambia el tema o el modo

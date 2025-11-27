@@ -77,7 +77,7 @@ class QE_Course_Ranking_API extends QE_API_Base
         $course_id = (int) $request->get_param('course_id');
         $with_risk = $request->get_param('with_risk') === 'true' || $request->get_param('with_risk') === true;
         $page = max(1, (int) $request->get_param('page', 1));
-        $per_page = min(50, max(10, (int) $request->get_param('per_page', 20)));
+        $per_page = min(50, max(1, (int) $request->get_param('per_page', 10)));
 
         $current_user_id = get_current_user_id();
 

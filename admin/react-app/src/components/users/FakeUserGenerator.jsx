@@ -5,9 +5,28 @@ import { X, Users, Clipboard } from 'lucide-react';
 import Button from '../common/Button';
 
 const fakeNames = [
-  "Sofía García", "Mateo Rodríguez", "Valentina Martínez", "Santiago Hernández", "Isabella González",
-  "Sebastián Pérez", "Camila López", "Matías Sánchez", "Valeria Ramírez", "Alejandro Flores",
-  "Mariana Gómez", "Diego Díaz", "Gabriela Cruz", "Emiliano Ortiz", "Daniela Reyes"
+  // Nombres femeninos con apellidos españoles
+  "Sofía García", "Valentina Martínez", "Isabella González", "Camila López", "Valeria Ramírez",
+  "Mariana Gómez", "Gabriela Cruz", "Daniela Reyes", "Lucía Fernández", "María Sánchez",
+  "Paula Ruiz", "Carmen Jiménez", "Elena Moreno", "Laura Muñoz", "Ana Álvarez",
+  "Claudia Romero", "Cristina Navarro", "Andrea Torres", "Sara Domínguez", "Marta Gil",
+  "Alba Serrano", "Irene Blanco", "Patricia Molina", "Natalia Ortega", "Rocío Delgado",
+  "Julia Morales", "Adriana Castro", "Silvia Ramos", "Nuria Rubio", "Beatriz Medina",
+  "Raquel Herrero", "Inés Vázquez", "Marina Méndez", "Alicia Guerrero", "Eva Fuentes",
+  "Clara Santos", "Victoria Iglesias", "Teresa Garrido", "Rosa Cortés", "Pilar Cano",
+  "Lorena Nieto", "Miriam Núñez", "Verónica Pascual", "Carolina Prieto", "Sandra Lozano",
+  
+  // Nombres masculinos con apellidos españoles
+  "Mateo Rodríguez", "Santiago Hernández", "Sebastián Pérez", "Matías Sánchez", "Alejandro Flores",
+  "Diego Díaz", "Emiliano Ortiz", "Daniel García", "Pablo Martín", "Javier López",
+  "Carlos Fernández", "Miguel González", "David Ruiz", "Jorge Jiménez", "Andrés Moreno",
+  "Álvaro Muñoz", "Sergio Álvarez", "Adrián Romero", "Raúl Navarro", "Hugo Torres",
+  "Marcos Domínguez", "Iván Gil", "Óscar Serrano", "Rubén Blanco", "Fernando Molina",
+  "Manuel Ortega", "Francisco Delgado", "Ignacio Morales", "Alberto Castro", "Roberto Ramos",
+  "Antonio Rubio", "Pedro Medina", "Juan Herrero", "Rafael Vázquez", "Víctor Méndez",
+  "Luis Guerrero", "Enrique Fuentes", "Ricardo Santos", "Jaime Iglesias", "Guillermo Garrido",
+  "Tomás Cortés", "Eduardo Cano", "Nicolás Nieto", "Gonzalo Núñez", "Héctor Pascual",
+  "Bruno Prieto", "Mario Lozano", "Iker Caballero", "Lucas Calvo", "Aitor Aguilar"
 ];
 
 const FakeUserGenerator = ({ isOpen, onClose }) => {

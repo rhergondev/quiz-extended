@@ -21,12 +21,12 @@ const CourseDashboardPage = () => {
   const [rankingStatus, setRankingStatus] = useState(null);
   const [rankingLoading, setRankingLoading] = useState(true);
 
-  // Dark mode aware colors (same pattern as StatisticsPage)
+  // Dark mode aware colors (same pattern as SupportMaterialPage)
   const pageColors = {
     text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
-    textMuted: getColor('textSecondary', '#6b7280'),
+    textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : `${getColor('primary', '#1a202c')}70`,
     accent: getColor('accent', '#f59e0b'),
-    primary: getColor('primary', '#1a202c'),
+    primary: getColor('primary', '#3b82f6'),
     background: getColor('background', '#ffffff'),
     secondaryBg: getColor('secondaryBackground', '#f3f4f6'),
     cardBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
@@ -220,7 +220,7 @@ const CourseDashboardPage = () => {
                 {t('courses.overallProgress')}
               </span>
             </div>
-            <span className="text-2xl font-bold" style={{ color: pageColors.primary }}>
+            <span className="text-2xl font-bold" style={{ color: pageColors.text }}>
               {overallProgress}%
             </span>
           </div>

@@ -12,7 +12,7 @@ import { getCourseLessons } from '../../../api/services/courseLessonService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import Quiz from '../../../components/frontend/Quiz';
 import QuizResults from '../../../components/frontend/QuizResults';
-import QuizRankingModal from '../../../components/frontend/QuizRankingModal';
+import CourseRankingPanel from '../../../components/frontend/CourseRankingPanel';
 import { ChevronDown, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, XCircle, Loader, Trophy } from 'lucide-react';
 
 const TestsPage = () => {
@@ -55,9 +55,6 @@ const TestsPage = () => {
   
   // 🆕 Estado para vista de intento previo
   const [viewingAttemptId, setViewingAttemptId] = useState(null);
-  
-  // 🏆 Estado para modal de ranking
-  const [showRankingModal, setShowRankingModal] = useState(false);
   
   // Drawing mode states for Quiz component
   const [isDrawingMode, setIsDrawingMode] = useState(false);
@@ -516,6 +513,12 @@ const TestsPage = () => {
             ) : (
               // 🎨 Contenedor global con borde único
               <div className="py-4">
+                {/* 🏆 Panel de Ranking del Curso - Arriba de la lista de tests */}
+                <CourseRankingPanel 
+                  courseId={courseId} 
+                  courseName={courseName}
+                />
+                
                 <div 
                   className="rounded-xl overflow-hidden border-2"
                   style={{ 
@@ -1321,28 +1324,8 @@ const TestsPage = () => {
                     />
 
                     {/* Botones de acción */}
-                    <div className="p-4 flex gap-3">
-                      {/* Botón de Ranking */}
-                      <button
-                        onClick={() => setShowRankingModal(true)}
-                        className="flex-1 py-3 rounded-lg font-bold text-base transition-all flex items-center justify-center gap-2 border-2"
-                        style={{ 
-                          backgroundColor: 'transparent',
-                          borderColor: getColor('primary', '#1a202c'),
-                          color: pageColors.text
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = pageColors.hoverBg;
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                        }}
-                      >
-                        <Trophy size={20} />
-                        <span>{t('ranking.viewRanking')}</span>
-                      </button>
-                      
-                      {/* Botón de comenzar */}
+                    <div className="p-4">
+                      {/* Botón de comenzar - ahora ocupa todo el ancho */}
                       <button
                         onClick={async () => {
                           console.log('🎯 Comenzar test - selectedTest:', selectedTest);
@@ -1365,7 +1348,7 @@ const TestsPage = () => {
                             console.error('❌ No quiz_id found');
                           }
                         }}
-                        className="flex-1 py-3 rounded-lg font-bold text-base transition-all flex items-center justify-center gap-2 shadow-md"
+                        className="w-full py-3 rounded-lg font-bold text-base transition-all flex items-center justify-center gap-2 shadow-md"
                         style={{ 
                           backgroundColor: getColor('primary', '#1a202c'),
                           color: '#ffffff'
@@ -1708,14 +1691,6 @@ const TestsPage = () => {
         </div>
       </div>
     )}
-    
-    {/* 🏆 Quiz Ranking Modal */}
-    <QuizRankingModal
-      isOpen={showRankingModal}
-      onClose={() => setShowRankingModal(false)}
-      quizId={quizId}
-      quizTitle={selectedTest?.title}
-    />
   </>
   );
 };

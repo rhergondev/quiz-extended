@@ -10,7 +10,7 @@ export const useCourseRanking = (courseId) => {
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 0,
-        perPage: 20,
+        perPage: 10, // Changed to 10 per page for panel view
         totalUsers: 0,
         userPage: null
     });
@@ -41,12 +41,15 @@ export const useCourseRanking = (courseId) => {
                 }
                 
                 setMyStats(result.data.my_stats || null);
-                setPagination(result.data.pagination || {
-                    currentPage: 1,
-                    totalPages: 0,
-                    perPage: 20,
-                    totalUsers: 0,
-                    userPage: null
+                
+                // Convert snake_case from API to camelCase
+                const apiPagination = result.data.pagination || {};
+                setPagination({
+                    currentPage: apiPagination.current_page || 1,
+                    totalPages: apiPagination.total_pages || 0,
+                    perPage: apiPagination.per_page || 10,
+                    totalUsers: apiPagination.total_users || 0,
+                    userPage: apiPagination.user_page || null
                 });
             } else {
                 setError(result.message || 'Failed to load ranking');

@@ -46,8 +46,8 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
         onClick={() => setIsOpen(!isOpen)}
         className="w-full px-3 py-2 text-left border rounded-lg flex items-center justify-between transition-all text-sm"
         style={{ 
-          borderColor: isOpen ? pageColors.accent : getColor('borderColor', '#e5e7eb'),
-          backgroundColor: getColor('background', '#ffffff'),
+          borderColor: isOpen ? pageColors.accent : (isDarkMode ? 'rgba(255,255,255,0.2)' : getColor('borderColor', '#e5e7eb')),
+          backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : getColor('background', '#ffffff'),
           color: pageColors.text
         }}
       >
@@ -66,8 +66,8 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
           <div 
             className="absolute z-20 w-full mt-1 max-h-48 overflow-auto rounded-lg shadow-lg border"
             style={{ 
-              backgroundColor: getColor('background', '#ffffff'),
-              borderColor: getColor('borderColor', '#e5e7eb')
+              backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1f2937') : getColor('background', '#ffffff'),
+              borderColor: isDarkMode ? 'rgba(255,255,255,0.2)' : getColor('borderColor', '#e5e7eb')
             }}
           >
             {options.map(option => (
@@ -87,7 +87,7 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
                   className="w-4 h-4 rounded border flex items-center justify-center transition-colors flex-shrink-0"
                   style={{ 
                     backgroundColor: selected.includes(option.value) ? pageColors.accent : 'transparent',
-                    borderColor: selected.includes(option.value) ? pageColors.accent : getColor('borderColor', '#d1d5db')
+                    borderColor: selected.includes(option.value) ? pageColors.accent : (isDarkMode ? 'rgba(255,255,255,0.3)' : getColor('borderColor', '#d1d5db'))
                   }}
                 >
                   {selected.includes(option.value) && <Check size={10} className="text-white" />}
@@ -142,6 +142,10 @@ const QuizGeneratorPage = () => {
     textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : `${getColor('primary', '#1a202c')}60`,
     accent: getColor('accent', '#f59e0b'),
     hoverBg: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#1a202c'),
+    // Colores para inputs y cards en modo oscuro
+    inputBg: isDarkMode ? 'rgba(255,255,255,0.05)' : getColor('background', '#ffffff'),
+    inputBorder: isDarkMode ? 'rgba(255,255,255,0.2)' : getColor('borderColor', '#e5e7eb'),
+    cardBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : getColor('background', '#ffffff'),
   };
 
   // State
@@ -261,15 +265,15 @@ const QuizGeneratorPage = () => {
                 <div 
                   className="rounded-lg border overflow-hidden"
                   style={{ 
-                    backgroundColor: getColor('background', '#ffffff'),
-                    borderColor: getColor('borderColor', '#e5e7eb')
+                    backgroundColor: pageColors.cardBg,
+                    borderColor: pageColors.inputBorder
                   }}
                 >
                   {[1, 2, 3].map(i => (
                     <div 
                       key={i} 
                       className="px-4 py-3 flex items-center gap-3 animate-pulse"
-                      style={{ borderBottom: i < 3 ? `1px solid ${getColor('borderColor', '#e5e7eb')}` : 'none' }}
+                      style={{ borderBottom: i < 3 ? `1px solid ${pageColors.inputBorder}` : 'none' }}
                     >
                       <div className="w-5 h-5 rounded" style={{ backgroundColor: pageColors.text + '20' }}></div>
                       <div className="h-4 rounded flex-1" style={{ backgroundColor: pageColors.text + '15', maxWidth: '200px' }}></div>
@@ -280,8 +284,8 @@ const QuizGeneratorPage = () => {
                 <div 
                   className="rounded-lg border overflow-hidden"
                   style={{ 
-                    backgroundColor: getColor('background', '#ffffff'),
-                    borderColor: getColor('borderColor', '#e5e7eb')
+                    backgroundColor: pageColors.cardBg,
+                    borderColor: pageColors.inputBorder
                   }}
                 >
                   {/* Header */}
@@ -336,8 +340,8 @@ const QuizGeneratorPage = () => {
                                 onChange={(e) => handleConfigChange('difficulty', e.target.value)}
                                 className="w-full px-3 py-2 text-sm border rounded-lg appearance-none transition-all"
                                 style={{ 
-                                  borderColor: getColor('borderColor', '#e5e7eb'),
-                                  backgroundColor: getColor('background', '#ffffff'),
+                                  borderColor: pageColors.inputBorder,
+                                  backgroundColor: pageColors.inputBg,
                                   color: pageColors.text
                                 }}
                               >
@@ -366,8 +370,8 @@ const QuizGeneratorPage = () => {
                               onChange={(e) => handleConfigChange('numQuestions', parseInt(e.target.value) || 10)}
                               className="w-full px-3 py-2 text-sm border rounded-lg transition-all"
                               style={{ 
-                                borderColor: getColor('borderColor', '#e5e7eb'),
-                                backgroundColor: getColor('background', '#ffffff'),
+                                borderColor: pageColors.inputBorder,
+                                backgroundColor: pageColors.inputBg,
                                 color: pageColors.text
                               }}
                             />
@@ -386,8 +390,8 @@ const QuizGeneratorPage = () => {
                               onChange={(e) => handleConfigChange('timeLimit', parseInt(e.target.value) || 0)}
                               className="w-full px-3 py-2 text-sm border rounded-lg transition-all"
                               style={{ 
-                                borderColor: getColor('borderColor', '#e5e7eb'),
-                                backgroundColor: getColor('background', '#ffffff'),
+                                borderColor: pageColors.inputBorder,
+                                backgroundColor: pageColors.inputBg,
                                 color: pageColors.text
                               }}
                             />
@@ -397,7 +401,7 @@ const QuizGeneratorPage = () => {
                     </div>
 
                     {/* Separador */}
-                    <div style={{ height: '1px', backgroundColor: getColor('borderColor', '#e5e7eb') }} />
+                    <div style={{ height: '1px', backgroundColor: pageColors.inputBorder }} />
 
                     {/* Status Filters */}
                     <div>
@@ -422,7 +426,7 @@ const QuizGeneratorPage = () => {
                               onClick={() => toggleStatusFilter(status.id)}
                               className="relative px-2 py-3 rounded-lg border transition-all flex flex-col items-center gap-1.5"
                               style={{ 
-                                borderColor: isSelected ? status.colorHex : getColor('borderColor', '#e5e7eb'),
+                                borderColor: isSelected ? status.colorHex : pageColors.inputBorder,
                                 backgroundColor: isSelected ? `${status.colorHex}15` : 'transparent'
                               }}
                               onMouseEnter={(e) => {
@@ -458,7 +462,7 @@ const QuizGeneratorPage = () => {
                     </div>
 
                     {/* Separador */}
-                    <div style={{ height: '1px', backgroundColor: getColor('borderColor', '#e5e7eb') }} />
+                    <div style={{ height: '1px', backgroundColor: pageColors.inputBorder }} />
 
                     {/* Generate Button */}
                     <button
@@ -512,8 +516,8 @@ const QuizGeneratorPage = () => {
               <div 
                 className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0 gap-2"
                 style={{ 
-                  backgroundColor: getColor('background', '#ffffff'),
-                  borderColor: getColor('borderColor', '#e5e7eb')
+                  backgroundColor: pageColors.cardBg,
+                  borderColor: pageColors.inputBorder
                 }}
               >
                 <div className="flex items-center gap-2 overflow-hidden">

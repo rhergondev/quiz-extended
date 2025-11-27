@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { BookOpen, FileText, User, LogOut, Home, Sun, Moon, Menu, Bell, MessageSquare, BarChart3, Building2, ChevronDown } from 'lucide-react';
+import { BookOpen, FileText, User, LogOut, Home, Sun, Moon, Menu, Bell, MessageSquare, BarChart3, Building2, ChevronDown, CreditCard } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useMessagesContextSafe } from '../../contexts/MessagesContext';
 import { getUnreadNotificationCount } from '../../api/services/notificationsService';
@@ -97,6 +97,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
   // Menu items when NOT in a course (global navigation)
   const globalMenuItems = [
     { to: '/courses', text: t('sidebar.studyPlanner'), icon: BookOpen, type: 'internal' },
+    { to: `${homeUrl}/subscripciones`, text: t('sidebar.subscriptions', 'Suscripciones'), icon: CreditCard, type: 'internal' },
     { to: `${homeUrl}/mi-cuenta/downloads/`, text: t('sidebar.books'), icon: FileText, type: 'external' },
     { to: homeUrl, text: t('sidebar.exitCampus'), icon: Home, type: 'exit' },
   ];

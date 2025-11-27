@@ -39,7 +39,7 @@ const makeApiRequest = async (url, options = {}) => {
 };
 
 export const getCourseRanking = async (courseId, options = {}) => {
-    const { page = 1, perPage = 20, withRisk = false } = options;
+    const { page = 1, perPage = 10, withRisk = false } = options;
     
     const config = getApiConfig();
     const params = new URLSearchParams({
