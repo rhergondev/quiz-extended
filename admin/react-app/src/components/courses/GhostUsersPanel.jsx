@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Users, UserPlus, Trash2, RefreshCw, AlertTriangle, CheckCircle, Loader } from 'lucide-react';
+import { Users, UserPlus, Trash2, RefreshCw, AlertTriangle, CheckCircle, Loader, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { generateGhostUsers, getGhostUsers, deleteGhostUsers } from '../../api/services/ghostUsersService';
 
 const GhostUsersPanel = ({ courseId }) => {
@@ -12,6 +12,8 @@ const GhostUsersPanel = ({ courseId }) => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [userCount, setUserCount] = useState(20);
+  const [generationResult, setGenerationResult] = useState(null);
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
 
   const fetchGhostUsers = useCallback(async () => {
     if (!courseId) return;
@@ -38,10 +40,37 @@ const GhostUsersPanel = ({ courseId }) => {
     setGenerating(true);
     setError(null);
     setSuccess(null);
+    setGenerationResult(null);
 
     try {
       const result = await generateGhostUsers(courseId, userCount);
-      setSuccess(`Se crearon ${result.data?.created_count || 0} usuarios fantasma con sus intentos de cuestionarios`);
+      const data = result.data;
+      
+      // Store detailed generation result
+      setGenerationResult(data);
+      
+      // Build success message with statistics
+      const stats = data?.quiz_statistics;
+      const quizErrors = data?.quiz_errors || [];
+      
+      if (stats) {
+        const successRate = stats.total_attempts_expected > 0 
+          ? Math.round((stats.successful_attempts / stats.total_attempts_expected) * 100) 
+          : 0;
+        
+        let message = `Se crearon ${data?.created_count || 0} usuarios fantasma. `;
+        message += `Cuestionarios: ${stats.successful_attempts}/${stats.total_attempts_expected} intentos exitosos (${successRate}%).`;
+        
+        if (quizErrors.length > 0) {
+          message += ` ⚠️ ${quizErrors.length} cuestionario(s) con errores.`;
+          setShowErrorDetails(true);
+        }
+        
+        setSuccess(message);
+      } else {
+        setSuccess(`Se crearon ${data?.created_count || 0} usuarios fantasma con sus intentos de cuestionarios`);
+      }
+      
       fetchGhostUsers();
     } catch (err) {
       console.error('Error generating ghost users:', err);
@@ -110,6 +139,98 @@ const GhostUsersPanel = ({ courseId }) => {
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
           <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
           <p className="text-sm text-green-700">{success}</p>
+        </div>
+      )}
+
+      {/* Quiz Errors Details */}
+      {generationResult?.quiz_errors?.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg overflow-hidden">
+          <button
+            onClick={() => setShowErrorDetails(!showErrorDetails)}
+            className="w-full flex items-center justify-between p-4 text-left hover:bg-orange-100 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <XCircle className="h-5 w-5 text-orange-600 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-orange-900">
+                  {generationResult.quiz_errors.length} Cuestionario(s) con errores
+                </p>
+                <p className="text-sm text-orange-700">
+                  Estos cuestionarios no pudieron procesarse para los usuarios fantasma
+                </p>
+              </div>
+            </div>
+            {showErrorDetails ? (
+              <ChevronUp className="h-5 w-5 text-orange-600" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-orange-600" />
+            )}
+          </button>
+          
+          {showErrorDetails && (
+            <div className="border-t border-orange-200 p-4">
+              <div className="space-y-3">
+                {generationResult.quiz_errors.map((quizError) => (
+                  <div 
+                    key={quizError.quiz_id} 
+                    className="bg-white border border-orange-100 rounded-lg p-3"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {quizError.quiz_title}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          ID: {quizError.quiz_id}
+                        </p>
+                      </div>
+                      <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
+                        {quizError.affected_users} usuario(s) afectados
+                      </span>
+                    </div>
+                    <div className="mt-2 p-2 bg-red-50 rounded text-sm">
+                      <p className="text-red-700">
+                        <strong>Error ({quizError.error_code}):</strong> {quizError.error}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Statistics Summary */}
+              {generationResult.quiz_statistics && (
+                <div className="mt-4 pt-4 border-t border-orange-200">
+                  <h5 className="text-sm font-medium text-orange-900 mb-2">Resumen de Estadísticas</h5>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div className="bg-white p-2 rounded border border-orange-100">
+                      <p className="text-gray-500">Total cuestionarios</p>
+                      <p className="font-semibold text-gray-900">
+                        {generationResult.quiz_statistics.total_quizzes_in_course}
+                      </p>
+                    </div>
+                    <div className="bg-white p-2 rounded border border-orange-100">
+                      <p className="text-gray-500">Intentos esperados</p>
+                      <p className="font-semibold text-gray-900">
+                        {generationResult.quiz_statistics.total_attempts_expected}
+                      </p>
+                    </div>
+                    <div className="bg-white p-2 rounded border border-green-100">
+                      <p className="text-green-600">Exitosos</p>
+                      <p className="font-semibold text-green-700">
+                        {generationResult.quiz_statistics.successful_attempts}
+                      </p>
+                    </div>
+                    <div className="bg-white p-2 rounded border border-red-100">
+                      <p className="text-red-600">Fallidos</p>
+                      <p className="font-semibold text-red-700">
+                        {generationResult.quiz_statistics.failed_attempts}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

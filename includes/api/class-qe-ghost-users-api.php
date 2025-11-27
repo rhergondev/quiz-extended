@@ -234,10 +234,46 @@ class QE_Ghost_Users_API extends QE_API_Base
             }
         }
 
+        // Aggregate quiz statistics across all users
+        $total_quiz_attempts = 0;
+        $successful_quiz_attempts = 0;
+        $failed_quiz_attempts = 0;
+        $quiz_error_summary = [];
+
+        foreach ($created_users as $user) {
+            $total_quiz_attempts += $user['total_quizzes'] ?? 0;
+            $successful_quiz_attempts += $user['successful_quizzes'] ?? 0;
+            $failed_quiz_attempts += $user['failed_quizzes'] ?? 0;
+
+            // Aggregate quiz errors by quiz_id to avoid duplicates
+            if (!empty($user['quiz_errors'])) {
+                foreach ($user['quiz_errors'] as $quiz_error) {
+                    $quiz_id = $quiz_error['quiz_id'];
+                    if (!isset($quiz_error_summary[$quiz_id])) {
+                        $quiz_error_summary[$quiz_id] = [
+                            'quiz_id' => $quiz_id,
+                            'quiz_title' => $quiz_error['quiz_title'],
+                            'error' => $quiz_error['error'],
+                            'error_code' => $quiz_error['error_code'],
+                            'affected_users' => 0,
+                        ];
+                    }
+                    $quiz_error_summary[$quiz_id]['affected_users']++;
+                }
+            }
+        }
+
         return $this->success_response([
             'created_count' => count($created_users),
             'users' => $created_users,
             'errors' => $errors,
+            'quiz_statistics' => [
+                'total_quizzes_in_course' => count($quizzes),
+                'total_attempts_expected' => count($quizzes) * count($created_users),
+                'successful_attempts' => $successful_quiz_attempts,
+                'failed_attempts' => $failed_quiz_attempts,
+            ],
+            'quiz_errors' => array_values($quiz_error_summary),
         ]);
     }
 
@@ -502,9 +538,17 @@ class QE_Ghost_Users_API extends QE_API_Base
 
         // Complete all quizzes with pre-calculated scores
         $quiz_results = [];
+        $quiz_errors = [];
         foreach ($quizzes as $quiz) {
             $result = $this->create_quiz_attempt($user_id, $course_id, $quiz, $score_targets);
-            if (!is_wp_error($result)) {
+            if (is_wp_error($result)) {
+                $quiz_errors[] = [
+                    'quiz_id' => $quiz['id'],
+                    'quiz_title' => $quiz['title'] ?? 'Sin título',
+                    'error' => $result->get_error_message(),
+                    'error_code' => $result->get_error_code(),
+                ];
+            } else {
                 $quiz_results[] = $result;
             }
         }
@@ -517,6 +561,10 @@ class QE_Ghost_Users_API extends QE_API_Base
             'display_name' => $display_name,
             'email' => $email,
             'quiz_results' => $quiz_results,
+            'quiz_errors' => $quiz_errors,
+            'total_quizzes' => count($quizzes),
+            'successful_quizzes' => count($quiz_results),
+            'failed_quizzes' => count($quiz_errors),
         ];
     }
 

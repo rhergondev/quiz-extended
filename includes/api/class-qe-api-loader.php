@@ -124,7 +124,8 @@ class QE_API_Loader
             'courses-bulk' => 'class-qe-courses-bulk-api.php',
             'ghost-users' => 'class-qe-ghost-users-api.php',
             'notifications' => 'class-qe-notifications-api.php',
-            'debug' => 'class-qe-debug-api.php'
+            'debug' => 'class-qe-debug-api.php',
+            'seeder' => 'class-qe-seeder-api.php',
         ];
 
         foreach ($modules as $name => $file) {
