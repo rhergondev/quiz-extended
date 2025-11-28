@@ -44,8 +44,8 @@ class QE_Admin_Menu
     {
         // Menú Principal
         add_menu_page(
-            __('Quiz Extended LMS', 'quiz-extended'),
-            __('Quiz LMS', 'quiz-extended'),
+            __('Campus Uniforme Azul', 'quiz-extended'),
+            __('Campus', 'quiz-extended'),
             'manage_options',
             'quiz-extended-lms',
             [$this, 'render_react_app'],

@@ -14,6 +14,12 @@ const QuizAttemptDetailsPage = () => {
   
   // Obtener la ruta de retorno del state o usar dashboard por defecto
   const returnPath = location.state?.returnTo || '/';
+  
+  // Obtener contexto de curso/lección desde location.state si está disponible
+  const courseId = location.state?.courseId || null;
+  const courseName = location.state?.courseName || null;
+  const lessonId = location.state?.lessonId || null;
+  const lessonTitle = location.state?.lessonTitle || null;
 
   if (loading) {
     return <div className="flex justify-center items-center h-screen"><Loader className="animate-spin" /></div>;
@@ -65,6 +71,10 @@ const QuizAttemptDetailsPage = () => {
         result={resultProp}
         quizTitle={quizTitleProp}
         questions={questionsProp}
+        courseId={courseId}
+        courseName={courseName}
+        lessonId={lessonId}
+        lessonTitle={lessonTitle}
       />
     </div>
   );

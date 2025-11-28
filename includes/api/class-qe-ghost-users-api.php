@@ -439,7 +439,7 @@ class QE_Ghost_Users_API extends QE_API_Base
         foreach ($ghost_user_ids as $user_id) {
             // Delete quiz attempt answers
             $attempt_ids = $wpdb->get_col($wpdb->prepare(
-                "SELECT id FROM {$attempts_table} WHERE user_id = %d",
+                "SELECT attempt_id FROM {$attempts_table} WHERE user_id = %d",
                 $user_id
             ));
 
@@ -723,30 +723,40 @@ class QE_Ghost_Users_API extends QE_API_Base
 
             // Get question options
             $options = get_post_meta($question_id, '_question_options', true);
-            if (!is_array($options)) {
-                $options = [];
+            if (!is_array($options) || empty($options)) {
+                continue; // Skip questions without options
             }
 
-            // Find correct option index
-            $correct_index = 0;
-            foreach ($options as $opt_index => $option) {
-                if (!empty($option['is_correct'])) {
-                    $correct_index = $opt_index;
-                    break;
+            // Find correct option ID (not index!)
+            $correct_option_id = null;
+            $wrong_option_ids = [];
+
+            foreach ($options as $option) {
+                if (!empty($option['isCorrect'])) {
+                    $correct_option_id = isset($option['id']) ? $option['id'] : null;
+                } else {
+                    if (isset($option['id'])) {
+                        $wrong_option_ids[] = $option['id'];
+                    }
                 }
             }
 
-            // Determine which answer to record
+            // If no correct option found, skip this question
+            if ($correct_option_id === null) {
+                continue;
+            }
+
+            // Determine which answer to record (using option ID, not index)
             if ($is_correct) {
-                $selected_index = $correct_index;
+                $selected_option_id = $correct_option_id;
                 $with_risk = (rand(0, 100) < 30); // 30% answered with risk even if correct
             } else {
                 // Select a wrong answer
-                $wrong_indices = array_diff(array_keys($options), [$correct_index]);
-                if (!empty($wrong_indices)) {
-                    $selected_index = $wrong_indices[array_rand($wrong_indices)];
+                if (!empty($wrong_option_ids)) {
+                    $selected_option_id = $wrong_option_ids[array_rand($wrong_option_ids)];
                 } else {
-                    $selected_index = ($correct_index + 1) % max(1, count($options));
+                    // No wrong options available, use correct one (rare edge case)
+                    $selected_option_id = $correct_option_id;
                 }
                 $with_risk = (rand(0, 100) < 60); // 60% of wrong answers were with risk
             }
@@ -754,7 +764,7 @@ class QE_Ghost_Users_API extends QE_API_Base
             $wpdb->insert($answers_table, [
                 'attempt_id' => $attempt_id,
                 'question_id' => $question_id,
-                'answer_given' => (string) $selected_index,
+                'answer_given' => (string) $selected_option_id,
                 'is_correct' => $is_correct ? 1 : 0,
                 'is_risked' => $with_risk ? 1 : 0,
             ], ['%d', '%d', '%s', '%d', '%d']);

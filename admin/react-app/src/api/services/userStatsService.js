@@ -6,9 +6,13 @@ const getBaseUrl = () => {
   return config.endpoints?.custom_api || `${config.api_url}/quiz-extended/v1`;
 };
 
-export const getUserQuestionStats = async (courseId) => {
+export const getUserQuestionStats = async (courseId, lessonId = null) => {
   const baseUrl = getBaseUrl();
-  const { data } = await makeApiRequest(`${baseUrl}/user-stats/questions?course_id=${courseId}`);
+  let url = `${baseUrl}/user-stats/questions?course_id=${courseId}`;
+  if (lessonId) {
+    url += `&lesson_id=${lessonId}`;
+  }
+  const { data } = await makeApiRequest(url);
   return data;
 };
 
@@ -30,8 +34,12 @@ export const getDifficultyStats = async (courseId) => {
   return data;
 };
 
-export const getScoreEvolution = async (courseId, period = 'week') => {
+export const getScoreEvolution = async (courseId, period = 'week', lessonId = null) => {
   const baseUrl = getBaseUrl();
-  const { data } = await makeApiRequest(`${baseUrl}/user-stats/score-evolution?course_id=${courseId}&period=${period}`);
+  let url = `${baseUrl}/user-stats/score-evolution?course_id=${courseId}&period=${period}`;
+  if (lessonId) {
+    url += `&lesson_id=${lessonId}`;
+  }
+  const { data } = await makeApiRequest(url);
   return data;
 };

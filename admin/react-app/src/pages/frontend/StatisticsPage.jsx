@@ -33,21 +33,6 @@ const StatisticsPage = () => {
   const fetchStatistics = async () => {
     setLoading(true);
     try {
-      const useFakeData = true;
-      
-      if (useFakeData) {
-        setTimeout(() => {
-          setStatsData({
-            total_questions: 150,
-            correct_answers: 95,
-            incorrect_answers: 40,
-            unanswered: 15
-          });
-          setLoading(false);
-        }, 500);
-        return;
-      }
-
       const params = new URLSearchParams();
       if (selectedCourse) {
         params.append('course_id', selectedCourse);
@@ -65,14 +50,16 @@ const StatisticsPage = () => {
       if (!response.ok) throw new Error('Failed to fetch statistics');
       
       const data = await response.json();
+      console.log('Stats API Response:', data);
       setStatsData(data.data);
     } catch (error) {
       console.error('Error fetching statistics:', error);
+      // Fallback to empty data on error
       setStatsData({
-        total_questions: 150,
-        correct_answers: 95,
-        incorrect_answers: 40,
-        unanswered: 15
+        total_questions: 0,
+        correct_answers: 0,
+        incorrect_answers: 0,
+        unanswered: 0
       });
     } finally {
       setLoading(false);

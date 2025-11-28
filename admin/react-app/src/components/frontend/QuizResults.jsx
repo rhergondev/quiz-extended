@@ -7,7 +7,17 @@ import { useTranslation } from 'react-i18next';
 import { useScoreFormat } from '../../contexts/ScoreFormatContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
-const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
+const QuizResults = ({ 
+  result, 
+  quizTitle, 
+  questions, 
+  noPadding = false,
+  // Context props for feedback modal
+  courseId = null,
+  courseName = null,
+  lessonId = null,
+  lessonTitle = null
+}) => {
   const { t } = useTranslation();
   const { formatScore } = useScoreFormat();
   const { getColor, isDarkMode } = useTheme();
@@ -47,6 +57,11 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
   // is_risked indica si la pregunta fue contestada con riesgo activado
   const answeredWithRisk = detailed_results?.filter(r => r.is_risked && r.answer_given !== null).length || 0;
   const totalQuestions = detailed_results?.length || 0;
+
+  // Debug log para verificar datos de riesgo
+  console.log('QuizResults - detailed_results:', detailed_results);
+  console.log('QuizResults - answeredWithRisk:', answeredWithRisk);
+  console.log('QuizResults - is_risked values:', detailed_results?.map(r => ({ question_id: r.question_id, is_risked: r.is_risked, answer_given: r.answer_given })));
 
   const averageScore = average_score ?? null;
   const averageScoreWithRisk = average_score_with_risk ?? null;
@@ -284,6 +299,10 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
                 question={question}
                 result={detailed_results.find(r => r.question_id === question.id)}
                 displayIndex={index + 1}
+                courseId={courseId}
+                courseName={courseName}
+                lessonId={lessonId}
+                lessonTitle={lessonTitle}
               />
             ))}
           </div>

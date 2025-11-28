@@ -6,7 +6,17 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { toggleFavoriteQuestion } from '../../api/services/favoriteService';
 import QuestionFeedbackModal from './QuestionFeedbackModal';
 
-const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
+const ReviewedQuestion = ({ 
+  question, 
+  result, 
+  index, 
+  displayIndex,
+  // Context props for feedback modal
+  courseId = null,
+  courseName = null,
+  lessonId = null,
+  lessonTitle = null
+}) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [feedbackType, setFeedbackType] = useState('feedback');
@@ -443,6 +453,10 @@ const ReviewedQuestion = ({ question, result, index, displayIndex }) => {
           question={question}
           initialFeedbackType={feedbackType}
           onClose={() => setIsFeedbackModalOpen(false)}
+          courseId={courseId}
+          courseName={courseName}
+          lessonId={lessonId}
+          lessonTitle={lessonTitle}
         />
       )}
     </>

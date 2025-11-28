@@ -15,7 +15,7 @@ import {
 import { Calendar, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { getScoreEvolution } from '../../api/services/userStatsService';
 
-const ScoreEvolutionChart = ({ courseId }) => {
+const ScoreEvolutionChart = ({ courseId, lessonId = null }) => {
   const { t } = useTranslation();
   const { getColor } = useTheme();
   const { formatScore, isPercentage } = useScoreFormat();
@@ -33,8 +33,8 @@ const ScoreEvolutionChart = ({ courseId }) => {
       setError(null);
       
       try {
-        console.log(`📈 Fetching evolution for course ${courseId}, period: ${period}`);
-        const response = await getScoreEvolution(courseId, period);
+        console.log(`📈 Fetching evolution for course ${courseId}, lesson ${lessonId}, period: ${period}`);
+        const response = await getScoreEvolution(courseId, period, lessonId);
         console.log('📈 Evolution API Response:', response);
         
         const evolutionData = response.data || [];
@@ -61,7 +61,7 @@ const ScoreEvolutionChart = ({ courseId }) => {
     };
 
     fetchData();
-  }, [courseId, period]);
+  }, [courseId, period, lessonId]);
 
   // Calculate trend
   const trend = useMemo(() => {

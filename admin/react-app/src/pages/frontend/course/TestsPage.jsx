@@ -938,6 +938,10 @@ const TestsPage = () => {
                           quizTitle={attemptDetails.attempt.quizTitle || selectedTest?.title}
                           questions={attemptDetails.questions}
                           noPadding={true}
+                          courseId={courseId}
+                          courseName={courseName}
+                          lessonId={selectedLesson?.id}
+                          lessonTitle={selectedLesson?.title}
                         />
                       </div>
                     </div>
@@ -1626,6 +1630,10 @@ const TestsPage = () => {
                         quizTitle={resultsQuizInfo?.title?.rendered || resultsQuizInfo?.title || selectedTest?.data?.title}
                         questions={resultsQuestions}
                         noPadding={true}
+                        courseId={courseId}
+                        courseName={courseName}
+                        lessonId={selectedLesson?.id}
+                        lessonTitle={selectedLesson?.title}
                       />
                     </div>
                   </div>

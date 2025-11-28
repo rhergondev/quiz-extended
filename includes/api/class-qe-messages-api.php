@@ -97,6 +97,19 @@ class QE_Messages_API extends QE_API_Base
             ]
         );
 
+        // ============================================================
+        // ADMIN SENT MESSAGES - Get messages sent by admin
+        // ============================================================
+
+        $this->register_secure_route(
+            '/messages/sent',
+            WP_REST_Server::READABLE,
+            'get_sent_messages',
+            [
+                'permission_callback' => [$this, 'check_admin_permission']
+            ]
+        );
+
         // Update message (admin)
         register_rest_route($this->namespace, '/messages/(?P<id>\d+)', [
             [
@@ -259,7 +272,11 @@ class QE_Messages_API extends QE_API_Base
             // Validate that recipient_ids is an array
             if (!is_array($recipient_ids)) {
                 $this->log_error('recipient_ids is not an array', ['type' => gettype($recipient_ids)]);
-                return $this->error_response('invalid_recipients', 'Los destinatarios deben ser un array.', 400);
+                return $this->error_response(
+                    'invalid_recipients',
+                    'Error de formato: Los destinatarios deben ser una lista válida.',
+                    400
+                );
             }
 
             // Detect if the message should be sent to all users
@@ -305,7 +322,11 @@ class QE_Messages_API extends QE_API_Base
 
                 if (empty($all_users)) {
                     $this->log_error('No users found in database!');
-                    return $this->error_response('no_users', 'No se encontraron usuarios en la base de datos.', 500);
+                    return $this->error_response(
+                        'no_users',
+                        'No hay usuarios registrados en la plataforma. No se puede enviar el mensaje.',
+                        400
+                    );
                 }
 
 
@@ -331,10 +352,15 @@ class QE_Messages_API extends QE_API_Base
                 ]);
 
                 if (empty($enrolled_users)) {
-                    $this->log_error('No enrolled users found for course', ['course_id' => $course_id]);
+                    // Get course title for better error message
+                    $course_title = get_the_title($course_id);
+                    $this->log_error('No enrolled users found for course', ['course_id' => $course_id, 'course_title' => $course_title]);
                     return $this->error_response(
                         'no_enrolled_users',
-                        'No hay estudiantes matriculados en este curso. El mensaje no se ha enviado.',
+                        sprintf(
+                            'El curso "%s" no tiene estudiantes matriculados. Inscribe usuarios primero antes de enviar mensajes.',
+                            $course_title ?: 'Curso #' . $course_id
+                        ),
                         400
                     );
                 }
@@ -361,11 +387,31 @@ class QE_Messages_API extends QE_API_Base
                     'original_input' => $request->get_param('recipient_ids'),
                     'send_to_all' => $send_to_all
                 ]);
-                return $this->error_response('no_recipients', 'No hay destinatarios válidos después del procesamiento.', 400);
+                return $this->error_response(
+                    'no_recipients',
+                    'No se encontraron destinatarios válidos. Por favor, verifica que hayas seleccionado usuarios existentes.',
+                    400
+                );
+            }
+
+            // Exclude the sender from recipients (admin shouldn't receive their own message)
+            $recipient_ids = array_filter($recipient_ids, function ($id) use ($sender_id) {
+                return absint($id) !== absint($sender_id);
+            });
+            $recipient_ids = array_values($recipient_ids); // Re-index array
+
+            // Check if there are recipients left after excluding sender
+            if (empty($recipient_ids)) {
+                return $this->error_response(
+                    'no_recipients',
+                    'No hay otros usuarios a quienes enviar el mensaje (solo estás tú en la lista).',
+                    400
+                );
             }
 
             $this->log_info('Starting message insertion', [
-                'total_recipients' => count($recipient_ids)
+                'total_recipients' => count($recipient_ids),
+                'sender_excluded' => $sender_id
             ]);
 
             $message_ids = [];
@@ -421,11 +467,12 @@ class QE_Messages_API extends QE_API_Base
             ]);
 
             if (empty($message_ids)) {
-                $error_msg = 'No se pudo enviar ningún mensaje.';
-                if (!empty($errors)) {
-                    $error_msg .= ' Errores: ' . json_encode(array_slice($errors, 0, 3));
-                }
-                return $this->error_response('db_error', $error_msg, 500);
+                $this->log_error('Failed to send any messages', ['errors' => $errors]);
+                return $this->error_response(
+                    'send_failed',
+                    'Ocurrió un error al enviar los mensajes. Por favor, inténtalo de nuevo más tarde.',
+                    500
+                );
             }
 
             delete_transient('qe_unread_messages_count');
@@ -694,6 +741,98 @@ class QE_Messages_API extends QE_API_Base
         } catch (Exception $e) {
             $this->log_error('Exception in get_messages', ['message' => $e->getMessage()]);
             return $this->error_response('internal_error', 'Error al obtener los mensajes.', 500);
+        }
+    }
+
+    // ============================================================
+    // GET SENT MESSAGES (ADMIN)
+    // ============================================================
+
+    /**
+     * Get messages sent by admin, grouped by subject/timestamp
+     */
+    public function get_sent_messages($request)
+    {
+        try {
+            global $wpdb;
+            $table_name = $this->get_table('messages');
+
+            $admin_id = get_current_user_id();
+
+            // Pagination
+            $page = $request->get_param('page') ?: 1;
+            $per_page = $request->get_param('per_page') ?: 20;
+            $offset = ($page - 1) * $per_page;
+
+            // Get grouped sent messages (by subject and timestamp to group bulk sends)
+            // We group messages sent within the same second with the same subject
+            $query = $wpdb->prepare(
+                "SELECT 
+                    MIN(m.id) as id,
+                    m.subject,
+                    m.message,
+                    m.type,
+                    m.created_at,
+                    COUNT(*) as recipient_count,
+                    SUM(CASE WHEN m.status = 'read' THEN 1 ELSE 0 END) as read_count,
+                    GROUP_CONCAT(DISTINCT u.display_name SEPARATOR ', ') as recipient_names
+                FROM {$table_name} m
+                LEFT JOIN {$wpdb->users} u ON m.recipient_id = u.ID
+                WHERE m.sender_id = %d 
+                AND m.type LIKE 'admin_%'
+                GROUP BY m.subject, DATE_FORMAT(m.created_at, '%%Y-%%m-%%d %%H:%%i')
+                ORDER BY m.created_at DESC
+                LIMIT %d OFFSET %d",
+                $admin_id,
+                $per_page,
+                $offset
+            );
+
+            $sent_messages = $wpdb->get_results($query, ARRAY_A);
+
+            // Get total count of grouped messages
+            $count_query = $wpdb->prepare(
+                "SELECT COUNT(DISTINCT CONCAT(subject, DATE_FORMAT(created_at, '%%Y-%%m-%%d %%H:%%i'))) 
+                FROM {$table_name} 
+                WHERE sender_id = %d AND type LIKE 'admin_%'",
+                $admin_id
+            );
+            $total = $wpdb->get_var($count_query);
+
+            // Format the messages
+            foreach ($sent_messages as &$msg) {
+                $msg['id'] = (int) $msg['id'];
+                $msg['recipient_count'] = (int) $msg['recipient_count'];
+                $msg['read_count'] = (int) $msg['read_count'];
+                $msg['unread_count'] = $msg['recipient_count'] - $msg['read_count'];
+
+                // Truncate recipient names if too long
+                if (strlen($msg['recipient_names']) > 100) {
+                    $names = explode(', ', $msg['recipient_names']);
+                    $msg['recipient_names'] = implode(', ', array_slice($names, 0, 3)) .
+                        ' y ' . (count($names) - 3) . ' más';
+                }
+
+                // Clean up type for display
+                $msg['type_display'] = str_replace('admin_', '', $msg['type']);
+            }
+            unset($msg);
+
+            $total_pages = ceil($total / $per_page);
+
+            $response = rest_ensure_response([
+                'success' => true,
+                'data' => $sent_messages
+            ]);
+
+            $response->header('X-WP-Total', $total);
+            $response->header('X-WP-TotalPages', $total_pages);
+
+            return $response;
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in get_sent_messages', ['message' => $e->getMessage()]);
+            return $this->error_response('internal_error', 'Error al obtener los mensajes enviados.', 500);
         }
     }
 

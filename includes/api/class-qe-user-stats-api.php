@@ -36,6 +36,11 @@ class QE_User_Stats_API extends QE_API_Base
                         'required' => false,
                         'type' => 'integer',
                         'description' => 'Filter by course ID (optional)'
+                    ],
+                    'lesson_id' => [
+                        'required' => false,
+                        'type' => 'integer',
+                        'description' => 'Filter by lesson ID (optional)'
                     ]
                 ]
             ]
@@ -101,6 +106,11 @@ class QE_User_Stats_API extends QE_API_Base
                         'type' => 'integer',
                         'description' => 'Course ID'
                     ],
+                    'lesson_id' => [
+                        'required' => false,
+                        'type' => 'integer',
+                        'description' => 'Filter by lesson ID (optional)'
+                    ],
                     'period' => [
                         'required' => false,
                         'type' => 'string',
@@ -118,6 +128,7 @@ class QE_User_Stats_API extends QE_API_Base
      *
      * Returns aggregated statistics of correct/incorrect/unanswered questions
      * for the current user, optionally filtered by course.
+     * Also includes global averages for comparison (only last attempt per quiz per user).
      *
      * @param WP_REST_Request $request
      * @return WP_REST_Response|WP_Error
@@ -130,45 +141,165 @@ class QE_User_Stats_API extends QE_API_Base
         }
 
         $course_id = $request->get_param('course_id');
+        $lesson_id = $request->get_param('lesson_id');
 
         global $wpdb;
-        $table_name = $this->get_table('user_question_stats');
+        $attempts_table = $this->get_table('quiz_attempts');
+        $answers_table = $this->get_table('attempt_answers');
 
-        // Build query
-        $where = "user_id = %d";
-        $params = [$user_id];
+        // Debug: Log query parameters
+        error_log("QE Debug: get_user_question_stats called for user $user_id, course $course_id, lesson $lesson_id");
 
-        if ($course_id) {
-            $where .= " AND course_id = %d";
-            $params[] = $course_id;
+        // If lesson_id is provided, get quiz_ids for that lesson
+        $quiz_filter = "";
+        $quiz_ids = [];
+        if ($lesson_id) {
+            // Get from _quiz_ids meta
+            $quiz_ids_meta = get_post_meta($lesson_id, '_quiz_ids', true);
+            if (!empty($quiz_ids_meta) && is_array($quiz_ids_meta)) {
+                $quiz_ids = array_merge($quiz_ids, $quiz_ids_meta);
+            }
+
+            // Get from _lesson_steps
+            $lesson_steps = get_post_meta($lesson_id, '_lesson_steps', true);
+            if (!empty($lesson_steps) && is_array($lesson_steps)) {
+                foreach ($lesson_steps as $step) {
+                    if (isset($step['type']) && $step['type'] === 'quiz' && isset($step['data']['quiz_id'])) {
+                        $quiz_ids[] = (int) $step['data']['quiz_id'];
+                    }
+                }
+            }
+            $quiz_ids = array_unique(array_filter($quiz_ids));
+
+            if (!empty($quiz_ids)) {
+                $quiz_filter = "AND att.quiz_id IN (" . implode(',', array_map('intval', $quiz_ids)) . ")";
+            }
         }
 
-        // Get aggregated counts
-        $stats = $wpdb->get_row($wpdb->prepare(
-            "SELECT 
+        // ========================================
+        // USER STATS - Get latest answer per question (consistent with difficulty-matrix)
+        // ========================================
+        $user_query = "SELECT 
                 COUNT(*) as total_questions,
-                SUM(CASE WHEN last_answer_status = 'correct' THEN 1 ELSE 0 END) as correct_answers,
-                SUM(CASE WHEN last_answer_status = 'incorrect' THEN 1 ELSE 0 END) as incorrect_answers,
-                SUM(CASE WHEN last_answer_status = 'unanswered' THEN 1 ELSE 0 END) as unanswered
-            FROM {$table_name}
-            WHERE {$where}",
-            ...$params
+                SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) as correct_answers,
+                SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' THEN 1 ELSE 0 END) as incorrect_answers,
+                SUM(CASE WHEN a.answer_given IS NULL OR a.answer_given = '' THEN 1 ELSE 0 END) as unanswered,
+                SUM(CASE WHEN a.is_correct = 1 AND a.is_risked = 1 THEN 1 ELSE 0 END) as correct_with_risk,
+                SUM(CASE WHEN a.is_correct = 1 AND a.is_risked = 0 THEN 1 ELSE 0 END) as correct_without_risk,
+                SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' AND a.is_risked = 1 THEN 1 ELSE 0 END) as incorrect_with_risk,
+                SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' AND a.is_risked = 0 THEN 1 ELSE 0 END) as incorrect_without_risk
+            FROM {$answers_table} a
+            INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
+            WHERE att.user_id = %d 
+            " . ($course_id ? "AND att.course_id = %d" : "") . "
+            {$quiz_filter}
+            AND a.attempt_id = (
+                SELECT MAX(a2.attempt_id)
+                FROM {$answers_table} a2
+                INNER JOIN {$attempts_table} att2 ON a2.attempt_id = att2.attempt_id
+                WHERE att2.user_id = att.user_id 
+                AND a2.question_id = a.question_id
+            )";
+
+        $user_stats = $wpdb->get_row($wpdb->prepare(
+            $user_query,
+            $course_id ? [$user_id, $course_id] : [$user_id]
         ));
 
-        if (!$stats) {
-            return $this->success_response([
-                'total_questions' => 0,
-                'correct_answers' => 0,
-                'incorrect_answers' => 0,
-                'unanswered' => 0
-            ]);
+        error_log("QE Debug: User stats result: " . print_r($user_stats, true));
+
+        // ========================================
+        // GLOBAL STATS - All users, latest answer per question per user
+        // ========================================
+        $global_query = "SELECT 
+                COUNT(DISTINCT att.user_id) as total_users,
+                COUNT(*) as total_answers,
+                SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) as global_correct,
+                SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' THEN 1 ELSE 0 END) as global_incorrect,
+                SUM(CASE WHEN a.answer_given IS NULL OR a.answer_given = '' THEN 1 ELSE 0 END) as global_unanswered,
+                SUM(CASE WHEN a.is_correct = 1 AND a.is_risked = 1 THEN 1 ELSE 0 END) as global_correct_with_risk,
+                SUM(CASE WHEN a.is_correct = 1 AND a.is_risked = 0 THEN 1 ELSE 0 END) as global_correct_without_risk,
+                SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' AND a.is_risked = 1 THEN 1 ELSE 0 END) as global_incorrect_with_risk,
+                SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' AND a.is_risked = 0 THEN 1 ELSE 0 END) as global_incorrect_without_risk
+            FROM {$answers_table} a
+            INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
+            WHERE 1=1
+            " . ($course_id ? "AND att.course_id = %d" : "") . "
+            {$quiz_filter}
+            AND a.attempt_id = (
+                SELECT MAX(a2.attempt_id)
+                FROM {$answers_table} a2
+                INNER JOIN {$attempts_table} att2 ON a2.attempt_id = att2.attempt_id
+                WHERE att2.user_id = att.user_id 
+                AND a2.question_id = a.question_id
+            )";
+
+        // Execute query with or without prepare depending on course_id
+        if ($course_id) {
+            $global_stats = $wpdb->get_row($wpdb->prepare($global_query, $course_id));
+        } else {
+            $global_stats = $wpdb->get_row($global_query);
         }
 
+        // Calculate global percentages (averages)
+        $total_global_answers = (int) ($global_stats->total_answers ?? 0);
+        $global_correct_pct = $total_global_answers > 0
+            ? round(((int) $global_stats->global_correct / $total_global_answers) * 100, 1)
+            : 0;
+        $global_incorrect_pct = $total_global_answers > 0
+            ? round(((int) $global_stats->global_incorrect / $total_global_answers) * 100, 1)
+            : 0;
+        $global_unanswered_pct = $total_global_answers > 0
+            ? round(((int) $global_stats->global_unanswered / $total_global_answers) * 100, 1)
+            : 0;
+
+        // User percentages
+        $total_user = (int) ($user_stats->total_questions ?? 0);
+        $user_correct_pct = $total_user > 0
+            ? round(((int) $user_stats->correct_answers / $total_user) * 100, 1)
+            : 0;
+        $user_incorrect_pct = $total_user > 0
+            ? round(((int) $user_stats->incorrect_answers / $total_user) * 100, 1)
+            : 0;
+        $user_unanswered_pct = $total_user > 0
+            ? round(((int) $user_stats->unanswered / $total_user) * 100, 1)
+            : 0;
+
         return $this->success_response([
-            'total_questions' => (int) $stats->total_questions,
-            'correct_answers' => (int) $stats->correct_answers,
-            'incorrect_answers' => (int) $stats->incorrect_answers,
-            'unanswered' => (int) $stats->unanswered
+            // User stats
+            'total_questions' => $total_user,
+            'correct_answers' => (int) ($user_stats->correct_answers ?? 0),
+            'incorrect_answers' => (int) ($user_stats->incorrect_answers ?? 0),
+            'unanswered' => (int) ($user_stats->unanswered ?? 0),
+            'correct_with_risk' => (int) ($user_stats->correct_with_risk ?? 0),
+            'correct_without_risk' => (int) ($user_stats->correct_without_risk ?? 0),
+            'incorrect_with_risk' => (int) ($user_stats->incorrect_with_risk ?? 0),
+            'incorrect_without_risk' => (int) ($user_stats->incorrect_without_risk ?? 0),
+            // User percentages
+            'user_correct_pct' => $user_correct_pct,
+            'user_incorrect_pct' => $user_incorrect_pct,
+            'user_unanswered_pct' => $user_unanswered_pct,
+            // Global averages (for comparison)
+            'global_stats' => [
+                'total_users' => (int) ($global_stats->total_users ?? 0),
+                'correct_pct' => $global_correct_pct,
+                'incorrect_pct' => $global_incorrect_pct,
+                'unanswered_pct' => $global_unanswered_pct,
+                'correct_with_risk_pct' => $total_global_answers > 0
+                    ? round(((int) $global_stats->global_correct_with_risk / $total_global_answers) * 100, 1) : 0,
+                'correct_without_risk_pct' => $total_global_answers > 0
+                    ? round(((int) $global_stats->global_correct_without_risk / $total_global_answers) * 100, 1) : 0,
+                'incorrect_with_risk_pct' => $total_global_answers > 0
+                    ? round(((int) $global_stats->global_incorrect_with_risk / $total_global_answers) * 100, 1) : 0,
+                'incorrect_without_risk_pct' => $total_global_answers > 0
+                    ? round(((int) $global_stats->global_incorrect_without_risk / $total_global_answers) * 100, 1) : 0,
+            ],
+            // Comparison (user vs global)
+            'comparison' => [
+                'correct_diff' => round($user_correct_pct - $global_correct_pct, 1),
+                'incorrect_diff' => round($user_incorrect_pct - $global_incorrect_pct, 1),
+                'unanswered_diff' => round($user_unanswered_pct - $global_unanswered_pct, 1),
+            ]
         ]);
     }
 
@@ -498,29 +629,13 @@ class QE_User_Stats_API extends QE_API_Base
 
         $user_id = get_current_user_id();
         $course_id = (int) $request->get_param('course_id');
+        $lesson_id = $request->get_param('lesson_id'); // Optional filter
         $period = $request->get_param('period') ?: 'week';
 
-        // Get lesson IDs for this course
-        $lesson_ids = get_post_meta($course_id, '_lesson_ids', true);
-        if (empty($lesson_ids)) {
-            return $this->success_response([]);
-        }
+        // If lesson_id is provided, only get quizzes from that lesson
+        if ($lesson_id) {
+            $all_quiz_ids = [];
 
-        // Get lessons
-        $lessons = get_posts([
-            'post_type' => 'qe_lesson',
-            'include' => $lesson_ids,
-            'posts_per_page' => -1,
-            'fields' => 'ids'
-        ]);
-
-        if (empty($lessons)) {
-            return $this->success_response([]);
-        }
-
-        // Collect all quiz IDs from lessons
-        $all_quiz_ids = [];
-        foreach ($lessons as $lesson_id) {
             // Get from _quiz_ids meta
             $quiz_ids_meta = get_post_meta($lesson_id, '_quiz_ids', true);
             if (!empty($quiz_ids_meta) && is_array($quiz_ids_meta)) {
@@ -536,9 +651,49 @@ class QE_User_Stats_API extends QE_API_Base
                     }
                 }
             }
-        }
 
-        $all_quiz_ids = array_unique(array_filter($all_quiz_ids));
+            $all_quiz_ids = array_unique(array_filter($all_quiz_ids));
+        } else {
+            // Get lesson IDs for this course
+            $lesson_ids = get_post_meta($course_id, '_lesson_ids', true);
+            if (empty($lesson_ids)) {
+                return $this->success_response([]);
+            }
+
+            // Get lessons
+            $lessons = get_posts([
+                'post_type' => 'qe_lesson',
+                'include' => $lesson_ids,
+                'posts_per_page' => -1,
+                'fields' => 'ids'
+            ]);
+
+            if (empty($lessons)) {
+                return $this->success_response([]);
+            }
+
+            // Collect all quiz IDs from lessons
+            $all_quiz_ids = [];
+            foreach ($lessons as $lid) {
+                // Get from _quiz_ids meta
+                $quiz_ids_meta = get_post_meta($lid, '_quiz_ids', true);
+                if (!empty($quiz_ids_meta) && is_array($quiz_ids_meta)) {
+                    $all_quiz_ids = array_merge($all_quiz_ids, $quiz_ids_meta);
+                }
+
+                // Get from _lesson_steps
+                $lesson_steps = get_post_meta($lid, '_lesson_steps', true);
+                if (!empty($lesson_steps) && is_array($lesson_steps)) {
+                    foreach ($lesson_steps as $step) {
+                        if (isset($step['type']) && $step['type'] === 'quiz' && isset($step['data']['quiz_id'])) {
+                            $all_quiz_ids[] = (int) $step['data']['quiz_id'];
+                        }
+                    }
+                }
+            }
+
+            $all_quiz_ids = array_unique(array_filter($all_quiz_ids));
+        }
 
         if (empty($all_quiz_ids)) {
             return $this->success_response([]);

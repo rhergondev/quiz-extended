@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name:       Quiz Extended LMS
+ * Plugin Name:       Campus Uniforme Azul
  * Plugin URI:        https://github.com/rhergondev/quiz-extended
  * Description:       Un LMS personalizado para gestionar cursos, preguntas y rankings.
- * Version:           0.1.0
+ * Version:           1.0.0
  * Author:            Haz Historia
  * Author URI:        https://hazhistoria.net
  * License:           GPLv3 or later
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('QUIZ_EXTENDED_VERSION', '0.1.0');
+define('QUIZ_EXTENDED_VERSION', '1.0.0');
 define('QUIZ_EXTENDED_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('QUIZ_EXTENDED_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('QUIZ_EXTENDED_BASENAME', plugin_basename(__FILE__));
@@ -33,6 +33,7 @@ if (defined('WP_DEBUG') && WP_DEBUG) {
     require_once QUIZ_EXTENDED_PLUGIN_DIR . 'debug-routes.php';
     require_once QUIZ_EXTENDED_PLUGIN_DIR . 'verify-enrollment-routes.php';
     require_once QUIZ_EXTENDED_PLUGIN_DIR . 'debug-featured-media-rest.php';
+    require_once QUIZ_EXTENDED_PLUGIN_DIR . 'debug-sent-messages.php';
 }
 
 // Force featured media save (always active)

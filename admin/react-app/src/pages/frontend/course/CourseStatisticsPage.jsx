@@ -9,7 +9,8 @@ import ScoreEvolutionChart from '../../../components/statistics/ScoreEvolutionCh
 import { 
   getPerformanceByLesson, 
   getWeakSpots, 
-  getDifficultyStats 
+  getDifficultyStats,
+  getUserQuestionStats 
 } from '../../../api/services/userStatsService';
 import { getMyRankingStatus, getCourseRanking } from '../../../api/services/courseRankingService';
 import { 
@@ -31,7 +32,9 @@ import {
   ArrowUp,
   ArrowDown,
   Filter,
-  ChevronDown
+  ChevronDown,
+  Users,
+  Minus
 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -50,11 +53,13 @@ const CourseStatisticsPage = () => {
   const [difficultyStats, setDifficultyStats] = useState(null);
   const [rankingStatus, setRankingStatus] = useState(null);
   const [rankingStatistics, setRankingStatistics] = useState(null);
+  const [questionStats, setQuestionStats] = useState(null);
   const [showAllLessons, setShowAllLessons] = useState(false);
   const [selectedDifficulty, setSelectedDifficulty] = useState('easy');
   const [lessonSortOrder, setLessonSortOrder] = useState('desc'); // 'desc' = high to low, 'asc' = low to high
   const [riskViewMode, setRiskViewMode] = useState('without'); // 'with' or 'without' risk
-  const [selectedLessonFilter, setSelectedLessonFilter] = useState(null); // For question analysis filter
+  const [selectedLessonFilter, setSelectedLessonFilter] = useState(null); // For filtering chart and question analysis
+  const [showRiskPanel, setShowRiskPanel] = useState(false); // For risk analysis slide panel
 
   useEffect(() => {
     const fetchData = async () => {
@@ -62,13 +67,16 @@ const CourseStatisticsPage = () => {
       
       setLoading(true);
       try {
-        const [lessonsData, weakData, difficultyData, rankingData, rankingFullData] = await Promise.all([
+        const [lessonsData, weakData, difficultyData, rankingData, rankingFullData, questionStatsData] = await Promise.all([
           getPerformanceByLesson(courseId),
           getWeakSpots(courseId),
           getDifficultyStats(courseId),
           getMyRankingStatus(courseId),
-          getCourseRanking(courseId, { page: 1, perPage: 20, withRisk: false })
+          getCourseRanking(courseId, { page: 1, perPage: 20, withRisk: false }),
+          getUserQuestionStats(courseId, null) // Initial load without filter
         ]);
+        
+        console.log('📊 Question Stats API Response:', questionStatsData);
 
         const lessonsArray = lessonsData.data?.lessons || lessonsData.data || [];
         
@@ -77,6 +85,7 @@ const CourseStatisticsPage = () => {
         setDifficultyStats(difficultyData.data || {});
         setRankingStatus(rankingData.data);
         setRankingStatistics(rankingFullData?.data?.statistics || null);
+        setQuestionStats(questionStatsData?.data || questionStatsData || null);
       } catch (error) {
         console.error('❌ Error fetching statistics:', error);
       } finally {
@@ -86,6 +95,21 @@ const CourseStatisticsPage = () => {
 
     fetchData();
   }, [courseId]);
+
+  // Refetch question stats when lesson filter changes
+  useEffect(() => {
+    const refetchQuestionStats = async () => {
+      if (!courseId) return;
+      try {
+        const questionStatsData = await getUserQuestionStats(courseId, selectedLessonFilter);
+        setQuestionStats(questionStatsData?.data || questionStatsData || null);
+      } catch (error) {
+        console.error('❌ Error refetching question stats:', error);
+      }
+    };
+
+    refetchQuestionStats();
+  }, [courseId, selectedLessonFilter]);
 
   // Calcular estadísticas derivadas
   const computedStats = useMemo(() => {
@@ -397,8 +421,6 @@ const CourseStatisticsPage = () => {
                               </span>
                             </div>
                           )}
-                          
-                          )}
                         </div>
                       </div>
                     );
@@ -531,9 +553,48 @@ const CourseStatisticsPage = () => {
                 </div>
               </div>
 
+              {/* Lesson Filter for Chart and Question Analysis */}
+              {performanceByLesson && performanceByLesson.length > 0 && (
+                <div className="mt-6 flex items-center gap-3">
+                  <Filter size={16} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
+                  <span className="text-sm font-medium" style={{ color: `${getColor('primary', '#1a202c')}80` }}>
+                    Filtrar por tema:
+                  </span>
+                  <select
+                    value={selectedLessonFilter || ''}
+                    onChange={(e) => setSelectedLessonFilter(e.target.value ? parseInt(e.target.value) : null)}
+                    className="text-sm px-3 py-1.5 rounded-lg border focus:outline-none focus:ring-2"
+                    style={{ 
+                      backgroundColor: getColor('background', '#ffffff'),
+                      borderColor: getColor('borderColor', '#e5e7eb'),
+                      color: getColor('primary', '#1a202c')
+                    }}
+                  >
+                    <option value="">Todos los temas</option>
+                    {performanceByLesson.filter(l => l.total_quizzes > 0).map(lesson => (
+                      <option key={lesson.lesson_id} value={lesson.lesson_id}>
+                        {lesson.lesson_title}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedLessonFilter && (
+                    <button
+                      onClick={() => setSelectedLessonFilter(null)}
+                      className="text-xs px-2 py-1 rounded-lg transition-all"
+                      style={{ 
+                        backgroundColor: '#fee2e2',
+                        color: '#dc2626'
+                      }}
+                    >
+                      ✕ Limpiar
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Score Evolution Chart */}
-              <div className="mt-6">
-                <ScoreEvolutionChart courseId={courseId} />
+              <div className="mt-4">
+                <ScoreEvolutionChart courseId={courseId} lessonId={selectedLessonFilter} />
               </div>
 
               {/* Main Content Grid */}
@@ -656,18 +717,18 @@ const CourseStatisticsPage = () => {
                   </div>
                 </div>
 
-                {/* Análisis de Preguntas - Con toggle Sin/Con Riesgo */}
+                {/* Análisis de Preguntas - Comparativa Usuario vs Global */}
                 <div 
-                  className="rounded-xl overflow-hidden border-2 flex flex-col"
+                  className="rounded-xl overflow-hidden border-2 flex flex-col relative"
                   style={{ 
                     backgroundColor: getColor('secondaryBackground'),
                     borderColor: getColor('borderColor')
                   }}
                 >
-                  {/* Header - cambia de color según riskViewMode */}
+                  {/* Header */}
                   <div 
-                    className="px-4 py-3 transition-colors duration-300"
-                    style={{ backgroundColor: riskViewMode === 'with' ? getColor('accent', '#f59e0b') : getColor('primary', '#1a202c') }}
+                    className="px-4 py-3"
+                    style={{ backgroundColor: getColor('primary', '#1a202c') }}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -676,217 +737,405 @@ const CourseStatisticsPage = () => {
                           {t('statistics.questionAnalysis')}
                         </h3>
                       </div>
-                      {/* Risk Toggle */}
-                      <div className="flex items-center gap-1 bg-white/20 rounded-lg p-0.5">
-                        <button
-                          onClick={() => setRiskViewMode('without')}
-                          className={`px-3 py-1.5 text-xs font-bold rounded transition-all ${
-                            riskViewMode === 'without' 
-                              ? 'bg-white shadow-sm' 
-                              : 'text-white/90 hover:text-white hover:bg-white/10'
-                          }`}
-                          style={{
-                            color: riskViewMode === 'without' ? getColor('primary', '#1a202c') : undefined
-                          }}
-                        >
-                          {t('statistics.withoutRisk')}
-                        </button>
-                        <button
-                          onClick={() => setRiskViewMode('with')}
-                          className={`px-3 py-1.5 text-xs font-bold rounded transition-all flex items-center gap-1 ${
-                            riskViewMode === 'with' 
-                              ? 'bg-white shadow-sm' 
-                              : 'text-white/90 hover:text-white hover:bg-white/10'
-                          }`}
-                          style={{
-                            color: riskViewMode === 'with' ? getColor('accent', '#f59e0b') : undefined
-                          }}
-                        >
-                          <AlertTriangle size={12} />
-                          {t('statistics.withRisk')}
-                        </button>
+                      <div className="flex items-center gap-2">
+                        {/* Users count badge */}
+                        {questionStats?.global_stats?.total_users > 0 && (
+                          <div 
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg"
+                            style={{ backgroundColor: 'rgba(255, 255, 255, 0.15)' }}
+                          >
+                            <Users size={12} style={{ color: getColor('textColorContrast', '#ffffff') }} />
+                            <span className="text-xs font-medium" style={{ color: getColor('textColorContrast', '#ffffff') }}>
+                              {questionStats.global_stats.total_users}
+                            </span>
+                          </div>
+                        )}
+                        {/* Risk Analysis Button */}
+                        {questionStats && (questionStats.correct_with_risk > 0 || questionStats.incorrect_with_risk > 0 || 
+                          questionStats.global_stats?.correct_with_risk_pct > 0) && (
+                          <button
+                            onClick={() => setShowRiskPanel(true)}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg transition-all"
+                            style={{ backgroundColor: 'rgba(245, 158, 11, 0.3)' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.5)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.3)'}
+                          >
+                            <Zap size={12} style={{ color: '#fcd34d' }} />
+                            <span className="text-xs font-medium" style={{ color: '#fcd34d' }}>
+                              Riesgo
+                            </span>
+                            <ChevronRight size={12} style={{ color: '#fcd34d' }} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
                   
                   {/* Separador */}
-                  <div 
-                    style={{ 
-                      height: '1px', 
-                      backgroundColor: 'rgba(156, 163, 175, 0.2)'
-                    }} 
-                  />
+                  <div style={{ height: '1px', backgroundColor: 'rgba(156, 163, 175, 0.2)' }} />
                   
-                  {difficultyStats && Object.keys(difficultyStats).length > 0 ? (
-                    <div className="flex-1 flex flex-col p-4">
-                      {/* Difficulty Tabs - Mejorados */}
-                      <div 
-                        className="flex p-1 rounded-xl mb-4 border"
-                        style={{ 
-                          backgroundColor: getColor('background', '#ffffff'),
-                          borderColor: getColor('borderColor', '#e5e7eb')
-                        }}
-                      >
-                        {['easy', 'medium', 'hard'].map((level) => {
-                          const isSelected = selectedDifficulty === level;
-                          const tabColors = {
-                            easy: { bg: '#10b981', text: 'white' },
-                            medium: { bg: '#f59e0b', text: 'white' },
-                            hard: { bg: '#ef4444', text: 'white' }
-                          };
-                          return (
-                            <button
-                              key={level}
-                              onClick={() => setSelectedDifficulty(level)}
-                              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all text-center ${
-                                isSelected ? 'shadow-md' : 'hover:bg-gray-50'
-                              }`}
-                              style={{
-                                backgroundColor: isSelected ? tabColors[level].bg : 'transparent',
-                                color: isSelected ? tabColors[level].text : getColor('primary', '#1a202c')
+                  {/* Content */}
+                  <div className="flex-1 p-4">
+                    {questionStats ? (
+                      <div className="space-y-4">
+                        {/* User Stats Summary */}
+                        {questionStats.total_questions > 0 ? (
+                          <div className="text-center pb-3 border-b" style={{ borderColor: getColor('borderColor', '#e5e7eb') }}>
+                            <span className="text-3xl font-bold" style={{ color: getColor('primary', '#1a202c') }}>
+                              {questionStats.total_questions}
+                            </span>
+                            <span className="text-xs ml-2" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                              preguntas respondidas
+                            </span>
+                          </div>
+                        ) : (
+                          <div 
+                            className="text-center py-3 px-4 rounded-lg border"
+                            style={{ 
+                              backgroundColor: '#fef3c7',
+                              borderColor: '#fcd34d'
+                            }}
+                          >
+                            <AlertCircle size={20} className="mx-auto mb-1 text-amber-600" />
+                            <p className="text-xs font-medium text-amber-800">
+                              Aún no has respondido preguntas en este curso
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Comparison Stats */}
+                        <div className="space-y-3">
+                          {/* Correctas */}
+                          {(() => {
+                            const userPct = questionStats.user_correct_pct || 0;
+                            const globalPct = questionStats.global_stats?.correct_pct || 0;
+                            const diff = questionStats.comparison?.correct_diff || 0;
+                            const isAbove = diff > 0.5;
+                            const isBelow = diff < -0.5;
+                            
+                            return (
+                              <div 
+                                className="p-3 rounded-lg border"
+                                style={{ 
+                                  backgroundColor: getColor('background', '#ffffff'),
+                                  borderColor: getColor('borderColor', '#e5e7eb')
+                                }}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <CheckCircle size={16} style={{ color: '#10b981' }} />
+                                    <span className="text-sm font-semibold" style={{ color: getColor('primary', '#1a202c') }}>
+                                      Correctas
+                                    </span>
+                                  </div>
+                                  {questionStats.total_questions > 0 && (
+                                    <div 
+                                      className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+                                      style={{ 
+                                        backgroundColor: isAbove ? '#dcfce7' : isBelow ? '#fee2e2' : '#f3f4f6',
+                                      }}
+                                    >
+                                      {isAbove ? (
+                                        <TrendingUp size={12} style={{ color: '#16a34a' }} />
+                                      ) : isBelow ? (
+                                        <TrendingDown size={12} style={{ color: '#dc2626' }} />
+                                      ) : (
+                                        <Minus size={12} style={{ color: '#6b7280' }} />
+                                      )}
+                                      <span 
+                                        className="text-xs font-bold"
+                                        style={{ color: isAbove ? '#16a34a' : isBelow ? '#dc2626' : '#6b7280' }}
+                                      >
+                                        {diff > 0 ? '+' : ''}{diff}%
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                {/* Two rows: Tú and Media */}
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs w-12 font-medium" style={{ color: getColor('primary', '#1a202c') }}>Tú</span>
+                                    <span className="text-xs w-10 font-bold" style={{ color: '#10b981' }}>{userPct}%</span>
+                                    <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{ width: `${userPct}%`, backgroundColor: '#10b981' }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs w-12" style={{ color: `${getColor('primary', '#1a202c')}60` }}>Media</span>
+                                    <span className="text-xs w-10" style={{ color: `${getColor('primary', '#1a202c')}60` }}>{globalPct}%</span>
+                                    <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Incorrectas */}
+                          {(() => {
+                            const userPct = questionStats.user_incorrect_pct || 0;
+                            const globalPct = questionStats.global_stats?.incorrect_pct || 0;
+                            const diff = questionStats.comparison?.incorrect_diff || 0;
+                            const isAbove = diff < -0.5;
+                            const isBelow = diff > 0.5;
+                            
+                            return (
+                              <div 
+                                className="p-3 rounded-lg border"
+                                style={{ 
+                                  backgroundColor: getColor('background', '#ffffff'),
+                                  borderColor: getColor('borderColor', '#e5e7eb')
+                                }}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <X size={16} style={{ color: '#ef4444' }} />
+                                    <span className="text-sm font-semibold" style={{ color: getColor('primary', '#1a202c') }}>
+                                      Incorrectas
+                                    </span>
+                                  </div>
+                                  {questionStats.total_questions > 0 && (
+                                    <div 
+                                      className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+                                      style={{ 
+                                        backgroundColor: isAbove ? '#dcfce7' : isBelow ? '#fee2e2' : '#f3f4f6',
+                                      }}
+                                    >
+                                      {isAbove ? (
+                                        <TrendingUp size={12} style={{ color: '#16a34a' }} />
+                                      ) : isBelow ? (
+                                        <TrendingDown size={12} style={{ color: '#dc2626' }} />
+                                      ) : (
+                                        <Minus size={12} style={{ color: '#6b7280' }} />
+                                      )}
+                                      <span 
+                                        className="text-xs font-bold"
+                                        style={{ color: isAbove ? '#16a34a' : isBelow ? '#dc2626' : '#6b7280' }}
+                                      >
+                                        {diff > 0 ? '+' : ''}{diff}%
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                {/* Two rows: Tú and Media */}
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs w-12 font-medium" style={{ color: getColor('primary', '#1a202c') }}>Tú</span>
+                                    <span className="text-xs w-10 font-bold" style={{ color: '#ef4444' }}>{userPct}%</span>
+                                    <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{ width: `${userPct}%`, backgroundColor: '#ef4444' }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs w-12" style={{ color: `${getColor('primary', '#1a202c')}60` }}>Media</span>
+                                    <span className="text-xs w-10" style={{ color: `${getColor('primary', '#1a202c')}60` }}>{globalPct}%</span>
+                                    <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Sin contestar - Solo mostrar si hay datos */}
+                          {(questionStats.user_unanswered_pct > 0 || questionStats.global_stats?.unanswered_pct > 0) && (() => {
+                            const userPct = questionStats.user_unanswered_pct || 0;
+                            const globalPct = questionStats.global_stats?.unanswered_pct || 0;
+                            const diff = questionStats.comparison?.unanswered_diff || 0;
+                            const isAbove = diff < -0.5;
+                            const isBelow = diff > 0.5;
+                            
+                            return (
+                              <div 
+                                className="p-3 rounded-lg border"
+                                style={{ 
+                                  backgroundColor: getColor('background', '#ffffff'),
+                                  borderColor: getColor('borderColor', '#e5e7eb')
+                                }}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <AlertCircle size={16} style={{ color: '#6b7280' }} />
+                                    <span className="text-sm font-semibold" style={{ color: getColor('primary', '#1a202c') }}>
+                                      Sin contestar
+                                    </span>
+                                  </div>
+                                  {questionStats.total_questions > 0 && (
+                                    <div 
+                                      className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+                                      style={{ 
+                                        backgroundColor: isAbove ? '#dcfce7' : isBelow ? '#fee2e2' : '#f3f4f6',
+                                      }}
+                                    >
+                                      {isAbove ? (
+                                        <TrendingUp size={12} style={{ color: '#16a34a' }} />
+                                      ) : isBelow ? (
+                                        <TrendingDown size={12} style={{ color: '#dc2626' }} />
+                                      ) : (
+                                        <Minus size={12} style={{ color: '#6b7280' }} />
+                                      )}
+                                      <span 
+                                        className="text-xs font-bold"
+                                        style={{ color: isAbove ? '#16a34a' : isBelow ? '#dc2626' : '#6b7280' }}
+                                      >
+                                        {diff > 0 ? '+' : ''}{diff}%
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                {/* Two rows: Tú and Media */}
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs w-12 font-medium" style={{ color: getColor('primary', '#1a202c') }}>Tú</span>
+                                    <span className="text-xs w-10 font-bold" style={{ color: '#6b7280' }}>{userPct}%</span>
+                                    <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{ width: `${userPct}%`, backgroundColor: '#94a3b8' }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs w-12" style={{ color: `${getColor('primary', '#1a202c')}60` }}>Media</span>
+                                    <span className="text-xs w-10" style={{ color: `${getColor('primary', '#1a202c')}60` }}>{globalPct}%</span>
+                                    <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Target size={32} className="mx-auto mb-2" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
+                        <p className="text-sm" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                          Cargando datos de análisis...
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Risk Analysis Slide Panel */}
+                  <div 
+                    className={`absolute inset-0 transition-transform duration-300 ease-in-out rounded-xl ${
+                      showRiskPanel ? 'translate-x-0' : 'translate-x-full'
+                    }`}
+                    style={{ backgroundColor: getColor('secondaryBackground', '#f8f9fa') }}
+                  >
+                    {showRiskPanel && questionStats && (
+                      <div className="h-full flex flex-col">
+                        {/* Risk Panel Header */}
+                        <div 
+                          className="px-4 py-3 flex items-center justify-between"
+                          style={{ backgroundColor: getColor('accent', '#f59e0b') }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Zap size={18} className="text-white" />
+                            <h3 className="text-sm font-bold uppercase tracking-wide text-white">
+                              Análisis Con Riesgo
+                            </h3>
+                          </div>
+                          <button
+                            onClick={() => setShowRiskPanel(false)}
+                            className="p-1.5 rounded-lg transition-all"
+                            style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.3)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'}
+                          >
+                            <X size={18} className="text-white" />
+                          </button>
+                        </div>
+                        
+                        <div style={{ height: '1px', backgroundColor: 'rgba(156, 163, 175, 0.2)' }} />
+                        
+                        {/* Risk Panel Content */}
+                        <div className="flex-1 p-4 overflow-y-auto">
+                          <div className="space-y-4">
+                            {/* Correctas con riesgo */}
+                            <div 
+                              className="p-4 rounded-lg border"
+                              style={{ 
+                                backgroundColor: '#dcfce7',
+                                borderColor: '#86efac'
                               }}
                             >
-                              {t(`statistics.${level}`)}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Stats Content */}
-                      {(() => {
-                        const stats = difficultyStats[selectedDifficulty] || { 
-                          total: 0, correct: 0, incorrect: 0, unanswered: 0, 
-                          risked: 0, risked_correct: 0, risked_incorrect: 0, risked_unanswered: 0 
-                        };
-                        
-                        // Calculate stats based on risk mode
-                        const displayStats = riskViewMode === 'with' 
-                          ? {
-                              total: stats.risked || 0,
-                              correct: stats.risked_correct || 0,
-                              incorrect: stats.risked_incorrect || 0,
-                              unanswered: stats.risked_unanswered || 0
-                            }
-                          : {
-                              total: stats.total || 0,
-                              correct: stats.correct || 0,
-                              incorrect: stats.incorrect || 0,
-                              unanswered: stats.unanswered || 0
-                            };
-                        
-                        // Calculate percentages
-                        const calcPercent = (val) => displayStats.total > 0 ? ((val / displayStats.total) * 100).toFixed(1) : 0;
-
-                        return (
-                          <div className="flex-1">
-                            {displayStats.total > 0 ? (
-                              <div className="space-y-3">
-                                {/* Quick stats row */}
-                                <div className="text-center mb-2">
-                                  <span className="text-2xl font-bold" style={{ color: getColor('primary', '#1a202c') }}>
-                                    {displayStats.total}
-                                  </span>
-                                  <span className="text-xs ml-2" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                                    {riskViewMode === 'with' ? t('statistics.markedWithRisk') : 'preguntas totales'}
+                              <div className="flex items-center gap-2 mb-3">
+                                <CheckCircle size={18} style={{ color: '#16a34a' }} />
+                                <span className="text-sm font-bold" style={{ color: '#166534' }}>
+                                  Correctas con riesgo
+                                </span>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-medium" style={{ color: '#166534' }}>Tú</span>
+                                  <span className="text-lg font-bold" style={{ color: '#16a34a' }}>
+                                    {questionStats.correct_with_risk || 0}
                                   </span>
                                 </div>
-
-                                {/* Stats bars */}
-                                <div className="space-y-2">
-                                  {/* Correct */}
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-20 text-xs font-medium" style={{ color: '#059669' }}>{t('statistics.correct')}</div>
-                                    <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden relative">
-                                      <div 
-                                        className="h-full transition-all duration-500"
-                                        style={{ width: `${calcPercent(displayStats.correct)}%`, backgroundColor: '#34d399' }}
-                                      />
-                                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold" 
-                                            style={{ color: calcPercent(displayStats.correct) > 50 ? 'white' : '#059669' }}>
-                                        {displayStats.correct} ({calcPercent(displayStats.correct)}%)
-                                      </span>
-                                    </div>
-                                  </div>
-                                  
-                                  {/* Incorrect */}
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-20 text-xs font-medium" style={{ color: '#dc2626' }}>{t('statistics.incorrect')}</div>
-                                    <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden relative">
-                                      <div 
-                                        className="h-full transition-all duration-500"
-                                        style={{ width: `${calcPercent(displayStats.incorrect)}%`, backgroundColor: '#f87171' }}
-                                      />
-                                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold"
-                                            style={{ color: calcPercent(displayStats.incorrect) > 50 ? 'white' : '#dc2626' }}>
-                                        {displayStats.incorrect} ({calcPercent(displayStats.incorrect)}%)
-                                      </span>
-                                    </div>
-                                  </div>
-                                  
-                                  {/* Unanswered */}
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-20 text-xs font-medium text-gray-500">{t('statistics.unanswered')}</div>
-                                    <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden relative">
-                                      <div 
-                                        className="h-full bg-gray-400 transition-all duration-500"
-                                        style={{ width: `${calcPercent(displayStats.unanswered)}%` }}
-                                      />
-                                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold"
-                                            style={{ color: calcPercent(displayStats.unanswered) > 50 ? 'white' : '#6b7280' }}>
-                                        {displayStats.unanswered} ({calcPercent(displayStats.unanswered)}%)
-                                      </span>
-                                    </div>
-                                  </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs" style={{ color: '#166534' }}>Media global</span>
+                                  <span className="text-sm font-medium" style={{ color: '#166534' }}>
+                                    {questionStats.global_stats?.correct_with_risk_pct || 0}%
+                                  </span>
                                 </div>
+                              </div>
+                            </div>
 
-                                {/* Risk indicator when viewing without risk */}
-                                {riskViewMode === 'without' && stats.risked > 0 && (
-                                  <div 
-                                    className="flex items-center justify-between p-2 rounded-lg border mt-3"
-                                    style={{ 
-                                      backgroundColor: '#fef3c7',
-                                      borderColor: '#fcd34d'
-                                    }}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <AlertTriangle size={14} className="text-amber-600" />
-                                      <span className="text-xs font-medium text-amber-800">
-                                        {stats.risked} {t('statistics.markedWithRisk')}
-                                      </span>
-                                    </div>
-                                    <button
-                                      onClick={() => setRiskViewMode('with')}
-                                      className="text-xs font-medium transition-colors"
-                                      style={{ color: getColor('accent', '#3b82f6') }}
-                                    >
-                                      {t('statistics.viewDetail')} →
-                                    </button>
-                                  </div>
-                                )}
+                            {/* Incorrectas con riesgo */}
+                            <div 
+                              className="p-4 rounded-lg border"
+                              style={{ 
+                                backgroundColor: '#fee2e2',
+                                borderColor: '#fca5a5'
+                              }}
+                            >
+                              <div className="flex items-center gap-2 mb-3">
+                                <X size={18} style={{ color: '#dc2626' }} />
+                                <span className="text-sm font-bold" style={{ color: '#991b1b' }}>
+                                  Incorrectas con riesgo
+                                </span>
                               </div>
-                            ) : (
-                              <div className="text-center py-6">
-                                <Target size={28} className="mx-auto mb-2" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
-                                <p className="text-xs" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                                  {riskViewMode === 'with' 
-                                    ? t('statistics.noRiskDataForDifficulty')
-                                    : t('statistics.noDataForDifficulty')
-                                  }
-                                </p>
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-medium" style={{ color: '#991b1b' }}>Tú</span>
+                                  <span className="text-lg font-bold" style={{ color: '#dc2626' }}>
+                                    {questionStats.incorrect_with_risk || 0}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs" style={{ color: '#991b1b' }}>Media global</span>
+                                  <span className="text-sm font-medium" style={{ color: '#991b1b' }}>
+                                    {questionStats.global_stats?.incorrect_with_risk_pct || 0}%
+                                  </span>
+                                </div>
                               </div>
-                            )}
+                            </div>
+
                           </div>
-                        );
-                      })()}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <Target size={32} className="mx-auto mb-2" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
-                      <p className="text-xs" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                        {t('statistics.noDifficultyData')}
-                      </p>
-                    </div>
-                  )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
               </div>

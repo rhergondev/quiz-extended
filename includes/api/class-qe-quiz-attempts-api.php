@@ -228,20 +228,50 @@ class QE_Quiz_Attempts_API extends QE_API_Base
         }
 
         // 4. Calcular estadísticas de error por pregunta para todo el quiz
+        // Solo cuenta el último intento de cada usuario para este quiz
         $question_stats = [];
         if (!empty($all_question_ids)) {
+            $quiz_id = $attempt->quiz_id;
+
             foreach ($all_question_ids as $question_id) {
-                // Contar total de respuestas y respuestas incorrectas para esta pregunta
+                // Subconsulta para obtener solo el último intento de cada usuario para este quiz
+                // Contamos total de usuarios únicos que han respondido esta pregunta (último intento)
                 $total_answers = $wpdb->get_var($wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$answers_table} 
-                     WHERE question_id = %d AND answer_given IS NOT NULL",
-                    $question_id
+                    "SELECT COUNT(*) FROM {$answers_table} ans
+                     INNER JOIN {$attempts_table} att ON ans.attempt_id = att.attempt_id
+                     WHERE ans.question_id = %d 
+                     AND att.quiz_id = %d
+                     AND ans.answer_given IS NOT NULL
+                     AND att.attempt_id = (
+                         SELECT MAX(att2.attempt_id) 
+                         FROM {$attempts_table} att2 
+                         WHERE att2.user_id = att.user_id 
+                         AND att2.quiz_id = %d
+                         AND att2.status = 'completed'
+                     )",
+                    $question_id,
+                    $quiz_id,
+                    $quiz_id
                 ));
 
+                // Contamos usuarios únicos que han fallado esta pregunta (último intento)
                 $incorrect_answers = $wpdb->get_var($wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$answers_table} 
-                     WHERE question_id = %d AND is_correct = 0 AND answer_given IS NOT NULL",
-                    $question_id
+                    "SELECT COUNT(*) FROM {$answers_table} ans
+                     INNER JOIN {$attempts_table} att ON ans.attempt_id = att.attempt_id
+                     WHERE ans.question_id = %d 
+                     AND att.quiz_id = %d
+                     AND ans.is_correct = 0 
+                     AND ans.answer_given IS NOT NULL
+                     AND att.attempt_id = (
+                         SELECT MAX(att2.attempt_id) 
+                         FROM {$attempts_table} att2 
+                         WHERE att2.user_id = att.user_id 
+                         AND att2.quiz_id = %d
+                         AND att2.status = 'completed'
+                     )",
+                    $question_id,
+                    $quiz_id,
+                    $quiz_id
                 ));
 
                 $error_percentage = 0;
