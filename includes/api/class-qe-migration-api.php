@@ -423,217 +423,201 @@ class QE_Migration_API extends QE_API_Base
      */
     private function build_user_question_stats()
     {
-        // Increase limits for large migrations
-        @set_time_limit(600);
-        @ini_set('memory_limit', '256M');
+        // Increase time limit but NOT memory - we need to work within limits
+        @set_time_limit(900);
 
         global $wpdb;
 
-        // Stats table uses qe_ prefix like other plugin tables
         $stats_table = $wpdb->prefix . 'qe_user_question_stats';
         $answers_table = $wpdb->prefix . 'qe_attempt_answers';
         $attempts_table = $wpdb->prefix . 'qe_quiz_attempts';
 
         $stats = [
-            'total_records' => 0,
             'processed' => 0,
             'inserted' => 0,
             'updated' => 0,
             'errors' => 0,
-            'users_processed' => 0,
             'log' => []
         ];
 
         try {
-            $stats['log'][] = "🚀 Starting user question stats migration (optimized for large datasets)...";
+            $stats['log'][] = "🚀 Starting migration (ultra-light mode)...";
 
-            // 1. Check if the stats table exists
+            // 1. Check if table exists
             $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$stats_table'");
             if (!$table_exists) {
-                $stats['log'][] = "⚠️ Table $stats_table does not exist. Running schema update first...";
+                $stats['log'][] = "⚠️ Creating stats table...";
                 if (!class_exists('QE_Database')) {
                     require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-database.php';
                 }
                 QE_Database::create_tables();
-                $stats['log'][] = "✅ Schema updated.";
             }
 
-            // 2. Count total users (not all combinations - too expensive)
-            $total_users = $wpdb->get_var("
-                SELECT COUNT(DISTINCT user_id) 
-                FROM {$attempts_table} 
-                WHERE status = 'completed'
+            // 2. Get unique user-question combinations to process
+            // Use a MUCH simpler approach: just get the distinct pairs first
+            $total_pairs = $wpdb->get_var("
+                SELECT COUNT(DISTINCT CONCAT(att.user_id, '-', ans.question_id))
+                FROM {$answers_table} ans
+                INNER JOIN {$attempts_table} att ON ans.attempt_id = att.attempt_id
+                WHERE att.status = 'completed'
             ");
 
-            $stats['log'][] = "👥 Found {$total_users} users with completed attempts.";
+            $stats['log'][] = "📊 Found ~{$total_pairs} user-question combinations.";
 
-            if ($total_users == 0) {
-                $stats['log'][] = "ℹ️ No completed quiz attempts found. Nothing to migrate.";
+            if ($total_pairs == 0) {
                 return $this->success_response(['message' => 'No data to migrate.', 'stats' => $stats]);
             }
 
-            // 3. Process users in batches of 10
-            $batch_size = 10;
+            // 3. Process in very small batches using direct INSERT...SELECT
+            // This moves the heavy lifting to MySQL instead of PHP
+            $batch_size = 100; // Process 100 user-question pairs at a time
             $offset = 0;
+            $max_iterations = 10000; // Safety limit
+            $iteration = 0;
 
-            while (true) {
-                // Get batch of user IDs
-                $user_ids = $wpdb->get_col($wpdb->prepare("
-                    SELECT DISTINCT user_id 
-                    FROM {$attempts_table} 
-                    WHERE status = 'completed'
-                    ORDER BY user_id
+            while ($iteration < $max_iterations) {
+                $iteration++;
+
+                // Get a small batch of user-question pairs (only IDs, minimal memory)
+                $pairs = $wpdb->get_results($wpdb->prepare("
+                    SELECT DISTINCT att.user_id, ans.question_id
+                    FROM {$answers_table} ans
+                    INNER JOIN {$attempts_table} att ON ans.attempt_id = att.attempt_id
+                    WHERE att.status = 'completed'
+                    ORDER BY att.user_id, ans.question_id
                     LIMIT %d OFFSET %d
                 ", $batch_size, $offset));
 
-                if (empty($user_ids)) {
-                    break; // No more users
+                if (empty($pairs)) {
+                    break; // Done
                 }
 
-                // Process each user in batch
-                foreach ($user_ids as $user_id) {
-                    $user_id = (int) $user_id;
-                    $stats['users_processed']++;
+                // Process each pair individually with simple queries
+                foreach ($pairs as $pair) {
+                    $user_id = (int) $pair->user_id;
+                    $question_id = (int) $pair->question_id;
 
-                    // Use a single optimized query that gets latest answer per question
-                    // This is more memory efficient than loading all answers
-                    $user_stats_data = $wpdb->get_results($wpdb->prepare("
+                    // Get the LATEST answer for this user-question (single row)
+                    $latest = $wpdb->get_row($wpdb->prepare("
                         SELECT 
-                            ans.question_id,
                             ans.attempt_id,
                             ans.answer_given,
                             ans.is_correct,
                             ans.is_risked,
-                            att.end_time as answered_at,
                             att.quiz_id,
                             att.course_id,
                             att.lesson_id,
-                            (SELECT COUNT(*) FROM {$answers_table} a2 
-                             INNER JOIN {$attempts_table} at2 ON a2.attempt_id = at2.attempt_id 
-                             WHERE at2.user_id = %d AND a2.question_id = ans.question_id AND at2.status = 'completed') as times_answered,
-                            (SELECT SUM(CASE WHEN a3.is_correct = 1 THEN 1 ELSE 0 END) FROM {$answers_table} a3 
-                             INNER JOIN {$attempts_table} at3 ON a3.attempt_id = at3.attempt_id 
-                             WHERE at3.user_id = %d AND a3.question_id = ans.question_id AND at3.status = 'completed') as times_correct
+                            att.end_time
                         FROM {$answers_table} ans
                         INNER JOIN {$attempts_table} att ON ans.attempt_id = att.attempt_id
                         WHERE att.user_id = %d 
+                          AND ans.question_id = %d
                           AND att.status = 'completed'
-                          AND ans.attempt_id = (
-                              SELECT MAX(a4.attempt_id) 
-                              FROM {$answers_table} a4
-                              INNER JOIN {$attempts_table} at4 ON a4.attempt_id = at4.attempt_id
-                              WHERE at4.user_id = %d AND a4.question_id = ans.question_id AND at4.status = 'completed'
-                          )
-                        GROUP BY ans.question_id
-                    ", $user_id, $user_id, $user_id, $user_id));
+                        ORDER BY att.attempt_id DESC
+                        LIMIT 1
+                    ", $user_id, $question_id));
 
-                    if (empty($user_stats_data)) {
+                    if (!$latest) {
                         continue;
                     }
 
-                    // Process each question for this user
-                    foreach ($user_stats_data as $row) {
-                        $stats['processed']++;
+                    // Get counts (simple aggregates)
+                    $counts = $wpdb->get_row($wpdb->prepare("
+                        SELECT 
+                            COUNT(*) as times_answered,
+                            SUM(ans.is_correct) as times_correct
+                        FROM {$answers_table} ans
+                        INNER JOIN {$attempts_table} att ON ans.attempt_id = att.attempt_id
+                        WHERE att.user_id = %d 
+                          AND ans.question_id = %d
+                          AND att.status = 'completed'
+                    ", $user_id, $question_id));
 
-                        // Determine answer status
-                        $answer_given = $row->answer_given;
-                        $is_correct = (int) $row->is_correct;
-                        $is_risked = (int) $row->is_risked;
+                    // Determine status
+                    $answer_given = $latest->answer_given;
+                    $is_correct = (int) $latest->is_correct;
+                    $is_risked = (int) $latest->is_risked;
 
-                        if ($answer_given === null || $answer_given === '') {
-                            $status = 'unanswered';
-                        } elseif ($is_correct) {
-                            $status = $is_risked ? 'correct_with_risk' : 'correct_without_risk';
-                        } else {
-                            $status = $is_risked ? 'incorrect_with_risk' : 'incorrect_without_risk';
-                        }
-
-                        $times_answered = (int) $row->times_answered ?: 1;
-                        $times_correct = (int) $row->times_correct ?: 0;
-                        $times_incorrect = $times_answered - $times_correct;
-                        if ($times_incorrect < 0)
-                            $times_incorrect = 0;
-
-                        // Insert or update - using simple REPLACE for speed
-                        $result = $wpdb->query($wpdb->prepare(
-                            "
-                            INSERT INTO {$stats_table} 
-                            (user_id, question_id, course_id, quiz_id, lesson_id, difficulty, 
-                             last_answer_status, is_correct, is_risked, answer_given, 
-                             last_attempt_id, last_answered_at, times_answered, times_correct, times_incorrect)
-                            VALUES (%d, %d, %d, %d, %d, 'medium', %s, %d, %d, %s, %d, %s, %d, %d, %d)
-                            ON DUPLICATE KEY UPDATE
-                                course_id = VALUES(course_id),
-                                quiz_id = VALUES(quiz_id),
-                                lesson_id = VALUES(lesson_id),
-                                last_answer_status = VALUES(last_answer_status),
-                                is_correct = VALUES(is_correct),
-                                is_risked = VALUES(is_risked),
-                                answer_given = VALUES(answer_given),
-                                last_attempt_id = VALUES(last_attempt_id),
-                                last_answered_at = VALUES(last_answered_at),
-                                times_answered = VALUES(times_answered),
-                                times_correct = VALUES(times_correct),
-                                times_incorrect = VALUES(times_incorrect),
-                                updated_at = NOW()
-                        ",
-                            $user_id,
-                            $row->question_id,
-                            $row->course_id ?: 0,
-                            $row->quiz_id ?: 0,
-                            $row->lesson_id ?: 0,
-                            $status,
-                            $is_correct,
-                            $is_risked,
-                            $answer_given,
-                            $row->attempt_id,
-                            $row->answered_at ?: current_time('mysql'),
-                            $times_answered,
-                            $times_correct,
-                            $times_incorrect
-                        ));
-
-                        if ($result !== false) {
-                            if ($wpdb->insert_id > 0) {
-                                $stats['inserted']++;
-                            } else {
-                                $stats['updated']++;
-                            }
-                        } else {
-                            $stats['errors']++;
-                            if ($stats['errors'] <= 3) {
-                                $stats['log'][] = "❌ SQL Error: " . $wpdb->last_error;
-                            }
-                        }
+                    if ($answer_given === null || $answer_given === '') {
+                        $status = 'unanswered';
+                    } elseif ($is_correct) {
+                        $status = $is_risked ? 'correct_with_risk' : 'correct_without_risk';
+                    } else {
+                        $status = $is_risked ? 'incorrect_with_risk' : 'incorrect_without_risk';
                     }
 
-                    // Free memory after each user
-                    unset($user_stats_data);
+                    $times_answered = (int) ($counts->times_answered ?? 1);
+                    $times_correct = (int) ($counts->times_correct ?? 0);
+                    $times_incorrect = max(0, $times_answered - $times_correct);
+
+                    // Upsert
+                    $result = $wpdb->query($wpdb->prepare("
+                        INSERT INTO {$stats_table} 
+                        (user_id, question_id, course_id, quiz_id, lesson_id, difficulty, 
+                         last_answer_status, is_correct, is_risked, answer_given, 
+                         last_attempt_id, last_answered_at, times_answered, times_correct, times_incorrect)
+                        VALUES (%d, %d, %d, %d, %d, 'medium', %s, %d, %d, %s, %d, %s, %d, %d, %d)
+                        ON DUPLICATE KEY UPDATE
+                            course_id = VALUES(course_id),
+                            quiz_id = VALUES(quiz_id),
+                            lesson_id = VALUES(lesson_id),
+                            last_answer_status = VALUES(last_answer_status),
+                            is_correct = VALUES(is_correct),
+                            is_risked = VALUES(is_risked),
+                            answer_given = VALUES(answer_given),
+                            last_attempt_id = VALUES(last_attempt_id),
+                            last_answered_at = VALUES(last_answered_at),
+                            times_answered = VALUES(times_answered),
+                            times_correct = VALUES(times_correct),
+                            times_incorrect = VALUES(times_incorrect),
+                            updated_at = NOW()
+                    ",
+                        $user_id,
+                        $question_id,
+                        $latest->course_id ?: 0,
+                        $latest->quiz_id ?: 0,
+                        $latest->lesson_id ?: 0,
+                        $status,
+                        $is_correct,
+                        $is_risked,
+                        $answer_given,
+                        $latest->attempt_id,
+                        $latest->end_time ?: current_time('mysql'),
+                        $times_answered,
+                        $times_correct,
+                        $times_incorrect
+                    ));
+
+                    $stats['processed']++;
+                    if ($result !== false) {
+                        if ($wpdb->insert_id > 0) {
+                            $stats['inserted']++;
+                        } else {
+                            $stats['updated']++;
+                        }
+                    } else {
+                        $stats['errors']++;
+                    }
+
+                    // Clear individual query results
+                    unset($latest, $counts);
                 }
 
-                // Log progress after each batch
-                $stats['log'][] = "⏳ Processed {$stats['users_processed']}/{$total_users} users, {$stats['processed']} questions...";
+                // Progress log every 5 batches
+                if ($iteration % 5 === 0) {
+                    $stats['log'][] = "⏳ Batch {$iteration}: {$stats['processed']} processed...";
+                }
 
-                // Aggressive memory cleanup after each batch
-                unset($user_ids);
+                // Memory cleanup after each batch
+                unset($pairs);
                 $wpdb->flush();
-                if (function_exists('gc_collect_cycles')) {
-                    gc_collect_cycles();
-                }
+                gc_collect_cycles();
 
                 $offset += $batch_size;
-
-                // Safety check - don't run forever
-                if ($offset > 100000) {
-                    $stats['log'][] = "⚠️ Stopped at 100k offset for safety.";
-                    break;
-                }
             }
 
-            // Final stats
             $stats['log'][] = "✅ Migration completed!";
-            $stats['log'][] = "📈 Total processed: {$stats['processed']} questions";
-            $stats['log'][] = "👥 Users: {$stats['users_processed']}";
+            $stats['log'][] = "📈 Processed: {$stats['processed']}";
             $stats['log'][] = "➕ Inserted: {$stats['inserted']}";
             $stats['log'][] = "🔄 Updated: {$stats['updated']}";
             $stats['log'][] = "❌ Errors: {$stats['errors']}";
@@ -644,7 +628,7 @@ class QE_Migration_API extends QE_API_Base
             ]);
 
         } catch (Exception $e) {
-            $stats['log'][] = "❌ Fatal error: " . $e->getMessage();
+            $stats['log'][] = "❌ Fatal: " . $e->getMessage();
             return $this->error_response('migration_failed', $e->getMessage(), 500);
         }
     }
