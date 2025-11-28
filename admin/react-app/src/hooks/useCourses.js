@@ -52,9 +52,10 @@ export const useCourses = (options = {}) => {
     return {
       ...course,
       // Enhanced computed values
-      lesson_count: course.meta?._lesson_count || 0,
-      student_count: course.meta?._student_count || 0,
-      enrolled_users_count: course.meta?.enrolled_users_count || 0,
+      lesson_count: course.meta?._lesson_count || course.lessons_count || 0,
+      // 🔧 FIX: Use enrolled_users_count from REST field (not meta._student_count)
+      student_count: course.enrolled_users_count || course.meta?._student_count || 0,
+      enrolled_users_count: course.enrolled_users_count || course.meta?.enrolled_users_count || 0,
       price: parseFloat(course.meta?._course_price || 0),
       sale_price: parseFloat(course.meta?._sale_price || 0),
       difficulty: course.meta?._course_difficulty || 'intermediate',
@@ -65,8 +66,8 @@ export const useCourses = (options = {}) => {
       // Computed flags
       on_sale: course.meta?._sale_price && 
                parseFloat(course.meta._sale_price) < parseFloat(course.meta._course_price || 0),
-      has_lessons: (course.meta?._lesson_count || 0) > 0,
-      has_students: (course.meta?._student_count || 0) > 0
+      has_lessons: (course.meta?._lesson_count || course.lessons_count || 0) > 0,
+      has_students: (course.enrolled_users_count || course.meta?._student_count || 0) > 0
     };
   }, []);
 
@@ -124,7 +125,8 @@ const computedValuesCalculator = useMemo(() => (courses) => {
     const status = course.status || 'draft';
     const price = parseFloat(meta._price || 0);
     const salePrice = parseFloat(meta._sale_price || 0);
-    const students = parseInt(meta._student_count || course.enrolled_users_count || 0);
+    // 🔧 FIX: Prioritize enrolled_users_count from REST field
+    const students = parseInt(course.enrolled_users_count || meta._student_count || 0);
     const lessons = parseInt(meta._lesson_count || course.lessons_count || 0);
     const duration = parseInt(meta._course_duration || 0);
     const completionRate = parseFloat(meta._completion_rate || 0);

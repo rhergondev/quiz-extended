@@ -17,6 +17,7 @@ import Tabs from '../common/layout/Tabs';
 import Button from '../common/Button';
 import ResourceSelectorModal from '../common/ResourceSelectorModal';
 import GhostUsersPanel from './GhostUsersPanel';
+import EnrolledUsersPanel from './EnrolledUsersPanel';
 
 const getCourseTitle = (course) => course?.title?.rendered || course?.title || 'Curso sin título';
 
@@ -377,10 +378,17 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
     <GhostUsersPanel courseId={courseId} />
   );
 
+  const enrolledUsersTabContent = (
+    <EnrolledUsersPanel courseId={courseId} />
+  );
+
   const tabs = [
     { name: t('common.settings'), content: settingsTabContent },
     { name: 'Constructor', content: builderTabContent },
-    ...(mode === 'edit' ? [{ name: 'Usuarios Fantasma', content: ghostUsersTabContent, icon: Users }] : []),
+    ...(mode === 'edit' ? [
+      { name: 'Estudiantes', content: enrolledUsersTabContent, icon: Users },
+      { name: 'Usuarios Fantasma', content: ghostUsersTabContent }
+    ] : []),
   ];
   
   if (isLoading) return <div className="flex items-center justify-center h-full"><p>{t('common.loading')}</p></div>;

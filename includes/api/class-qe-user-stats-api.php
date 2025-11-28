@@ -173,11 +173,19 @@ class QE_User_Stats_API extends QE_API_Base
 
             if (!empty($quiz_ids)) {
                 $quiz_filter = "AND att.quiz_id IN (" . implode(',', array_map('intval', $quiz_ids)) . ")";
+                $quiz_filter_att2 = "AND att2.quiz_id IN (" . implode(',', array_map('intval', $quiz_ids)) . ")";
+            } else {
+                $quiz_filter = "";
+                $quiz_filter_att2 = "";
             }
+        } else {
+            $quiz_filter = "";
+            $quiz_filter_att2 = "";
         }
 
-        // Build course filter
+        // Build course filters - one for main query (att), one for subquery (att2)
         $course_filter = $course_id ? $wpdb->prepare("AND att.course_id = %d", $course_id) : "";
+        $course_filter_att2 = $course_id ? $wpdb->prepare("AND att2.course_id = %d", $course_id) : "";
 
         // ========================================
         // USER STATS - OPTIMIZED: Use JOIN instead of correlated subquery
@@ -198,7 +206,7 @@ class QE_User_Stats_API extends QE_API_Base
                 SELECT a2.question_id, MAX(a2.attempt_id) as max_attempt_id
                 FROM {$answers_table} a2
                 INNER JOIN {$attempts_table} att2 ON a2.attempt_id = att2.attempt_id
-                WHERE att2.user_id = %d {$course_filter} {$quiz_filter}
+                WHERE att2.user_id = %d {$course_filter_att2} {$quiz_filter_att2}
                 GROUP BY a2.question_id
             ) latest ON a.question_id = latest.question_id AND a.attempt_id = latest.max_attempt_id
             WHERE att.user_id = %d {$course_filter} {$quiz_filter}";
@@ -227,7 +235,7 @@ class QE_User_Stats_API extends QE_API_Base
                 SELECT att2.user_id, a2.question_id, MAX(a2.attempt_id) as max_attempt_id
                 FROM {$answers_table} a2
                 INNER JOIN {$attempts_table} att2 ON a2.attempt_id = att2.attempt_id
-                WHERE 1=1 {$course_filter} {$quiz_filter}
+                WHERE 1=1 {$course_filter_att2} {$quiz_filter_att2}
                 GROUP BY att2.user_id, a2.question_id
             ) latest ON att.user_id = latest.user_id AND a.question_id = latest.question_id AND a.attempt_id = latest.max_attempt_id
             WHERE 1=1 {$course_filter} {$quiz_filter}";
