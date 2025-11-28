@@ -128,7 +128,10 @@ class QE_User_Stats_API extends QE_API_Base
      *
      * Returns aggregated statistics of correct/incorrect/unanswered questions
      * for the current user, optionally filtered by course.
-     * Also includes global averages for comparison (only last attempt per quiz per user).
+     * Also includes global averages for comparison.
+     * 
+     * OPTIMIZED: Uses pre-calculated qe_user_question_stats table for fast reads.
+     * Falls back to real-time calculation if table is empty.
      *
      * @param WP_REST_Request $request
      * @return WP_REST_Response|WP_Error
@@ -144,53 +147,106 @@ class QE_User_Stats_API extends QE_API_Base
         $lesson_id = $request->get_param('lesson_id');
 
         global $wpdb;
+        $stats_table = $wpdb->prefix . 'qe_user_question_stats';
+
+        // Check if stats table exists and has data for this user
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$stats_table'");
+        $user_has_data = false;
+
+        if ($table_exists) {
+            // Check if THIS USER has data in the pre-calculated table
+            $user_has_data = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM $stats_table WHERE user_id = %d LIMIT 1",
+                $user_id
+            )) > 0;
+        }
+
+        if ($user_has_data) {
+            // Use optimized pre-calculated stats
+            return $this->get_user_question_stats_from_table($user_id, $course_id, $lesson_id);
+        } else {
+            // Fallback to real-time calculation
+            return $this->get_user_question_stats_realtime($user_id, $course_id, $lesson_id);
+        }
+    }
+
+    /**
+     * Get stats from pre-calculated table (FAST)
+     */
+    private function get_user_question_stats_from_table($user_id, $course_id, $lesson_id)
+    {
+        global $wpdb;
+        $stats_table = $wpdb->prefix . 'qe_user_question_stats';
+
+        // Build filters
+        $course_filter = $course_id ? $wpdb->prepare("AND course_id = %d", $course_id) : "";
+
+        $quiz_filter = "";
+        if ($lesson_id) {
+            $quiz_ids = $this->get_quiz_ids_for_lesson($lesson_id);
+            if (!empty($quiz_ids)) {
+                $quiz_filter = "AND quiz_id IN (" . implode(',', array_map('intval', $quiz_ids)) . ")";
+            }
+        }
+
+        // USER STATS - Simple aggregation from pre-calculated table
+        $user_stats = $wpdb->get_row($wpdb->prepare("
+            SELECT 
+                COUNT(*) as total_questions,
+                SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct_answers,
+                SUM(CASE WHEN is_correct = 0 AND last_answer_status NOT IN ('unanswered') THEN 1 ELSE 0 END) as incorrect_answers,
+                SUM(CASE WHEN last_answer_status = 'unanswered' THEN 1 ELSE 0 END) as unanswered,
+                SUM(CASE WHEN last_answer_status = 'correct_with_risk' THEN 1 ELSE 0 END) as correct_with_risk,
+                SUM(CASE WHEN last_answer_status = 'correct_without_risk' THEN 1 ELSE 0 END) as correct_without_risk,
+                SUM(CASE WHEN last_answer_status = 'incorrect_with_risk' THEN 1 ELSE 0 END) as incorrect_with_risk,
+                SUM(CASE WHEN last_answer_status = 'incorrect_without_risk' THEN 1 ELSE 0 END) as incorrect_without_risk
+            FROM {$stats_table}
+            WHERE user_id = %d {$course_filter} {$quiz_filter}
+        ", $user_id));
+
+        // GLOBAL STATS - Aggregation across all users
+        $global_stats = $wpdb->get_row("
+            SELECT 
+                COUNT(DISTINCT user_id) as total_users,
+                COUNT(*) as total_answers,
+                SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as global_correct,
+                SUM(CASE WHEN is_correct = 0 AND last_answer_status NOT IN ('unanswered') THEN 1 ELSE 0 END) as global_incorrect,
+                SUM(CASE WHEN last_answer_status = 'unanswered' THEN 1 ELSE 0 END) as global_unanswered,
+                SUM(CASE WHEN last_answer_status = 'correct_with_risk' THEN 1 ELSE 0 END) as global_correct_with_risk,
+                SUM(CASE WHEN last_answer_status = 'correct_without_risk' THEN 1 ELSE 0 END) as global_correct_without_risk,
+                SUM(CASE WHEN last_answer_status = 'incorrect_with_risk' THEN 1 ELSE 0 END) as global_incorrect_with_risk,
+                SUM(CASE WHEN last_answer_status = 'incorrect_without_risk' THEN 1 ELSE 0 END) as global_incorrect_without_risk
+            FROM {$stats_table}
+            WHERE 1=1 {$course_filter} {$quiz_filter}
+        ");
+
+        return $this->format_stats_response($user_stats, $global_stats);
+    }
+
+    /**
+     * Get stats with real-time calculation (SLOWER - fallback)
+     */
+    private function get_user_question_stats_realtime($user_id, $course_id, $lesson_id)
+    {
+        global $wpdb;
         $attempts_table = $this->get_table('quiz_attempts');
         $answers_table = $this->get_table('attempt_answers');
 
-        // Debug: Log query parameters
-        error_log("QE Debug: get_user_question_stats called for user $user_id, course $course_id, lesson $lesson_id");
-
-        // If lesson_id is provided, get quiz_ids for that lesson
-        $quiz_filter = "";
-        $quiz_ids = [];
-        if ($lesson_id) {
-            // Get from _quiz_ids meta
-            $quiz_ids_meta = get_post_meta($lesson_id, '_quiz_ids', true);
-            if (!empty($quiz_ids_meta) && is_array($quiz_ids_meta)) {
-                $quiz_ids = array_merge($quiz_ids, $quiz_ids_meta);
-            }
-
-            // Get from _lesson_steps
-            $lesson_steps = get_post_meta($lesson_id, '_lesson_steps', true);
-            if (!empty($lesson_steps) && is_array($lesson_steps)) {
-                foreach ($lesson_steps as $step) {
-                    if (isset($step['type']) && $step['type'] === 'quiz' && isset($step['data']['quiz_id'])) {
-                        $quiz_ids[] = (int) $step['data']['quiz_id'];
-                    }
-                }
-            }
-            $quiz_ids = array_unique(array_filter($quiz_ids));
-
-            if (!empty($quiz_ids)) {
-                $quiz_filter = "AND att.quiz_id IN (" . implode(',', array_map('intval', $quiz_ids)) . ")";
-                $quiz_filter_att2 = "AND att2.quiz_id IN (" . implode(',', array_map('intval', $quiz_ids)) . ")";
-            } else {
-                $quiz_filter = "";
-                $quiz_filter_att2 = "";
-            }
-        } else {
-            $quiz_filter = "";
-            $quiz_filter_att2 = "";
-        }
-
-        // Build course filters - one for main query (att), one for subquery (att2)
+        // Build filters
         $course_filter = $course_id ? $wpdb->prepare("AND att.course_id = %d", $course_id) : "";
         $course_filter_att2 = $course_id ? $wpdb->prepare("AND att2.course_id = %d", $course_id) : "";
 
-        // ========================================
-        // USER STATS - OPTIMIZED: Use JOIN instead of correlated subquery
-        // Get latest attempt_id per question for this user
-        // ========================================
+        $quiz_filter = "";
+        $quiz_filter_att2 = "";
+        if ($lesson_id) {
+            $quiz_ids = $this->get_quiz_ids_for_lesson($lesson_id);
+            if (!empty($quiz_ids)) {
+                $quiz_filter = "AND att.quiz_id IN (" . implode(',', array_map('intval', $quiz_ids)) . ")";
+                $quiz_filter_att2 = "AND att2.quiz_id IN (" . implode(',', array_map('intval', $quiz_ids)) . ")";
+            }
+        }
+
+        // USER STATS
         $user_query = "SELECT 
                 COUNT(*) as total_questions,
                 SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) as correct_answers,
@@ -206,19 +262,14 @@ class QE_User_Stats_API extends QE_API_Base
                 SELECT a2.question_id, MAX(a2.attempt_id) as max_attempt_id
                 FROM {$answers_table} a2
                 INNER JOIN {$attempts_table} att2 ON a2.attempt_id = att2.attempt_id
-                WHERE att2.user_id = %d {$course_filter_att2} {$quiz_filter_att2}
+                WHERE att2.user_id = %d AND att2.status = 'completed' {$course_filter_att2} {$quiz_filter_att2}
                 GROUP BY a2.question_id
             ) latest ON a.question_id = latest.question_id AND a.attempt_id = latest.max_attempt_id
-            WHERE att.user_id = %d {$course_filter} {$quiz_filter}";
+            WHERE att.user_id = %d AND att.status = 'completed' {$course_filter} {$quiz_filter}";
 
         $user_stats = $wpdb->get_row($wpdb->prepare($user_query, $user_id, $user_id));
 
-        error_log("QE Debug: User stats result: " . print_r($user_stats, true));
-
-        // ========================================
-        // GLOBAL STATS - OPTIMIZED: Use JOIN instead of correlated subquery
-        // Get latest attempt_id per question per user for all users
-        // ========================================
+        // GLOBAL STATS
         $global_query = "SELECT 
                 COUNT(DISTINCT att.user_id) as total_users,
                 COUNT(*) as total_answers,
@@ -235,14 +286,48 @@ class QE_User_Stats_API extends QE_API_Base
                 SELECT att2.user_id, a2.question_id, MAX(a2.attempt_id) as max_attempt_id
                 FROM {$answers_table} a2
                 INNER JOIN {$attempts_table} att2 ON a2.attempt_id = att2.attempt_id
-                WHERE 1=1 {$course_filter_att2} {$quiz_filter_att2}
+                WHERE att2.status = 'completed' {$course_filter_att2} {$quiz_filter_att2}
                 GROUP BY att2.user_id, a2.question_id
             ) latest ON att.user_id = latest.user_id AND a.question_id = latest.question_id AND a.attempt_id = latest.max_attempt_id
-            WHERE 1=1 {$course_filter} {$quiz_filter}";
+            WHERE att.status = 'completed' {$course_filter} {$quiz_filter}";
 
         $global_stats = $wpdb->get_row($global_query);
 
-        // Calculate global percentages (averages)
+        return $this->format_stats_response($user_stats, $global_stats);
+    }
+
+    /**
+     * Get quiz IDs for a lesson
+     */
+    private function get_quiz_ids_for_lesson($lesson_id)
+    {
+        $quiz_ids = [];
+
+        // Get from _quiz_ids meta
+        $quiz_ids_meta = get_post_meta($lesson_id, '_quiz_ids', true);
+        if (!empty($quiz_ids_meta) && is_array($quiz_ids_meta)) {
+            $quiz_ids = array_merge($quiz_ids, $quiz_ids_meta);
+        }
+
+        // Get from _lesson_steps
+        $lesson_steps = get_post_meta($lesson_id, '_lesson_steps', true);
+        if (!empty($lesson_steps) && is_array($lesson_steps)) {
+            foreach ($lesson_steps as $step) {
+                if (isset($step['type']) && $step['type'] === 'quiz' && isset($step['data']['quiz_id'])) {
+                    $quiz_ids[] = (int) $step['data']['quiz_id'];
+                }
+            }
+        }
+
+        return array_unique(array_filter($quiz_ids));
+    }
+
+    /**
+     * Format stats response
+     */
+    private function format_stats_response($user_stats, $global_stats)
+    {
+        // Calculate global percentages
         $total_global_answers = (int) ($global_stats->total_answers ?? 0);
         $global_correct_pct = $total_global_answers > 0
             ? round(((int) $global_stats->global_correct / $total_global_answers) * 100, 1)

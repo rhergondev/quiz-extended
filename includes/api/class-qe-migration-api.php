@@ -64,6 +64,8 @@ class QE_Migration_API extends QE_API_Base
                 return $this->update_database_schema();
             case 'migrate_questions_to_multirelationship':
                 return $this->migrate_questions_to_multirelationship();
+            case 'build_user_question_stats':
+                return $this->build_user_question_stats();
             default:
                 return $this->error_response('invalid_migration', 'Invalid migration type.', 400);
         }
@@ -402,6 +404,285 @@ class QE_Migration_API extends QE_API_Base
             }
 
         } catch (Exception $e) {
+            return $this->error_response('migration_failed', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Build User Question Stats Table
+     * 
+     * Processes all quiz attempts and populates the qe_user_question_stats table
+     * with pre-computed statistics for fast queries.
+     * 
+     * This migration:
+     * 1. Gets all unique user+question combinations from attempt_answers
+     * 2. For each combination, finds the LAST answer (by attempt_id)
+     * 3. Stores the result in qe_user_question_stats
+     * 
+     * Safe to run multiple times - uses INSERT ... ON DUPLICATE KEY UPDATE
+     */
+    private function build_user_question_stats()
+    {
+        // Increase limits for large migrations
+        @set_time_limit(600);
+        wp_raise_memory_limit('admin');
+
+        global $wpdb;
+
+        // Stats table uses qe_ prefix like other plugin tables
+        $stats_table = $wpdb->prefix . 'qe_user_question_stats';
+        $answers_table = $wpdb->prefix . 'qe_attempt_answers';
+        $attempts_table = $wpdb->prefix . 'qe_quiz_attempts';
+
+        $stats = [
+            'total_records' => 0,
+            'processed' => 0,
+            'inserted' => 0,
+            'updated' => 0,
+            'errors' => 0,
+            'batches_completed' => 0,
+            'log' => []
+        ];
+
+        try {
+            // Log start
+            $stats['log'][] = "🚀 Starting user question stats migration...";
+            error_log("QE Migration: Starting build_user_question_stats");
+
+            // 1. First, check if the stats table exists
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$stats_table'");
+            if (!$table_exists) {
+                $stats['log'][] = "⚠️ Table $stats_table does not exist. Running schema update first...";
+
+                if (!class_exists('QE_Database')) {
+                    require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/class-qe-database.php';
+                }
+                QE_Database::create_tables();
+
+                $stats['log'][] = "✅ Schema updated.";
+            }
+
+            // 2. Count total unique user+question combinations
+            $total_count = $wpdb->get_var("
+                SELECT COUNT(DISTINCT CONCAT(att.user_id, '-', ans.question_id))
+                FROM {$answers_table} ans
+                INNER JOIN {$attempts_table} att ON ans.attempt_id = att.attempt_id
+                WHERE att.status = 'completed'
+            ");
+
+            $stats['total_records'] = (int) $total_count;
+            $stats['log'][] = "📊 Found {$total_count} unique user+question combinations to process.";
+            error_log("QE Migration: Found {$total_count} unique combinations");
+
+            if ($total_count == 0) {
+                $stats['log'][] = "ℹ️ No completed quiz attempts found. Nothing to migrate.";
+                return $this->success_response([
+                    'message' => 'No data to migrate.',
+                    'stats' => $stats
+                ]);
+            }
+
+            // 3. Get all unique user IDs that have completed attempts
+            $user_ids = $wpdb->get_col("
+                SELECT DISTINCT user_id 
+                FROM {$attempts_table} 
+                WHERE status = 'completed'
+                ORDER BY user_id
+            ");
+
+            $stats['log'][] = "👥 Processing " . count($user_ids) . " users with completed attempts.";
+
+            // 4. Process each user
+            foreach ($user_ids as $user_id) {
+                $user_id = (int) $user_id;
+
+                // Debug: Check if user has any answers at all
+                $answer_count = $wpdb->get_var($wpdb->prepare("
+                    SELECT COUNT(*) 
+                    FROM {$answers_table} ans
+                    INNER JOIN {$attempts_table} att ON ans.attempt_id = att.attempt_id
+                    WHERE att.user_id = %d AND att.status = 'completed'
+                ", $user_id));
+
+                error_log("QE Migration: User {$user_id} has {$answer_count} answers in completed attempts");
+
+                // Get all questions this user has answered (latest answer per question)
+                // Simplified query without subquery for better compatibility
+                // Note: attempt_answers table doesn't have created_at, use attempt's end_time instead
+                $user_answers = $wpdb->get_results($wpdb->prepare("
+                    SELECT 
+                        ans.question_id,
+                        ans.attempt_id,
+                        ans.answer_given,
+                        ans.is_correct,
+                        ans.is_risked,
+                        att.end_time as answered_at,
+                        att.quiz_id,
+                        att.course_id,
+                        att.lesson_id
+                    FROM {$answers_table} ans
+                    INNER JOIN {$attempts_table} att ON ans.attempt_id = att.attempt_id
+                    WHERE att.user_id = %d AND att.status = 'completed'
+                    ORDER BY ans.question_id, ans.attempt_id DESC
+                ", $user_id));
+
+                error_log("QE Migration: User {$user_id} query returned " . count($user_answers) . " rows");
+
+                if ($wpdb->last_error) {
+                    error_log("QE Migration: SQL Error - " . $wpdb->last_error);
+                    $stats['log'][] = "⚠️ SQL Error for user {$user_id}: " . $wpdb->last_error;
+                }
+
+                if (empty($user_answers)) {
+                    $stats['log'][] = "⚠️ User {$user_id} has {$answer_count} answers but query returned 0 rows";
+                    continue;
+                }
+
+                // Deduplicate to keep only latest answer per question
+                $latest_answers = [];
+                foreach ($user_answers as $answer) {
+                    if (!isset($latest_answers[$answer->question_id])) {
+                        $latest_answers[$answer->question_id] = $answer;
+                    }
+                }
+                $user_answers = array_values($latest_answers);
+
+                // Get count stats per question for this user
+                $count_stats = $wpdb->get_results($wpdb->prepare("
+                    SELECT 
+                        ans.question_id,
+                        COUNT(*) as times_answered,
+                        SUM(CASE WHEN ans.is_correct = 1 THEN 1 ELSE 0 END) as times_correct,
+                        SUM(CASE WHEN ans.is_correct = 0 AND ans.answer_given IS NOT NULL AND ans.answer_given != '' THEN 1 ELSE 0 END) as times_incorrect
+                    FROM {$answers_table} ans
+                    INNER JOIN {$attempts_table} att ON ans.attempt_id = att.attempt_id
+                    WHERE att.user_id = %d AND att.status = 'completed'
+                    GROUP BY ans.question_id
+                ", $user_id), OBJECT_K);
+
+                // Process each answer
+                foreach ($user_answers as $answer) {
+                    $stats['processed']++;
+
+                    try {
+                        // Determine answer status
+                        $answer_given = $answer->answer_given;
+                        $is_correct = (int) $answer->is_correct;
+                        $is_risked = (int) $answer->is_risked;
+
+                        if ($answer_given === null || $answer_given === '') {
+                            $status = 'unanswered';
+                        } elseif ($is_correct) {
+                            $status = $is_risked ? 'correct_with_risk' : 'correct_without_risk';
+                        } else {
+                            $status = $is_risked ? 'incorrect_with_risk' : 'incorrect_without_risk';
+                        }
+
+                        // Get question difficulty
+                        $difficulty = get_post_meta($answer->question_id, '_difficulty', true);
+                        if (empty($difficulty)) {
+                            $difficulty = 'medium';
+                        }
+
+                        // Get count stats
+                        $qstats = isset($count_stats[$answer->question_id]) ? $count_stats[$answer->question_id] : null;
+                        $times_answered = $qstats ? (int) $qstats->times_answered : 1;
+                        $times_correct = $qstats ? (int) $qstats->times_correct : ($is_correct ? 1 : 0);
+                        $times_incorrect = $qstats ? (int) $qstats->times_incorrect : (!$is_correct && $answer_given ? 1 : 0);
+
+                        // Insert or update
+                        $result = $wpdb->query($wpdb->prepare(
+                            "
+                            INSERT INTO {$stats_table} 
+                            (user_id, question_id, course_id, quiz_id, lesson_id, difficulty, 
+                             last_answer_status, is_correct, is_risked, answer_given, 
+                             last_attempt_id, last_answered_at, times_answered, times_correct, times_incorrect)
+                            VALUES (%d, %d, %d, %d, %d, %s, %s, %d, %d, %s, %d, %s, %d, %d, %d)
+                            ON DUPLICATE KEY UPDATE
+                                course_id = VALUES(course_id),
+                                quiz_id = VALUES(quiz_id),
+                                lesson_id = VALUES(lesson_id),
+                                difficulty = VALUES(difficulty),
+                                last_answer_status = VALUES(last_answer_status),
+                                is_correct = VALUES(is_correct),
+                                is_risked = VALUES(is_risked),
+                                answer_given = VALUES(answer_given),
+                                last_attempt_id = VALUES(last_attempt_id),
+                                last_answered_at = VALUES(last_answered_at),
+                                times_answered = VALUES(times_answered),
+                                times_correct = VALUES(times_correct),
+                                times_incorrect = VALUES(times_incorrect),
+                                updated_at = NOW()
+                        ",
+                            $user_id,
+                            $answer->question_id,
+                            $answer->course_id ?: 0,
+                            $answer->quiz_id ?: 0,
+                            $answer->lesson_id ?: 0,
+                            $difficulty,
+                            $status,
+                            $is_correct,
+                            $is_risked,
+                            $answer_given,
+                            $answer->attempt_id,
+                            $answer->answered_at ?: current_time('mysql'),
+                            $times_answered,
+                            $times_correct,
+                            $times_incorrect
+                        ));
+
+                        if ($result !== false) {
+                            if ($wpdb->insert_id > 0) {
+                                $stats['inserted']++;
+                            } else {
+                                $stats['updated']++;
+                            }
+                        } else {
+                            $stats['errors']++;
+                            $sql_error = $wpdb->last_error;
+                            error_log("QE Migration Error: " . $sql_error);
+                            // Log first few errors to user
+                            if ($stats['errors'] <= 3) {
+                                $stats['log'][] = "❌ SQL Error: " . $sql_error;
+                            }
+                        }
+
+                    } catch (Exception $e) {
+                        $stats['errors']++;
+                        error_log("QE Migration Exception: " . $e->getMessage());
+                    }
+                }
+
+                $stats['batches_completed']++;
+
+                // Log progress every 10 users
+                if ($stats['batches_completed'] % 10 === 0) {
+                    $stats['log'][] = "⏳ Processed {$stats['batches_completed']} users, {$stats['processed']} questions...";
+                }
+
+                // Free memory periodically
+                if ($stats['batches_completed'] % 50 === 0) {
+                    wp_cache_flush();
+                }
+            }
+
+            // Final stats
+            $stats['log'][] = "✅ Migration completed!";
+            $stats['log'][] = "📈 Total processed: {$stats['processed']}";
+            $stats['log'][] = "➕ Inserted: {$stats['inserted']}";
+            $stats['log'][] = "🔄 Updated: {$stats['updated']}";
+            $stats['log'][] = "❌ Errors: {$stats['errors']}";
+
+            error_log("QE Migration: Completed. Processed={$stats['processed']}, Inserted={$stats['inserted']}, Updated={$stats['updated']}, Errors={$stats['errors']}");
+
+            return $this->success_response([
+                'message' => 'User question stats built successfully.',
+                'stats' => $stats
+            ]);
+
+        } catch (Exception $e) {
+            $stats['log'][] = "❌ Fatal error: " . $e->getMessage();
+            error_log("QE Migration Fatal Error: " . $e->getMessage());
             return $this->error_response('migration_failed', $e->getMessage(), 500);
         }
     }

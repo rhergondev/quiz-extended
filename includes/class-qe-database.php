@@ -489,20 +489,41 @@ class QE_Database
 
             $table_name = $prefix . 'user_question_stats';
 
+            // Enhanced table structure for pre-computed statistics
+            // This table stores the LAST answer status for each user+question combination
+            // Updated incrementally on quiz submit for fast reads
             $sql = "CREATE TABLE $table_name (
                 id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
                 user_id BIGINT(20) UNSIGNED NOT NULL,
                 question_id BIGINT(20) UNSIGNED NOT NULL,
-                course_id BIGINT(20) UNSIGNED NOT NULL,
+                course_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+                quiz_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+                lesson_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+                difficulty VARCHAR(20) NOT NULL DEFAULT 'medium',
                 last_answer_status VARCHAR(20) NOT NULL DEFAULT 'unanswered',
+                is_correct TINYINT(1) NOT NULL DEFAULT 0,
+                is_risked TINYINT(1) NOT NULL DEFAULT 0,
+                answer_given TEXT DEFAULT NULL,
+                last_attempt_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
                 last_answered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                times_answered INT UNSIGNED NOT NULL DEFAULT 1,
+                times_correct INT UNSIGNED NOT NULL DEFAULT 0,
+                times_incorrect INT UNSIGNED NOT NULL DEFAULT 0,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
                 UNIQUE KEY user_question (user_id, question_id),
                 KEY user_id (user_id),
                 KEY question_id (question_id),
                 KEY course_id (course_id),
+                KEY quiz_id (quiz_id),
+                KEY lesson_id (lesson_id),
+                KEY difficulty (difficulty),
                 KEY last_answer_status (last_answer_status),
-                KEY last_answered_at (last_answered_at)
+                KEY is_correct (is_correct),
+                KEY is_risked (is_risked),
+                KEY user_course (user_id, course_id),
+                KEY user_course_status (user_id, course_id, last_answer_status)
             ) $charset_collate;";
 
             dbDelta($sql);

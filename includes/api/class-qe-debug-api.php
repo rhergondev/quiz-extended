@@ -24,6 +24,9 @@ class QE_Debug_API extends QE_API_Base
     {
         $this->namespace = 'quiz-extended/v1';
         $this->rest_base = 'debug';
+
+        // Call parent constructor to register routes
+        parent::__construct();
     }
 
     /**
@@ -89,6 +92,13 @@ class QE_Debug_API extends QE_API_Base
         register_rest_route($this->namespace, '/' . $this->rest_base . '/notificationlogs/clear', [
             'methods' => 'POST',
             'callback' => [$this, 'clear_notification_logs'],
+            'permission_callback' => [$this, 'permissions_check']
+        ]);
+
+        // 📊 Debug endpoint para sistema de estadísticas de preguntas
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/question-stats', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_question_stats_debug'],
             'permission_callback' => [$this, 'permissions_check']
         ]);
     }
@@ -451,5 +461,164 @@ class QE_Debug_API extends QE_API_Base
     public function permissions_check($request)
     {
         return current_user_can('manage_options');
+    }
+
+    /**
+     * Debug endpoint for question stats system
+     * 
+     * GET /wp-json/quiz-extended/v1/debug/question-stats
+     * GET /wp-json/quiz-extended/v1/debug/question-stats?user_id=123
+     * GET /wp-json/quiz-extended/v1/debug/question-stats?test_update=1&user_id=3&quiz_id=100
+     */
+    public function get_question_stats_debug($request)
+    {
+        global $wpdb;
+
+        $stats_table = $wpdb->prefix . 'qe_user_question_stats';
+        $attempts_table = $wpdb->prefix . 'qe_quiz_attempts';
+        $answers_table = $wpdb->prefix . 'qe_attempt_answers';
+
+        $debug_data = [
+            'timestamp' => current_time('mysql'),
+            'tables' => [],
+            'stats' => [],
+            'recent_attempts' => [],
+            'test_result' => null
+        ];
+
+        // 1. Check tables exist
+        $debug_data['tables']['stats_table'] = [
+            'name' => $stats_table,
+            'exists' => (bool) $wpdb->get_var("SHOW TABLES LIKE '$stats_table'")
+        ];
+        $debug_data['tables']['attempts_table'] = [
+            'name' => $attempts_table,
+            'exists' => (bool) $wpdb->get_var("SHOW TABLES LIKE '$attempts_table'")
+        ];
+        $debug_data['tables']['answers_table'] = [
+            'name' => $answers_table,
+            'exists' => (bool) $wpdb->get_var("SHOW TABLES LIKE '$answers_table'")
+        ];
+
+        // 2. Get stats table counts
+        if ($debug_data['tables']['stats_table']['exists']) {
+            $debug_data['stats']['total_records'] = (int) $wpdb->get_var("SELECT COUNT(*) FROM $stats_table");
+            $debug_data['stats']['unique_users'] = (int) $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM $stats_table");
+            $debug_data['stats']['unique_questions'] = (int) $wpdb->get_var("SELECT COUNT(DISTINCT question_id) FROM $stats_table");
+
+            // By status
+            $by_status = $wpdb->get_results("
+                SELECT last_answer_status, COUNT(*) as count 
+                FROM $stats_table 
+                GROUP BY last_answer_status
+            ");
+            $debug_data['stats']['by_status'] = [];
+            foreach ($by_status as $row) {
+                $debug_data['stats']['by_status'][$row->last_answer_status] = (int) $row->count;
+            }
+
+            // Latest 5 updates
+            $debug_data['stats']['latest_updates'] = $wpdb->get_results("
+                SELECT user_id, question_id, course_id, last_answer_status, is_correct, 
+                       times_answered, updated_at
+                FROM $stats_table 
+                ORDER BY updated_at DESC 
+                LIMIT 5
+            ");
+        }
+
+        // 3. Get recent completed attempts
+        $debug_data['recent_attempts'] = $wpdb->get_results("
+            SELECT attempt_id, user_id, quiz_id, course_id, score, status, end_time
+            FROM $attempts_table 
+            WHERE status = 'completed'
+            ORDER BY end_time DESC 
+            LIMIT 5
+        ");
+
+        // 4. Check specific user if requested
+        $user_id = $request->get_param('user_id');
+        if ($user_id) {
+            $user_id = (int) $user_id;
+            $debug_data['user_check'] = [
+                'user_id' => $user_id,
+                'stats_records' => (int) $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM $stats_table WHERE user_id = %d",
+                    $user_id
+                )),
+                'completed_attempts' => (int) $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM $attempts_table WHERE user_id = %d AND status = 'completed'",
+                    $user_id
+                )),
+                'latest_stats' => $wpdb->get_results($wpdb->prepare("
+                    SELECT question_id, last_answer_status, is_correct, times_answered, updated_at
+                    FROM $stats_table 
+                    WHERE user_id = %d
+                    ORDER BY updated_at DESC
+                    LIMIT 5
+                ", $user_id))
+            ];
+        }
+
+        // 5. Test manual update if requested
+        $test_update = $request->get_param('test_update');
+        if ($test_update && $user_id) {
+            $quiz_id = $request->get_param('quiz_id');
+            if ($quiz_id) {
+                // Simulate calling the updater
+                $debug_data['test_result'] = [
+                    'action' => 'manual_trigger',
+                    'user_id' => $user_id,
+                    'quiz_id' => $quiz_id,
+                    'before_count' => (int) $wpdb->get_var($wpdb->prepare(
+                        "SELECT COUNT(*) FROM $stats_table WHERE user_id = %d",
+                        $user_id
+                    ))
+                ];
+
+                // Get latest attempt for this user/quiz
+                $attempt = $wpdb->get_row($wpdb->prepare("
+                    SELECT attempt_id, course_id, lesson_id
+                    FROM $attempts_table
+                    WHERE user_id = %d AND quiz_id = %d AND status = 'completed'
+                    ORDER BY end_time DESC
+                    LIMIT 1
+                ", $user_id, $quiz_id));
+
+                if ($attempt) {
+                    $debug_data['test_result']['attempt_found'] = $attempt;
+
+                    // Manually call the updater
+                    if (class_exists('QE_Question_Stats_Updater')) {
+                        QE_Question_Stats_Updater::update_user_question_stats($user_id, $quiz_id, [
+                            'attempt_id' => $attempt->attempt_id
+                        ]);
+                        $debug_data['test_result']['updater_called'] = true;
+                    } else {
+                        $debug_data['test_result']['error'] = 'QE_Question_Stats_Updater class not found';
+                    }
+
+                    $debug_data['test_result']['after_count'] = (int) $wpdb->get_var($wpdb->prepare(
+                        "SELECT COUNT(*) FROM $stats_table WHERE user_id = %d",
+                        $user_id
+                    ));
+                } else {
+                    $debug_data['test_result']['error'] = 'No completed attempt found for this user/quiz';
+                }
+            } else {
+                $debug_data['test_result']['error'] = 'quiz_id required for test_update';
+            }
+        }
+
+        // 6. Check if updater class is loaded
+        $debug_data['updater_status'] = [
+            'class_exists' => class_exists('QE_Question_Stats_Updater'),
+            'hook_registered' => has_action('qe_quiz_attempt_submitted')
+        ];
+
+        return new WP_REST_Response([
+            'success' => true,
+            'data' => $debug_data
+        ], 200);
     }
 }
