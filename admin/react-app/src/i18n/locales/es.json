@@ -619,13 +619,16 @@
     },
     "results": {
       "title": "Resultados del Cuestionario",
-      "scoreWithoutRisk": "Puntuación Sin Riesgo",
-      "scoreWithRisk": "Puntuación Con Riesgo",
+      "summary": "Resumen",
+      "scoreWithoutRisk": "Sin Riesgo",
+      "scoreWithRisk": "Con Riesgo",
       "correct": "Aciertos",
       "incorrect": "Errores",
       "unanswered": "Sin contestar",
-      "globalAverage": "Media Global",
+      "globalAverage": "Media",
       "percentile": "Percentil",
+      "myScore": "Mi Nota",
+      "answeredWithRisk": "Con riesgo",
       "backToCourses": "Volver a Cursos"
     },
     "sidebar": {

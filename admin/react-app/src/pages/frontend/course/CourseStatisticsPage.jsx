@@ -138,8 +138,7 @@ const CourseStatisticsPage = () => {
       totalQuizzes,
       progressPercentage,
       bestLesson,
-      worstLesson,
-      hasCompletedAll: completedQuizzes === totalQuizzes && totalQuizzes > 0
+      worstLesson
     };
   }, [rankingStatus, performanceByLesson]);
 
@@ -399,18 +398,6 @@ const CourseStatisticsPage = () => {
                             </div>
                           )}
                           
-                          {rankingStatus?.is_temporary && (
-                            <div className="flex items-center gap-1 mt-2">
-                              <span 
-                                className="text-xs px-2 py-0.5 rounded-full font-medium"
-                                style={{ 
-                                  backgroundColor: `${getColor('warning', '#f59e0b')}15`,
-                                  color: getColor('warning', '#f59e0b')
-                                }}
-                              >
-                                {t('statistics.temporary')}
-                              </span>
-                            </div>
                           )}
                         </div>
                       </div>
@@ -443,25 +430,12 @@ const CourseStatisticsPage = () => {
                     <div className="p-4">
                       <div className="flex items-baseline gap-2 mb-1">
                         <span className="text-4xl font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
-                          #{rankingStatus?.temporary_position || rankingStatus?.position || '-'}
+                          #{rankingStatus?.position || '-'}
                         </span>
-                        {computedStats?.hasCompletedAll && (
+                        {computedStats?.completedQuizzes === computedStats?.totalQuizzes && computedStats?.totalQuizzes > 0 && (
                           <CheckCircle size={16} className="text-green-500 mb-1" />
                         )}
                       </div>
-                      {rankingStatus?.is_temporary && (
-                        <div className="flex items-center gap-1 mt-2">
-                          <span 
-                            className="text-xs px-2 py-0.5 rounded-full font-medium"
-                            style={{ 
-                              backgroundColor: `${getColor('warning', '#f59e0b')}15`,
-                              color: getColor('warning', '#f59e0b')
-                            }}
-                          >
-                            {t('statistics.temporary')}
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </div>
 

@@ -124,7 +124,7 @@ class QE_Course_Ranking_API extends QE_API_Base
         // Build the quiz_ids placeholders
         $quiz_placeholders = implode(',', array_fill(0, count($quiz_ids), '%d'));
 
-        // Get GLOBAL statistics (all users who completed all quizzes)
+        // Get GLOBAL statistics (all users who have completed at least 1 quiz)
         // Using ONLY the last attempt per quiz per user
         $global_stats = $wpdb->get_row($wpdb->prepare("
             SELECT 
@@ -151,9 +151,9 @@ class QE_Course_Ranking_API extends QE_API_Base
                     WHERE t1.status = 'completed'
                 ) la
                 GROUP BY la.user_id
-                HAVING COUNT(DISTINCT la.quiz_id) = %d
+                HAVING COUNT(DISTINCT la.quiz_id) >= 1
             ) as user_averages
-        ", array_merge($quiz_ids, [$total_quizzes])));
+        ", $quiz_ids));
 
         $statistics = [
             'total_users' => $global_stats ? (int) $global_stats->total_users : 0,
@@ -163,7 +163,7 @@ class QE_Course_Ranking_API extends QE_API_Base
             'top_10_cutoff_with_risk' => 0,
         ];
 
-        // Get ALL users who completed all quizzes (for finding current user position)
+        // Get ALL users who have completed at least 1 quiz (for finding current user position)
         // Using ONLY the last attempt per quiz per user
         $order_column = $with_risk ? 'average_score_with_risk' : 'average_score_without_risk';
         $all_users = $wpdb->get_results($wpdb->prepare("
@@ -189,8 +189,8 @@ class QE_Course_Ranking_API extends QE_API_Base
                 WHERE t1.status = 'completed'
             ) la
             GROUP BY la.user_id
-            HAVING quizzes_completed = %d
-        ", array_merge($quiz_ids, [$total_quizzes])));
+            HAVING quizzes_completed >= 1
+        ", $quiz_ids));
 
         // Fix the ORDER BY to use the correct column name
         // Re-sort in PHP since ORDER BY uses alias
@@ -344,7 +344,7 @@ class QE_Course_Ranking_API extends QE_API_Base
 
     /**
      * Get current user's ranking status for a course
-     * Shows progress and temporary ranking if not all quizzes completed
+     * Shows progress and ranking position (users enter ranking with at least 1 quiz completed)
      */
     public function get_my_ranking_status($request)
     {
@@ -379,7 +379,7 @@ class QE_Course_Ranking_API extends QE_API_Base
         global $wpdb;
         $table_name = $wpdb->prefix . 'qe_quiz_attempts';
 
-        // 🔥 Get user's stats using ONLY the last attempt of each quiz
+        // Get user's stats using ONLY the last attempt of each quiz
         $last_attempts_scores = [];
         $total_attempts_count = 0;
         $last_attempt_time = null;
@@ -429,41 +429,8 @@ class QE_Course_Ranking_API extends QE_API_Base
             'last_attempt' => $user_stats ? $user_stats->last_attempt : null
         ];
 
-        // If not completed all, get temporary position
-        if (!$has_completed_all && $user_stats && $completed_quizzes > 0) {
-            // Calculate temporary ranking among users with same number of completed quizzes
-            // Using ONLY the last attempt per quiz per user
-            $temp_position = $wpdb->get_var($wpdb->prepare("
-                SELECT COUNT(*) + 1
-                FROM (
-                    SELECT 
-                        la.user_id,
-                        AVG(la.score) as avg_score,
-                        COUNT(DISTINCT la.quiz_id) as completed
-                    FROM (
-                        SELECT t1.user_id, t1.quiz_id, t1.score
-                        FROM {$table_name} t1
-                        INNER JOIN (
-                            SELECT user_id, quiz_id, MAX(end_time) as max_end_time
-                            FROM {$table_name}
-                            WHERE quiz_id IN (" . implode(',', array_fill(0, count($quiz_ids), '%d')) . ")
-                            AND status = 'completed'
-                            GROUP BY user_id, quiz_id
-                        ) t2 ON t1.user_id = t2.user_id 
-                            AND t1.quiz_id = t2.quiz_id 
-                            AND t1.end_time = t2.max_end_time
-                        WHERE t1.status = 'completed'
-                    ) la
-                    GROUP BY la.user_id
-                    HAVING completed = %d AND avg_score > %f
-                ) as temp_ranking
-            ", array_merge($quiz_ids, [$completed_quizzes, $user_stats->average_score])));
-
-            $response_data['temporary_position'] = (int) $temp_position;
-            $response_data['is_temporary'] = true;
-        } elseif ($has_completed_all && $user_stats) {
-            // Calculate actual position among users who completed ALL quizzes
-            // Using ONLY the last attempt per quiz per user
+        // Calculate position among ALL users with at least 1 quiz completed
+        if ($user_stats && $completed_quizzes > 0) {
             $position = $wpdb->get_var($wpdb->prepare("
                 SELECT COUNT(*) + 1
                 FROM (
@@ -486,12 +453,11 @@ class QE_Course_Ranking_API extends QE_API_Base
                         WHERE t1.status = 'completed'
                     ) la
                     GROUP BY la.user_id
-                    HAVING completed = %d AND avg_score > %f
-                ) as real_ranking
-            ", array_merge($quiz_ids, [$total_quizzes, $user_stats->average_score])));
+                    HAVING completed >= 1 AND avg_score > %f
+                ) as ranking
+            ", array_merge($quiz_ids, [$user_stats->average_score])));
 
             $response_data['position'] = (int) $position;
-            $response_data['is_temporary'] = false;
         }
 
         return new WP_REST_Response([

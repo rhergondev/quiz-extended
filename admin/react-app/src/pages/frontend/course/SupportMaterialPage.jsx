@@ -188,47 +188,24 @@ const SupportMaterialPage = () => {
   const hasPrevious = currentIndex > 0;
   const hasNext = currentIndex < allMaterialSteps.length - 1;
 
-  // Get PDF URL from step data
+  // Get PDF URL from step data - Force HTTPS to avoid mixed content issues
   const getPDFUrl = (step) => {
-    if (step.data?.url) {
-      return step.data.url;
-    }
-    if (step.data?.file_id) {
+    let url = null;
+    
+    if (step?.data?.url) {
+      url = step.data.url;
+    } else if (step?.data?.file_id) {
       // TODO: Fetch media URL from WordPress if needed
       return null;
     }
-    return null;
+    
+    // Force HTTPS if the page is loaded over HTTPS
+    if (url && window.location.protocol === 'https:') {
+      url = url.replace(/^http:\/\//i, 'https://');
+    }
+    
+    return url;
   };
-
-  // Mock data for design
-  const mockLessons = [
-    {
-      id: 1,
-      title: 'Introducción al Curso',
-      steps: [
-        { id: 1, type: 'pdf', title: 'Guía de Inicio Rápido', data: { filename: 'guia-inicio.pdf' } },
-        { id: 2, type: 'pdf', title: 'Manual del Estudiante', data: { filename: 'manual-estudiante.pdf' } },
-      ]
-    },
-    {
-      id: 2,
-      title: 'Conceptos Fundamentales',
-      steps: [
-        { id: 3, type: 'pdf', title: 'Teoría Base', data: { filename: 'teoria-base.pdf' } },
-        { id: 4, type: 'pdf', title: 'Ejemplos Prácticos', data: { filename: 'ejemplos.pdf' } },
-        { id: 5, type: 'pdf', title: 'Ejercicios Complementarios', data: { filename: 'ejercicios.pdf' } },
-      ]
-    },
-    {
-      id: 3,
-      title: 'Técnicas Avanzadas',
-      steps: [
-        { id: 6, type: 'pdf', title: 'Metodología Avanzada', data: { filename: 'metodologia.pdf' } },
-      ]
-    },
-  ];
-
-  const displayLessons = loading ? [] : mockLessons;
 
   return (
     <CoursePageTemplate

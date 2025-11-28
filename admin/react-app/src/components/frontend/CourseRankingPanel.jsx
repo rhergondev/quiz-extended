@@ -56,10 +56,10 @@ export const CourseRankingProvider = ({ courseId, courseName, isOpen, onOpen, on
         userNameColor: isDarkMode ? getColor('textPrimary', '#f9fafb') : primaryColor,
     };
 
-    const hasCompletedAllQuizzes = myStatus?.has_completed_all ?? false;
     const completedQuizzes = myStatus?.completed_quizzes ?? 0;
     const totalQuizzes = myStatus?.total_quizzes ?? 0;
-    const temporaryScore = myStatus?.average_score ?? 0;
+    const userScore = myStatus?.average_score ?? 0;
+    const userPosition = myStatus?.position ?? null;
 
     useEffect(() => {
         if (isOpen && pagination.userPage && pagination.currentPage === 1) {
@@ -88,10 +88,10 @@ export const CourseRankingProvider = ({ courseId, courseName, isOpen, onOpen, on
         firstPage,
         lastPage,
         goToUserPage,
-        hasCompletedAllQuizzes,
         completedQuizzes,
         totalQuizzes,
-        temporaryScore,
+        userScore,
+        userPosition,
         courseId,
         courseName,
         isOpen,
@@ -111,8 +111,9 @@ export const CourseRankingTrigger = () => {
     const { 
         t, 
         pageColors, 
-        myStats, 
-        hasCompletedAllQuizzes, 
+        myStats,
+        userPosition,
+        completedQuizzes,
         withRisk,
         onOpen 
     } = useRankingContext();
@@ -140,12 +141,12 @@ export const CourseRankingTrigger = () => {
             >
                 <Trophy className="w-4 h-4" />
                 <span>{t('ranking.ranking', 'Ranking')}</span>
-                {myStats && hasCompletedAllQuizzes && (
+                {completedQuizzes > 0 && (myStats || userPosition) && (
                     <span 
                         className="px-1.5 py-0.5 rounded text-xs font-bold"
                         style={{ backgroundColor: pageColors.hoverBg, color: '#fff' }}
                     >
-                        #{withRisk ? myStats.position_with_risk : myStats.position_without_risk}
+                        #{withRisk ? myStats?.position_with_risk : myStats?.position_without_risk || userPosition}
                     </span>
                 )}
             </button>
@@ -174,10 +175,10 @@ export const CourseRankingSlidePanel = () => {
         prevPage,
         firstPage,
         lastPage,
-        hasCompletedAllQuizzes,
         completedQuizzes,
         totalQuizzes,
-        temporaryScore,
+        userScore,
+        userPosition,
         courseName,
         isOpen,
         onClose,
@@ -214,24 +215,25 @@ export const CourseRankingSlidePanel = () => {
         return pages;
     };
 
-    const IncompleteWarning = () => {
-        if (hasCompletedAllQuizzes || completedQuizzes === 0) return null;
+    // Componente para mostrar progreso del usuario
+    const UserProgressInfo = () => {
+        if (completedQuizzes === totalQuizzes || completedQuizzes === 0) return null;
         
         return (
             <div 
                 className="p-4 rounded-lg flex items-start gap-3"
                 style={{ 
-                    backgroundColor: isDarkMode ? 'rgba(251, 191, 36, 0.1)' : '#fffbeb',
-                    border: `1px solid ${isDarkMode ? 'rgba(251, 191, 36, 0.3)' : '#fcd34d'}`
+                    backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.1)' : '#eff6ff',
+                    border: `1px solid ${isDarkMode ? 'rgba(59, 130, 246, 0.3)' : '#93c5fd'}`
                 }}
             >
-                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: pageColors.accent }} />
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#3b82f6' }} />
                 <div>
-                    <p className="font-medium text-sm" style={{ color: isDarkMode ? '#fbbf24' : '#b45309' }}>
-                        {t('ranking.incompleteTitle', 'Nota Media Provisional')}
+                    <p className="font-medium text-sm" style={{ color: isDarkMode ? '#93c5fd' : '#1d4ed8' }}>
+                        {t('ranking.progressInfo', 'Progreso en el curso')}
                     </p>
-                    <p className="text-xs mt-1" style={{ color: isDarkMode ? '#fcd34d' : '#92400e' }}>
-                        Has completado {completedQuizzes} de {totalQuizzes} tests. Tu nota provisional es {formatScore(temporaryScore)}, pero no aparecerás en el ranking hasta completar todos.
+                    <p className="text-xs mt-1" style={{ color: isDarkMode ? '#60a5fa' : '#2563eb' }}>
+                        Has completado {completedQuizzes} de {totalQuizzes} tests. Tu nota media actual es {formatScore(userScore)}.
                     </p>
                 </div>
             </div>
@@ -277,24 +279,7 @@ export const CourseRankingSlidePanel = () => {
                         </div>
                     </div>
                     
-                    {/* Toggle Risk in header */}
-                    <button
-                        onClick={toggleRisk}
-                        className="px-3 py-1.5 rounded-lg font-medium text-xs transition-all flex items-center gap-1.5"
-                        style={{
-                            backgroundColor: withRisk ? pageColors.accent : '#10b981',
-                            color: '#ffffff'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.opacity = '0.85';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.opacity = '1';
-                        }}
-                    >
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: '#ffffff' }} />
-                        {withRisk ? 'Con Riesgo' : 'Sin Riesgo'}
-                    </button>
+                    {/* Remove toggle button from header - now showing both modes */}
                 </div>
 
                 {/* Content */}
@@ -324,64 +309,196 @@ export const CourseRankingSlidePanel = () => {
                                 </div>
                             ) : (
                                 <>
-                                    {/* Warning + Stats Row */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                                        {/* Warning takes full width on mobile, 2 cols on desktop */}
-                                        {!hasCompletedAllQuizzes && completedQuizzes > 0 && (
-                                            <div className="lg:col-span-2">
-                                                <IncompleteWarning />
-                                            </div>
-                                        )}
+                                    {/* Progress Info (if not all quizzes completed) */}
+                                    {completedQuizzes > 0 && completedQuizzes < totalQuizzes && (
+                                        <UserProgressInfo />
+                                    )}
+
+                                    {/* Estadísticas del Curso */}
+                                    <div 
+                                        className="rounded-xl overflow-hidden border-2"
+                                        style={{ 
+                                            backgroundColor: pageColors.bg,
+                                            borderColor: pageColors.border
+                                        }}
+                                    >
+                                        {/* Header */}
+                                        <div 
+                                            className="px-4 py-2 flex items-center gap-2"
+                                            style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : `${primaryColor}08` }}
+                                        >
+                                            <Users size={14} style={{ color: pageColors.iconColor }} />
+                                            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>
+                                                Estadísticas del Curso
+                                            </span>
+                                        </div>
                                         
-                                        {/* Stats */}
-                                        <div className={`grid grid-cols-3 gap-2 ${!hasCompletedAllQuizzes && completedQuizzes > 0 ? '' : 'lg:col-span-3'}`}>
+                                        {/* Stats Grid */}
+                                        <div 
+                                            className="grid grid-cols-3"
+                                            style={{ 
+                                                '--tw-divide-x-reverse': 0,
+                                            }}
+                                        >
                                             <div 
-                                                className="rounded-lg p-3 text-center border"
-                                                style={{ backgroundColor: pageColors.bg, borderColor: pageColors.border }}
+                                                className="p-3 text-center"
+                                                style={{ borderRight: `1px solid ${pageColors.border}` }}
                                             >
-                                                <Users size={16} className="mx-auto mb-1" style={{ color: pageColors.iconColor }} />
-                                                <p className="text-[10px]" style={{ color: pageColors.textMuted }}>Total</p>
-                                                <p className="font-bold" style={{ color: pageColors.text }}>{statistics?.total_users || 0}</p>
-                                            </div>
-                                            <div 
-                                                className="rounded-lg p-3 text-center border"
-                                                style={{ backgroundColor: pageColors.bg, borderColor: pageColors.border }}
-                                            >
-                                                <TrendingUp size={16} className="mx-auto mb-1" style={{ color: '#10b981' }} />
-                                                <p className="text-[10px]" style={{ color: pageColors.textMuted }}>Media</p>
-                                                <p className="font-bold" style={{ color: pageColors.text }}>
-                                                    {formatScore(withRisk ? statistics?.avg_score_with_risk : statistics?.avg_score_without_risk)}
+                                                <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: pageColors.textMuted }}>
+                                                    Usuarios
+                                                </p>
+                                                <p className="text-xl font-bold" style={{ color: pageColors.text }}>
+                                                    {statistics?.total_users || 0}
                                                 </p>
                                             </div>
                                             <div 
-                                                className="rounded-lg p-3 text-center"
-                                                style={{ 
-                                                    backgroundColor: pageColors.bg, 
-                                                    border: myStats && hasCompletedAllQuizzes 
-                                                        ? `2px solid ${isDarkMode ? pageColors.accent : primaryColor}` 
-                                                        : `1px dashed ${pageColors.border}`
-                                                }}
+                                                className="p-3 text-center"
+                                                style={{ borderRight: `1px solid ${pageColors.border}` }}
                                             >
-                                                {myStats && hasCompletedAllQuizzes ? (
-                                                    <>
-                                                        <Trophy size={16} className="mx-auto mb-1" style={{ color: isDarkMode ? pageColors.accent : primaryColor }} />
-                                                        <p className="text-[10px]" style={{ color: pageColors.textMuted }}>Tu Posición</p>
-                                                        <p className="font-bold" style={{ color: isDarkMode ? pageColors.accent : primaryColor }}>
-                                                            #{withRisk ? myStats.position_with_risk : myStats.position_without_risk}
-                                                        </p>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Clock size={16} className="mx-auto mb-1" style={{ color: pageColors.textMuted }} />
-                                                        <p className="text-[10px]" style={{ color: pageColors.textMuted }}>Provisional</p>
-                                                        <p className="font-bold" style={{ color: pageColors.textMuted }}>
-                                                            {completedQuizzes > 0 ? formatScore(temporaryScore) : '-'}
-                                                        </p>
-                                                    </>
-                                                )}
+                                                <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: pageColors.textMuted }}>
+                                                    Media Sin Riesgo
+                                                </p>
+                                                <p className="text-xl font-bold" style={{ color: isDarkMode ? pageColors.text : primaryColor }}>
+                                                    {formatScore(statistics?.avg_score_without_risk || 0)}
+                                                </p>
+                                            </div>
+                                            <div className="p-3 text-center">
+                                                <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: pageColors.textMuted }}>
+                                                    Media Con Riesgo
+                                                </p>
+                                                <p className="text-xl font-bold" style={{ color: pageColors.accent }}>
+                                                    {formatScore(statistics?.avg_score_with_risk || 0)}
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* Mis Estadísticas - Unificado */}
+                                    {completedQuizzes > 0 && (
+                                        <div 
+                                            className="rounded-xl overflow-hidden border-2"
+                                            style={{ 
+                                                backgroundColor: pageColors.bg,
+                                                borderColor: pageColors.border
+                                            }}
+                                        >
+                                            {/* Header */}
+                                            <div 
+                                                className="px-4 py-2 flex items-center gap-2"
+                                                style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : `${primaryColor}08` }}
+                                            >
+                                                <Trophy size={14} style={{ color: isDarkMode ? pageColors.accent : primaryColor }} />
+                                                <span className="text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>
+                                                    Mis Estadísticas
+                                                </span>
+                                            </div>
+                                            
+                                            {/* Sin Riesgo Row */}
+                                            <div 
+                                                className="px-4 py-3 border-b"
+                                                style={{ 
+                                                    borderColor: pageColors.border,
+                                                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.02)' : `${primaryColor}03`
+                                                }}
+                                            >
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <div 
+                                                        className="w-2 h-2 rounded-full"
+                                                        style={{ backgroundColor: primaryColor }}
+                                                    />
+                                                    <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: isDarkMode ? pageColors.text : primaryColor }}>
+                                                        Sin Riesgo
+                                                    </span>
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-4">
+                                                    <div className="text-center">
+                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                                                            Posición
+                                                        </p>
+                                                        <p className="text-lg font-bold" style={{ color: isDarkMode ? pageColors.text : primaryColor }}>
+                                                            #{myStats?.position_without_risk || userPosition || '-'}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                                                            Mi Media
+                                                        </p>
+                                                        <p className="text-lg font-bold" style={{ color: isDarkMode ? pageColors.text : primaryColor }}>
+                                                            {formatScore(myStats?.score_without_risk || userScore || 0)}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                                                            Percentil
+                                                        </p>
+                                                        {(() => {
+                                                            const percentile = (myStats?.score_without_risk || userScore || 0) - (statistics?.avg_score_without_risk || 0);
+                                                            return (
+                                                                <p 
+                                                                    className="text-lg font-bold"
+                                                                    style={{ color: percentile >= 0 ? '#10b981' : '#ef4444' }}
+                                                                >
+                                                                    {percentile >= 0 ? '+' : ''}{formatScore(percentile)}
+                                                                </p>
+                                                            );
+                                                        })()}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Con Riesgo Row */}
+                                            <div 
+                                                className="px-4 py-3"
+                                                style={{ 
+                                                    backgroundColor: isDarkMode ? `${pageColors.accent}10` : `${pageColors.accent}08`
+                                                }}
+                                            >
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <div 
+                                                        className="w-2 h-2 rounded-full"
+                                                        style={{ backgroundColor: pageColors.accent }}
+                                                    />
+                                                    <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: pageColors.accent }}>
+                                                        Con Riesgo
+                                                    </span>
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-4">
+                                                    <div className="text-center">
+                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                                                            Posición
+                                                        </p>
+                                                        <p className="text-lg font-bold" style={{ color: pageColors.accent }}>
+                                                            #{myStats?.position_with_risk || '-'}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                                                            Mi Media
+                                                        </p>
+                                                        <p className="text-lg font-bold" style={{ color: pageColors.accent }}>
+                                                            {formatScore(myStats?.score_with_risk || 0)}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                                                            Percentil
+                                                        </p>
+                                                        {(() => {
+                                                            const percentile = (myStats?.score_with_risk || 0) - (statistics?.avg_score_with_risk || 0);
+                                                            return (
+                                                                <p 
+                                                                    className="text-lg font-bold"
+                                                                    style={{ color: percentile >= 0 ? '#10b981' : '#ef4444' }}
+                                                                >
+                                                                    {percentile >= 0 ? '+' : ''}{formatScore(percentile)}
+                                                                </p>
+                                                            );
+                                                        })()}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Ranking Table */}
                                     <div 

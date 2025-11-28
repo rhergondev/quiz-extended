@@ -274,14 +274,14 @@ const CourseDashboardPage = () => {
                     style={{ borderColor: pageColors.primary }}
                   ></div>
                 </div>
-              ) : rankingStatus && rankingStatus.has_completed_all ? (
+              ) : rankingStatus && rankingStatus.completed_quizzes > 0 ? (
                 <div className="text-center space-y-4">
                   <div 
                     className="inline-flex items-center justify-center w-20 h-20 rounded-full"
                     style={{ backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.accent}15` }}
                   >
                     <span className="text-3xl font-bold" style={{ color: pageColors.accent }}>
-                      #{rankingStatus.position || rankingStatus.temporary_position || '?'}
+                      #{rankingStatus.position || '?'}
                     </span>
                   </div>
                   
@@ -324,7 +324,7 @@ const CourseDashboardPage = () => {
                         color: pageColors.accent
                       }}
                     >
-                      {t('ranking.pending')}
+                      {t('ranking.noTestsYet')}
                     </span>
                   </div>
 
@@ -338,7 +338,7 @@ const CourseDashboardPage = () => {
                   </div>
 
                   <p className="text-xs px-2" style={{ color: pageColors.textMuted }}>
-                    {t('ranking.completeAllQuizzes')}
+                    {t('ranking.completeFirstQuiz')}
                   </p>
                 </div>
               )}
@@ -421,14 +421,14 @@ const CourseDashboardPage = () => {
                 label={t('ranking.averageScore')}
                 value={formatScore(rankingStatus.average_score || 0)}
                 color={pageColors.accent}
-                highlight={rankingStatus.has_completed_all}
+                highlight={rankingStatus.completed_quizzes > 0}
               />
             )}
-            {rankingStatus && rankingStatus.has_completed_all && (
+            {rankingStatus && rankingStatus.completed_quizzes > 0 && (
               <StatCard
                 icon={Trophy}
                 label={t('ranking.yourPosition')}
-                value={`#${rankingStatus.position || rankingStatus.temporary_position || '?'}`}
+                value={`#${rankingStatus.position || '?'}`}
                 color={pageColors.accent}
                 highlight
               />

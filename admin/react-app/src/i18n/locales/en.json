@@ -599,13 +599,16 @@
     },
     "results": {
       "title": "Quiz Results",
-      "scoreWithoutRisk": "Score Without Risk",
-      "scoreWithRisk": "Score With Risk",
+      "summary": "Summary",
+      "scoreWithoutRisk": "Without Risk",
+      "scoreWithRisk": "With Risk",
       "correct": "Correct",
       "incorrect": "Incorrect",
       "unanswered": "Unanswered",
-      "globalAverage": "Global Average",
+      "globalAverage": "Average",
       "percentile": "Percentile",
+      "myScore": "My Score",
+      "answeredWithRisk": "At risk",
       "backToCourses": "Back to Courses"
     },
     "sidebar": {

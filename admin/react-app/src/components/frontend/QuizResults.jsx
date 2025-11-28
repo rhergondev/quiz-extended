@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle, XCircle, MinusCircle, Award, Menu, X } from 'lucide-react';
+import { CheckCircle, XCircle, MinusCircle, Award, Menu, X, Trophy } from 'lucide-react';
 import ReviewedQuestion from './ReviewedQuestion';
 import ResultsSidebar from './ResultsSidebar';
 import { useTranslation } from 'react-i18next';
@@ -13,13 +13,20 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
   const { getColor, isDarkMode } = useTheme();
   const [isResultsSidebarOpen, setIsResultsSidebarOpen] = useState(false);
 
-  const SUCCESS_COLOR = '#22c55e';
+  const SUCCESS_COLOR = '#10b981';
   const ERROR_COLOR = '#ef4444';
   const GRAY_COLOR = isDarkMode ? '#9ca3af' : '#6b7280';
 
-  // Dark mode aware colors
-  const textPrimary = isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c');
-  const bgCard = isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff';
+  // Dark mode aware colors - matching CourseRankingPanel
+  const primaryColor = getColor('primary', '#3b82f6');
+  const accentColor = getColor('accent', '#f59e0b');
+  const pageColors = {
+    text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
+    textMuted: getColor('textSecondary', '#6b7280'),
+    accent: accentColor,
+    bg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    border: isDarkMode ? 'rgba(255,255,255,0.1)' : `${primaryColor}20`,
+  };
 
   if (!result) {
     return (
@@ -37,6 +44,9 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
   const correctAnswers = detailed_results?.filter(r => r.is_correct).length || 0;
   const incorrectAnswers = detailed_results?.filter(r => !r.is_correct && r.answer_given !== null).length || 0;
   const unanswered = detailed_results?.filter(r => r.answer_given === null).length || 0;
+  // is_risked indica si la pregunta fue contestada con riesgo activado
+  const answeredWithRisk = detailed_results?.filter(r => r.is_risked && r.answer_given !== null).length || 0;
+  const totalQuestions = detailed_results?.length || 0;
 
   const averageScore = average_score ?? null;
   const averageScoreWithRisk = average_score_with_risk ?? null;
@@ -89,13 +99,13 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
             <div className="lg:hidden flex items-center justify-between px-4 py-5 border-b" style={{
               borderColor: getColor('borderColor', '#e5e7eb')
             }}>
-              <h3 className="font-bold text-xl" style={{ color: textPrimary }}>
+              <h3 className="font-bold text-xl" style={{ color: pageColors.text }}>
                 {t('quizzes.results.summary')}
               </h3>
               <button
                 onClick={() => setIsResultsSidebarOpen(false)}
                 className="p-2 rounded-lg transition-colors"
-                style={{ color: textPrimary }}
+                style={{ color: pageColors.text }}
               >
                 <X className="w-6 h-6" />
               </button>
@@ -111,7 +121,7 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
         <div 
           className={`hidden lg:block rounded-lg p-4 mb-4 shadow-sm ${noPadding ? 'mt-4' : ''}`}
           style={{
-            backgroundColor: getColor('primary', '#1a202c'),
+            backgroundColor: primaryColor,
           }}
         >
           <h2 
@@ -122,234 +132,146 @@ const QuizResults = ({ result, quizTitle, questions, noPadding = false }) => {
           </h2>
         </div>
 
-        {/* Tarjetas de puntuación - responsive con bordes redondeados */}
-        <div className={`rounded-xl overflow-hidden border-2 mb-4 ${noPadding ? 'mt-4 lg:mt-0' : ''}`}
-          style={{
-            backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
-            borderColor: getColor('borderColor', '#e5e7eb')
+        {/* Resumen de respuestas - Compact */}
+        <div 
+          className={`rounded-xl overflow-hidden border-2 mb-4 ${noPadding ? 'mt-4 lg:mt-0' : ''}`}
+          style={{ 
+            backgroundColor: pageColors.bg,
+            borderColor: pageColors.border
           }}
         >
-          {/* Sin Riesgo */}
+          {/* Header */}
           <div 
-            className="p-3 sm:p-4 lg:p-6"
-            style={{
-              backgroundColor: bgCard,
-            }}
+            className="px-4 py-2 flex items-center gap-2 flex-wrap"
+            style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : `${primaryColor}08` }}
           >
-            <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <h3 
-                className="text-xs sm:text-sm lg:text-base font-bold"
-                style={{ color: textPrimary }}
-              >
-                {t('quizzes.results.scoreWithoutRisk')}
-              </h3>
-              <Award 
-                className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" 
-                style={{ color: textPrimary }}
-              />
-            </div>
-            <div 
-              className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2 sm:mb-3"
-              style={{ color: textPrimary }}
-            >
-              {formatScore(score)}
-            </div>
-            <div className="space-y-1 sm:space-y-1.5 text-sm">
-              <div className="flex items-center justify-between">
-                <span 
-                  className="flex items-center text-xs"
-                  style={{ color: GRAY_COLOR }}
-                >
-                  <CheckCircle className="w-3.5 h-3.5 mr-2" style={{ color: SUCCESS_COLOR }} />
-                  {t('quizzes.results.correct')}
+            <Trophy size={14} style={{ color: isDarkMode ? pageColors.accent : primaryColor }} />
+            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>
+              {t('quizzes.results.summary')}
+            </span>
+            {/* Question Stats inline */}
+            <div className="flex items-center gap-2 sm:gap-3 ml-auto text-[10px] sm:text-xs">
+              <span className="flex items-center gap-1" style={{ color: SUCCESS_COLOR }}>
+                <CheckCircle size={12} />
+                <span className="hidden sm:inline">{t('quizzes.results.correct')}</span> {correctAnswers}
+              </span>
+              <span className="flex items-center gap-1" style={{ color: GRAY_COLOR }}>
+                <MinusCircle size={12} />
+                <span className="hidden sm:inline">{t('quizzes.results.unanswered')}</span> {unanswered}
+              </span>
+              <span className="flex items-center gap-1" style={{ color: ERROR_COLOR }}>
+                <XCircle size={12} />
+                <span className="hidden sm:inline">{t('quizzes.results.incorrect')}</span> {incorrectAnswers}
+              </span>
+              {answeredWithRisk > 0 && (
+                <span className="flex items-center gap-1" style={{ color: pageColors.accent }}>
+                  <Award size={12} />
+                  <span className="hidden sm:inline">{t('quizzes.results.answeredWithRisk')}</span> {answeredWithRisk}
                 </span>
-                <span 
-                  className="font-semibold text-xs"
-                  style={{ color: textPrimary }}
-                >
-                  {correctAnswers}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span 
-                  className="flex items-center text-xs"
-                  style={{ color: GRAY_COLOR }}
-                >
-                  <MinusCircle className="w-3.5 h-3.5 mr-2" style={{ color: GRAY_COLOR }} />
-                  {t('quizzes.results.unanswered')}
-                </span>
-                <span 
-                  className="font-semibold text-xs"
-                  style={{ color: textPrimary }}
-                >
-                  {unanswered}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span 
-                  className="flex items-center text-xs"
-                  style={{ color: GRAY_COLOR }}
-                >
-                  <XCircle className="w-3.5 h-3.5 mr-2" style={{ color: ERROR_COLOR }} />
-                  {t('quizzes.results.incorrect')}
-                </span>
-                <span 
-                  className="font-semibold text-xs"
-                  style={{ color: textPrimary }}
-                >
-                  {incorrectAnswers}
-                </span>
-              </div>
-              {averageScore !== null && (
-                <>
-                  <div 
-                    className="border-t my-2"
-                    style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('primary', '#1a202c') + '20' }}
-                  />
-                  <div className="flex items-center justify-between">
-                    <span style={{ color: GRAY_COLOR }} className="text-xs">
-                      {t('quizzes.results.globalAverage')}
-                    </span>
-                    <span 
-                      className="font-semibold text-xs"
-                      style={{ color: textPrimary }}
-                    >
-                      {formatScore(averageScore)}
-                    </span>
-                  </div>
-                  {percentil !== null && (
-                    <div className="flex items-center justify-between">
-                      <span style={{ color: GRAY_COLOR }} className="text-xs">
-                        {t('quizzes.results.percentile')}
-                      </span>
-                      <span 
-                        className="font-semibold text-xs"
-                        style={{ 
-                          color: parseFloat(percentil) >= 0 ? SUCCESS_COLOR : ERROR_COLOR 
-                        }}
-                      >
-                        {parseFloat(percentil) >= 0 ? '+' : ''}{percentil}
-                      </span>
-                    </div>
-                  )}
-                </>
               )}
             </div>
           </div>
-
-          {/* Separador horizontal */}
+          
+          {/* Sin Riesgo Row */}
           <div 
+            className="px-4 py-3 border-b"
             style={{ 
-              height: '1px', 
-              backgroundColor: 'rgba(156, 163, 175, 0.2)'
-            }}
-          />
-
-          {/* Con Riesgo */}
-          <div 
-            className="p-3 sm:p-4 lg:p-6"
-            style={{
-              backgroundColor: bgCard,
+              borderColor: pageColors.border,
+              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.02)' : `${primaryColor}03`
             }}
           >
-            <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <h3 
-                className="text-xs sm:text-sm lg:text-base font-bold"
-                style={{ color: getColor('accent', '#f59e0b') }}
-              >
-                {t('quizzes.results.scoreWithRisk')}
-              </h3>
-              <Award 
-                className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" 
-                style={{ color: getColor('accent', '#f59e0b') }}
+            <div className="flex items-center gap-2 mb-2">
+              <div 
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: primaryColor }}
               />
+              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: isDarkMode ? pageColors.text : primaryColor }}>
+                {t('quizzes.results.scoreWithoutRisk')}
+              </span>
             </div>
-            <div 
-              className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2 sm:mb-3"
-              style={{ color: getColor('accent', '#f59e0b') }}
-            >
-              {formatScore(score_with_risk)}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                  {t('quizzes.results.myScore')}
+                </p>
+                <p className="text-lg font-bold" style={{ color: isDarkMode ? pageColors.text : primaryColor }}>
+                  {formatScore(score)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                  {t('quizzes.results.globalAverage')}
+                </p>
+                <p className="text-lg font-bold" style={{ color: isDarkMode ? pageColors.text : primaryColor }}>
+                  {averageScore !== null ? formatScore(averageScore) : '-'}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                  {t('quizzes.results.percentile')}
+                </p>
+                {percentil !== null ? (
+                  <p 
+                    className="text-lg font-bold"
+                    style={{ color: parseFloat(percentil) >= 0 ? SUCCESS_COLOR : ERROR_COLOR }}
+                  >
+                    {parseFloat(percentil) >= 0 ? '+' : ''}{formatScore(parseFloat(percentil))}
+                  </p>
+                ) : (
+                  <p className="text-lg font-bold" style={{ color: pageColors.textMuted }}>-</p>
+                )}
+              </div>
             </div>
-            <div className="space-y-1 sm:space-y-1.5 text-sm">
-              <div className="flex items-center justify-between">
-                <span 
-                  className="flex items-center text-xs"
-                  style={{ color: GRAY_COLOR }}
-                >
-                  <CheckCircle className="w-3.5 h-3.5 mr-2" style={{ color: SUCCESS_COLOR }} />
-                  {t('quizzes.results.correct')}
-                </span>
-                <span 
-                  className="font-semibold text-xs"
-                  style={{ color: getColor('accent', '#f59e0b') }}
-                >
-                  {correctAnswers}
-                </span>
+          </div>
+          
+          {/* Con Riesgo Row */}
+          <div 
+            className="px-4 py-3"
+            style={{ 
+              backgroundColor: isDarkMode ? `${pageColors.accent}10` : `${pageColors.accent}08`
+            }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <div 
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: pageColors.accent }}
+              />
+              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: pageColors.accent }}>
+                {t('quizzes.results.scoreWithRisk')}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                  {t('quizzes.results.myScore')}
+                </p>
+                <p className="text-lg font-bold" style={{ color: pageColors.accent }}>
+                  {formatScore(score_with_risk)}
+                </p>
               </div>
-              <div className="flex items-center justify-between">
-                <span 
-                  className="flex items-center text-xs"
-                  style={{ color: GRAY_COLOR }}
-                >
-                  <MinusCircle className="w-3.5 h-3.5 mr-2" style={{ color: GRAY_COLOR }} />
-                  {t('quizzes.results.unanswered')}
-                </span>
-                <span 
-                  className="font-semibold text-xs"
-                  style={{ color: getColor('accent', '#f59e0b') }}
-                >
-                  {unanswered}
-                </span>
+              <div className="text-center">
+                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                  {t('quizzes.results.globalAverage')}
+                </p>
+                <p className="text-lg font-bold" style={{ color: pageColors.accent }}>
+                  {averageScoreWithRisk !== null ? formatScore(averageScoreWithRisk) : '-'}
+                </p>
               </div>
-              <div className="flex items-center justify-between">
-                <span 
-                  className="flex items-center text-xs"
-                  style={{ color: GRAY_COLOR }}
-                >
-                  <XCircle className="w-3.5 h-3.5 mr-2" style={{ color: ERROR_COLOR }} />
-                  {t('quizzes.results.incorrect')}
-                </span>
-                <span 
-                  className="font-semibold text-xs"
-                  style={{ color: getColor('accent', '#f59e0b') }}
-                >
-                  {incorrectAnswers}
-                </span>
+              <div className="text-center">
+                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                  {t('quizzes.results.percentile')}
+                </p>
+                {percentilWithRisk !== null ? (
+                  <p 
+                    className="text-lg font-bold"
+                    style={{ color: parseFloat(percentilWithRisk) >= 0 ? SUCCESS_COLOR : ERROR_COLOR }}
+                  >
+                    {parseFloat(percentilWithRisk) >= 0 ? '+' : ''}{formatScore(parseFloat(percentilWithRisk))}
+                  </p>
+                ) : (
+                  <p className="text-lg font-bold" style={{ color: pageColors.textMuted }}>-</p>
+                )}
               </div>
-              {averageScoreWithRisk !== null && (
-                <>
-                  <div 
-                    className="border-t my-2"
-                    style={{ borderColor: getColor('accent', '#f59e0b') + '30' }}
-                  />
-                  <div className="flex items-center justify-between">
-                    <span style={{ color: GRAY_COLOR }} className="text-xs">
-                      {t('quizzes.results.globalAverage')}
-                    </span>
-                    <span 
-                      className="font-semibold text-xs"
-                      style={{ color: getColor('accent', '#f59e0b') }}
-                    >
-                      {formatScore(averageScoreWithRisk)}
-                    </span>
-                  </div>
-                  {percentilWithRisk !== null && (
-                    <div className="flex items-center justify-between">
-                      <span style={{ color: GRAY_COLOR }} className="text-xs">
-                        {t('quizzes.results.percentile')}
-                      </span>
-                      <span 
-                        className="font-semibold text-xs"
-                        style={{ 
-                          color: parseFloat(percentilWithRisk) >= 0 ? SUCCESS_COLOR : ERROR_COLOR 
-                        }}
-                      >
-                        {parseFloat(percentilWithRisk) >= 0 ? '+' : ''}{percentilWithRisk}
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
             </div>
           </div>
         </div>
