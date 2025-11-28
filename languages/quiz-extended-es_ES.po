@@ -62,10 +62,26 @@ msgstr "Preguntas"
 msgid "Students"
 msgstr "Estudiantes"
 
+#: admin/class-qe-admin-menu.php
+msgid "Messages"
+msgstr "Mensajes"
+
+#: admin/class-qe-admin-menu.php
+msgid "Migrations"
+msgstr "Migraciones"
+
 #: admin/class-qe-admin-menu.php:62
 #: admin/class-qe-assets.php:83
 msgid "Settings"
 msgstr "Ajustes"
+
+#: admin/class-qe-admin-menu.php
+msgid "Campus Uniforme Azul"
+msgstr "Campus Uniforme Azul"
+
+#: admin/class-qe-admin-menu.php
+msgid "Campus"
+msgstr "Campus"
 
 #: admin/class-qe-assets.php:84
 msgid "Add New"

@@ -176,8 +176,12 @@ class QE_User_Stats_API extends QE_API_Base
             }
         }
 
+        // Build course filter
+        $course_filter = $course_id ? $wpdb->prepare("AND att.course_id = %d", $course_id) : "";
+
         // ========================================
-        // USER STATS - Get latest answer per question (consistent with difficulty-matrix)
+        // USER STATS - OPTIMIZED: Use JOIN instead of correlated subquery
+        // Get latest attempt_id per question for this user
         // ========================================
         $user_query = "SELECT 
                 COUNT(*) as total_questions,
@@ -190,26 +194,22 @@ class QE_User_Stats_API extends QE_API_Base
                 SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' AND a.is_risked = 0 THEN 1 ELSE 0 END) as incorrect_without_risk
             FROM {$answers_table} a
             INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
-            WHERE att.user_id = %d 
-            " . ($course_id ? "AND att.course_id = %d" : "") . "
-            {$quiz_filter}
-            AND a.attempt_id = (
-                SELECT MAX(a2.attempt_id)
+            INNER JOIN (
+                SELECT a2.question_id, MAX(a2.attempt_id) as max_attempt_id
                 FROM {$answers_table} a2
                 INNER JOIN {$attempts_table} att2 ON a2.attempt_id = att2.attempt_id
-                WHERE att2.user_id = att.user_id 
-                AND a2.question_id = a.question_id
-            )";
+                WHERE att2.user_id = %d {$course_filter} {$quiz_filter}
+                GROUP BY a2.question_id
+            ) latest ON a.question_id = latest.question_id AND a.attempt_id = latest.max_attempt_id
+            WHERE att.user_id = %d {$course_filter} {$quiz_filter}";
 
-        $user_stats = $wpdb->get_row($wpdb->prepare(
-            $user_query,
-            $course_id ? [$user_id, $course_id] : [$user_id]
-        ));
+        $user_stats = $wpdb->get_row($wpdb->prepare($user_query, $user_id, $user_id));
 
         error_log("QE Debug: User stats result: " . print_r($user_stats, true));
 
         // ========================================
-        // GLOBAL STATS - All users, latest answer per question per user
+        // GLOBAL STATS - OPTIMIZED: Use JOIN instead of correlated subquery
+        // Get latest attempt_id per question per user for all users
         // ========================================
         $global_query = "SELECT 
                 COUNT(DISTINCT att.user_id) as total_users,
@@ -223,23 +223,16 @@ class QE_User_Stats_API extends QE_API_Base
                 SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' AND a.is_risked = 0 THEN 1 ELSE 0 END) as global_incorrect_without_risk
             FROM {$answers_table} a
             INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
-            WHERE 1=1
-            " . ($course_id ? "AND att.course_id = %d" : "") . "
-            {$quiz_filter}
-            AND a.attempt_id = (
-                SELECT MAX(a2.attempt_id)
+            INNER JOIN (
+                SELECT att2.user_id, a2.question_id, MAX(a2.attempt_id) as max_attempt_id
                 FROM {$answers_table} a2
                 INNER JOIN {$attempts_table} att2 ON a2.attempt_id = att2.attempt_id
-                WHERE att2.user_id = att.user_id 
-                AND a2.question_id = a.question_id
-            )";
+                WHERE 1=1 {$course_filter} {$quiz_filter}
+                GROUP BY att2.user_id, a2.question_id
+            ) latest ON att.user_id = latest.user_id AND a.question_id = latest.question_id AND a.attempt_id = latest.max_attempt_id
+            WHERE 1=1 {$course_filter} {$quiz_filter}";
 
-        // Execute query with or without prepare depending on course_id
-        if ($course_id) {
-            $global_stats = $wpdb->get_row($wpdb->prepare($global_query, $course_id));
-        } else {
-            $global_stats = $wpdb->get_row($global_query);
-        }
+        $global_stats = $wpdb->get_row($global_query);
 
         // Calculate global percentages (averages)
         $total_global_answers = (int) ($global_stats->total_answers ?? 0);

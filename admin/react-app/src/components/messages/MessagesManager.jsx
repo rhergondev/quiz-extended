@@ -25,7 +25,11 @@ import {
   EyeOff,
   Megaphone,
   Bell,
-  AlertTriangle
+  AlertTriangle,
+  Trash2,
+  CheckSquare,
+  Square,
+  Minus
 } from 'lucide-react';
 
 import useMessages from '../../hooks/useMessages';
@@ -59,6 +63,10 @@ const MessagesManager = () => {
   // --- LOCAL STATE ---
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+  
+  // --- BATCH SELECTION STATE ---
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [batchLoading, setBatchLoading] = useState(false);
   
   // --- SENT MESSAGES STATE ---
   const [sentMessages, setSentMessages] = useState([]);
@@ -142,10 +150,60 @@ const MessagesManager = () => {
   const handleRefresh = useCallback(() => {
     if (activeView === 'inbox') {
       fetchMessages(true);
+      setSelectedIds(new Set()); // Clear selection on refresh
     } else {
       fetchSentMessages();
     }
   }, [fetchMessages, fetchSentMessages, activeView]);
+
+  // --- BATCH SELECTION HANDLERS ---
+  const handleToggleSelect = useCallback((messageId, event) => {
+    event.stopPropagation();
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    if (selectedIds.size === messages.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(messages.map(m => m.id)));
+    }
+  }, [messages, selectedIds.size]);
+
+  const handleBatchAction = useCallback(async (action) => {
+    if (selectedIds.size === 0) return;
+    
+    setBatchLoading(true);
+    try {
+      const config = getApiConfig();
+      const url = `${config.endpoints.custom_api}/messages/batch`;
+      
+      await makeApiRequest(url, {
+        method: 'POST',
+        body: JSON.stringify({
+          ids: Array.from(selectedIds),
+          action: action
+        })
+      });
+      
+      // Clear selection and refresh
+      setSelectedIds(new Set());
+      setSelectedMessage(null);
+      fetchMessages(true);
+    } catch (err) {
+      console.error('Error in batch action:', err);
+    } finally {
+      setBatchLoading(false);
+    }
+  }, [selectedIds, fetchMessages]);
 
   const handleMessageClick = useCallback((message) => {
     setSelectedMessage(message);
@@ -496,6 +554,101 @@ const MessagesManager = () => {
         </div>
       )}
 
+      {/* Batch Actions Bar - Only when messages are selected */}
+      {activeView === 'inbox' && messages.length > 0 && (
+        <div 
+          className="flex-shrink-0 px-4 py-2 border-b flex items-center gap-3"
+          style={{ 
+            backgroundColor: selectedIds.size > 0 ? '#dbeafe' : colors.backgroundSecondary,
+            borderColor: colors.border
+          }}
+        >
+          {/* Select All Checkbox */}
+          <button
+            onClick={handleSelectAll}
+            className="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/50 transition-colors"
+            disabled={batchLoading}
+          >
+            {selectedIds.size === 0 ? (
+              <Square size={18} style={{ color: colors.textSecondary }} />
+            ) : selectedIds.size === messages.length ? (
+              <CheckSquare size={18} style={{ color: colors.primary }} />
+            ) : (
+              <Minus size={18} style={{ color: colors.primary }} className="bg-white rounded" />
+            )}
+            <span className="text-sm font-medium" style={{ color: colors.textPrimary }}>
+              {selectedIds.size === 0 
+                ? 'Seleccionar todos' 
+                : `${selectedIds.size} seleccionados`}
+            </span>
+          </button>
+
+          {/* Batch Action Buttons - Only visible when items selected */}
+          {selectedIds.size > 0 && (
+            <>
+              <div className="h-4 w-px bg-gray-300" />
+              
+              <button
+                onClick={() => handleBatchAction('mark_read')}
+                disabled={batchLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                style={{ 
+                  backgroundColor: colors.primary,
+                  color: '#ffffff'
+                }}
+                title="Marcar como leídos"
+              >
+                <MailOpen size={14} />
+                Marcar leídos
+              </button>
+              
+              <button
+                onClick={() => handleBatchAction('archive')}
+                disabled={batchLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 border"
+                style={{ 
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  color: colors.textSecondary
+                }}
+                title="Archivar"
+              >
+                <Archive size={14} />
+                Archivar
+              </button>
+              
+              <button
+                onClick={() => {
+                  if (window.confirm(`¿Estás seguro de eliminar ${selectedIds.size} mensaje(s)?`)) {
+                    handleBatchAction('delete');
+                  }
+                }}
+                disabled={batchLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                style={{ 
+                  backgroundColor: colors.error,
+                  color: '#ffffff'
+                }}
+                title="Eliminar"
+              >
+                <Trash2 size={14} />
+                Eliminar
+              </button>
+
+              {batchLoading && (
+                <div 
+                  className="w-4 h-4 border-2 rounded-full animate-spin"
+                  style={{ 
+                    borderColor: `${colors.primary}20`,
+                    borderTopColor: colors.primary
+                  }}
+                />
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* Sent Messages Filter Bar */}
       {activeView === 'sent' && (
         <div 
@@ -625,6 +778,7 @@ const MessagesManager = () => {
             >
               {messages.map((message) => {
                 const isSelected = selectedMessage?.id === message.id;
+                const isChecked = selectedIds.has(message.id);
                 const isUnread = message.status === 'unread';
                 const typeInfo = getTypeInfo(message.type);
                 const TypeIcon = typeInfo.icon;
@@ -638,22 +792,36 @@ const MessagesManager = () => {
                       borderColor: colors.border,
                       backgroundColor: isSelected 
                         ? colors.background
-                        : 'transparent',
+                        : isChecked 
+                          ? '#dbeafe'
+                          : 'transparent',
                       borderLeftWidth: isSelected ? '3px' : '0',
                       borderLeftColor: isSelected ? colors.accent : 'transparent'
                     }}
                     onMouseEnter={(e) => {
-                      if (!isSelected) {
+                      if (!isSelected && !isChecked) {
                         e.currentTarget.style.backgroundColor = colors.background;
                       }
                     }}
                     onMouseLeave={(e) => {
-                      if (!isSelected) {
+                      if (!isSelected && !isChecked) {
                         e.currentTarget.style.backgroundColor = 'transparent';
                       }
                     }}
                   >
                     <div className="flex items-start gap-3">
+                      {/* Checkbox */}
+                      <button
+                        onClick={(e) => handleToggleSelect(message.id, e)}
+                        className="flex-shrink-0 mt-1 p-0.5 rounded hover:bg-gray-200 transition-colors"
+                      >
+                        {isChecked ? (
+                          <CheckSquare size={18} style={{ color: colors.primary }} />
+                        ) : (
+                          <Square size={18} style={{ color: colors.textMuted }} />
+                        )}
+                      </button>
+                      
                       {/* Type Icon */}
                       <div 
                         className="flex-shrink-0 p-2 rounded-lg mt-0.5"

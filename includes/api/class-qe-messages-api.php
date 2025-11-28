@@ -161,6 +161,23 @@ class QE_Messages_API extends QE_API_Base
                 ]
             ]
         ]);
+
+        // ============================================================
+        // BATCH OPERATIONS - Mark multiple as read or delete
+        // ============================================================
+
+        $this->register_secure_route(
+            '/messages/batch',
+            WP_REST_Server::CREATABLE,
+            'batch_update_messages',
+            [
+                'permission_callback' => [$this, 'check_admin_permission'],
+                'validation_schema' => [
+                    'ids' => ['required' => true, 'type' => 'array'],
+                    'action' => ['required' => true, 'type' => 'string', 'enum' => ['mark_read', 'delete', 'archive', 'resolve']]
+                ]
+            ]
+        );
     }
 
     /**
@@ -1027,6 +1044,94 @@ class QE_Messages_API extends QE_API_Base
         } catch (Exception $e) {
             $this->log_error('Exception in delete_message', ['message' => $e->getMessage()]);
             return $this->error_response('internal_error', 'Error al eliminar el mensaje.', 500);
+        }
+    }
+
+    // ============================================================
+    // BATCH UPDATE MESSAGES (ADMIN)
+    // ============================================================
+
+    /**
+     * Batch update messages - mark as read, archive, resolve, or delete multiple messages
+     */
+    public function batch_update_messages($request)
+    {
+        try {
+            global $wpdb;
+            $table_name = $this->get_table('messages');
+
+            $ids = $request->get_param('ids');
+            $action = $request->get_param('action');
+
+            if (empty($ids) || !is_array($ids)) {
+                return $this->error_response('invalid_ids', 'Se requiere un array de IDs válidos.', 400);
+            }
+
+            // Sanitize IDs
+            $ids = array_map('intval', $ids);
+            $ids = array_filter($ids, function ($id) {
+                return $id > 0;
+            });
+
+            if (empty($ids)) {
+                return $this->error_response('invalid_ids', 'No se proporcionaron IDs válidos.', 400);
+            }
+
+            $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+            $affected = 0;
+
+            switch ($action) {
+                case 'mark_read':
+                    $result = $wpdb->query($wpdb->prepare(
+                        "UPDATE {$table_name} SET status = 'read' WHERE id IN ({$placeholders}) AND status = 'unread'",
+                        $ids
+                    ));
+                    $affected = $result !== false ? $result : 0;
+                    break;
+
+                case 'archive':
+                    $result = $wpdb->query($wpdb->prepare(
+                        "UPDATE {$table_name} SET status = 'archived' WHERE id IN ({$placeholders})",
+                        $ids
+                    ));
+                    $affected = $result !== false ? $result : 0;
+                    break;
+
+                case 'resolve':
+                    $result = $wpdb->query($wpdb->prepare(
+                        "UPDATE {$table_name} SET status = 'resolved' WHERE id IN ({$placeholders})",
+                        $ids
+                    ));
+                    $affected = $result !== false ? $result : 0;
+                    break;
+
+                case 'delete':
+                    $result = $wpdb->query($wpdb->prepare(
+                        "DELETE FROM {$table_name} WHERE id IN ({$placeholders})",
+                        $ids
+                    ));
+                    $affected = $result !== false ? $result : 0;
+                    break;
+
+                default:
+                    return $this->error_response('invalid_action', 'Acción no válida.', 400);
+            }
+
+            $this->log_info('Batch message update', [
+                'action' => $action,
+                'ids' => $ids,
+                'affected' => $affected
+            ]);
+
+            return $this->success_response([
+                'action' => $action,
+                'requested' => count($ids),
+                'affected' => $affected
+            ]);
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in batch_update_messages', ['message' => $e->getMessage()]);
+            return $this->error_response('internal_error', 'Error al procesar la operación batch.', 500);
         }
     }
 }
