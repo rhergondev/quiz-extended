@@ -225,6 +225,7 @@ class QE_User_Stats_API extends QE_API_Base
 
     /**
      * Get stats with real-time calculation (SLOWER - fallback)
+     * OPTIMIZED: Returns empty stats if no data, avoids heavy queries
      */
     private function get_user_question_stats_realtime($user_id, $course_id, $lesson_id)
     {
@@ -234,21 +235,55 @@ class QE_User_Stats_API extends QE_API_Base
 
         // Build filters
         $course_filter = $course_id ? $wpdb->prepare("AND att.course_id = %d", $course_id) : "";
-        $course_filter_att2 = $course_id ? $wpdb->prepare("AND att2.course_id = %d", $course_id) : "";
 
         $quiz_filter = "";
-        $quiz_filter_att2 = "";
         if ($lesson_id) {
             $quiz_ids = $this->get_quiz_ids_for_lesson($lesson_id);
             if (!empty($quiz_ids)) {
                 $quiz_filter = "AND att.quiz_id IN (" . implode(',', array_map('intval', $quiz_ids)) . ")";
-                $quiz_filter_att2 = "AND att2.quiz_id IN (" . implode(',', array_map('intval', $quiz_ids)) . ")";
             }
         }
 
-        // USER STATS
-        $user_query = "SELECT 
-                COUNT(*) as total_questions,
+        // SAFETY CHECK: Count user's answers first to avoid memory issues
+        $answer_count = $wpdb->get_var($wpdb->prepare("
+            SELECT COUNT(DISTINCT a.question_id)
+            FROM {$answers_table} a
+            INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
+            WHERE att.user_id = %d AND att.status = 'completed' {$course_filter} {$quiz_filter}
+        ", $user_id));
+
+        // If user has no answers or too many (>10000), return empty stats
+        // This prevents memory exhaustion
+        if (!$answer_count || $answer_count > 10000) {
+            return $this->format_stats_response(
+                (object) [
+                    'total_questions' => 0,
+                    'correct_answers' => 0,
+                    'incorrect_answers' => 0,
+                    'unanswered' => 0,
+                    'correct_with_risk' => 0,
+                    'correct_without_risk' => 0,
+                    'incorrect_with_risk' => 0,
+                    'incorrect_without_risk' => 0,
+                ],
+                (object) [
+                    'total_users' => 0,
+                    'total_answers' => 0,
+                    'global_correct' => 0,
+                    'global_incorrect' => 0,
+                    'global_unanswered' => 0,
+                    'global_correct_with_risk' => 0,
+                    'global_correct_without_risk' => 0,
+                    'global_incorrect_with_risk' => 0,
+                    'global_incorrect_without_risk' => 0,
+                ]
+            );
+        }
+
+        // USER STATS - Simplified query without heavy subquery
+        $user_stats = $wpdb->get_row($wpdb->prepare("
+            SELECT 
+                COUNT(DISTINCT a.question_id) as total_questions,
                 SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) as correct_answers,
                 SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' THEN 1 ELSE 0 END) as incorrect_answers,
                 SUM(CASE WHEN a.answer_given IS NULL OR a.answer_given = '' THEN 1 ELSE 0 END) as unanswered,
@@ -258,19 +293,12 @@ class QE_User_Stats_API extends QE_API_Base
                 SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' AND a.is_risked = 0 THEN 1 ELSE 0 END) as incorrect_without_risk
             FROM {$answers_table} a
             INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
-            INNER JOIN (
-                SELECT a2.question_id, MAX(a2.attempt_id) as max_attempt_id
-                FROM {$answers_table} a2
-                INNER JOIN {$attempts_table} att2 ON a2.attempt_id = att2.attempt_id
-                WHERE att2.user_id = %d AND att2.status = 'completed' {$course_filter_att2} {$quiz_filter_att2}
-                GROUP BY a2.question_id
-            ) latest ON a.question_id = latest.question_id AND a.attempt_id = latest.max_attempt_id
-            WHERE att.user_id = %d AND att.status = 'completed' {$course_filter} {$quiz_filter}";
+            WHERE att.user_id = %d AND att.status = 'completed' {$course_filter} {$quiz_filter}
+        ", $user_id));
 
-        $user_stats = $wpdb->get_row($wpdb->prepare($user_query, $user_id, $user_id));
-
-        // GLOBAL STATS
-        $global_query = "SELECT 
+        // GLOBAL STATS - Simplified, just count from same course/quiz
+        $global_stats = $wpdb->get_row("
+            SELECT 
                 COUNT(DISTINCT att.user_id) as total_users,
                 COUNT(*) as total_answers,
                 SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) as global_correct,
@@ -282,16 +310,9 @@ class QE_User_Stats_API extends QE_API_Base
                 SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' AND a.is_risked = 0 THEN 1 ELSE 0 END) as global_incorrect_without_risk
             FROM {$answers_table} a
             INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
-            INNER JOIN (
-                SELECT att2.user_id, a2.question_id, MAX(a2.attempt_id) as max_attempt_id
-                FROM {$answers_table} a2
-                INNER JOIN {$attempts_table} att2 ON a2.attempt_id = att2.attempt_id
-                WHERE att2.status = 'completed' {$course_filter_att2} {$quiz_filter_att2}
-                GROUP BY att2.user_id, a2.question_id
-            ) latest ON att.user_id = latest.user_id AND a.question_id = latest.question_id AND a.attempt_id = latest.max_attempt_id
-            WHERE att.status = 'completed' {$course_filter} {$quiz_filter}";
-
-        $global_stats = $wpdb->get_row($global_query);
+            WHERE att.status = 'completed' {$course_filter} {$quiz_filter}
+            LIMIT 100000
+        ");
 
         return $this->format_stats_response($user_stats, $global_stats);
     }
@@ -406,11 +427,12 @@ class QE_User_Stats_API extends QE_API_Base
         }
 
         // Obtener los posts de las lecciones usando los IDs
+        // IMPORTANTE: orderby => 'post__in' respeta el orden del array _lesson_ids
         $lessons = get_posts([
             'post_type' => 'qe_lesson',
             'post__in' => $lesson_ids,
             'posts_per_page' => -1,
-            'orderby' => 'menu_order',
+            'orderby' => 'post__in',
             'order' => 'ASC'
         ]);
 
