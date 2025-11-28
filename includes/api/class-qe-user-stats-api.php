@@ -379,19 +379,20 @@ class QE_User_Stats_API extends QE_API_Base
                 }
             }
 
-            // Si hay al menos un intento completado, calcular el promedio
-            if (!empty($last_attempts_scores)) {
-                $avg_score = array_sum($last_attempts_scores) / count($last_attempts_scores);
+            // Calcular el promedio si hay intentos, sino poner 0
+            $avg_score = !empty($last_attempts_scores)
+                ? array_sum($last_attempts_scores) / count($last_attempts_scores)
+                : 0;
 
-                $performance[] = [
-                    'lesson_id' => $lesson->ID,
-                    'lesson_title' => $lesson->post_title,
-                    'avg_score' => round($avg_score, 2),
-                    'total_attempts' => count($last_attempts_scores),
-                    'quizzes_completed' => count($last_attempts_scores),
-                    'total_quizzes' => count($quiz_ids)
-                ];
-            }
+            // Incluir TODAS las lecciones que tienen quizzes (aunque el usuario no haya completado ninguno)
+            $performance[] = [
+                'lesson_id' => $lesson->ID,
+                'lesson_title' => $lesson->post_title,
+                'avg_score' => round($avg_score, 2),
+                'total_attempts' => count($last_attempts_scores),
+                'quizzes_completed' => count($last_attempts_scores),
+                'total_quizzes' => count($quiz_ids)
+            ];
         }
 
         return $this->success_response(['lessons' => $performance]);
