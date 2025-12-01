@@ -117,6 +117,7 @@ class QE_API_Loader
             'messages' => 'class-qe-messages-api.php',
             'settings' => 'class-qe-settings-api.php',
             'course-ranking' => 'class-qe-course-ranking-api.php',
+            'course-reset' => 'class-qe-course-reset-api.php',
             'quiz-autosave' => 'class-qe-quiz-autosave-api.php',
             'user-stats' => 'class-qe-user-stats-api.php',
             'user-enrollments' => 'class-qe-user-enrollments-api.php',

@@ -320,3 +320,21 @@ export const getPublishedCourses = async (options = {}) => {
     status: 'publish'
   });
 };
+
+/**
+ * Reset a course - delete all user data (enrollments, attempts, rankings, stats)
+ * Preserves: lessons, quizzes, questions, and all content associations
+ * @param {number} courseId - Course ID to reset
+ * @returns {Promise<Object>} Reset statistics
+ */
+export const resetCourse = async (courseId) => {
+  const apiFetch = (await import('@wordpress/api-fetch')).default;
+  
+  const response = await apiFetch({
+    path: `/quiz-extended/v1/courses/${courseId}/reset`,
+    method: 'POST',
+    data: { confirm: true }
+  });
+  
+  return response;
+};

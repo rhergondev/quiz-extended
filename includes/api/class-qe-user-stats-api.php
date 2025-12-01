@@ -225,7 +225,7 @@ class QE_User_Stats_API extends QE_API_Base
 
     /**
      * Get stats with real-time calculation (SLOWER - fallback)
-     * OPTIMIZED: Returns empty stats if no data, avoids heavy queries
+     * Uses only the LATEST answer per question for each user
      */
     private function get_user_question_stats_realtime($user_id, $course_id, $lesson_id)
     {
@@ -233,73 +233,58 @@ class QE_User_Stats_API extends QE_API_Base
         $attempts_table = $this->get_table('quiz_attempts');
         $answers_table = $this->get_table('attempt_answers');
 
-        // Build filters
-        $course_filter = $course_id ? $wpdb->prepare("AND att.course_id = %d", $course_id) : "";
+        // Build filters for WHERE clause
+        $user_course_filter = $course_id ? $wpdb->prepare("AND att.course_id = %d", $course_id) : "";
+        $global_course_filter = $course_id ? $wpdb->prepare("AND att2.course_id = %d", $course_id) : "";
 
-        $quiz_filter = "";
+        $user_quiz_filter = "";
+        $global_quiz_filter = "";
         if ($lesson_id) {
             $quiz_ids = $this->get_quiz_ids_for_lesson($lesson_id);
             if (!empty($quiz_ids)) {
-                $quiz_filter = "AND att.quiz_id IN (" . implode(',', array_map('intval', $quiz_ids)) . ")";
+                $quiz_ids_str = implode(',', array_map('intval', $quiz_ids));
+                $user_quiz_filter = "AND att.quiz_id IN ({$quiz_ids_str})";
+                $global_quiz_filter = "AND att2.quiz_id IN ({$quiz_ids_str})";
             }
         }
 
-        // SAFETY CHECK: Count user's answers first to avoid memory issues
-        $answer_count = $wpdb->get_var($wpdb->prepare("
-            SELECT COUNT(DISTINCT a.question_id)
-            FROM {$answers_table} a
-            INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
-            WHERE att.user_id = %d AND att.status = 'completed' {$course_filter} {$quiz_filter}
-        ", $user_id));
-
-        // If user has no answers or too many (>10000), return empty stats
-        // This prevents memory exhaustion
-        if (!$answer_count || $answer_count > 10000) {
-            return $this->format_stats_response(
-                (object) [
-                    'total_questions' => 0,
-                    'correct_answers' => 0,
-                    'incorrect_answers' => 0,
-                    'unanswered' => 0,
-                    'correct_with_risk' => 0,
-                    'correct_without_risk' => 0,
-                    'incorrect_with_risk' => 0,
-                    'incorrect_without_risk' => 0,
-                ],
-                (object) [
-                    'total_users' => 0,
-                    'total_answers' => 0,
-                    'global_correct' => 0,
-                    'global_incorrect' => 0,
-                    'global_unanswered' => 0,
-                    'global_correct_with_risk' => 0,
-                    'global_correct_without_risk' => 0,
-                    'global_incorrect_with_risk' => 0,
-                    'global_incorrect_without_risk' => 0,
-                ]
-            );
-        }
-
-        // USER STATS - Simplified query without heavy subquery
+        // USER STATS - Get latest answer per question using subquery
+        // This ensures we only count the most recent answer for each question
         $user_stats = $wpdb->get_row($wpdb->prepare("
             SELECT 
-                COUNT(DISTINCT a.question_id) as total_questions,
-                SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) as correct_answers,
-                SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' THEN 1 ELSE 0 END) as incorrect_answers,
-                SUM(CASE WHEN a.answer_given IS NULL OR a.answer_given = '' THEN 1 ELSE 0 END) as unanswered,
-                SUM(CASE WHEN a.is_correct = 1 AND a.is_risked = 1 THEN 1 ELSE 0 END) as correct_with_risk,
-                SUM(CASE WHEN a.is_correct = 1 AND a.is_risked = 0 THEN 1 ELSE 0 END) as correct_without_risk,
-                SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' AND a.is_risked = 1 THEN 1 ELSE 0 END) as incorrect_with_risk,
-                SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' AND a.is_risked = 0 THEN 1 ELSE 0 END) as incorrect_without_risk
-            FROM {$answers_table} a
-            INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
-            WHERE att.user_id = %d AND att.status = 'completed' {$course_filter} {$quiz_filter}
-        ", $user_id));
+                COUNT(*) as total_questions,
+                SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct_answers,
+                SUM(CASE WHEN is_correct = 0 AND answer_given IS NOT NULL AND answer_given != '' THEN 1 ELSE 0 END) as incorrect_answers,
+                SUM(CASE WHEN answer_given IS NULL OR answer_given = '' THEN 1 ELSE 0 END) as unanswered,
+                SUM(CASE WHEN is_correct = 1 AND is_risked = 1 THEN 1 ELSE 0 END) as correct_with_risk,
+                SUM(CASE WHEN is_correct = 1 AND is_risked = 0 THEN 1 ELSE 0 END) as correct_without_risk,
+                SUM(CASE WHEN is_correct = 0 AND answer_given IS NOT NULL AND answer_given != '' AND is_risked = 1 THEN 1 ELSE 0 END) as incorrect_with_risk,
+                SUM(CASE WHEN is_correct = 0 AND answer_given IS NOT NULL AND answer_given != '' AND is_risked = 0 THEN 1 ELSE 0 END) as incorrect_without_risk
+            FROM (
+                SELECT a.question_id, a.is_correct, a.is_risked, a.answer_given
+                FROM {$answers_table} a
+                INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
+                WHERE att.user_id = %d 
+                  AND att.status = 'completed'
+                  {$user_course_filter}
+                  {$user_quiz_filter}
+                  AND a.attempt_id = (
+                      SELECT MAX(a2.attempt_id)
+                      FROM {$answers_table} a2
+                      INNER JOIN {$attempts_table} att3 ON a2.attempt_id = att3.attempt_id
+                      WHERE att3.user_id = %d
+                        AND att3.status = 'completed'
+                        AND a2.question_id = a.question_id
+                  )
+                GROUP BY a.question_id
+            ) as latest_answers
+        ", $user_id, $user_id));
 
-        // GLOBAL STATS - Simplified, just count from same course/quiz
+        // GLOBAL STATS - Simplified aggregate (not per-question latest, too expensive)
+        // This gives approximate global stats across all users
         $global_stats = $wpdb->get_row("
             SELECT 
-                COUNT(DISTINCT att.user_id) as total_users,
+                COUNT(DISTINCT att2.user_id) as total_users,
                 COUNT(*) as total_answers,
                 SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) as global_correct,
                 SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' THEN 1 ELSE 0 END) as global_incorrect,
@@ -309,9 +294,8 @@ class QE_User_Stats_API extends QE_API_Base
                 SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' AND a.is_risked = 1 THEN 1 ELSE 0 END) as global_incorrect_with_risk,
                 SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' AND a.is_risked = 0 THEN 1 ELSE 0 END) as global_incorrect_without_risk
             FROM {$answers_table} a
-            INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
-            WHERE att.status = 'completed' {$course_filter} {$quiz_filter}
-            LIMIT 100000
+            INNER JOIN {$attempts_table} att2 ON a.attempt_id = att2.attempt_id
+            WHERE att2.status = 'completed' {$global_course_filter} {$global_quiz_filter}
         ");
 
         return $this->format_stats_response($user_stats, $global_stats);

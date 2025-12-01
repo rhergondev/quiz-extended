@@ -646,6 +646,18 @@ class QE_Ghost_Users_API extends QE_API_Base
         // Create answer records
         $this->create_attempt_answers($attempt_id, $question_ids, $correct_answers, $incorrect_answers);
 
+        // Fire the quiz attempt submitted hook to update stats tables
+        // This ensures ghost user attempts are included in pre-calculated stats
+        $grading_result = [
+            'score' => round($score_without_risk, 2),
+            'score_with_risk' => round($score_with_risk, 2),
+            'passed' => $passed,
+            'total_questions' => count($question_ids),
+            'correct_answers' => $correct_answers,
+            'attempt_id' => $attempt_id,
+        ];
+        do_action('qe_quiz_attempt_submitted', $user_id, $quiz_id, $grading_result);
+
         return [
             'quiz_id' => $quiz_id,
             'quiz_title' => $quiz['title'],

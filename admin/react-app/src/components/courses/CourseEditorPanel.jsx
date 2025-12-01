@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Save, Plus, GripVertical, Trash2, UploadCloud, ImageIcon, X, Users, Sliders } from 'lucide-react';
+import { Save, Plus, GripVertical, Trash2, UploadCloud, ImageIcon, X, Users, Sliders, RotateCcw, AlertTriangle } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -8,7 +8,7 @@ import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } 
 import { CSS } from '@dnd-kit/utilities';
 import clsx from 'clsx';
 
-import { getOne as getCourse } from '../../api/services/courseService';
+import { getOne as getCourse, resetCourse } from '../../api/services/courseService';
 import { createTaxonomyTerm } from '../../api/services/taxonomyService';
 import { getCourseLessons } from '../../api/services/courseLessonService';
 import useLessons from '../../hooks/useLessons';
@@ -96,6 +96,11 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
   const [creatingCategory, setCreatingCategory] = useState(false);
   
   const [isSelectorModalOpen, setIsSelectorModalOpen] = useState(false); // Estado para el modal
+  
+  // Reset course state
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetResult, setResetResult] = useState(null);
 
   // No longer needed - we'll fetch lessons directly from the course endpoint
   // useEffect(() => {
@@ -194,6 +199,23 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
       }
     } catch(err) { setError(err.message); }
     finally { setIsSaving(false); }
+  };
+
+  const handleResetCourse = async () => {
+    if (!courseId) return;
+    
+    setIsResetting(true);
+    setResetResult(null);
+    try {
+      const response = await resetCourse(courseId);
+      setResetResult(response.data || response);
+      console.log('✅ Course reset completed:', response);
+    } catch (err) {
+      console.error('❌ Course reset failed:', err);
+      setResetResult({ error: err.message || 'Error al resetear el curso' });
+    } finally {
+      setIsResetting(false);
+    }
   };
   
   const handleImageUpload = async () => {
@@ -430,6 +452,16 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
                   Batch Quizzes
                 </button>
               )}
+              {mode === 'edit' && courseId && (
+                <button 
+                  onClick={() => setShowResetModal(true)} 
+                  className="flex items-center gap-2 bg-red-600 text-white font-semibold py-2 px-4 rounded-lg text-sm hover:bg-red-700 transition-colors"
+                  title="Resetear curso - elimina usuarios, intentos y estadísticas"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reset
+                </button>
+              )}
               <button onClick={handleSave} disabled={isSaving} className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg text-sm">
                 {isSaving ? t('common.saving') : t('common.save')}
               </button>
@@ -444,6 +476,129 @@ const CourseEditorPanel = ({ courseId, mode, onSave, onCancel, onTriggerCreation
           <Tabs tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
         </main>
       </div>
+      
+      {/* Modal de Confirmación de Reset */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="bg-red-600 p-4">
+              <div className="flex items-center gap-3 text-white">
+                <AlertTriangle className="h-6 w-6" />
+                <h3 className="text-lg font-bold">Resetear Curso</h3>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {!resetResult ? (
+                <>
+                  <p className="text-gray-700 mb-4">
+                    ¿Estás seguro de que quieres resetear el curso <strong>"{getCourseTitle(formData)}"</strong>?
+                  </p>
+                  
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                    <p className="text-amber-800 text-sm font-medium mb-2">Esta acción eliminará:</p>
+                    <ul className="text-amber-700 text-sm space-y-1 list-disc list-inside">
+                      <li>Todas las inscripciones de usuarios</li>
+                      <li>Todo el progreso de los estudiantes</li>
+                      <li>Todos los intentos de quiz</li>
+                      <li>Todas las respuestas de quiz</li>
+                      <li>Todos los rankings del curso</li>
+                      <li>Todas las estadísticas de preguntas</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                    <p className="text-green-800 text-sm font-medium mb-2">Se conservarán:</p>
+                    <ul className="text-green-700 text-sm space-y-1 list-disc list-inside">
+                      <li>Lecciones y su contenido</li>
+                      <li>Cuestionarios (quizzes)</li>
+                      <li>Preguntas y respuestas</li>
+                      <li>Configuración del curso</li>
+                    </ul>
+                  </div>
+                  
+                  <p className="text-red-600 text-sm font-semibold">
+                    ⚠️ Esta acción no se puede deshacer
+                  </p>
+                </>
+              ) : (
+                <div>
+                  {resetResult.error ? (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-red-700 font-medium">Error al resetear:</p>
+                      <p className="text-red-600 text-sm">{resetResult.error}</p>
+                    </div>
+                  ) : (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <p className="text-green-700 font-medium mb-3">✅ Curso reseteado exitosamente</p>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="text-gray-600">Inscripciones eliminadas:</div>
+                        <div className="font-semibold">{resetResult.stats?.enrollments_deleted || 0}</div>
+                        
+                        <div className="text-gray-600">Progreso eliminado:</div>
+                        <div className="font-semibold">{resetResult.stats?.student_progress_deleted || 0}</div>
+                        
+                        <div className="text-gray-600">Intentos eliminados:</div>
+                        <div className="font-semibold">{resetResult.stats?.attempts_deleted || 0}</div>
+                        
+                        <div className="text-gray-600">Respuestas eliminadas:</div>
+                        <div className="font-semibold">{resetResult.stats?.answers_deleted || 0}</div>
+                        
+                        <div className="text-gray-600">Rankings eliminados:</div>
+                        <div className="font-semibold">{resetResult.stats?.rankings_deleted || 0}</div>
+                        
+                        <div className="text-gray-600">Stats eliminadas:</div>
+                        <div className="font-semibold">{resetResult.stats?.question_stats_deleted || 0}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+              {!resetResult ? (
+                <>
+                  <button
+                    onClick={() => setShowResetModal(false)}
+                    className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                    disabled={isResetting}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleResetCourse}
+                    disabled={isResetting}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                  >
+                    {isResetting ? (
+                      <>
+                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                        Reseteando...
+                      </>
+                    ) : (
+                      <>
+                        <RotateCcw className="h-4 w-4" />
+                        Confirmar Reset
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => {
+                    setShowResetModal(false);
+                    setResetResult(null);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Cerrar
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       
       <ResourceSelectorModal
         isOpen={isSelectorModalOpen}
