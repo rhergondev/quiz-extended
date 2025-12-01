@@ -175,7 +175,7 @@ const TestHistoryPage = () => {
         style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}
       >
         {/* Breadcrumbs Header */}
-        <header className="px-6 py-3 border-b sticky top-0 z-10 flex-shrink-0" style={{ 
+        <header className="px-6 py-3 border-b sticky top-0 z-[1] flex-shrink-0" style={{ 
           borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : `${getColor('primary', '#1a202c')}15`,
           backgroundColor: getColor('secondaryBackground', '#f3f4f6')
         }}>

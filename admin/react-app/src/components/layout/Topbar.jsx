@@ -144,7 +144,9 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
     <header 
       style={{ 
         backgroundColor: secondaryBackground,
-        borderBottom: `1px solid ${topbarColors.text}33`
+        borderBottom: `1px solid ${topbarColors.text}33`,
+        position: 'relative',
+        zIndex: 9999
       }}
       className="w-full"
     >
@@ -196,7 +198,8 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
 
         {/* Navigation Menu - Centered (hidden on mobile) */}
         <nav className="hidden md:flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
-          {/* Quick Menu Dropdown */}
+          {/* Quick Menu Dropdown - Only show when in course route */}
+          {isInCourseRoute && (
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -224,7 +227,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
             {/* Dropdown Menu */}
             {isDropdownOpen && (
               <div 
-                className="absolute left-0 top-full mt-2 w-48 rounded-lg shadow-lg border overflow-hidden z-50"
+                className="absolute left-0 top-full mt-2 w-48 rounded-lg shadow-lg border overflow-hidden z-[9999]"
                 style={{ 
                   backgroundColor: secondaryBackground,
                   borderColor: `${topbarColors.text}20`
@@ -277,6 +280,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
               </div>
             )}
           </div>
+          )}
           {menuItems.map((item) => {
             if (item.type === 'exit') {
               return (

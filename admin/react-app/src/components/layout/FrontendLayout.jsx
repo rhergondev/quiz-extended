@@ -223,7 +223,7 @@ const FrontendLayout = () => {
         isInCourseRoute={isInCourseRouteCalculated}
         courseId={courseIdFromPath}
       />
-      <div className="flex-1 flex flex-col w-full overflow-hidden">
+      <div className="flex-1 flex flex-col w-full overflow-hidden relative z-[1]">
         <main className="flex-1 w-full overflow-x-hidden overflow-y-auto">
           <Outlet context={{ isMobileMenuOpen, setIsMobileMenuOpen }} />
         </main>
