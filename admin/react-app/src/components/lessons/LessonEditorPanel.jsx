@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Save, AlertCircle, Plus, Trash2, GripVertical, Video, FileText, HelpCircle, ChevronDown, ChevronUp, Download, X } from 'lucide-react';
+import { Save, AlertCircle, Plus, Trash2, GripVertical, Video, FileText, HelpCircle, ChevronDown, ChevronUp, Download, X, Calendar } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -157,7 +157,7 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
   const sensors = useSensors(useSensor(PointerSensor));
 
   const resetForm = useCallback(() => {
-    setFormData({ title: '', content: '', status: 'publish', courseId: '', steps: [] });
+    setFormData({ title: '', content: '', status: 'publish', courseId: '', steps: [], startDate: '' });
     setActiveTab(0);
   }, []);
 
@@ -175,6 +175,7 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
             status: data.status || 'publish',
             courseId: data.meta?._course_id?.toString() || '',
             steps: (data.meta?._lesson_steps || []).map((step, i) => ({ ...step, id: `step-${i}` })),
+            startDate: data.meta?._start_date || '',
           });
         } catch (err) { setError('Failed to load lesson data.'); } finally { setIsLoading(false); }
       } else if (mode === 'create') {
@@ -248,9 +249,12 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
         order: index + 1
       }));
       
-      // 🔥 CAMBIO: Solo incluir _course_id si tiene un valor válido
+      // Solo incluir _course_id si tiene un valor válido
       // "0" o "" significa "sin curso seleccionado"
-      const meta = { _lesson_steps: stepsForApi };
+      const meta = { 
+        _lesson_steps: stepsForApi,
+        _start_date: formData.startDate || '', // Empty string means always visible
+      };
       if (formData.courseId && formData.courseId !== '' && formData.courseId !== '0') {
         meta._course_id = formData.courseId;
       }
@@ -267,6 +271,22 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
 
   if (isLoading) return <div className="flex items-center justify-center h-full"><p>Cargando...</p></div>;
 
+  // Helper to format date for date input (YYYY-MM-DD)
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    // If it's already YYYY-MM-DD format, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      return dateString;
+    }
+    // Try to parse and format
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const settingsTabContent = (
     <div className="space-y-6">
       <div>
@@ -279,6 +299,23 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
           <option value="">Seleccionar curso...</option>
           {availableCourses.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          <span className="flex items-center gap-2">
+            <Calendar className="w-4 h-4" />
+            Fecha de Inicio
+          </span>
+        </label>
+        <input 
+          type="date" 
+          value={formatDateForInput(formData.startDate)} 
+          onChange={(e) => handleFieldChange('startDate', e.target.value || '')} 
+          className="w-full input border-gray-300 rounded-md"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          La lección será visible a partir de esta fecha. Dejar vacío para que esté siempre disponible.
+        </p>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Descripción / Contenido Principal</label>

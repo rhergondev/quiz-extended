@@ -5,6 +5,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import useCourse from '../../../hooks/useCourse';
 import useStudentProgress from '../../../hooks/useStudentProgress';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
+import { filterAvailableLessons } from '../../../api/utils/lessonDataUtils';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import { ChevronDown, ChevronRight, Video, Play, X, ChevronLeft, Check, Circle, Film } from 'lucide-react';
 
@@ -58,8 +59,11 @@ const VideosPage = () => {
         
         const result = await getCourseLessons(courseIdInt, { perPage: 100 });
         
+        // Filter lessons by start date availability first
+        const availableLessons = filterAvailableLessons(result.data || []);
+        
         // Filter lessons to only include those with video steps
-        const lessonsWithVideos = (result.data || [])
+        const lessonsWithVideos = availableLessons
           .map(lesson => {
             const videoSteps = (lesson.meta?._lesson_steps || [])
               .filter(step => step.type === 'video')

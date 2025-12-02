@@ -9,6 +9,7 @@ import useQuizRanking from '../../../hooks/useQuizRanking';
 import useQuizAttempts from '../../../hooks/useQuizAttempts';
 import useQuizAttemptDetails from '../../../hooks/useQuizAttemptDetails';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
+import { filterAvailableLessons } from '../../../api/utils/lessonDataUtils';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import Quiz from '../../../components/frontend/Quiz';
 import QuizResults from '../../../components/frontend/QuizResults';
@@ -166,8 +167,11 @@ const TestsPage = () => {
         
         const result = await getCourseLessons(courseIdInt, { perPage: 100 });
         
+        // Filter lessons by start date availability first
+        const availableLessons = filterAvailableLessons(result.data || []);
+        
         // Filter lessons to only include those with quiz steps
-        const lessonsWithTests = (result.data || [])
+        const lessonsWithTests = availableLessons
           .map(lesson => {
             const quizSteps = (lesson.meta?._lesson_steps || [])
               .filter(step => step.type === 'quiz')

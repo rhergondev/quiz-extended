@@ -5,6 +5,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import useCourse from '../../../hooks/useCourse';
 import useStudentProgress from '../../../hooks/useStudentProgress';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
+import { filterAvailableLessons } from '../../../api/utils/lessonDataUtils';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import { ChevronDown, ChevronRight, FileText, File, BookOpen, X, ChevronLeft, Check, Circle, FolderOpen } from 'lucide-react';
 
@@ -58,8 +59,11 @@ const SupportMaterialPage = () => {
         
         const result = await getCourseLessons(courseIdInt, { perPage: 100 });
         
+        // Filter lessons by start date availability first
+        const availableLessons = filterAvailableLessons(result.data || []);
+        
         // Filter lessons to only include those with PDF or text steps
-        const lessonsWithMaterial = (result.data || [])
+        const lessonsWithMaterial = availableLessons
           .map(lesson => {
             const materialSteps = (lesson.meta?._lesson_steps || [])
               .filter(step => step.type === 'pdf' || step.type === 'text')

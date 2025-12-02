@@ -90,6 +90,16 @@ export const useLessons = (options = {}) => {
    * Process/enhance lesson data with computed values
    */
   const dataProcessor = useMemo(() => (lesson) => {
+    // Parse start_date and determine visibility
+    const startDateRaw = lesson.meta?._start_date || '';
+    const startDate = startDateRaw ? new Date(startDateRaw) : null;
+    const now = new Date();
+    
+    // Lesson is available if:
+    // 1. No start date is set (empty string or null) - always visible
+    // 2. Start date has passed (startDate <= now)
+    const isAvailable = !startDate || startDate <= now;
+    
     return {
       ...lesson,
       // Enhanced computed values
@@ -108,10 +118,15 @@ export const useLessons = (options = {}) => {
       video_url: lesson.meta?._video_url || '',
       has_quiz: lesson.meta?._has_quiz === 'yes',
       quiz_id: lesson.meta?._quiz_id || null,
+      // Start date fields
+      start_date: startDateRaw, // Raw ISO string or empty
+      start_date_parsed: startDate, // Date object or null
+      is_available: isAvailable, // Whether lesson is currently accessible
       // Computed flags
       has_video: Boolean(lesson.meta?._video_url),
       has_steps: Array.isArray(lesson.meta?._lesson_steps) && lesson.meta._lesson_steps.length > 0,
-      has_prerequisites: Array.isArray(lesson.meta?._prerequisite_lessons) && lesson.meta._prerequisite_lessons.length > 0
+      has_prerequisites: Array.isArray(lesson.meta?._prerequisite_lessons) && lesson.meta._prerequisite_lessons.length > 0,
+      has_start_date: Boolean(startDateRaw)
     };
   }, []);
 

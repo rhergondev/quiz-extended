@@ -131,6 +131,18 @@ class QE_Lesson_Meta
             'sanitize_callback' => [$this, 'sanitize_completion_criteria'],
             'auth_callback' => [$this, 'auth_callback'],
         ]);
+
+        // Start date for lesson visibility
+        // If empty or null, lesson is always visible
+        // Format: YYYY-MM-DD
+        register_post_meta($this->post_type, '_start_date', [
+            'show_in_rest' => true,
+            'single' => true,
+            'type' => 'string',
+            'description' => __('Lesson start date (when the lesson becomes available)', 'quiz-extended'),
+            'sanitize_callback' => 'sanitize_text_field',
+            'auth_callback' => [$this, 'auth_callback'],
+        ]);
     }
 
     /**
@@ -295,11 +307,46 @@ class QE_Lesson_Meta
     }
 
     /**
-     * Sanitize array of IDs
+     * Sanitize start date
+     * 
+     * Accepts date in YYYY-MM-DD format
+     * Returns empty string if invalid or empty (meaning always visible)
      *
-     * @param array $value Array of IDs
-     * @return array Sanitized array of IDs
+     * @param string $value Start date
+     * @return string Sanitized date string (YYYY-MM-DD) or empty string
      */
+    public function sanitize_start_date($value)
+    {
+        // Allow empty values - means lesson is always visible
+        if (empty($value)) {
+            return '';
+        }
+
+        $value = sanitize_text_field($value);
+
+        // If already in YYYY-MM-DD format, validate and return
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            $timestamp = strtotime($value);
+            if ($timestamp !== false) {
+                return $value;
+            }
+        }
+
+        // Try to parse as date/datetime and convert to YYYY-MM-DD
+        $timestamp = strtotime($value);
+
+        if ($timestamp === false) {
+            return '';
+        }
+
+        // Return in YYYY-MM-DD format
+        return date('Y-m-d', $timestamp);
+    }    /**
+         * Sanitize array of IDs
+         *
+         * @param array $value Array of IDs
+         * @return array Sanitized array of IDs
+         */
     public function sanitize_id_array($value)
     {
         if (!is_array($value)) {

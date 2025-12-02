@@ -154,6 +154,28 @@ export const transformLessonDataForApi = (lessonData) => {
     console.log('🔄 Steps being saved:', transformed.meta._lesson_steps);
   }
 
+  // 🔥 Start date for lesson visibility
+  const startDateValue = lessonData.startDate || lessonData.meta?._start_date;
+  if (startDateValue !== undefined) {
+    // Validate YYYY-MM-DD format or allow empty string
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (startDateValue === '' || dateRegex.test(startDateValue)) {
+      transformed.meta._start_date = startDateValue;
+    } else {
+      // Try to parse and format as YYYY-MM-DD
+      const date = new Date(startDateValue);
+      if (!isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        transformed.meta._start_date = `${year}-${month}-${day}`;
+      } else {
+        transformed.meta._start_date = '';
+      }
+    }
+    console.log('🔄 Start date being saved:', transformed.meta._start_date);
+  }
+
   // 🔥 CAMBIO: No incluir _course_id del DEFAULT si no se proporcionó uno válido
   // El orden es importante: defaults primero, luego valores proporcionados
   const { _course_id: defaultCourseId, ...defaultMetaWithoutCourseId } = DEFAULT_LESSON_META;
@@ -717,4 +739,125 @@ export const validateLessonSteps = (steps) => {
   });
 
   return createValidationResult(errors);
+};
+
+// ============================================================
+// LESSON START DATE / AVAILABILITY UTILITIES
+// ============================================================
+
+/**
+ * Check if a lesson is currently available based on its start date
+ * 
+ * Rules:
+ * - If no start date is set (empty, null, undefined) -> Always available
+ * - If start date is in the past or today -> Available
+ * - If start date is in the future -> Not available yet
+ * 
+ * @param {Object} lesson - Lesson object with meta data
+ * @param {Date} [referenceDate=new Date()] - Date to compare against (defaults to now)
+ * @returns {boolean} True if lesson is available
+ */
+export const isLessonAvailable = (lesson, referenceDate = new Date()) => {
+  const startDateRaw = lesson?.meta?._start_date || '';
+  
+  // No start date = always available
+  if (!startDateRaw) {
+    return true;
+  }
+
+  // Parse YYYY-MM-DD format
+  const startDate = new Date(startDateRaw + 'T00:00:00');
+  
+  // Invalid date = treat as always available
+  if (isNaN(startDate.getTime())) {
+    return true;
+  }
+
+  // Compare dates (start of day comparison)
+  const today = new Date(referenceDate);
+  today.setHours(0, 0, 0, 0);
+  startDate.setHours(0, 0, 0, 0);
+
+  return startDate <= today;
+};
+
+/**
+ * Filter an array of lessons to only include those currently available
+ * 
+ * @param {Array} lessons - Array of lesson objects
+ * @param {Date} [referenceDate=new Date()] - Date to compare against (defaults to now)
+ * @returns {Array} Filtered array of available lessons
+ */
+export const filterAvailableLessons = (lessons, referenceDate = new Date()) => {
+  if (!Array.isArray(lessons)) {
+    return [];
+  }
+
+  return lessons.filter(lesson => isLessonAvailable(lesson, referenceDate));
+};
+
+/**
+ * Get the start date of a lesson as a Date object
+ * 
+ * @param {Object} lesson - Lesson object with meta data
+ * @returns {Date|null} Start date or null if not set/invalid
+ */
+export const getLessonStartDate = (lesson) => {
+  const startDateRaw = lesson?.meta?._start_date || '';
+  
+  if (!startDateRaw) {
+    return null;
+  }
+
+  // Parse YYYY-MM-DD format
+  const startDate = new Date(startDateRaw + 'T00:00:00');
+  
+  if (isNaN(startDate.getTime())) {
+    return null;
+  }
+
+  return startDate;
+};
+
+/**
+ * Get a formatted string describing the lesson's availability status
+ * 
+ * @param {Object} lesson - Lesson object with meta data
+ * @param {Object} t - Translation function from react-i18next
+ * @returns {Object} Object with { isAvailable, message, startDate }
+ */
+export const getLessonAvailabilityInfo = (lesson, t = (key, fallback) => fallback) => {
+  const startDate = getLessonStartDate(lesson);
+  const isAvailable = isLessonAvailable(lesson);
+
+  if (!startDate) {
+    return {
+      isAvailable: true,
+      message: null, // No message needed, always available
+      startDate: null
+    };
+  }
+
+  if (isAvailable) {
+    return {
+      isAvailable: true,
+      message: null, // Available, no special message
+      startDate
+    };
+  }
+
+  // Lesson is not yet available - format the start date for display
+  const formattedDate = startDate.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  return {
+    isAvailable: false,
+    message: t('lessons.availableFrom', `Disponible a partir del ${formattedDate}`).replace('${date}', formattedDate),
+    startDate
+  };
 };
