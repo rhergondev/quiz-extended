@@ -109,3 +109,10 @@ body {
 ::-webkit-scrollbar-corner {
   background: var(--scrollbar-track, transparent);
 }
+
+/* ===================================
+   QUIZ FOCUS MODE - Oculta el Topbar
+   =================================== */
+body.qe-quiz-focus-mode #qe-topbar {
+  display: none !important;
+}

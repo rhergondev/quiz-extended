@@ -66,15 +66,20 @@ const QuizSidebar = ({
   };
 
   const scrollToQuestion = (index) => {
-    const element = document.getElementById(`quiz-question-${index + 1}`);
+    // Try to find the question element
+    const questionNumber = index + 1;
+    const element = document.getElementById(`quiz-question-${questionNumber}`);
+    
     if (element) {
+      // Use scrollIntoView with nearest block to avoid issues with fixed elements
       element.scrollIntoView({ 
         behavior: 'smooth', 
-        block: 'center' 
+        block: 'center'
       });
       
-      // Aumentar el border-left temporalmente
+      // Visual feedback: highlight the question temporarily with border only
       const originalBorderWidth = element.style.borderLeftWidth || '4px';
+      
       element.style.borderLeftWidth = '12px';
       element.style.transition = 'border-left-width 0.3s ease';
       
@@ -82,6 +87,7 @@ const QuizSidebar = ({
         element.style.borderLeftWidth = originalBorderWidth;
       }, 2000);
     }
+    
     if (onQuestionSelect) {
       onQuestionSelect(index);
     }

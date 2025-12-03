@@ -15,7 +15,7 @@ import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, addHours, startOfYear, endOfYear, eachDayOfInterval, isSameDay, getMonth, getDate, startOfMonth, endOfMonth, addMonths, isToday, eachMonthOfInterval } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Video, FileText, ClipboardList, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Video, FileText, ClipboardList } from 'lucide-react';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 // Configure date-fns localizer
@@ -247,21 +247,19 @@ const CustomYearView = ({ date, events, pageColors, getColor, isDarkMode, t }) =
                       key={dayIndex}
                       className="w-5 h-5 flex items-center justify-center text-[10px] rounded relative cursor-default"
                       style={{ 
-                        backgroundColor: isCurrentDay ? pageColors.accent : 'transparent',
-                        color: isCurrentDay ? '#ffffff' : pageColors.text
+                        backgroundColor: isCurrentDay 
+                          ? pageColors.accent 
+                          : hasEvents 
+                            ? '#3B82F6' 
+                            : 'transparent',
+                        color: (isCurrentDay || hasEvents) ? '#ffffff' : pageColors.text
                       }}
                       onMouseEnter={(e) => handleDayHover(e, day, dayEvents)}
                       onMouseLeave={handleDayLeave}
                     >
-                      {hasEvents ? (
-                        <Check 
-                          size={12} 
-                          strokeWidth={3}
-                          style={{ color: isCurrentDay ? '#ffffff' : '#10B981' }} 
-                        />
-                      ) : (
-                        <span style={{ opacity: 0.6 }}>{getDate(day)}</span>
-                      )}
+                      <span style={{ opacity: hasEvents || isCurrentDay ? 1 : 0.6 }}>
+                        {getDate(day)}
+                      </span>
                     </div>
                   );
                 })}
@@ -539,36 +537,6 @@ const LessonCalendar = ({
 
   return (
     <div className="lesson-calendar">
-      {/* Legend */}
-      <div 
-        className="flex flex-wrap items-center gap-4 mb-4 p-4 rounded-xl border-2"
-        style={{ 
-          backgroundColor: pageColors.bgCard,
-          borderColor: getColor('borderColor', '#e5e7eb')
-        }}
-      >
-        <span className="text-sm font-medium" style={{ color: pageColors.textMuted }}>
-          {t('calendar.legend', 'Leyenda')}:
-        </span>
-        <div className="flex items-center gap-2">
-          <Video size={14} style={{ color: getLessonTypeColor('video', isDarkMode).bg }} />
-          <span className="text-sm" style={{ color: pageColors.text }}>{t('lessons.types.video', 'Video')}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <ClipboardList size={14} style={{ color: getLessonTypeColor('test', isDarkMode).bg }} />
-          <span className="text-sm" style={{ color: pageColors.text }}>{t('lessons.types.test', 'Test')}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <FileText size={14} style={{ color: getLessonTypeColor('pdf', isDarkMode).bg }} />
-          <span className="text-sm" style={{ color: pageColors.text }}>{t('lessons.types.pdf', 'PDF')}</span>
-        </div>
-        {lessonsWithoutDates > 0 && (
-          <span className="ml-auto text-sm" style={{ color: pageColors.textMuted }}>
-            {t('calendar.lessonsWithoutDate', '{{count}} lecciones sin fecha', { count: lessonsWithoutDates })}
-          </span>
-        )}
-      </div>
-
       {/* Custom Toolbar */}
       <ToolbarWithTheme />
 
@@ -676,20 +644,64 @@ const LessonCalendar = ({
         .rbc-date-cell.rbc-now {
           font-weight: 700;
         }
-        .rbc-date-cell.rbc-now > a {
-          background-color: ${pageColors.accent};
-          color: #ffffff;
-          padding: 2px 6px;
-          border-radius: 4px;
+        .rbc-date-cell.rbc-now > a,
+        .rbc-date-cell.rbc-now > button {
+          background-color: ${pageColors.accent} !important;
+          background: ${pageColors.accent} !important;
+          color: #ffffff !important;
+          padding: 2px 6px !important;
+          border-radius: 4px !important;
+          font-weight: 700 !important;
+        }
+        .rbc-date-cell > a,
+        .rbc-date-cell > button,
+        .rbc-date-cell a,
+        .rbc-date-cell button {
+          background-color: transparent !important;
+          background: transparent !important;
+          color: ${pageColors.text} !important;
+          pointer-events: none !important;
+          cursor: default !important;
+          text-decoration: none !important;
+          font-weight: 600 !important;
+          border: none !important;
+          box-shadow: none !important;
+          outline: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        .rbc-date-cell > a:hover,
+        .rbc-date-cell > a:focus,
+        .rbc-date-cell > a:active,
+        .rbc-date-cell > button:hover,
+        .rbc-date-cell > button:focus,
+        .rbc-date-cell > button:active,
+        .rbc-date-cell a:hover,
+        .rbc-date-cell button:hover {
+          background-color: transparent !important;
+          background: transparent !important;
+          color: ${pageColors.text} !important;
+          text-decoration: none !important;
+          outline: none !important;
+          box-shadow: none !important;
+        }
+        .rbc-date-cell.rbc-off-range > a,
+        .rbc-date-cell.rbc-off-range > button {
+          color: ${pageColors.textMuted} !important;
         }
         .rbc-event {
           cursor: default;
+          pointer-events: none;
+        }
+        .rbc-day-bg {
+          cursor: default;
         }
         .rbc-show-more {
-          color: ${pageColors.primaryBg};
+          color: ${getColor('primary', '#3b82f6')};
           font-weight: 500;
           font-size: 12px;
           background: transparent;
+          pointer-events: none;
         }
         .rbc-row-content {
           z-index: 1;

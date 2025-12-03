@@ -158,10 +158,11 @@ const DrawingCanvas = ({ isActive, isDrawingEnabled, tool, color, lineWidth, onC
   return (
     <canvas
       ref={canvasRef}
-      className="absolute top-0 left-0 pointer-events-auto"
+      className="absolute top-0 left-0"
       style={{ 
         cursor: isDrawingEnabled ? 'crosshair' : 'default',
-        zIndex: 20
+        zIndex: 20,
+        pointerEvents: isDrawingEnabled ? 'auto' : 'none'
       }}
       onMouseDown={startDrawing}
       onMouseMove={draw}

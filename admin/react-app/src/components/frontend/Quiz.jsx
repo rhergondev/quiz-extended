@@ -21,6 +21,7 @@ const Quiz = ({
   lessonId = null,
   customQuiz = null, 
   onQuizComplete,
+  onQuizStateChange,
   isDrawingMode, 
   setIsDrawingMode, 
   isDrawingEnabled, 
@@ -102,6 +103,13 @@ const Quiz = ({
   // Dark mode aware colors
   const textPrimary = isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c');
   const textMuted = isDarkMode ? getColor('textSecondary', '#9ca3af') : '#6b7280';
+
+  // Notify parent of quiz state changes for Focus Mode
+  useEffect(() => {
+    if (onQuizStateChange && typeof onQuizStateChange === 'function') {
+      onQuizStateChange(quizState);
+    }
+  }, [quizState, onQuizStateChange]);
 
   // Use paginated hook for loading questions
   const { 

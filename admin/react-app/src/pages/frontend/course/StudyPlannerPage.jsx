@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -165,18 +165,6 @@ const StudyPlannerPage = () => {
     setSelectedLesson(null);
   }, []);
 
-  // Stats
-  const stats = useMemo(() => {
-    const withDate = lessons.filter(l => l.meta?._start_date).length;
-    const withoutDate = lessons.length - withDate;
-    const upcoming = lessons.filter(l => {
-      if (!l.meta?._start_date) return false;
-      return new Date(l.meta._start_date) > new Date();
-    }).length;
-    
-    return { total: lessons.length, withDate, withoutDate, upcoming };
-  }, [lessons]);
-
   return (
     <div className="flex h-full w-full">
       <CourseSidebar />
@@ -212,68 +200,22 @@ const StudyPlannerPage = () => {
 
         {/* Page Content */}
         <div className="max-w-7xl w-full mx-auto px-4 py-6 pb-24">
-          {/* Header with stats */}
+          {/* Header */}
           <div className="mb-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-              <div className="flex items-center gap-3">
-                <div 
-                  className="p-3 rounded-xl"
-                  style={{ backgroundColor: pageColors.hoverBg }}
-                >
-                  <Calendar size={28} style={{ color: pageColors.text }} />
-                </div>
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: pageColors.text }}>
-                    {t('courses.studyPlanner', 'Planificador')}
-                  </h1>
-                  <p className="text-sm mt-1" style={{ color: pageColors.textMuted }}>
-                    {t('calendar.description', 'Visualiza el calendario de lecciones del curso')}
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Stats cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="flex items-center gap-3">
               <div 
-                className="rounded-xl p-4 border-2"
-                style={{ 
-                  backgroundColor: pageColors.bgCard,
-                  borderColor: getColor('borderColor', '#e5e7eb')
-                }}
+                className="p-3 rounded-xl"
+                style={{ backgroundColor: pageColors.hoverBg }}
               >
-                <p className="text-2xl font-bold" style={{ color: pageColors.text }}>{stats.total}</p>
-                <p className="text-sm" style={{ color: pageColors.textMuted }}>{t('calendar.totalLessons', 'Total lecciones')}</p>
+                <Calendar size={28} style={{ color: pageColors.text }} />
               </div>
-              <div 
-                className="rounded-xl p-4 border-2"
-                style={{ 
-                  backgroundColor: pageColors.bgCard,
-                  borderColor: getColor('borderColor', '#e5e7eb')
-                }}
-              >
-                <p className="text-2xl font-bold" style={{ color: '#10b981' }}>{stats.withDate}</p>
-                <p className="text-sm" style={{ color: pageColors.textMuted }}>{t('calendar.scheduled', 'Programadas')}</p>
-              </div>
-              <div 
-                className="rounded-xl p-4 border-2"
-                style={{ 
-                  backgroundColor: pageColors.bgCard,
-                  borderColor: getColor('borderColor', '#e5e7eb')
-                }}
-              >
-                <p className="text-2xl font-bold" style={{ color: pageColors.accent }}>{stats.withoutDate}</p>
-                <p className="text-sm" style={{ color: pageColors.textMuted }}>{t('calendar.unscheduled', 'Sin programar')}</p>
-              </div>
-              <div 
-                className="rounded-xl p-4 border-2"
-                style={{ 
-                  backgroundColor: pageColors.bgCard,
-                  borderColor: getColor('borderColor', '#e5e7eb')
-                }}
-              >
-                <p className="text-2xl font-bold" style={{ color: '#3b82f6' }}>{stats.upcoming}</p>
-                <p className="text-sm" style={{ color: pageColors.textMuted }}>{t('calendar.upcoming', 'Próximas')}</p>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: pageColors.text }}>
+                  {t('courses.studyPlanner', 'Planificador')}
+                </h1>
+                <p className="text-sm mt-1" style={{ color: pageColors.textMuted }}>
+                  {t('calendar.description', 'Visualiza el calendario de lecciones del curso')}
+                </p>
               </div>
             </div>
           </div>

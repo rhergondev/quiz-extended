@@ -142,6 +142,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
 
   return (
     <header 
+      id="qe-topbar"
       style={{ 
         backgroundColor: secondaryBackground,
         borderBottom: `1px solid ${topbarColors.text}33`,

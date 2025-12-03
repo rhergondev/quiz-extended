@@ -129,28 +129,19 @@ const TestsPage = () => {
   // 🎯 FOCUS MODE: Hide body overflow and Topbar when quiz is running
   useEffect(() => {
     if (isQuizFocusMode) {
-      // Hide body overflow
+      // Hide body overflow and add class to hide topbar
       document.body.style.overflow = 'hidden';
-      
-      // Hide Topbar by adding a class to the layout
-      const layoutElement = document.querySelector('[class*="flex flex-col w-full"]');
-      if (layoutElement) {
-        layoutElement.style.overflow = 'hidden';
-      }
+      document.body.classList.add('qe-quiz-focus-mode');
     } else {
-      // Restore body overflow
+      // Restore body overflow and remove class
       document.body.style.overflow = '';
-      
-      // Restore layout
-      const layoutElement = document.querySelector('[class*="flex flex-col w-full"]');
-      if (layoutElement) {
-        layoutElement.style.overflow = '';
-      }
+      document.body.classList.remove('qe-quiz-focus-mode');
     }
     
     // Cleanup on unmount
     return () => {
       document.body.style.overflow = '';
+      document.body.classList.remove('qe-quiz-focus-mode');
     };
   }, [isQuizFocusMode]);
 
