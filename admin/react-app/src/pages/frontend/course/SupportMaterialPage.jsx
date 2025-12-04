@@ -7,7 +7,7 @@ import useStudentProgress from '../../../hooks/useStudentProgress';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
 import { filterAvailableLessons } from '../../../api/utils/lessonDataUtils';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
-import { ChevronDown, ChevronRight, FileText, File, BookOpen, X, ChevronLeft, Check, Circle, FolderOpen } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, FileText, File, X, ChevronLeft, Check, Circle, FolderOpen } from 'lucide-react';
 
 const SupportMaterialPage = () => {
   const { t } = useTranslation();
@@ -22,6 +22,10 @@ const SupportMaterialPage = () => {
     textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : `${getColor('primary', '#1a202c')}70`,
     accent: getColor('accent', '#f59e0b'),
     hoverBg: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#1a202c'),
+    // Button colors (same as CourseCard)
+    buttonBg: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6'),
+    buttonText: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    buttonHoverBg: isDarkMode ? getColor('primary', '#3b82f6') : getColor('accent', '#f59e0b'),
   };
 
   const [expandedLessons, setExpandedLessons] = useState(new Set());
@@ -269,7 +273,7 @@ const SupportMaterialPage = () => {
                 className="rounded-xl border-2 overflow-hidden"
                 style={{ 
                   backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
-                  borderColor: getColor('borderColor', '#e5e7eb')
+                  borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
                 }}
               >
                 {lessons.map((lesson, lessonIndex) => {
@@ -282,21 +286,13 @@ const SupportMaterialPage = () => {
                       key={lesson.id}
                     >
                       {/* Lesson Header */}
-                      <button
-                        onClick={() => toggleLesson(lesson.id)}
+                      <div
                         className="w-full px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-200"
                         style={{ 
                           backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : `${getColor('primary', '#1a202c')}05`
                         }}
                       >
                         <div className="flex items-center gap-3 overflow-hidden">
-                          {/* Chevron */}
-                          {isExpanded ? (
-                            <ChevronDown size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
-                          ) : (
-                            <ChevronRight size={20} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
-                          )}
-                          
                           {/* Icon + Title */}
                           <FileText size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
                           <span 
@@ -306,34 +302,59 @@ const SupportMaterialPage = () => {
                           />
                         </div>
                         
-                        {/* Badge count */}
-                        <span 
-                          className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full flex-shrink-0 ml-2"
-                          style={{ 
-                            backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : `${getColor('primary', '#1a202c')}10`,
-                            color: pageColors.text
-                          }}
-                        >
-                          {materialCount} <span className="hidden sm:inline">{materialCount === 1 ? t('supportMaterial.file') : t('supportMaterial.files')}</span>
-                        </span>
-                      </button>
+                        {/* Badge count + Expand/Collapse Button */}
+                        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                          <span 
+                            className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full"
+                            style={{ 
+                              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : `${getColor('primary', '#1a202c')}10`,
+                              color: pageColors.text
+                            }}
+                          >
+                            {materialCount} <span className="hidden sm:inline">{materialCount === 1 ? t('supportMaterial.file') : t('supportMaterial.files')}</span>
+                          </span>
+                          
+                          {/* Expand/Collapse Button - same style as CourseCard */}
+                          <button
+                            onClick={() => toggleLesson(lesson.id)}
+                            className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-1.5"
+                            style={{ 
+                              backgroundColor: pageColors.buttonBg,
+                              color: pageColors.buttonText
+                            }}
+                            onMouseEnter={(e) => {
+                              if (isDarkMode) {
+                                e.currentTarget.style.filter = 'brightness(1.15)';
+                              } else {
+                                e.currentTarget.style.backgroundColor = pageColors.buttonHoverBg;
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.filter = 'none';
+                              e.currentTarget.style.backgroundColor = pageColors.buttonBg;
+                            }}
+                          >
+                            {isExpanded ? t('supportMaterial.hideLesson') : t('supportMaterial.showLesson')}
+                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </button>
+                        </div>
+                      </div>
 
                       {/* Material Steps - expandido */}
                       {isExpanded && (
                         <div>
                           {lesson.materialSteps.map((step, index) => (
                             <div key={step.id || index}>
-                              {/* Separador horizontal */}
+                              {/* Separador horizontal - full width for first item, with margin for others */}
                               <div 
-                                className="mx-6"
+                                className={index > 0 ? "mx-6" : ""}
                                 style={{ 
-                                  height: '1px', 
+                                  height: '2px', 
                                   backgroundColor: 'rgba(156, 163, 175, 0.2)'
                                 }}
                               />
                               <div 
-                                className="flex items-center gap-3 px-4 sm:px-6 py-4 transition-colors duration-150 cursor-pointer group"
-                                onClick={() => handleOpenPDF(step, lesson)}
+                                className="flex items-center gap-3 px-4 sm:px-6 py-4 transition-colors duration-150"
                                 onMouseEnter={(e) => {
                                   e.currentTarget.style.backgroundColor = isDarkMode 
                                     ? 'rgba(255,255,255,0.05)' 
@@ -350,11 +371,28 @@ const SupportMaterialPage = () => {
                                 >
                                   {step.title}
                                 </span>
-                                <BookOpen 
-                                  size={18} 
-                                  className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  style={{ color: pageColors.accent }} 
-                                />
+                                {/* Available Button - same style as CourseCard */}
+                                <button
+                                  onClick={() => handleOpenPDF(step, lesson)}
+                                  className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex-shrink-0"
+                                  style={{ 
+                                    backgroundColor: pageColors.buttonBg,
+                                    color: pageColors.buttonText
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (isDarkMode) {
+                                      e.currentTarget.style.filter = 'brightness(1.15)';
+                                    } else {
+                                      e.currentTarget.style.backgroundColor = pageColors.buttonHoverBg;
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.filter = 'none';
+                                    e.currentTarget.style.backgroundColor = pageColors.buttonBg;
+                                  }}
+                                >
+                                  {t('supportMaterial.available')}
+                                </button>
                               </div>
                             </div>
                           ))}
@@ -364,9 +402,8 @@ const SupportMaterialPage = () => {
                       {/* Separador entre lecciones */}
                       {lessonIndex < lessons.length - 1 && (
                         <div 
-                          className="mx-6"
                           style={{ 
-                            height: '1px', 
+                            height: '2px', 
                             backgroundColor: 'rgba(156, 163, 175, 0.2)'
                           }}
                         />

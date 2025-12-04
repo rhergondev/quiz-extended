@@ -13,7 +13,12 @@ import useCourse from '../../hooks/useCourse';
 const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
   const { courseId } = useParams();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [courseProgress, setCourseProgress] = useState(null);
+  const [courseProgress, setCourseProgress] = useState(() => {
+    // Try to get cached progress from sessionStorage to prevent flickering
+    const cached = sessionStorage.getItem(`courseProgress_${courseId}`);
+    return cached ? JSON.parse(cached) : null;
+  });
+  const [currentCourseId, setCurrentCourseId] = useState(courseId);
   const { t } = useTranslation();
   const { getColor, isDarkMode, toggleDarkMode } = useTheme();
 
@@ -26,28 +31,52 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
 
   // Fetch course progress
   useEffect(() => {
+    // Check if courseId changed - if so, load from cache or fetch
+    if (courseId !== currentCourseId) {
+      setCurrentCourseId(courseId);
+      const cached = sessionStorage.getItem(`courseProgress_${courseId}`);
+      if (cached) {
+        setCourseProgress(JSON.parse(cached));
+        return;
+      }
+    }
+
     const loadProgress = () => {
       if (courseId) {
         getCourseProgress(courseId)
-          .then(progress => setCourseProgress(progress))
+          .then(progress => {
+            setCourseProgress(progress);
+            // Cache in sessionStorage to prevent flickering on navigation
+            sessionStorage.setItem(`courseProgress_${courseId}`, JSON.stringify(progress));
+          })
           .catch(error => {
             console.error('Error loading course progress:', error);
-            setCourseProgress(null);
           });
       }
     };
 
-    loadProgress();
+    // Load if no progress data yet
+    if (!courseProgress) {
+      loadProgress();
+    }
 
     const handleProgressUpdate = (event) => {
-      if (event.detail?.courseId && event.detail.courseId === courseId) {
-        loadProgress();
+      if (event.detail?.courseId && String(event.detail.courseId) === String(courseId)) {
+        // Force reload on progress update event
+        getCourseProgress(courseId)
+          .then(progress => {
+            setCourseProgress(progress);
+            sessionStorage.setItem(`courseProgress_${courseId}`, JSON.stringify(progress));
+          })
+          .catch(error => {
+            console.error('Error loading course progress:', error);
+          });
       }
     };
 
     window.addEventListener('courseProgressUpdated', handleProgressUpdate);
     return () => window.removeEventListener('courseProgressUpdated', handleProgressUpdate);
-  }, [courseId]);
+  }, [courseId, currentCourseId, courseProgress]);
 
   // Menu items with stats (Dashboard and Statistics moved to header)
   const menuItems = useMemo(() => {
@@ -98,22 +127,26 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
   }, [courseId, courseProgress, t]);
 
   // Colores del sidebar según el modo
-  // Modo claro: texto primary, hover fondo primary + texto blanco + borde interno
-  // Modo oscuro: texto claro (textPrimary), hover fondo accent + texto blanco, sin borde interno
   const primary = getColor('primary', '#3b82f6');
   const secondary = getColor('secondary', '#8b5cf6');
   const accent = getColor('accent', '#f59e0b');
   const textPrimary = getColor('textPrimary', '#f9fafb');
+  const secondaryBackground = getColor('secondaryBackground', '#1f2937');
+  const background = getColor('background', '#ffffff');
   
   const sidebarColors = {
-    text: isDarkMode ? textPrimary : primary,
+    // Dark mode: accent text, hover has accent bg + secondaryBg text + accent border with background inner shadow
+    // Light mode: primary text, hover has primary bg + white text + border
+    text: isDarkMode ? accent : primary,
     hoverBg: isDarkMode ? accent : primary,
-    hoverBorder: isDarkMode ? 'transparent' : secondary,
-    hoverBoxShadow: isDarkMode ? 'none' : 'inset 0 0 0 2px #ffffff',
-    activeBg: primary,
-    activeBorder: primary,
-    badgeBg: isDarkMode ? `${textPrimary}20` : `${primary}20`,
-    badgeText: isDarkMode ? textPrimary : primary,
+    hoverText: isDarkMode ? secondaryBackground : '#ffffff',
+    hoverBorder: isDarkMode ? accent : secondary,
+    hoverBoxShadow: isDarkMode ? `inset 0 0 0 2px ${background}` : 'inset 0 0 0 2px #ffffff',
+    activeBg: isDarkMode ? accent : primary,
+    activeText: isDarkMode ? secondaryBackground : '#ffffff',
+    activeBorder: isDarkMode ? 'transparent' : primary,
+    badgeBg: isDarkMode ? `${accent}30` : `${primary}20`,
+    badgeText: isDarkMode ? accent : primary,
   };
 
   const getLinkStyle = (isActive) => {
@@ -121,7 +154,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
       return {
         backgroundColor: sidebarColors.activeBg,
         borderColor: sidebarColors.activeBorder,
-        color: '#ffffff'
+        color: sidebarColors.activeText
       };
     }
     return {
@@ -137,13 +170,13 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
     if (isEnter) {
       e.currentTarget.style.backgroundColor = sidebarColors.hoverBg;
       e.currentTarget.style.borderColor = sidebarColors.hoverBorder;
-      e.currentTarget.style.color = '#ffffff';
+      e.currentTarget.style.color = sidebarColors.hoverText;
       e.currentTarget.style.boxShadow = sidebarColors.hoverBoxShadow;
       
       const badge = e.currentTarget.querySelector('.badge-course');
       if (badge) {
         badge.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-        badge.style.color = '#ffffff';
+        badge.style.color = sidebarColors.hoverText;
       }
     } else {
       e.currentTarget.style.backgroundColor = 'transparent';
@@ -172,32 +205,33 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
 
       {/* Sidebar */}
       <div 
-        className={`fixed top-0 left-0 h-full lg:relative lg:top-auto lg:left-auto lg:h-full transition-all duration-300 z-50 lg:z-auto shadow-lg lg:shadow-none border-r w-64 ${
+        className={`fixed top-0 left-0 h-full lg:relative lg:top-auto lg:left-auto lg:h-full transition-all duration-300 z-50 lg:z-auto shadow-lg lg:shadow-none w-64 ${
           isCollapsed && 'lg:w-20'
         } ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
         style={{ 
-          backgroundColor: getColor('background', '#ffffff'),
-          borderRightColor: getColor('borderColor', '#e5e7eb')
+          backgroundColor: getColor('background', '#ffffff')
         }}
       >
         <aside className="h-full flex flex-col">
           {/* Header */}
           <div className="p-4">
-            <div className={`flex gap-2 mb-2 justify-between lg:${isCollapsed ? 'justify-center' : 'justify-between'}`} style={{ alignItems: 'center', minHeight: '40px' }}>
-              <h2 
-                className={`text-base font-bold truncate flex-1 ${isCollapsed && 'lg:hidden'}`}
-                style={{ 
-                  color: sidebarColors.text,
-                  lineHeight: '24px',
-                  display: 'flex',
-                  alignItems: 'center'
-                }}
-                title={courseName}
-              >
-                <span dangerouslySetInnerHTML={{ __html: courseName }} />
-              </h2>
+            <div className={`flex gap-2 mb-2 justify-between ${isCollapsed ? 'lg:justify-center' : 'lg:justify-between'}`} style={{ alignItems: 'center', minHeight: '40px' }}>
+              {!isCollapsed && (
+                <h2 
+                  className="text-base font-bold truncate flex-1"
+                  style={{ 
+                    color: sidebarColors.text,
+                    lineHeight: '24px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                  title={courseName}
+                >
+                  <span dangerouslySetInnerHTML={{ __html: courseName }} />
+                </h2>
+              )}
               
               {/* Collapse button for desktop only */}
               <button
@@ -393,13 +427,13 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
                   <div className={`flex items-center relative w-full ${isCollapsed ? 'justify-center' : ''}`}>
                     <item.icon 
                       className="w-5 h-5" 
-                      style={{ color: isActive ? '#ffffff' : 'currentColor' }}
+                      style={{ color: isActive ? sidebarColors.activeText : 'currentColor' }}
                     />
                     {!isCollapsed && (
                       <>
                         <span 
                           className="ml-3 text-base flex-1"
-                          style={{ color: isActive ? '#ffffff' : 'currentColor' }}
+                          style={{ color: isActive ? sidebarColors.activeText : 'currentColor' }}
                         >
                           {item.text}
                         </span>
@@ -408,7 +442,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
                             className="badge-course text-xs font-semibold px-2 py-0.5 rounded relative z-10"
                             style={{ 
                               backgroundColor: isActive ? 'rgba(255, 255, 255, 0.2)' : sidebarColors.badgeBg,
-                              color: isActive ? '#ffffff' : sidebarColors.badgeText
+                              color: isActive ? sidebarColors.activeText : sidebarColors.badgeText
                             }}
                           >
                             {item.badge}

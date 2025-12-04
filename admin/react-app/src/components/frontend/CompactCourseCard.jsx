@@ -10,14 +10,20 @@ const CompactCourseCard = ({ course }) => {
   const { getColor, isDarkMode } = useTheme();
   const { id, title, _embedded } = course;
   
-  // Colores adaptativos según el modo (mismo patrón que SupportMaterialPage)
+  // Colores adaptativos según el modo
   const cardColors = {
     text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
     textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : `${getColor('primary', '#1a202c')}70`,
     primary: getColor('primary', '#3b82f6'),
     accent: getColor('accent', '#f59e0b'),
     cardBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : getColor('background', '#ffffff'),
+    secondaryBg: getColor('secondaryBackground', '#1f2937'),
     hoverBg: isDarkMode ? 'rgba(255,255,255,0.05)' : `${getColor('primary', '#1a202c')}08`,
+    // Dark mode specific
+    borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6'),
+    buttonBg: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6'),
+    buttonText: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    buttonHoverBg: isDarkMode ? getColor('primary', '#3b82f6') : getColor('accent', '#f59e0b'),
   };
   
   const { progress } = useStudentProgress(id, true, true);
@@ -72,25 +78,21 @@ const CompactCourseCard = ({ course }) => {
   }, [stepsByType, t]);
 
   return (
-    <div className="rounded-lg shadow-sm overflow-hidden flex flex-col w-full transition-all duration-300 hover:shadow-lg border-2"
+    <div className="rounded-lg shadow-sm overflow-hidden flex flex-col w-full max-w-sm transition-all duration-300 hover:shadow-lg"
       style={{ 
         backgroundColor: cardColors.cardBg,
-        borderTopWidth: '2px',
-        borderBottomWidth: '2px',
-        borderLeftWidth: '8px',
-        borderRightWidth: '2px',
-        borderColor: cardColors.primary
+        border: `2px solid ${cardColors.borderColor}`
       }}
     >
-      {/* Featured Image */}
+      {/* Featured Image - 1:1 aspect ratio */}
       {imageUrl ? (
         <div 
-          className="h-56 bg-cover bg-center"
+          className="aspect-square bg-cover bg-center"
           style={{ backgroundImage: `url(${imageUrl})` }}
         />
       ) : (
         <div 
-          className="h-56 flex items-center justify-center"
+          className="aspect-square flex items-center justify-center"
           style={{ backgroundColor: cardColors.primary }}
         >
           <BookOpen className="w-20 h-20 text-white opacity-50" />
@@ -189,13 +191,21 @@ const CompactCourseCard = ({ course }) => {
           <Link
             to={`/courses/${id}/dashboard`}
             state={{ courseName: renderedTitle }}
-            className="block w-full py-3 px-4 text-center text-base font-semibold text-white rounded-lg transition-all shadow-sm hover:shadow-md"
-            style={{ backgroundColor: cardColors.primary }}
+            className="block w-full py-3 px-4 text-center text-base font-semibold rounded-lg transition-all shadow-sm hover:shadow-md"
+            style={{ 
+              backgroundColor: cardColors.buttonBg,
+              color: cardColors.buttonText
+            }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = cardColors.accent;
+              if (isDarkMode) {
+                e.currentTarget.style.filter = 'brightness(1.15)';
+              } else {
+                e.currentTarget.style.backgroundColor = cardColors.buttonHoverBg;
+              }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = cardColors.primary;
+              e.currentTarget.style.filter = 'none';
+              e.currentTarget.style.backgroundColor = cardColors.buttonBg;
             }}
           >
             <span dangerouslySetInnerHTML={{ __html: renderedTitle }} />

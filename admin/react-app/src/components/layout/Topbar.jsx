@@ -83,11 +83,10 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
   const textPrimary = getColor('textPrimary', '#f9fafb');
   const secondaryBackground = getColor('secondaryBackground', '#ffffff');
 
-  // Colores del topbar según el modo (misma lógica que el sidebar)
+  // Colores del topbar según el modo
   const topbarColors = {
     text: isDarkMode ? textPrimary : primary,
-    hoverBg: isDarkMode ? accent : primary,
-    hoverBoxShadow: isDarkMode ? 'none' : 'inset 0 0 0 2px #ffffff',
+    accent: accent,
     activeBg: primary,
   };
 
@@ -114,29 +113,26 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
   const menuItems = isInCourseRoute ? courseMenuItems : globalMenuItems;
 
   const getLinkStyle = (isActive) => {
-    if (isActive) {
-      return {
-        backgroundColor: topbarColors.activeBg,
-        color: '#ffffff'
-      };
-    }
     return {
       backgroundColor: 'transparent',
-      color: topbarColors.text
+      color: isActive ? topbarColors.accent : topbarColors.text,
+      borderBottom: isActive ? `2px solid ${topbarColors.accent}` : '2px solid transparent',
+      borderRadius: '0',
+      paddingBottom: '6px',
     };
   };
 
   const handleLinkHover = (e, isEnter, isActive) => {
-    if (isActive) return;
-    
     if (isEnter) {
-      e.currentTarget.style.backgroundColor = topbarColors.hoverBg;
-      e.currentTarget.style.color = '#ffffff';
-      e.currentTarget.style.boxShadow = topbarColors.hoverBoxShadow;
+      e.currentTarget.style.color = topbarColors.accent;
+      if (!isActive) {
+        e.currentTarget.style.borderBottom = `2px solid ${topbarColors.accent}`;
+      }
     } else {
-      e.currentTarget.style.backgroundColor = 'transparent';
-      e.currentTarget.style.color = topbarColors.text;
-      e.currentTarget.style.boxShadow = 'none';
+      e.currentTarget.style.color = isActive ? topbarColors.accent : topbarColors.text;
+      if (!isActive) {
+        e.currentTarget.style.borderBottom = '2px solid transparent';
+      }
     }
   };
 
@@ -246,10 +242,10 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                     backgroundColor: 'transparent'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = `${topbarColors.hoverBg}15`;
+                    e.currentTarget.style.color = topbarColors.accent;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = topbarColors.text;
                   }}
                 >
                   <BookOpen className="w-5 h-5" />
@@ -269,10 +265,10 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                     backgroundColor: 'transparent'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = `${topbarColors.hoverBg}15`;
+                    e.currentTarget.style.color = topbarColors.accent;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = topbarColors.text;
                   }}
                 >
                   <FileText className="w-5 h-5" />
@@ -288,10 +284,12 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                 <a
                   key={item.to}
                   href={item.to}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium"
+                  className="flex items-center gap-2 px-4 py-2 transition-all duration-200 font-medium outline-none focus:outline-none"
                   style={{
                     backgroundColor: 'transparent',
-                    color: topbarColors.text
+                    color: topbarColors.text,
+                    borderBottom: '2px solid transparent',
+                    paddingBottom: '6px'
                   }}
                   onMouseEnter={(e) => handleLinkHover(e, true, false)}
                   onMouseLeave={(e) => handleLinkHover(e, false, false)}
@@ -309,10 +307,12 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                   href={item.to}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium"
+                  className="flex items-center gap-2 px-4 py-2 transition-all duration-200 font-medium outline-none focus:outline-none"
                   style={{
                     backgroundColor: 'transparent',
-                    color: topbarColors.text
+                    color: topbarColors.text,
+                    borderBottom: '2px solid transparent',
+                    paddingBottom: '6px'
                   }}
                   onMouseEnter={(e) => handleLinkHover(e, true, false)}
                   onMouseLeave={(e) => handleLinkHover(e, false, false)}
@@ -328,7 +328,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                 key={item.to}
                 to={item.to}
                 end
-                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium"
+                className="flex items-center gap-2 px-4 py-2 transition-all duration-200 font-medium outline-none focus:outline-none"
                 style={({ isActive }) => getLinkStyle(isActive)}
                 onMouseEnter={(e) => {
                   const isActive = e.currentTarget.getAttribute('aria-current') === 'page';
@@ -342,20 +342,20 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                 {({ isActive }) => (
                   <>
                     <div className="relative">
-                      <item.icon className="w-5 h-5" style={{ color: isActive ? '#ffffff' : 'currentColor' }} />
+                      <item.icon className="w-5 h-5" />
                       {item.badge > 0 && (
                         <span 
                           className="absolute -top-2 -right-2 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold rounded-full"
                           style={{ 
-                            backgroundColor: isActive ? '#ffffff' : accent,
-                            color: isActive ? primary : '#ffffff'
+                            backgroundColor: accent,
+                            color: '#ffffff'
                           }}
                         >
                           {item.badge > 99 ? '99+' : item.badge}
                         </span>
                       )}
                     </div>
-                    <span style={{ color: isActive ? '#ffffff' : 'currentColor' }}>{item.text}</span>
+                    <span>{item.text}</span>
                   </>
                 )}
               </NavLink>
@@ -368,16 +368,16 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
           {/* Dark Mode Toggle */}
           <button
             onClick={toggleDarkMode}
-            className="flex items-center justify-center p-2 rounded-lg transition-all duration-200"
+            className="flex items-center justify-center p-2 rounded-lg transition-all duration-200 outline-none focus:outline-none"
             style={{ 
               backgroundColor: 'transparent',
               color: topbarColors.text
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = `${topbarColors.hoverBg}20`;
+              e.currentTarget.style.color = topbarColors.accent;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = topbarColors.text;
             }}
             title={isDarkMode ? t('sidebar.lightMode') : t('sidebar.darkMode')}
           >
@@ -387,16 +387,16 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
           {/* User Icon - Clickable to Account (no name/email) */}
           <a
             href={`${homeUrl}/mi-cuenta/edit-account/`}
-            className="flex items-center justify-center p-2 rounded-lg transition-all duration-200"
+            className="flex items-center justify-center p-2 rounded-lg transition-all duration-200 outline-none focus:outline-none"
             style={{ 
               backgroundColor: 'transparent',
               color: topbarColors.text
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = `${topbarColors.hoverBg}20`;
+              e.currentTarget.style.color = topbarColors.accent;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = topbarColors.text;
             }}
             title={t('sidebar.myAccount')}
           >
@@ -407,16 +407,18 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
           {logoutUrl && (
             <a
               href={logoutUrl}
-              className="flex items-center justify-center p-2 rounded-lg transition-all duration-200"
+              className="flex items-center justify-center p-2 rounded-lg transition-all duration-200 outline-none focus:outline-none"
               style={{ 
-                backgroundColor: topbarColors.activeBg,
-                color: '#ffffff'
+                backgroundColor: isDarkMode ? accent : topbarColors.activeBg,
+                color: isDarkMode ? secondaryBackground : '#ffffff'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = accent;
+                e.currentTarget.style.filter = isDarkMode ? 'brightness(1.15)' : 'none';
+                e.currentTarget.style.backgroundColor = isDarkMode ? accent : accent;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = topbarColors.activeBg;
+                e.currentTarget.style.filter = 'none';
+                e.currentTarget.style.backgroundColor = isDarkMode ? accent : topbarColors.activeBg;
               }}
               title={t('sidebar.logout')}
             >

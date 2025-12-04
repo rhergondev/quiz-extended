@@ -14,7 +14,7 @@ import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import Quiz from '../../../components/frontend/Quiz';
 import QuizResults from '../../../components/frontend/QuizResults';
 import { CourseRankingProvider, CourseRankingTrigger, CourseRankingSlidePanel } from '../../../components/frontend/CourseRankingPanel';
-import { ChevronDown, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, XCircle, Loader, Trophy } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, XCircle, Loader, Trophy } from 'lucide-react';
 
 const TestsPage = () => {
   const { t } = useTranslation();
@@ -36,6 +36,10 @@ const TestsPage = () => {
     borderSubtle: isDarkMode ? 'rgba(255,255,255,0.1)' : `${getColor('primary', '#1a202c')}15`,
     hoverBg: isDarkMode ? 'rgba(255,255,255,0.1)' : `${getColor('primary', '#1a202c')}10`,
     hoverBgStrong: isDarkMode ? 'rgba(255,255,255,0.15)' : `${getColor('primary', '#1a202c')}15`,
+    // Button colors (same as CourseCard)
+    buttonBg: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6'),
+    buttonText: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    buttonHoverBg: isDarkMode ? getColor('primary', '#3b82f6') : getColor('accent', '#f59e0b'),
   };
   
   // 🔥 Ref para controlar que la navegación externa solo se procese una vez
@@ -523,7 +527,7 @@ const TestsPage = () => {
                   className="rounded-xl overflow-hidden border-2"
                   style={{ 
                     backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
-                    borderColor: getColor('borderColor', '#e5e7eb')
+                    borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
                   }}
                 >
                   {lessons.map((lesson, lessonIndex) => {
@@ -534,34 +538,56 @@ const TestsPage = () => {
                     return (
                       <div key={lesson.id} id={`lesson-${lesson.id}`}>
                         {/* Lesson Header */}
-                        <button
-                          onClick={() => toggleLesson(lesson.id)}
+                        <div
                           className="w-full px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-200"
                           style={{ 
                             backgroundColor: pageColors.bgSubtle
                           }}
                         >
                           <div className="flex items-center gap-3 overflow-hidden">
-                            {isExpanded ? (
-                              <ChevronDown size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
-                            ) : (
-                              <ChevronRight size={20} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
-                            )}
                             <ClipboardList size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
                             <span className="font-semibold text-left truncate" style={{ color: pageColors.text }}>
                               {lessonTitle}
                             </span>
                           </div>
-                          <span 
-                            className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full flex-shrink-0 ml-2"
-                            style={{ 
-                              backgroundColor: pageColors.hoverBg,
-                              color: pageColors.text
-                            }}
-                          >
-                            {testsCount} <span className="hidden sm:inline">{testsCount === 1 ? t('tests.test') : t('tests.tests')}</span>
-                          </span>
-                        </button>
+                          
+                          {/* Badge count + Expand/Collapse Button */}
+                          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                            <span 
+                              className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full"
+                              style={{ 
+                                backgroundColor: pageColors.hoverBg,
+                                color: pageColors.text
+                              }}
+                            >
+                              {testsCount} <span className="hidden sm:inline">{testsCount === 1 ? t('tests.test') : t('tests.tests')}</span>
+                            </span>
+                            
+                            {/* Expand/Collapse Button - same style as CourseCard */}
+                            <button
+                              onClick={() => toggleLesson(lesson.id)}
+                              className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-1.5"
+                              style={{ 
+                                backgroundColor: pageColors.buttonBg,
+                                color: pageColors.buttonText
+                              }}
+                              onMouseEnter={(e) => {
+                                if (isDarkMode) {
+                                  e.currentTarget.style.filter = 'brightness(1.15)';
+                                } else {
+                                  e.currentTarget.style.backgroundColor = pageColors.buttonHoverBg;
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.filter = 'none';
+                                e.currentTarget.style.backgroundColor = pageColors.buttonBg;
+                              }}
+                            >
+                              {isExpanded ? t('tests.hideLesson') : t('tests.showLesson')}
+                              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </button>
+                          </div>
+                        </div>
 
                         {/* Quiz Steps */}
                         {isExpanded && (
@@ -574,6 +600,7 @@ const TestsPage = () => {
                               const difficulty = step.data?.difficulty || 'medium'; // Get difficulty
                               const timeLimit = step.data?.time_limit || null;
                               const startDate = step.data?.start_date || null; // 🆕 Get start date
+                              const questionCount = step.data?.question_count || null; // 🆕 Get question count
                               
                               // Format start date
                               const formatStartDate = (dateString) => {
@@ -602,11 +629,11 @@ const TestsPage = () => {
                               
                               return (
                                 <div key={step.id || stepIndex}>
-                                  {/* Separador horizontal */}
+                                  {/* Separador horizontal - full width for first item, with margin for others */}
                                   <div 
-                                    className="mx-6"
+                                    className={stepIndex > 0 ? "mx-6" : ""}
                                     style={{ 
-                                      height: '1px', 
+                                      height: '2px', 
                                       backgroundColor: 'rgba(156, 163, 175, 0.2)'
                                     }}
                                   />
@@ -638,6 +665,16 @@ const TestsPage = () => {
                                             </span>
                                           </div>
                                           
+                                          {/* Número de preguntas */}
+                                          {questionCount && (
+                                            <div className="flex items-center gap-1 flex-shrink-0">
+                                              <HelpCircle size={12} style={{ color: pageColors.textMuted }} />
+                                              <span className="text-xs" style={{ color: pageColors.textMuted }}>
+                                                {questionCount} {t('tests.questions')}
+                                              </span>
+                                            </div>
+                                          )}
+                                          
                                           {/* Tiempo límite */}
                                           {timeLimit && (
                                             <div className="flex items-center gap-1 flex-shrink-0">
@@ -658,31 +695,27 @@ const TestsPage = () => {
                                         </div>
                                       </div>
                                     </div>
+                                    {/* Available Button - same style as CourseCard */}
                                     <button
                                       onClick={() => handleOpenTest(step, lesson)}
-                                      className="px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 font-medium text-sm flex-shrink-0"
+                                      className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex-shrink-0"
                                       style={{ 
-                                        backgroundColor: isCompleted 
-                                          ? getColor('primary', '#1a202c')
-                                          : pageColors.hoverBg,
-                                        color: isCompleted ? '#ffffff' : pageColors.text
+                                        backgroundColor: pageColors.buttonBg,
+                                        color: pageColors.buttonText
                                       }}
                                       onMouseEnter={(e) => {
-                                        e.currentTarget.style.transform = 'scale(1.05)';
-                                        if (!isCompleted) {
-                                          e.currentTarget.style.backgroundColor = pageColors.hoverBgStrong;
+                                        if (isDarkMode) {
+                                          e.currentTarget.style.filter = 'brightness(1.15)';
+                                        } else {
+                                          e.currentTarget.style.backgroundColor = pageColors.buttonHoverBg;
                                         }
                                       }}
                                       onMouseLeave={(e) => {
-                                        e.currentTarget.style.transform = 'scale(1)';
-                                        if (!isCompleted) {
-                                          e.currentTarget.style.backgroundColor = pageColors.hoverBg;
-                                        }
+                                        e.currentTarget.style.filter = 'none';
+                                        e.currentTarget.style.backgroundColor = pageColors.buttonBg;
                                       }}
-                                      title={isCompleted ? t('tests.retake') : t('tests.start')}
                                     >
-                                      <Play size={16} />
-                                      <span className="hidden sm:inline">{isCompleted ? t('tests.retake') : t('tests.start')}</span>
+                                      {t('tests.available')}
                                     </button>
                                   </div>
                                 </div>
@@ -694,9 +727,8 @@ const TestsPage = () => {
                         {/* Separador entre lecciones */}
                         {lessonIndex < lessons.length - 1 && (
                           <div 
-                            className="mx-6"
                             style={{ 
-                              height: '1px', 
+                              height: '2px', 
                               backgroundColor: 'rgba(156, 163, 175, 0.2)'
                             }}
                           />

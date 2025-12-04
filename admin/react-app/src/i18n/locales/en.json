@@ -932,7 +932,10 @@
     "download": "Download",
     "read": "Read",
     "noPreview": "Preview not available",
-    "noPreviewDescription": "This document cannot be displayed in the browser"
+    "noPreviewDescription": "This document cannot be displayed in the browser",
+    "showLesson": "Show lesson",
+    "hideLesson": "Hide lesson",
+    "available": "Available now"
   },
   "videos": {
     "noVideos": "No videos available",
@@ -941,7 +944,10 @@
     "videos": "videos",
     "watch": "Watch",
     "noVideoUrl": "Video not available",
-    "noVideoUrlDescription": "This video does not have a valid URL"
+    "noVideoUrlDescription": "This video does not have a valid URL",
+    "showLesson": "Show lesson",
+    "hideLesson": "Hide lesson",
+    "available": "Available now"
   },
   "tests": {
     "noTests": "No tests available",
@@ -966,6 +972,9 @@
     "medium": "Medium",
     "hard": "Hard",
     "startDate": "Start date",
+    "showLesson": "Show lesson",
+    "hideLesson": "Hide lesson",
+    "available": "Available now",
     "statistics": "Test Statistics",
     "withoutRisk": "Without Risk",
     "withRisk": "With Risk",

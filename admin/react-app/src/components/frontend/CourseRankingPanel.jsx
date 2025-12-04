@@ -110,6 +110,7 @@ export const CourseRankingProvider = ({ courseId, courseName, isOpen, onOpen, on
 export const CourseRankingTrigger = () => {
     const { 
         t, 
+        isDarkMode,
         pageColors, 
         myStats,
         userPosition,
@@ -118,25 +119,30 @@ export const CourseRankingTrigger = () => {
         onOpen 
     } = useRankingContext();
 
+    // Button colors (same as CourseCard)
+    const buttonBg = isDarkMode ? pageColors.accent : pageColors.hoverBg;
+    const buttonText = isDarkMode ? pageColors.bgSecondary : '#ffffff';
+    const buttonHoverBg = isDarkMode ? pageColors.hoverBg : pageColors.accent;
+
     return (
         <div className="flex justify-end mb-4">
             <button
                 onClick={onOpen}
-                className="px-3 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 text-sm font-medium border"
+                className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-2"
                 style={{ 
-                    backgroundColor: pageColors.bg,
-                    borderColor: pageColors.border,
-                    color: pageColors.text
+                    backgroundColor: buttonBg,
+                    color: buttonText
                 }}
                 onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = pageColors.hoverBg;
-                    e.currentTarget.style.borderColor = pageColors.hoverBg;
-                    e.currentTarget.style.color = '#ffffff';
+                    if (isDarkMode) {
+                        e.currentTarget.style.filter = 'brightness(1.15)';
+                    } else {
+                        e.currentTarget.style.backgroundColor = buttonHoverBg;
+                    }
                 }}
                 onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = pageColors.bg;
-                    e.currentTarget.style.borderColor = pageColors.border;
-                    e.currentTarget.style.color = pageColors.text;
+                    e.currentTarget.style.filter = 'none';
+                    e.currentTarget.style.backgroundColor = buttonBg;
                 }}
             >
                 <Trophy className="w-4 h-4" />
@@ -144,7 +150,7 @@ export const CourseRankingTrigger = () => {
                 {completedQuizzes > 0 && (myStats || userPosition) && (
                     <span 
                         className="px-1.5 py-0.5 rounded text-xs font-bold"
-                        style={{ backgroundColor: pageColors.hoverBg, color: '#fff' }}
+                        style={{ backgroundColor: 'rgba(0,0,0,0.2)', color: buttonText }}
                     >
                         #{withRisk ? myStats?.position_with_risk : myStats?.position_without_risk || userPosition}
                     </span>
