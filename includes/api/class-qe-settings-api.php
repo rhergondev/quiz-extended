@@ -123,6 +123,43 @@ class QE_Settings_API extends QE_API_Base
                 'permission_callback' => [$this, 'check_admin_permissions']
             ]
         );
+
+        // ============================================================
+        // EMAIL NOTIFICATION SETTINGS
+        // ============================================================
+
+        // GET /settings/email-notifications - Get email notification settings
+        register_rest_route(
+            $this->namespace,
+            '/settings/email-notifications',
+            [
+                'methods' => 'GET',
+                'callback' => [$this, 'get_email_notification_settings'],
+                'permission_callback' => [$this, 'check_admin_permissions']
+            ]
+        );
+
+        // POST /settings/email-notifications - Update email notification settings
+        register_rest_route(
+            $this->namespace,
+            '/settings/email-notifications',
+            [
+                'methods' => 'POST',
+                'callback' => [$this, 'update_email_notification_settings'],
+                'permission_callback' => [$this, 'check_admin_permissions']
+            ]
+        );
+
+        // POST /settings/email-notifications/test - Send test email
+        register_rest_route(
+            $this->namespace,
+            '/settings/email-notifications/test',
+            [
+                'methods' => 'POST',
+                'callback' => [$this, 'send_test_email'],
+                'permission_callback' => [$this, 'check_admin_permissions']
+            ]
+        );
     }
 
     /**
@@ -434,6 +471,140 @@ class QE_Settings_API extends QE_API_Base
         $settings = get_option('qe_plugin_settings', []);
         $settings[$key] = $value;
         return update_option('qe_plugin_settings', $settings);
+    }
+
+    // ============================================================
+    // EMAIL NOTIFICATION SETTINGS
+    // ============================================================
+
+    /**
+     * Get email notification settings
+     *
+     * @param WP_REST_Request $request Request object
+     * @return WP_REST_Response|WP_Error
+     */
+    public function get_email_notification_settings($request)
+    {
+        try {
+            $email_notifications = QE_Email_Notifications::instance();
+            $settings = $email_notifications->get_settings();
+
+            // Get current admin email as fallback info
+            $wp_admin_email = get_option('admin_email');
+
+            return rest_ensure_response([
+                'success' => true,
+                'data' => [
+                    'settings' => $settings,
+                    'wp_admin_email' => $wp_admin_email
+                ]
+            ]);
+        } catch (Exception $e) {
+            return new WP_Error(
+                'email_settings_fetch_error',
+                'Error al obtener configuración de notificaciones: ' . $e->getMessage(),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
+     * Update email notification settings
+     *
+     * @param WP_REST_Request $request Request object
+     * @return WP_REST_Response|WP_Error
+     */
+    public function update_email_notification_settings($request)
+    {
+        try {
+            $email_notifications = QE_Email_Notifications::instance();
+            
+            $new_settings = [];
+            
+            // Get all possible settings from request
+            $fields = [
+                'enabled', 
+                'admin_email', 
+                'notify_on_feedback', 
+                'notify_on_challenge',
+                'email_subject_prefix',
+                'include_question_content',
+                'daily_digest',
+                'digest_time'
+            ];
+            
+            foreach ($fields as $field) {
+                if ($request->has_param($field)) {
+                    $new_settings[$field] = $request->get_param($field);
+                }
+            }
+
+            // Validate email if provided
+            if (isset($new_settings['admin_email']) && !empty($new_settings['admin_email'])) {
+                if (!is_email($new_settings['admin_email'])) {
+                    return new WP_Error(
+                        'invalid_email',
+                        'El email proporcionado no es válido',
+                        ['status' => 400]
+                    );
+                }
+            }
+
+            $result = $email_notifications->update_settings($new_settings);
+
+            if (!$result) {
+                throw new Exception('No se pudo actualizar la configuración');
+            }
+
+            return rest_ensure_response([
+                'success' => true,
+                'data' => [
+                    'settings' => $email_notifications->get_settings(),
+                    'message' => 'Configuración de notificaciones actualizada correctamente'
+                ]
+            ]);
+        } catch (Exception $e) {
+            return new WP_Error(
+                'email_settings_update_error',
+                'Error al actualizar configuración: ' . $e->getMessage(),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
+     * Send test email
+     *
+     * @param WP_REST_Request $request Request object
+     * @return WP_REST_Response|WP_Error
+     */
+    public function send_test_email($request)
+    {
+        try {
+            $email_notifications = QE_Email_Notifications::instance();
+            $result = $email_notifications->send_test_email();
+
+            if (is_wp_error($result)) {
+                return new WP_Error(
+                    'test_email_failed',
+                    $result->get_error_message(),
+                    ['status' => 500]
+                );
+            }
+
+            return rest_ensure_response([
+                'success' => true,
+                'data' => [
+                    'message' => 'Email de prueba enviado correctamente a ' . $email_notifications->get_admin_email()
+                ]
+            ]);
+        } catch (Exception $e) {
+            return new WP_Error(
+                'test_email_error',
+                'Error al enviar email de prueba: ' . $e->getMessage(),
+                ['status' => 500]
+            );
+        }
     }
 }
 

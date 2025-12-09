@@ -179,6 +179,68 @@ const settingsService = {
    */
   updateCampusLogoDark: async (logoUrl) => {
     return settingsService.updateSettings({ campus_logo_dark: logoUrl });
+  },
+
+  // ============================================================
+  // EMAIL NOTIFICATION SETTINGS
+  // ============================================================
+
+  /**
+   * Get email notification settings (admin only)
+   */
+  getEmailNotificationSettings: async () => {
+    const config = getWpConfig();
+    const url = `${config.api_url}/quiz-extended/v1/settings/email-notifications`;
+    
+    try {
+      const response = await makeApiRequest(url, {
+        method: 'GET'
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching email notification settings:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update email notification settings (admin only)
+   */
+  updateEmailNotificationSettings: async (settings) => {
+    const config = getWpConfig();
+    const url = `${config.api_url}/quiz-extended/v1/settings/email-notifications`;
+    
+    try {
+      const response = await makeApiRequest(url, {
+        method: 'POST',
+        body: JSON.stringify(settings)
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error updating email notification settings:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Send test email (admin only)
+   */
+  sendTestEmail: async () => {
+    const config = getWpConfig();
+    const url = `${config.api_url}/quiz-extended/v1/settings/email-notifications/test`;
+    
+    try {
+      const response = await makeApiRequest(url, {
+        method: 'POST'
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      throw error;
+    }
   }
 };
 

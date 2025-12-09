@@ -241,6 +241,14 @@ class QE_Messages_API extends QE_API_Base
             // Clear badge cache
             delete_transient('qe_unread_messages_count');
 
+            // Send email notification to admin
+            $this->send_email_notification([
+                'feedback_type' => $feedback_type,
+                'question_id' => $question_id,
+                'user_id' => $user_id,
+                'message' => $message
+            ]);
+
             $this->log_info('Question feedback submitted', [
                 'message_id' => $message_id,
                 'user_id' => $user_id,
@@ -252,6 +260,46 @@ class QE_Messages_API extends QE_API_Base
         } catch (Exception $e) {
             $this->log_error('Exception in submit_question_feedback', ['message' => $e->getMessage()]);
             return $this->error_response('internal_error', 'Ocurrió un error inesperado.', 500);
+        }
+    }
+
+    // ============================================================
+    // EMAIL NOTIFICATION HELPER
+    // ============================================================
+
+    /**
+     * Send email notification to admin for new feedback/challenge
+     *
+     * @param array $data Feedback data
+     * @return void
+     */
+    private function send_email_notification($data)
+    {
+        try {
+            // Check if email notifications class exists
+            if (!class_exists('QE_Email_Notifications')) {
+                $this->log_info('Email notifications class not loaded');
+                return;
+            }
+
+            $email_notifications = QE_Email_Notifications::instance();
+            $result = $email_notifications->send_feedback_notification($data);
+
+            if (is_wp_error($result)) {
+                $this->log_error('Email notification failed', [
+                    'error' => $result->get_error_message()
+                ]);
+            } elseif ($result === true) {
+                $this->log_info('Email notification sent successfully', [
+                    'type' => $data['feedback_type'] ?? 'unknown',
+                    'question_id' => $data['question_id'] ?? 0
+                ]);
+            }
+            // result === false means notifications are disabled, which is ok
+        } catch (Exception $e) {
+            $this->log_error('Exception sending email notification', [
+                'message' => $e->getMessage()
+            ]);
         }
     }
 

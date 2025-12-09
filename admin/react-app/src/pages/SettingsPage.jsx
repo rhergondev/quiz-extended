@@ -1,6 +1,6 @@
 // src/pages/SettingsPage.jsx
 import React, { useState, useEffect } from 'react';
-import { Save, Settings, Percent, Hash, Palette, Sun, Moon, RotateCcw } from 'lucide-react';
+import { Save, Settings, Percent, Hash, Palette, Sun, Moon, RotateCcw, Mail, Bell, AlertTriangle, MessageSquare, Send, Loader2, CheckCircle } from 'lucide-react';
 import QEButton from '../components/common/QEButton';
 import { toast } from 'react-toastify';
 import settingsService from '../api/services/settingsService';
@@ -29,6 +29,18 @@ const SettingsPage = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [campusLogo, setCampusLogo] = useState(window.qe_data?.campus_logo || '');
   const [campusLogoDark, setCampusLogoDark] = useState(window.qe_data?.campus_logo_dark || '');
+  
+  // Email notification settings state
+  const [emailSettings, setEmailSettings] = useState({
+    enabled: false,
+    admin_email: '',
+    notify_on_feedback: true,
+    notify_on_challenge: true,
+    email_subject_prefix: '[Quiz Extended]',
+    include_question_content: true
+  });
+  const [wpAdminEmail, setWpAdminEmail] = useState('');
+  const [sendingTestEmail, setSendingTestEmail] = useState(false);
 
   // Cargar la configuración actual al montar (verificar si hay cambios)
   useEffect(() => {
@@ -75,6 +87,20 @@ const SettingsPage = () => {
             setTheme(migratedTheme);
           }
         }
+
+        // Load email notification settings
+        try {
+          const emailData = await settingsService.getEmailNotificationSettings();
+          if (emailData.settings) {
+            setEmailSettings(emailData.settings);
+          }
+          if (emailData.wp_admin_email) {
+            setWpAdminEmail(emailData.wp_admin_email);
+          }
+        } catch (emailError) {
+          console.error('Error loading email settings:', emailError);
+          // Non-critical, don't show error to user
+        }
       } catch (error) {
         console.error('Error loading settings:', error);
         toast.error('Error al cargar la configuración');
@@ -101,6 +127,11 @@ const SettingsPage = () => {
         }
       } else if (activeTab === 'theme') {
         await settingsService.updateTheme(theme);
+      } else if (activeTab === 'notifications') {
+        await settingsService.updateEmailNotificationSettings(emailSettings);
+        toast.success('Configuración de notificaciones guardada correctamente');
+        setLoading(false);
+        return; // Don't reload for notification settings
       }
       
       toast.success('Configuración guardada correctamente');
@@ -113,6 +144,19 @@ const SettingsPage = () => {
       console.error('Error saving settings:', error);
       toast.error('Error al guardar la configuración');
       setLoading(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    setSendingTestEmail(true);
+    try {
+      const result = await settingsService.sendTestEmail();
+      toast.success(result.message || 'Email de prueba enviado correctamente');
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      toast.error('Error al enviar el email de prueba. Verifica la configuración de tu servidor.');
+    } finally {
+      setSendingTestEmail(false);
     }
   };
 
@@ -409,6 +453,19 @@ const SettingsPage = () => {
             <div className="flex items-center gap-2">
               <Palette className="w-4 h-4" />
               Tema y Colores
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+              activeTab === 'notifications'
+                ? 'qe-text-primary qe-border-primary'
+                : 'text-gray-600 border-transparent hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Bell className="w-4 h-4" />
+              Notificaciones
             </div>
           </button>
         </nav>
@@ -812,6 +869,207 @@ const SettingsPage = () => {
                       <li>La configuración de esquema de color del panel de WordPress</li>
                       <li>La preferencia del sistema operativo del usuario (prefers-color-scheme)</li>
                     </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Email Notifications Tab */}
+        {activeTab === 'notifications' && (
+          <>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                    Notificaciones por Email
+                  </h2>
+                  <p className="text-gray-600">
+                    Configura las notificaciones por correo electrónico cuando los estudiantes 
+                    envíen comentarios o impugnaciones sobre preguntas.
+                  </p>
+                </div>
+              </div>
+
+              {/* Enable/Disable Toggle */}
+              <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    <Mail className="w-5 h-5 text-gray-700" />
+                    <div>
+                      <h3 className="font-medium text-gray-900">Activar Notificaciones por Email</h3>
+                      <p className="text-sm text-gray-600">
+                        Recibe un email cada vez que un estudiante envíe un comentario o impugnación
+                      </p>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={emailSettings.enabled}
+                      onChange={(e) => setEmailSettings({...emailSettings, enabled: e.target.checked})}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </div>
+                </label>
+              </div>
+
+              {/* Settings (only show when enabled) */}
+              {emailSettings.enabled && (
+                <div className="space-y-6">
+                  {/* Admin Email */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Email del Administrador
+                    </label>
+                    <input
+                      type="email"
+                      value={emailSettings.admin_email}
+                      onChange={(e) => setEmailSettings({...emailSettings, admin_email: e.target.value})}
+                      placeholder={wpAdminEmail || 'admin@ejemplo.com'}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Deja vacío para usar el email de administrador de WordPress: <strong>{wpAdminEmail}</strong>
+                    </p>
+                  </div>
+
+                  {/* Subject Prefix */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Prefijo del Asunto
+                    </label>
+                    <input
+                      type="text"
+                      value={emailSettings.email_subject_prefix}
+                      onChange={(e) => setEmailSettings({...emailSettings, email_subject_prefix: e.target.value})}
+                      placeholder="[Quiz Extended]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Este texto aparecerá al inicio del asunto de cada email
+                    </p>
+                  </div>
+
+                  {/* Notification Types */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Tipos de Notificación
+                    </label>
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={emailSettings.notify_on_feedback}
+                          onChange={(e) => setEmailSettings({...emailSettings, notify_on_feedback: e.target.checked})}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                        />
+                        <div className="flex items-center gap-2">
+                          <MessageSquare className="w-5 h-5 text-blue-500" />
+                          <div>
+                            <span className="font-medium text-gray-900">Comentarios / Dudas</span>
+                            <p className="text-xs text-gray-500">Notificar cuando un estudiante envíe un comentario o duda sobre una pregunta</p>
+                          </div>
+                        </div>
+                      </label>
+                      
+                      <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={emailSettings.notify_on_challenge}
+                          onChange={(e) => setEmailSettings({...emailSettings, notify_on_challenge: e.target.checked})}
+                          className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                        />
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="w-5 h-5 text-amber-500" />
+                          <div>
+                            <span className="font-medium text-gray-900">Impugnaciones</span>
+                            <p className="text-xs text-gray-500">Notificar cuando un estudiante impugne una pregunta</p>
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Include Question Content */}
+                  <div>
+                    <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={emailSettings.include_question_content}
+                        onChange={(e) => setEmailSettings({...emailSettings, include_question_content: e.target.checked})}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      />
+                      <div>
+                        <span className="font-medium text-gray-900">Incluir contenido de la pregunta</span>
+                        <p className="text-xs text-gray-500">Muestra el texto de la pregunta en el email para mayor contexto</p>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Test Email Button */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-gray-900">Probar Configuración</h4>
+                        <p className="text-sm text-gray-500">
+                          Envía un email de prueba para verificar que todo funciona correctamente
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleSendTestEmail}
+                        disabled={sendingTestEmail}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {sendingTestEmail ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Enviando...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            Enviar Email de Prueba
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Info box when disabled */}
+              {!emailSettings.enabled && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Mail className="w-5 h-5 text-amber-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-amber-900 mb-1">Notificaciones Desactivadas</h4>
+                      <p className="text-sm text-amber-800">
+                        Activa las notificaciones para recibir emails cuando los estudiantes envíen 
+                        comentarios o impugnaciones. Esto te permitirá responder más rápidamente a sus dudas.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Info about WordPress email */}
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-medium text-blue-900 mb-1">Sobre el Envío de Emails</h4>
+                    <p className="text-sm text-blue-800">
+                      Los emails se envían usando la función nativa de WordPress <code className="bg-blue-100 px-1 rounded">wp_mail()</code>. 
+                      Esto significa que es compatible con cualquier plugin SMTP que tengas instalado (como WP Mail SMTP, 
+                      Post SMTP, etc.) para mejorar la entregabilidad.
+                    </p>
+                    <p className="text-sm text-blue-800 mt-2">
+                      Si los emails no llegan, verifica la configuración de tu servidor de correo o instala un plugin SMTP.
+                    </p>
                   </div>
                 </div>
               </div>
