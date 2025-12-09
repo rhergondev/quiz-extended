@@ -106,7 +106,7 @@ class QE_Email_Notifications
     {
         $current = $this->get_settings();
         $updated = wp_parse_args($new_settings, $current);
-        
+
         // Sanitize values
         $updated['enabled'] = (bool) $updated['enabled'];
         $updated['admin_email'] = sanitize_email($updated['admin_email']);
@@ -129,11 +129,11 @@ class QE_Email_Notifications
     {
         $settings = $this->get_settings();
         $email = $settings['admin_email'];
-        
+
         if (empty($email) || !is_email($email)) {
             $email = get_option('admin_email');
         }
-        
+
         return $email;
     }
 
@@ -231,7 +231,7 @@ class QE_Email_Notifications
     {
         $type = $data['feedback_type'] ?? 'feedback';
         $is_challenge = $type === 'challenge';
-        
+
         // Get user info
         $user_id = $data['user_id'] ?? 0;
         $user = get_userdata($user_id);
@@ -404,7 +404,7 @@ class QE_Email_Notifications
     {
         $site_name = get_bloginfo('name');
         $admin_email = get_option('admin_email');
-        
+
         return [
             'Content-Type: text/html; charset=UTF-8',
             'From: ' . $site_name . ' <' . $admin_email . '>'
@@ -442,7 +442,7 @@ class QE_Email_Notifications
     public function send_test_email()
     {
         $to = $this->get_admin_email();
-        
+
         if (empty($to)) {
             return new WP_Error('no_email', 'No hay email de administrador configurado');
         }
@@ -450,7 +450,7 @@ class QE_Email_Notifications
         $settings = $this->get_settings();
         $prefix = $settings['email_subject_prefix'] ?: '[Quiz Extended]';
         $subject = $prefix . ' Email de prueba';
-        
+
         $body = $this->build_test_email_body();
         $headers = $this->get_email_headers();
 

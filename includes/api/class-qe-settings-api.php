@@ -518,21 +518,21 @@ class QE_Settings_API extends QE_API_Base
     {
         try {
             $email_notifications = QE_Email_Notifications::instance();
-            
+
             $new_settings = [];
-            
+
             // Get all possible settings from request
             $fields = [
-                'enabled', 
-                'admin_email', 
-                'notify_on_feedback', 
+                'enabled',
+                'admin_email',
+                'notify_on_feedback',
                 'notify_on_challenge',
                 'email_subject_prefix',
                 'include_question_content',
                 'daily_digest',
                 'digest_time'
             ];
-            
+
             foreach ($fields as $field) {
                 if ($request->has_param($field)) {
                     $new_settings[$field] = $request->get_param($field);
