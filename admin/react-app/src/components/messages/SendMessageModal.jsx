@@ -5,10 +5,25 @@ import {
   X, Send, Users, User, Loader, CheckCircle, 
   BookOpen, Search, AlertCircle, Megaphone, Bell, AlertTriangle
 } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 import { makeApiRequest } from '../../api/services/baseService';
 import { getApiConfig } from '../../api/config/apiConfig';
 
 const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
+  const { getColor, isDarkMode } = useTheme();
+
+  // Theme-aware colors
+  const colors = {
+    primary: getColor('primary', '#1e3a5f'),
+    accent: getColor('accent', '#f59e0b'),
+    textPrimary: isDarkMode ? getColor('textPrimary', '#f9fafb') : '#1f2937',
+    textSecondary: isDarkMode ? getColor('textSecondary', '#9ca3af') : '#6b7280',
+    textMuted: isDarkMode ? '#6b7280' : '#9ca3af',
+    background: isDarkMode ? getColor('background', '#111827') : '#ffffff',
+    backgroundSecondary: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#f9fafb',
+    border: isDarkMode ? 'rgba(255,255,255,0.1)' : '#e5e7eb',
+    cardBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+  };
   const [recipientType, setRecipientType] = useState('all');
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState('');
@@ -184,66 +199,66 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
       />
       
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 pointer-events-none overflow-y-auto">
         <div 
-          className="pointer-events-auto w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden"
+          className="pointer-events-auto w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] flex flex-col rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden my-auto"
           style={{ 
-            backgroundColor: 'var(--qe-background)',
-            border: '1px solid var(--qe-border)'
+            backgroundColor: colors.background,
+            border: `2px solid ${isDarkMode ? colors.accent : colors.primary}`
           }}
         >
           {/* Header */}
           <div 
-            className="px-6 py-5 flex items-center justify-between"
+            className="px-4 py-3 sm:px-6 sm:py-5 flex items-center justify-between flex-shrink-0"
             style={{ 
-              background: 'linear-gradient(135deg, var(--qe-primary) 0%, var(--qe-secondary) 100%)'
+              backgroundColor: isDarkMode ? colors.backgroundSecondary : colors.primary
             }}
           >
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-white/20">
-                <Send className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-white/20">
+                <Send className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white">Nuevo Mensaje</h2>
-                <p className="text-sm text-white/80">Comunícate con tus estudiantes</p>
+                <h2 className="text-base sm:text-xl font-bold text-white">Nuevo Mensaje</h2>
+                <p className="text-xs sm:text-sm text-white/80 hidden sm:block">Comunícate con tus estudiantes</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-1.5 sm:p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ backgroundColor: colors.background }}>
             {success ? (
-              <div className="text-center py-12">
+              <div className="text-center py-8 sm:py-12">
                 <div 
                   className="w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center"
                   style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)' }}
                 >
                   <CheckCircle className="w-10 h-10 text-emerald-500" />
                 </div>
-                <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--qe-text-primary)' }}>
+                <h3 className="text-xl font-bold mb-2" style={{ color: colors.textPrimary }}>
                   ¡Mensaje Enviado!
                 </h3>
-                <p style={{ color: 'var(--qe-text-secondary)' }}>
+                <p style={{ color: colors.textSecondary }}>
                   Tu mensaje ha sido enviado correctamente
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
                 {/* Destinatarios */}
                 <div>
                   <label 
-                    className="block text-sm font-semibold mb-3"
-                    style={{ color: 'var(--qe-text-primary)' }}
+                    className="block text-sm font-semibold mb-2 sm:mb-3"
+                    style={{ color: colors.textPrimary }}
                   >
                     Destinatarios
                   </label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     {recipientOptions.map(option => {
                       const Icon = option.icon;
                       const isSelected = recipientType === option.value;
@@ -252,27 +267,29 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                           key={option.value}
                           type="button"
                           onClick={() => setRecipientType(option.value)}
-                          className={`p-4 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${
-                            isSelected 
-                              ? 'border-blue-500 bg-blue-50 shadow-md' 
-                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                          }`}
-                          style={isSelected ? { borderColor: 'var(--qe-primary)' } : {}}
+                          className="p-2 sm:p-4 rounded-lg sm:rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-1 sm:gap-2"
+                          style={{ 
+                            borderColor: isSelected ? colors.accent : colors.border,
+                            backgroundColor: isSelected ? (isDarkMode ? 'rgba(245, 158, 11, 0.1)' : '#fef3c7') : colors.background
+                          }}
                         >
                           <div 
-                            className={`p-2 rounded-lg ${isSelected ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500'}`}
-                            style={isSelected ? { backgroundColor: 'var(--qe-primary)' } : {}}
+                            className="p-1.5 sm:p-2 rounded-md sm:rounded-lg"
+                            style={{ 
+                              backgroundColor: isSelected ? colors.accent : (isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6'),
+                              color: isSelected ? '#ffffff' : colors.textSecondary
+                            }}
                           >
-                            <Icon className="w-5 h-5" />
+                            <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                           </div>
                           <div className="text-center">
                             <span 
-                              className={`block text-sm font-medium ${isSelected ? 'text-blue-700' : 'text-gray-700'}`}
-                              style={isSelected ? { color: 'var(--qe-primary)' } : {}}
+                              className="block text-xs sm:text-sm font-medium"
+                              style={{ color: isSelected ? colors.accent : colors.textPrimary }}
                             >
                               {option.label}
                             </span>
-                            <span className="text-xs text-gray-400">{option.sublabel}</span>
+                            <span className="text-[10px] sm:text-xs hidden sm:block" style={{ color: colors.textMuted }}>{option.sublabel}</span>
                           </div>
                         </button>
                       );
@@ -283,29 +300,29 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                 {/* Selección de Curso */}
                 {recipientType === 'course' && (
                   <div 
-                    className="p-4 rounded-xl"
-                    style={{ backgroundColor: 'var(--qe-surface)' }}
+                    className="p-3 sm:p-4 rounded-lg sm:rounded-xl"
+                    style={{ backgroundColor: colors.backgroundSecondary }}
                   >
                     <label 
                       className="block text-sm font-medium mb-2"
-                      style={{ color: 'var(--qe-text-primary)' }}
+                      style={{ color: colors.textPrimary }}
                     >
                       Seleccionar curso
                     </label>
                     {loadingCourses ? (
-                      <div className="flex items-center justify-center py-4 gap-2" style={{ color: 'var(--qe-text-secondary)' }}>
-                        <Loader className="w-5 h-5 animate-spin" />
-                        <span>Cargando cursos...</span>
+                      <div className="flex items-center justify-center py-3 sm:py-4 gap-2" style={{ color: colors.textSecondary }}>
+                        <Loader className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                        <span className="text-sm">Cargando cursos...</span>
                       </div>
                     ) : (
                       <select
                         value={selectedCourse}
                         onChange={(e) => setSelectedCourse(e.target.value)}
-                        className="w-full px-4 py-3 rounded-lg border text-sm focus:outline-none focus:ring-2"
+                        className="w-full px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg text-sm focus:outline-none focus:ring-2"
                         style={{ 
-                          backgroundColor: 'var(--qe-background)',
-                          borderColor: 'var(--qe-border)',
-                          color: 'var(--qe-text-primary)'
+                          backgroundColor: colors.background,
+                          border: `1px solid ${colors.border}`,
+                          color: colors.textPrimary
                         }}
                       >
                         <option value="">Selecciona un curso...</option>
@@ -322,53 +339,53 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                 {/* Selección de Usuarios */}
                 {recipientType === 'specific' && (
                   <div 
-                    className="p-4 rounded-xl"
-                    style={{ backgroundColor: 'var(--qe-surface)' }}
+                    className="p-3 sm:p-4 rounded-lg sm:rounded-xl"
+                    style={{ backgroundColor: colors.backgroundSecondary }}
                   >
                     <label 
                       className="block text-sm font-medium mb-2"
-                      style={{ color: 'var(--qe-text-primary)' }}
+                      style={{ color: colors.textPrimary }}
                     >
                       Seleccionar usuarios
                       {selectedUsers.length > 0 && (
                         <span 
                           className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium text-white"
-                          style={{ backgroundColor: 'var(--qe-primary)' }}
+                          style={{ backgroundColor: colors.accent }}
                         >
-                          {selectedUsers.length} seleccionados
+                          {selectedUsers.length}
                         </span>
                       )}
                     </label>
                     
                     {/* Buscador */}
-                    <div className="relative mb-3">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <div className="relative mb-2 sm:mb-3">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.textMuted }} />
                       <input
                         type="text"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Buscar usuarios..."
-                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2"
+                        className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2"
                         style={{ 
-                          backgroundColor: 'var(--qe-background)',
-                          borderColor: 'var(--qe-border)',
-                          color: 'var(--qe-text-primary)'
+                          backgroundColor: colors.background,
+                          border: `1px solid ${colors.border}`,
+                          color: colors.textPrimary
                         }}
                       />
                     </div>
 
                     {/* Lista de usuarios */}
                     <div 
-                      className="rounded-lg border max-h-48 overflow-y-auto"
-                      style={{ borderColor: 'var(--qe-border)' }}
+                      className="rounded-lg max-h-36 sm:max-h-48 overflow-y-auto"
+                      style={{ border: `1px solid ${colors.border}` }}
                     >
                       {loadingUsers ? (
-                        <div className="p-4 text-center" style={{ color: 'var(--qe-text-secondary)' }}>
+                        <div className="p-4 text-center" style={{ color: colors.textSecondary }}>
                           <Loader className="w-5 h-5 animate-spin inline mr-2" />
                           Cargando usuarios...
                         </div>
                       ) : filteredUsers.length === 0 ? (
-                        <div className="p-4 text-center" style={{ color: 'var(--qe-text-secondary)' }}>
+                        <div className="p-4 text-center" style={{ color: colors.textSecondary }}>
                           No se encontraron usuarios
                         </div>
                       ) : (
@@ -377,33 +394,32 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                           return (
                             <label
                               key={user.id}
-                              className={`flex items-center p-3 cursor-pointer transition-colors ${
-                                isChecked ? 'bg-blue-50' : 'hover:bg-gray-50'
-                              }`}
+                              className="flex items-center p-2.5 sm:p-3 cursor-pointer transition-colors"
                               style={{ 
-                                borderBottom: idx < filteredUsers.length - 1 ? '1px solid var(--qe-border)' : 'none',
-                                backgroundColor: isChecked ? 'rgba(59, 130, 246, 0.05)' : undefined
+                                borderBottom: idx < filteredUsers.length - 1 ? `1px solid ${colors.border}` : 'none',
+                                backgroundColor: isChecked ? (isDarkMode ? 'rgba(245, 158, 11, 0.1)' : '#fef3c7') : 'transparent'
                               }}
                             >
                               <input
                                 type="checkbox"
                                 checked={isChecked}
                                 onChange={() => handleToggleUser(user.id)}
-                                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                className="w-4 h-4 rounded flex-shrink-0"
+                                style={{ accentColor: colors.accent }}
                               />
-                              <div className="ml-3 flex-1 min-w-0">
+                              <div className="ml-2 sm:ml-3 flex-1 min-w-0">
                                 <p 
                                   className="text-sm font-medium truncate"
-                                  style={{ color: 'var(--qe-text-primary)' }}
+                                  style={{ color: colors.textPrimary }}
                                 >
                                   {user.name}
                                 </p>
-                                <p className="text-xs truncate" style={{ color: 'var(--qe-text-secondary)' }}>
+                                <p className="text-xs truncate hidden sm:block" style={{ color: colors.textSecondary }}>
                                   {user.email}
                                 </p>
                               </div>
                               {isChecked && (
-                                <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                                <CheckCircle className="w-4 h-4 flex-shrink-0 hidden sm:block" style={{ color: colors.accent }} />
                               )}
                             </label>
                           );
@@ -416,35 +432,36 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                 {/* Tipo de mensaje */}
                 <div>
                   <label 
-                    className="block text-sm font-semibold mb-3"
-                    style={{ color: 'var(--qe-text-primary)' }}
+                    className="block text-sm font-semibold mb-2 sm:mb-3"
+                    style={{ color: colors.textPrimary }}
                   >
                     Tipo de mensaje
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5 sm:gap-2">
                     {messageTypes.map(type => {
                       const Icon = type.icon;
                       const isSelected = messageType === type.value;
-                      const colors = {
-                        blue: { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-500', icon: 'bg-blue-500' },
-                        amber: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-500', icon: 'bg-amber-500' },
-                        red: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-500', icon: 'bg-red-500' }
+                      const typeColors = {
+                        blue: { bg: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe', text: '#3b82f6', border: '#3b82f6' },
+                        amber: { bg: isDarkMode ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7', text: '#f59e0b', border: '#f59e0b' },
+                        red: { bg: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2', text: '#ef4444', border: '#ef4444' }
                       };
-                      const c = colors[type.color];
+                      const c = typeColors[type.color];
                       
                       return (
                         <button
                           key={type.value}
                           type="button"
                           onClick={() => setMessageType(type.value)}
-                          className={`flex-1 px-4 py-3 rounded-lg border-2 flex items-center justify-center gap-2 transition-all ${
-                            isSelected 
-                              ? `${c.bg} ${c.border} ${c.text}` 
-                              : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                          }`}
+                          className="flex-1 px-2 py-2 sm:px-4 sm:py-3 rounded-lg border-2 flex items-center justify-center gap-1 sm:gap-2 transition-all"
+                          style={{
+                            borderColor: isSelected ? c.border : colors.border,
+                            backgroundColor: isSelected ? c.bg : 'transparent',
+                            color: isSelected ? c.text : colors.textSecondary
+                          }}
                         >
                           <Icon className="w-4 h-4" />
-                          <span className="text-sm font-medium">{type.label}</span>
+                          <span className="text-xs sm:text-sm font-medium">{type.label}</span>
                         </button>
                       );
                     })}
@@ -454,8 +471,8 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                 {/* Asunto */}
                 <div>
                   <label 
-                    className="block text-sm font-semibold mb-2"
-                    style={{ color: 'var(--qe-text-primary)' }}
+                    className="block text-sm font-semibold mb-1.5 sm:mb-2"
+                    style={{ color: colors.textPrimary }}
                   >
                     Asunto <span className="text-red-500">*</span>
                   </label>
@@ -466,11 +483,11 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                     placeholder="Escribe el asunto del mensaje..."
                     required
                     maxLength={200}
-                    className="w-full px-4 py-3 rounded-lg border text-sm focus:outline-none focus:ring-2"
+                    className="w-full px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg text-sm focus:outline-none focus:ring-2"
                     style={{ 
-                      backgroundColor: 'var(--qe-background)',
-                      borderColor: 'var(--qe-border)',
-                      color: 'var(--qe-text-primary)'
+                      backgroundColor: colors.background,
+                      border: `1px solid ${colors.border}`,
+                      color: colors.textPrimary
                     }}
                   />
                 </div>
@@ -478,8 +495,8 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                 {/* Mensaje */}
                 <div>
                   <label 
-                    className="block text-sm font-semibold mb-2"
-                    style={{ color: 'var(--qe-text-primary)' }}
+                    className="block text-sm font-semibold mb-1.5 sm:mb-2"
+                    style={{ color: colors.textPrimary }}
                   >
                     Mensaje <span className="text-red-500">*</span>
                   </label>
@@ -489,21 +506,21 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                     placeholder="Escribe tu mensaje aquí..."
                     required
                     maxLength={5000}
-                    rows={5}
-                    className="w-full px-4 py-3 rounded-lg border text-sm focus:outline-none focus:ring-2 resize-none"
+                    rows={4}
+                    className="w-full px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg text-sm focus:outline-none focus:ring-2 resize-none"
                     style={{ 
-                      backgroundColor: 'var(--qe-background)',
-                      borderColor: 'var(--qe-border)',
-                      color: 'var(--qe-text-primary)'
+                      backgroundColor: colors.background,
+                      border: `1px solid ${colors.border}`,
+                      color: colors.textPrimary
                     }}
                   />
                   <div className="flex justify-between mt-1">
-                    <span className="text-xs" style={{ color: 'var(--qe-text-secondary)' }}>
+                    <span className="text-xs" style={{ color: colors.textSecondary }}>
                       Soporta texto plano
                     </span>
                     <span 
-                      className={`text-xs ${message.length > 4500 ? 'text-amber-500' : ''}`}
-                      style={{ color: message.length > 4500 ? undefined : 'var(--qe-text-secondary)' }}
+                      className="text-xs"
+                      style={{ color: message.length > 4500 ? '#f59e0b' : colors.textSecondary }}
                     >
                       {message.length}/5000
                     </span>
@@ -512,9 +529,15 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
 
                 {/* Error */}
                 {error && (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
+                  <div 
+                    className="flex items-center gap-2 p-3 rounded-lg"
+                    style={{ 
+                      backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2',
+                      border: `1px solid ${isDarkMode ? 'rgba(239, 68, 68, 0.3)' : '#fecaca'}`
+                    }}
+                  >
                     <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                    <p className="text-sm text-red-600">{error}</p>
+                    <p className="text-sm text-red-500">{error}</p>
                   </div>
                 )}
               </form>
@@ -524,26 +547,27 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
           {/* Footer */}
           {!success && (
             <div 
-              className="px-6 py-4 flex items-center justify-between border-t"
+              className="px-4 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 border-t flex-shrink-0"
               style={{ 
-                backgroundColor: 'var(--qe-surface)',
-                borderColor: 'var(--qe-border)'
+                backgroundColor: colors.backgroundSecondary,
+                borderColor: colors.border
               }}
             >
-              <div className="text-xs" style={{ color: 'var(--qe-text-secondary)' }}>
+              <div className="text-xs hidden sm:block" style={{ color: colors.textSecondary }}>
                 {recipientType === 'all' && 'Se enviará a todos los usuarios'}
                 {recipientType === 'course' && selectedCourse && `Se enviará a los usuarios del curso`}
                 {recipientType === 'specific' && selectedUsers.length > 0 && `Se enviará a ${selectedUsers.length} usuario(s)`}
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-2 sm:gap-3">
                 <button
                   type="button"
                   onClick={onClose}
                   disabled={sending}
-                  className="px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors hover:bg-gray-50 disabled:opacity-50"
+                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                   style={{ 
-                    borderColor: 'var(--qe-border)',
-                    color: 'var(--qe-text-primary)'
+                    border: `1px solid ${colors.border}`,
+                    color: colors.textPrimary,
+                    backgroundColor: 'transparent'
                   }}
                 >
                   Cancelar
@@ -551,21 +575,21 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                 <button
                   onClick={handleSubmit}
                   disabled={sending || !subject.trim() || !message.trim()}
-                  className="px-5 py-2.5 rounded-lg text-sm font-medium text-white flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg"
+                  className="flex-1 sm:flex-none px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-sm font-medium text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ 
-                    backgroundColor: 'var(--qe-primary)',
-                    boxShadow: sending ? 'none' : '0 4px 14px 0 rgba(59, 130, 246, 0.4)'
+                    backgroundColor: colors.accent
                   }}
                 >
                   {sending ? (
                     <>
                       <Loader className="w-4 h-4 animate-spin" />
-                      <span>Enviando...</span>
+                      <span className="hidden sm:inline">Enviando...</span>
+                      <span className="sm:hidden">...</span>
                     </>
                   ) : (
                     <>
                       <Send className="w-4 h-4" />
-                      <span>Enviar Mensaje</span>
+                      <span>Enviar</span>
                     </>
                   )}
                 </button>

@@ -8,18 +8,20 @@ const QuestionStatsChart = ({
   statsData, 
   compact = false,
   isDarkMode = false,
-  pageColors = null 
+  pageColors = null,
+  mini = false 
 }) => {
   const { getColor } = useTheme();
   const [hoveredSegment, setHoveredSegment] = useState(null);
 
-  // Use provided pageColors or generate defaults
+  // Use provided pageColors or generate defaults with better dark mode
   const colors = pageColors || {
-    text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
-    textMuted: getColor('textSecondary', '#6b7280'),
+    text: isDarkMode ? '#f9fafb' : '#1a202c',
+    textMuted: isDarkMode ? '#9ca3af' : '#6b7280',
     primary: getColor('primary', '#3b82f6'),
-    background: getColor('background', '#ffffff'),
-    secondaryBg: getColor('secondaryBackground', '#f3f4f6'),
+    background: isDarkMode ? '#1f2937' : '#ffffff',
+    secondaryBg: isDarkMode ? '#111827' : '#f3f4f6',
+    border: isDarkMode ? '#374151' : '#e5e7eb',
   };
 
   const data = [
@@ -114,27 +116,88 @@ const QuestionStatsChart = ({
 
   return (
     <div 
-      className={`p-4 rounded-lg border flex flex-col ${compact ? '' : 'shadow-lg'}`}
+      className={`p-3 rounded-lg border flex flex-col h-full ${compact ? '' : 'shadow-lg'}`}
       style={{ 
         backgroundColor: colors.background,
-        borderColor: isDarkMode ? colors.primary + '40' : '#e5e7eb'
+        borderColor: colors.border || (isDarkMode ? '#374151' : '#e5e7eb')
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 mb-3 pb-2 border-b" style={{ borderColor: isDarkMode ? colors.primary + '30' : '#e5e7eb' }}>
-        <div className="flex items-center gap-2">
-          <PieChart className="w-4 h-4" style={{ color: colors.primary }} />
-          <h2 className="text-sm font-semibold" style={{ color: colors.text }}>Distribución de Respuestas</h2>
+      <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b" style={{ borderColor: colors.border || (isDarkMode ? '#374151' : '#e5e7eb') }}>
+        <div className="flex items-center gap-1.5">
+          <PieChart className="w-3.5 h-3.5" style={{ color: colors.primary }} />
+          <h2 className="text-xs font-semibold" style={{ color: colors.text }}>
+            {mini ? 'Respuestas' : 'Distribución de Respuestas'}
+          </h2>
         </div>
-        {hasGlobalStats && (
-          <div className="flex items-center gap-1 text-xs" style={{ color: colors.textMuted }}>
+        {hasGlobalStats && !mini && (
+          <div className="flex items-center gap-1 text-[10px]" style={{ color: colors.textMuted }}>
             <Users className="w-3 h-3" />
-            <span>{statsData.global_stats.total_users} usuarios</span>
+            <span>{statsData.global_stats.total_users}</span>
           </div>
         )}
       </div>
 
-      <div className="flex items-start gap-4 flex-1">
+      {mini ? (
+        /* Mini Layout - Vertical stacked */
+        <div className="flex-1 flex flex-col items-center justify-center">
+          {/* Donut Chart - Even smaller */}
+          <div className="relative w-20 h-20 mb-2">
+            <svg viewBox="0 0 100 100" className="w-full h-full">
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                stroke={isDarkMode ? '#374151' : '#f3f4f6'}
+                strokeWidth="16"
+              />
+              {segments.map((segment, index) => {
+                const isHovered = hoveredSegment === index;
+                return (
+                  <path
+                    key={index}
+                    d={createArc(segment.startAngle, segment.endAngle, isHovered ? 28 : 30, isHovered ? 44 : 42)}
+                    fill={segment.color}
+                    className="transition-all duration-300 cursor-pointer"
+                    onMouseEnter={() => setHoveredSegment(index)}
+                    onMouseLeave={() => setHoveredSegment(null)}
+                  />
+                );
+              })}
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <p className="text-lg font-bold" style={{ color: colors.text }}>{total}</p>
+              <p className="text-[9px]" style={{ color: colors.textMuted }}>Total</p>
+            </div>
+          </div>
+
+          {/* Mini Legend */}
+          <div className="w-full space-y-1">
+            {data.map((item, index) => {
+              const Icon = item.icon;
+              const percentage = total > 0 ? ((item.value / total) * 100).toFixed(0) : 0;
+              return (
+                <div 
+                  key={index}
+                  className="flex items-center justify-between px-2 py-1 rounded text-[10px]"
+                  style={{ backgroundColor: hoveredSegment === index ? `${item.color}15` : 'transparent' }}
+                  onMouseEnter={() => setHoveredSegment(index)}
+                  onMouseLeave={() => setHoveredSegment(null)}
+                >
+                  <div className="flex items-center gap-1">
+                    <Icon className="w-3 h-3" style={{ color: item.color }} />
+                    <span style={{ color: colors.text }}>{item.label}</span>
+                  </div>
+                  <span className="font-bold" style={{ color: item.color }}>{item.value} ({percentage}%)</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        /* Standard Layout */
+        <div className="flex items-start gap-4 flex-1">
         {/* Donut Chart - Smaller */}
         <div className="relative flex-shrink-0 w-28 h-28">
           <svg viewBox="0 0 100 100" className="w-full h-full">
@@ -231,13 +294,14 @@ const QuestionStatsChart = ({
           })}
         </div>
       </div>
+      )}
 
-      {/* Risk breakdown (if data available) */}
-      {(statsData?.correct_with_risk !== undefined || statsData?.incorrect_with_risk !== undefined) && (
-        <div className="mt-3 pt-3 border-t" style={{ borderColor: isDarkMode ? colors.primary + '30' : '#e5e7eb' }}>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="p-2 rounded" style={{ backgroundColor: isDarkMode ? '#10b98115' : '#ecfdf5' }}>
-              <div className="font-medium mb-1" style={{ color: '#10b981' }}>Correctas</div>
+      {/* Risk breakdown (if data available and not mini) */}
+      {!mini && (statsData?.correct_with_risk !== undefined || statsData?.incorrect_with_risk !== undefined) && (
+        <div className="mt-2 pt-2 border-t" style={{ borderColor: colors.border || (isDarkMode ? '#374151' : '#e5e7eb') }}>
+          <div className="grid grid-cols-2 gap-2 text-[10px]">
+            <div className="p-1.5 rounded" style={{ backgroundColor: isDarkMode ? '#10b98115' : '#ecfdf5' }}>
+              <div className="font-medium mb-0.5" style={{ color: '#10b981' }}>Correctas</div>
               <div className="flex justify-between" style={{ color: colors.text }}>
                 <span>Con riesgo:</span>
                 <span className="font-medium">{statsData?.correct_with_risk || 0}</span>
@@ -247,8 +311,8 @@ const QuestionStatsChart = ({
                 <span className="font-medium">{statsData?.correct_without_risk || 0}</span>
               </div>
             </div>
-            <div className="p-2 rounded" style={{ backgroundColor: isDarkMode ? '#ef444415' : '#fef2f2' }}>
-              <div className="font-medium mb-1" style={{ color: '#ef4444' }}>Incorrectas</div>
+            <div className="p-1.5 rounded" style={{ backgroundColor: isDarkMode ? '#ef444415' : '#fef2f2' }}>
+              <div className="font-medium mb-0.5" style={{ color: '#ef4444' }}>Incorrectas</div>
               <div className="flex justify-between" style={{ color: colors.text }}>
                 <span>Con riesgo:</span>
                 <span className="font-medium">{statsData?.incorrect_with_risk || 0}</span>

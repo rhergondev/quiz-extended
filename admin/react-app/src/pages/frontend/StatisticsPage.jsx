@@ -7,7 +7,7 @@ import WeakLessonsPanel from '../../components/frontend/statistics/WeakLessonsPa
 import PerformanceComparison from '../../components/frontend/statistics/PerformanceComparison';
 import ProgressOverTime from '../../components/frontend/statistics/ProgressOverTime';
 import StatsFilters from '../../components/frontend/statistics/StatsFilters';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, PieChart, BookOpen } from 'lucide-react';
 
 const StatisticsPage = () => {
   const { getColor, isDarkMode } = useTheme();
@@ -15,15 +15,18 @@ const StatisticsPage = () => {
   const [timeRange, setTimeRange] = useState('all');
   const [statsData, setStatsData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('questions'); // 'questions' or 'lessons'
 
-  // Dark mode colors
+  // Dark mode colors - improved
   const pageColors = {
-    text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
-    textMuted: getColor('textSecondary', '#6b7280'),
+    text: isDarkMode ? '#f9fafb' : '#1a202c',
+    textMuted: isDarkMode ? '#9ca3af' : '#6b7280',
     accent: getColor('accent', '#f59e0b'),
     primary: getColor('primary', '#3b82f6'),
-    background: getColor('background', '#ffffff'),
-    secondaryBg: getColor('secondaryBackground', '#f3f4f6'),
+    background: isDarkMode ? '#1f2937' : '#ffffff',
+    secondaryBg: isDarkMode ? '#111827' : '#f3f4f6',
+    border: isDarkMode ? '#374151' : '#e5e7eb',
+    cardBg: isDarkMode ? '#1f2937' : '#ffffff',
   };
 
   useEffect(() => {
@@ -54,7 +57,6 @@ const StatisticsPage = () => {
       setStatsData(data.data);
     } catch (error) {
       console.error('Error fetching statistics:', error);
-      // Fallback to empty data on error
       setStatsData({
         total_questions: 0,
         correct_answers: 0,
@@ -72,21 +74,21 @@ const StatisticsPage = () => {
   };
 
   return (
-    <div className="min-h-full pt-8" style={{ backgroundColor: pageColors.secondaryBg }}>
-      <div className="container mx-auto px-4 max-w-6xl">
+    <div className="h-full flex flex-col" style={{ backgroundColor: pageColors.secondaryBg }}>
+      <div className="container mx-auto px-3 py-3 max-w-7xl flex-1 flex flex-col min-h-0">
         {/* Compact Header with inline filters */}
         <div 
-          className="p-4 rounded-lg border mb-4"
+          className="flex-shrink-0 px-3 py-2 rounded-lg mb-3"
           style={{ 
-            backgroundColor: pageColors.background,
-            borderColor: isDarkMode ? pageColors.primary + '40' : '#e5e7eb'
+            backgroundColor: pageColors.cardBg,
+            border: `1px solid ${pageColors.border}`
           }}
         >
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             {/* Title */}
             <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5" style={{ color: pageColors.primary }} />
-              <h1 className="text-lg font-bold" style={{ color: pageColors.text }}>
+              <BarChart3 className="w-4 h-4" style={{ color: pageColors.primary }} />
+              <h1 className="text-sm font-bold" style={{ color: pageColors.text }}>
                 Mis Estadísticas
               </h1>
             </div>
@@ -105,46 +107,83 @@ const StatisticsPage = () => {
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center h-48">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2" 
+          <div className="flex-1 flex justify-center items-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2" 
                  style={{ borderColor: pageColors.primary }}></div>
           </div>
         ) : (
-          /* Main Layout: 2 columns - Charts left, Info right */
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            {/* Left Column: Charts (3/5 width) */}
-            <div className="lg:col-span-3 space-y-4">
-              {/* Question Stats Donut - Compact */}
+          /* Main Layout: Single row with everything */
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0">
+            
+            {/* Left: Donut Chart - Compact (3 cols) */}
+            <div className="lg:col-span-3">
               <QuestionStatsChart 
                 statsData={statsData} 
                 compact={true}
                 isDarkMode={isDarkMode}
                 pageColors={pageColors}
-              />
-
-              {/* Progress Over Time - Compact */}
-              <ProgressOverTime 
-                selectedCourse={selectedCourse}
-                timeRange={timeRange}
-                compact={true}
-                isDarkMode={isDarkMode}
-                pageColors={pageColors}
+                mini={true}
               />
             </div>
 
-            {/* Right Column: Performance + Weak Lessons (2/5 width) */}
-            <div className="lg:col-span-2 space-y-4">
-              {/* Performance Comparison - Compact */}
+            {/* Center: Tabs for Questions/Lessons Analysis (5 cols) */}
+            <div className="lg:col-span-5 flex flex-col min-h-0">
+              {/* Tabs */}
+              <div 
+                className="flex-shrink-0 flex gap-1 p-1 rounded-lg mb-2"
+                style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}
+              >
+                <button
+                  onClick={() => setActiveTab('questions')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all`}
+                  style={{ 
+                    backgroundColor: activeTab === 'questions' ? pageColors.cardBg : 'transparent',
+                    color: activeTab === 'questions' ? pageColors.primary : pageColors.textMuted,
+                    boxShadow: activeTab === 'questions' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  <PieChart size={12} />
+                  Evolución
+                </button>
+                <button
+                  onClick={() => setActiveTab('lessons')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all`}
+                  style={{ 
+                    backgroundColor: activeTab === 'lessons' ? pageColors.cardBg : 'transparent',
+                    color: activeTab === 'lessons' ? pageColors.accent : pageColors.textMuted,
+                    boxShadow: activeTab === 'lessons' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  <BookOpen size={12} />
+                  Repasar
+                </button>
+              </div>
+
+              {/* Tab Content */}
+              <div className="flex-1 min-h-0">
+                {activeTab === 'questions' ? (
+                  <ProgressOverTime 
+                    selectedCourse={selectedCourse}
+                    timeRange={timeRange}
+                    compact={true}
+                    isDarkMode={isDarkMode}
+                    pageColors={pageColors}
+                  />
+                ) : (
+                  <WeakLessonsPanel 
+                    selectedCourse={selectedCourse}
+                    compact={true}
+                    isDarkMode={isDarkMode}
+                    pageColors={pageColors}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Right: Performance Comparison (4 cols) */}
+            <div className="lg:col-span-4">
               <PerformanceComparison 
                 userAccuracy={parseFloat(calculateAccuracy())}
-                selectedCourse={selectedCourse}
-                compact={true}
-                isDarkMode={isDarkMode}
-                pageColors={pageColors}
-              />
-
-              {/* Weak Lessons Panel - Compact */}
-              <WeakLessonsPanel 
                 selectedCourse={selectedCourse}
                 compact={true}
                 isDarkMode={isDarkMode}

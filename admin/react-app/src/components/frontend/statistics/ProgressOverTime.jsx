@@ -75,14 +75,14 @@ const ProgressOverTime = ({
 
   return (
     <div 
-      className={`p-4 rounded-lg border flex flex-col ${compact ? '' : 'shadow-lg'}`}
+      className={`p-3 rounded-lg border flex flex-col ${compact ? '' : 'shadow-lg'}`}
       style={{ 
         backgroundColor: colors.background,
-        borderColor: isDarkMode ? colors.primary + '40' : '#e5e7eb'
+        borderColor: colors.border || (isDarkMode ? '#374151' : '#e5e7eb')
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-3 pb-2 border-b" style={{ borderColor: isDarkMode ? colors.primary + '30' : '#e5e7eb' }}>
+      <div className="flex items-center justify-between mb-2 pb-2 border-b" style={{ borderColor: colors.border || (isDarkMode ? '#374151' : '#e5e7eb') }}>
         <div className="flex items-center gap-2">
           <LineChart className="w-4 h-4" style={{ color: colors.primary }} />
           <h2 className="text-sm font-semibold" style={{ color: colors.text }}>Evolución</h2>
@@ -167,7 +167,7 @@ const ProgressOverTime = ({
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 gap-2 pt-2 border-t" style={{ borderColor: isDarkMode ? colors.primary + '20' : '#e5e7eb' }}>
+      <div className="grid grid-cols-2 gap-2 pt-2 border-t" style={{ borderColor: colors.border || (isDarkMode ? '#374151' : '#e5e7eb') }}>
         <div className="text-center p-1.5 rounded" style={{ backgroundColor: isDarkMode ? colors.primary + '15' : '#f3f4f6' }}>
           <p className="text-xs" style={{ color: colors.textMuted }}>Promedio</p>
           <p className="text-base font-bold" style={{ color: colors.primary }}>

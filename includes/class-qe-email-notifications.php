@@ -253,8 +253,6 @@ class QE_Email_Notifications
 
         // Site info
         $site_name = get_bloginfo('name');
-        $site_url = get_site_url();
-        $admin_url = admin_url('admin.php?page=quiz-extended#/messages');
 
         // Build HTML email
         $html = '
@@ -317,7 +315,16 @@ class QE_Email_Notifications
 
         // Include question content if enabled
         if ($settings['include_question_content'] && $question) {
-            $question_content = wp_strip_all_tags($question->post_content);
+            // Get question content and preserve line breaks
+            $question_content = $question->post_content;
+            // Remove HTML tags but preserve line breaks
+            $question_content = preg_replace('/<br\s*\/?>/i', "\n", $question_content);
+            $question_content = preg_replace('/<\/p>/i', "\n\n", $question_content);
+            $question_content = wp_strip_all_tags($question_content);
+            // Normalize line breaks and trim
+            $question_content = preg_replace('/\n{3,}/', "\n\n", $question_content);
+            $question_content = trim($question_content);
+
             if (!empty($question_content)) {
                 $html .= '
                             <!-- Question Content -->
@@ -327,8 +334,8 @@ class QE_Email_Notifications
                                         <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
                                             Contenido de la pregunta
                                         </p>
-                                        <p style="margin: 0; color: #374151; font-size: 14px; line-height: 1.5;">
-                                            ' . esc_html(wp_trim_words($question_content, 50)) . '
+                                        <p style="margin: 0; color: #374151; font-size: 14px; line-height: 1.6; white-space: pre-line;">
+                                            ' . esc_html($question_content) . '
                                         </p>
                                     </td>
                                 </tr>
@@ -345,22 +352,10 @@ class QE_Email_Notifications
                                             Mensaje del estudiante
                                         </p>
                                         <div style="padding: 16px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid ' . esc_attr($accent_color) . ';">
-                                            <p style="margin: 0; color: #111827; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">
-                                                ' . nl2br(esc_html($message)) . '
+                                            <p style="margin: 0; color: #111827; font-size: 14px; line-height: 1.6; white-space: pre-line;">
+                                                ' . esc_html($message) . '
                                             </p>
                                         </div>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- CTA Button -->
-                            <table cellpadding="0" cellspacing="0" width="100%">
-                                <tr>
-                                    <td style="text-align: center;">
-                                        <a href="' . esc_url($admin_url) . '" 
-                                           style="display: inline-block; padding: 12px 24px; background-color: ' . esc_attr($accent_color) . '; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px; border-radius: 6px;">
-                                            Ver en el Panel de Mensajes
-                                        </a>
                                     </td>
                                 </tr>
                             </table>
@@ -376,9 +371,7 @@ class QE_Email_Notifications
                                 Este email fue enviado automáticamente desde
                             </p>
                             <p style="margin: 0; color: #374151; font-size: 12px; font-weight: 500;">
-                                <a href="' . esc_url($site_url) . '" style="color: ' . esc_attr($accent_color) . '; text-decoration: none;">
-                                    ' . esc_html($site_name) . '
-                                </a>
+                                ' . esc_html($site_name) . '
                             </p>
                             <p style="margin: 12px 0 0 0; color: #9ca3af; font-size: 11px;">
                                 ' . date_i18n('j F Y, H:i') . '

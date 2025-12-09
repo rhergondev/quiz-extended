@@ -737,7 +737,8 @@ class QE_Messages_API extends QE_API_Base
             $order = strtoupper($request->get_param('order') ?: 'DESC');
 
             // Build WHERE clause
-            $where = ['1=1'];
+            // IMPORTANT: Exclude admin_* messages (those are outgoing messages to students, not inbox)
+            $where = ["type NOT LIKE 'admin_%'"];
             $params = [];
 
             if ($search) {

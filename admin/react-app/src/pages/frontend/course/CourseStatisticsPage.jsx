@@ -42,10 +42,26 @@ const CourseStatisticsPage = () => {
   const { t } = useTranslation();
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const { getColor } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
   const { formatScore, convertScore, format, isPercentage } = useScoreFormat();
   const { course } = useCourse(courseId);
   const courseName = course?.title?.rendered || course?.title || '';
+
+  // Dark mode colors - improved borders with primary/accent
+  const pageColors = {
+    text: isDarkMode ? '#f9fafb' : '#1a202c',
+    textMuted: isDarkMode ? '#9ca3af' : '#6b7280',
+    background: isDarkMode ? '#1f2937' : '#ffffff',
+    secondaryBg: isDarkMode ? '#111827' : '#f3f4f6',
+    border: isDarkMode ? getColor('accent', '#f59e0b') + '60' : getColor('primary', '#3b82f6') + '40',
+    borderSubtle: isDarkMode ? '#374151' : '#e5e7eb',
+    cardBg: isDarkMode ? '#1f2937' : '#ffffff',
+    accent: getColor('accent', '#f59e0b'),
+    primary: getColor('primary', '#3b82f6'),
+  };
+
+  // Tab state for analysis sections
+  const [activeAnalysisTab, setActiveAnalysisTab] = useState('lessons'); // 'lessons' or 'questions'
 
   const [loading, setLoading] = useState(true);
   const [performanceByLesson, setPerformanceByLesson] = useState([]);
@@ -323,20 +339,20 @@ const CourseStatisticsPage = () => {
           }`}
         >
           <div className="h-full overflow-y-auto">
-            <div className="max-w-7xl mx-auto px-4 pt-8 pb-24">{/* Increased max-w and adjusted padding */}
+            <div className="max-w-7xl mx-auto px-3 py-4">
               
               {/* Overview Section - Tarjetas de Resumen */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {/* Section Header */}
                 <div className="flex items-center gap-2">
-                  <Activity size={20} style={{ color: getColor('primary', '#1a202c') }} />
-                  <h2 className="text-lg font-bold uppercase tracking-wide" style={{ color: getColor('primary', '#1a202c') }}>
+                  <Activity size={16} style={{ color: pageColors.text }} />
+                  <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>
                     {t('statistics.title')}
                   </h2>
                 </div>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Stats Grid - More compact */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                   {/* Nota Media */}
                   {(() => {
                     const top10Cutoff = rankingStatistics?.top_10_cutoff_without_risk;
@@ -346,78 +362,69 @@ const CourseStatisticsPage = () => {
                     
                     return (
                       <div 
-                        className="rounded-xl overflow-hidden border-2 transition-all duration-200 hover:shadow-md"
+                        className="rounded-lg overflow-hidden border transition-all duration-200 hover:shadow-md"
                         style={{ 
-                          backgroundColor: getColor('secondaryBackground'),
-                          borderColor: isInTop10 ? '#22c55e' : getColor('borderColor')
+                          backgroundColor: pageColors.cardBg,
+                          borderColor: isInTop10 ? '#22c55e' : pageColors.border
                         }}
                       >
                         <div 
-                          className="px-4 py-2 flex items-center justify-between"
+                          className="px-3 py-1.5 flex items-center justify-between"
                           style={{ backgroundColor: isInTop10 ? '#22c55e' : getColor('primary', '#1a202c') }}
                         >
-                          <span className="text-xs font-bold uppercase tracking-wider" style={{ color: getColor('textColorContrast', '#ffffff') }}>
+                          <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#ffffff' }}>
                             {t('statistics.averageScore')}
                           </span>
                           {isInTop10 ? (
-                            <Award size={16} style={{ color: getColor('textColorContrast', '#ffffff') }} />
+                            <Award size={14} style={{ color: '#ffffff' }} />
                           ) : (
-                            <TrendingUp size={16} style={{ color: getColor('textColorContrast', '#ffffff') }} />
+                            <TrendingUp size={14} style={{ color: '#ffffff' }} />
                           )}
                         </div>
-                        <div 
-                          style={{ 
-                            height: '1px', 
-                            backgroundColor: 'rgba(156, 163, 175, 0.2)'
-                          }} 
-                        />
-                        <div className="p-4">
-                          <div className="flex items-baseline gap-2 mb-1">
-                            <span className="text-4xl font-bold" style={{ color: isInTop10 ? '#22c55e' : getColor('primary', '#1a202c') }}>
+                        <div className="p-3">
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-bold" style={{ color: isInTop10 ? '#22c55e' : pageColors.text }}>
                               {computedStats ? formatScore(computedStats.avgScore) : '-'}
                             </span>
-                            <span className="text-sm" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                            <span className="text-xs" style={{ color: pageColors.textMuted }}>
                               / {isPercentage ? '100' : '10'}
                             </span>
                           </div>
                           
-                          {/* Top 10% Cutoff info */}
+                          {/* Top 10% Cutoff info - compact */}
                           {hasTop10Data ? (
                             <div 
-                              className="flex items-center gap-2 mt-2 p-2 rounded-lg"
+                              className="flex items-center gap-1.5 mt-2 px-2 py-1 rounded text-xs"
                               style={{ 
-                                backgroundColor: isInTop10 ? '#dcfce7' : '#fef3c7',
-                                border: `1px solid ${isInTop10 ? '#86efac' : '#fcd34d'}`
+                                backgroundColor: isInTop10 ? (isDarkMode ? '#166534' : '#dcfce7') : (isDarkMode ? '#92400e' : '#fef3c7'),
                               }}
                             >
                               {isInTop10 ? (
                                 <>
-                                  <CheckCircle size={14} className="text-green-600 flex-shrink-0" />
-                                  <span className="text-xs font-medium text-green-800">
-                                    {t('statistics.passedCutoff')}
+                                  <CheckCircle size={12} style={{ color: isDarkMode ? '#86efac' : '#16a34a' }} />
+                                  <span style={{ color: isDarkMode ? '#86efac' : '#166534' }}>
+                                    ✓ Top 10%
                                   </span>
                                 </>
                               ) : (
                                 <>
-                                  <Target size={14} className="text-amber-600 flex-shrink-0" />
-                                  <span className="text-xs text-amber-800">
-                                    <span className="font-medium">{t('statistics.cutoffScore')}:</span>{' '}
-                                    <strong>{formatScore(top10Cutoff)}</strong>
+                                  <Target size={12} style={{ color: isDarkMode ? '#fcd34d' : '#d97706' }} />
+                                  <span style={{ color: isDarkMode ? '#fcd34d' : '#92400e' }}>
+                                    Corte: <strong>{formatScore(top10Cutoff)}</strong>
                                   </span>
                                 </>
                               )}
                             </div>
                           ) : (
                             <div 
-                              className="flex items-center gap-2 mt-2 p-2 rounded-lg"
+                              className="flex items-center gap-1.5 mt-2 px-2 py-1 rounded text-xs"
                               style={{ 
-                                backgroundColor: '#f3f4f6',
-                                border: '1px solid #e5e7eb'
+                                backgroundColor: isDarkMode ? '#374151' : '#f3f4f6',
                               }}
                             >
-                              <AlertCircle size={14} className="text-gray-400 flex-shrink-0" />
-                              <span className="text-xs text-gray-500">
-                                {t('statistics.noCutoffDataYet')}
+                              <AlertCircle size={12} style={{ color: pageColors.textMuted }} />
+                              <span style={{ color: pageColors.textMuted }}>
+                                Sin datos
                               </span>
                             </div>
                           )}
@@ -428,34 +435,28 @@ const CourseStatisticsPage = () => {
 
                   {/* Ranking */}
                   <div 
-                    className="rounded-xl overflow-hidden border-2 transition-all duration-200 hover:shadow-md"
+                    className="rounded-lg overflow-hidden border transition-all duration-200 hover:shadow-md"
                     style={{ 
-                      backgroundColor: getColor('secondaryBackground'),
-                      borderColor: getColor('borderColor')
+                      backgroundColor: pageColors.cardBg,
+                      borderColor: pageColors.border
                     }}
                   >
                     <div 
-                      className="px-4 py-2 flex items-center justify-between"
+                      className="px-3 py-1.5 flex items-center justify-between"
                       style={{ backgroundColor: getColor('accent', '#f59e0b') }}
                     >
                       <span className="text-xs font-bold uppercase tracking-wider text-white">
                         {t('statistics.ranking')}
                       </span>
-                      <Trophy size={16} className="text-white" />
+                      <Trophy size={14} className="text-white" />
                     </div>
-                    <div 
-                      style={{ 
-                        height: '1px', 
-                        backgroundColor: 'rgba(156, 163, 175, 0.2)'
-                      }} 
-                    />
-                    <div className="p-4">
-                      <div className="flex items-baseline gap-2 mb-1">
-                        <span className="text-4xl font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
+                    <div className="p-3">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
                           #{rankingStatus?.position || '-'}
                         </span>
                         {computedStats?.completedQuizzes === computedStats?.totalQuizzes && computedStats?.totalQuizzes > 0 && (
-                          <CheckCircle size={16} className="text-green-500 mb-1" />
+                          <CheckCircle size={14} className="text-green-500" />
                         )}
                       </div>
                     </div>
@@ -463,33 +464,27 @@ const CourseStatisticsPage = () => {
 
                   {/* Tests Completados */}
                   <div 
-                    className="rounded-xl overflow-hidden border-2 transition-all duration-200 hover:shadow-md"
+                    className="rounded-lg overflow-hidden border transition-all duration-200 hover:shadow-md"
                     style={{ 
-                      backgroundColor: getColor('secondaryBackground'),
-                      borderColor: getColor('borderColor')
+                      backgroundColor: pageColors.cardBg,
+                      borderColor: pageColors.border
                     }}
                   >
                     <div 
-                      className="px-4 py-2 flex items-center justify-between"
+                      className="px-3 py-1.5 flex items-center justify-between"
                       style={{ backgroundColor: '#64748b' }}
                     >
                       <span className="text-xs font-bold uppercase tracking-wider text-white">
                         {t('statistics.completedQuizzes')}
                       </span>
-                      <Target size={16} className="text-white" />
+                      <Target size={14} className="text-white" />
                     </div>
-                    <div 
-                      style={{ 
-                        height: '1px', 
-                        backgroundColor: 'rgba(156, 163, 175, 0.2)'
-                      }} 
-                    />
-                    <div className="p-4">
-                      <div className="flex items-baseline gap-2 mb-1">
-                        <span className="text-4xl font-bold" style={{ color: '#475569' }}>
+                    <div className="p-3">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-bold" style={{ color: isDarkMode ? '#94a3b8' : '#475569' }}>
                           {computedStats?.completedQuizzes || 0}
                         </span>
-                        <span className="text-sm" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                        <span className="text-xs" style={{ color: pageColors.textMuted }}>
                           / {computedStats?.totalQuizzes || 0}
                         </span>
                       </div>
@@ -498,7 +493,7 @@ const CourseStatisticsPage = () => {
                           <ProgressBar 
                             value={computedStats.progressPercentage} 
                             color="#64748b"
-                            height="h-1.5"
+                            height="h-1"
                           />
                         </div>
                       )}
@@ -507,44 +502,38 @@ const CourseStatisticsPage = () => {
 
                   {/* Mejor Lección */}
                   <div 
-                    className="rounded-xl overflow-hidden border-2 transition-all duration-200 hover:shadow-md"
+                    className="rounded-lg overflow-hidden border transition-all duration-200 hover:shadow-md"
                     style={{ 
-                      backgroundColor: getColor('secondaryBackground'),
-                      borderColor: getColor('borderColor')
+                      backgroundColor: pageColors.cardBg,
+                      borderColor: pageColors.border
                     }}
                   >
                     <div 
-                      className="px-4 py-2 flex items-center justify-between"
+                      className="px-3 py-1.5 flex items-center justify-between"
                       style={{ backgroundColor: '#10b981' }}
                     >
                       <span className="text-xs font-bold uppercase tracking-wider text-white">
                         {t('statistics.bestPerformance')}
                       </span>
-                      <Award size={16} className="text-white" />
+                      <Award size={14} className="text-white" />
                     </div>
-                    <div 
-                      style={{ 
-                        height: '1px', 
-                        backgroundColor: 'rgba(156, 163, 175, 0.2)'
-                      }} 
-                    />
-                    <div className="p-4">
+                    <div className="p-3">
                       {computedStats?.bestLesson ? (
                         <>
-                          <div className="flex items-baseline gap-2 mb-1">
-                            <span className="text-4xl font-bold" style={{ color: '#059669' }}>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-bold" style={{ color: '#059669' }}>
                               {formatScore(computedStats.bestLesson.avg_score)}
                             </span>
-                            <span className="text-sm" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                            <span className="text-xs" style={{ color: pageColors.textMuted }}>
                               / {isPercentage ? '100' : '10'}
                             </span>
                           </div>
-                          <p className="text-xs mt-1 truncate" style={{ color: `${getColor('primary', '#1a202c')}80` }}>
+                          <p className="text-xs mt-1 truncate" style={{ color: pageColors.textMuted }}>
                             {computedStats.bestLesson.lesson_title}
                           </p>
                         </>
                       ) : (
-                        <p className="text-sm" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
+                        <p className="text-xs" style={{ color: pageColors.textMuted }}>
                           {t('statistics.noDataYet')}
                         </p>
                       )}
@@ -555,19 +544,19 @@ const CourseStatisticsPage = () => {
 
               {/* Lesson Filter for Chart and Question Analysis */}
               {performanceByLesson && performanceByLesson.length > 0 && (
-                <div className="mt-6 flex items-center gap-3">
-                  <Filter size={16} style={{ color: `${getColor('primary', '#1a202c')}60` }} />
-                  <span className="text-sm font-medium" style={{ color: `${getColor('primary', '#1a202c')}80` }}>
-                    Filtrar por tema:
+                <div className="mt-3 flex items-center gap-2 flex-wrap">
+                  <Filter size={14} style={{ color: pageColors.textMuted }} />
+                  <span className="text-xs font-medium" style={{ color: pageColors.textMuted }}>
+                    Filtrar:
                   </span>
                   <select
                     value={selectedLessonFilter || ''}
                     onChange={(e) => setSelectedLessonFilter(e.target.value ? parseInt(e.target.value) : null)}
-                    className="text-sm px-3 py-1.5 rounded-lg border focus:outline-none focus:ring-2"
+                    className="text-xs px-2 py-1 rounded border focus:outline-none focus:ring-1"
                     style={{ 
-                      backgroundColor: getColor('background', '#ffffff'),
-                      borderColor: getColor('borderColor', '#e5e7eb'),
-                      color: getColor('primary', '#1a202c')
+                      backgroundColor: pageColors.cardBg,
+                      borderColor: pageColors.border,
+                      color: pageColors.text
                     }}
                   >
                     <option value="">Todos los temas</option>
@@ -580,593 +569,376 @@ const CourseStatisticsPage = () => {
                   {selectedLessonFilter && (
                     <button
                       onClick={() => setSelectedLessonFilter(null)}
-                      className="text-xs px-2 py-1 rounded-lg transition-all"
+                      className="text-xs px-1.5 py-0.5 rounded transition-all"
                       style={{ 
-                        backgroundColor: '#fee2e2',
-                        color: '#dc2626'
+                        backgroundColor: isDarkMode ? '#7f1d1d' : '#fee2e2',
+                        color: isDarkMode ? '#fca5a5' : '#dc2626'
                       }}
                     >
-                      ✕ Limpiar
+                      ✕
                     </button>
                   )}
                 </div>
               )}
 
-              {/* Score Evolution Chart */}
-              <div className="mt-4">
-                <ScoreEvolutionChart courseId={courseId} lessonId={selectedLessonFilter} />
-              </div>
-
-              {/* Main Content Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+              {/* NEW LAYOUT: Chart (left/half) + Tabs Analysis (right/half) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
                 
-                {/* Análisis de Temas - Lista de TODAS las lecciones con orden */}
-                <div 
-                  className="rounded-xl overflow-hidden border-2"
-                  style={{ 
-                    backgroundColor: getColor('secondaryBackground'),
-                    borderColor: getColor('borderColor')
-                  }}
-                >
-                  {/* Header */}
-                  <div 
-                    className="px-4 py-3"
-                    style={{ backgroundColor: getColor('primary', '#1a202c') }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <BookOpen size={20} style={{ color: getColor('textColorContrast', '#ffffff') }} />
-                        <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: getColor('textColorContrast', '#ffffff') }}>
-                          {t('statistics.lessonAnalysis')}
-                        </h3>
-                      </div>
-                      {/* Ver Todas las Lecciones */}
-                      <button
-                        onClick={() => setShowAllLessons(true)}
-                        className="text-xs font-medium flex items-center gap-1 px-2 py-1 rounded transition-all"
-                        style={{ 
-                          color: getColor('textColorContrast', '#ffffff'),
-                          backgroundColor: 'rgba(255, 255, 255, 0.15)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
-                        }}
-                      >
-                        {t('statistics.allLessons')}
-                        <ChevronRight size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Separador */}
-                  <div 
-                    style={{ 
-                      height: '1px', 
-                      backgroundColor: 'rgba(156, 163, 175, 0.2)'
-                    }} 
-                  />
-                  
-                  {/* Content - Scrollable list of ALL lessons (sorted low to high) */}
-                  <div className="p-4 max-h-96 overflow-y-auto">
-                    {lessonsLowToHigh.length > 0 ? (
-                      <div className="space-y-2">
-                        {lessonsLowToHigh.map((lesson, index) => {
-                          const lessonScore = lesson.avg_score;
-                          const scoreColor = getScoreColor(lesson.avg_score);
-                          
-                          return (
-                            <div 
-                              key={lesson.lesson_id} 
-                              className="p-3 rounded-lg border transition-all duration-200 hover:shadow-sm cursor-pointer"
-                              style={{ 
-                                backgroundColor: getColor('background', '#ffffff'),
-                                borderColor: getColor('borderColor', '#e5e7eb')
-                              }}
-                              onClick={() => handleNavigateToLesson(lesson.lesson_id)}
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-3 flex-1 min-w-0">
-                                  <span 
-                                    className="text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                                    style={{ 
-                                      backgroundColor: `${scoreColor}15`,
-                                      color: scoreColor
-                                    }}
-                                  >
-                                    {index + 1}
-                                  </span>
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-medium text-sm truncate" style={{ color: getColor('primary', '#1a202c') }}>
-                                      {lesson.lesson_title}
-                                    </h4>
-                                    <span className="text-xs" style={{ color: `${getColor('primary', '#1a202c')}50` }}>
-                                      {lesson.quizzes_completed} / {lesson.total_quizzes} {t('statistics.quizzesCompleted')}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  <div 
-                                    className="text-right px-2 py-1 rounded"
-                                    style={{ backgroundColor: `${scoreColor}10` }}
-                                  >
-                                    <span className="font-bold text-sm" style={{ color: scoreColor }}>
-                                      {formatScore(lessonScore)}
-                                    </span>
-                                    <span className="text-xs ml-1" style={{ color: `${scoreColor}80` }}>
-                                      / {isPercentage ? '100' : '10'}
-                                    </span>
-                                  </div>
-                                  <ChevronRight size={16} style={{ color: `${getColor('primary', '#1a202c')}30` }} />
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 rounded-lg" style={{ backgroundColor: `${getColor('primary', '#1a202c')}05` }}>
-                        <BookOpen size={32} className="mx-auto mb-2" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
-                        <p className="text-sm font-medium" style={{ color: getColor('primary', '#1a202c') }}>
-                          {t('statistics.noLessonsData')}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                {/* Left Column: Score Evolution Chart */}
+                <div>
+                  <ScoreEvolutionChart courseId={courseId} lessonId={selectedLessonFilter} compact={true} isDarkMode={isDarkMode} pageColors={pageColors} />
                 </div>
 
-                {/* Análisis de Preguntas - Comparativa Usuario vs Global */}
+                {/* Right Column: Tabbed Analysis (Lessons / Questions) */}
                 <div 
-                  className="rounded-xl overflow-hidden border-2 flex flex-col relative"
+                  className="rounded-lg overflow-hidden border flex flex-col"
                   style={{ 
-                    backgroundColor: getColor('secondaryBackground'),
-                    borderColor: getColor('borderColor')
+                    backgroundColor: pageColors.cardBg,
+                    borderColor: pageColors.border
                   }}
                 >
-                  {/* Header */}
+                  {/* Tabs Header */}
                   <div 
-                    className="px-4 py-3"
-                    style={{ backgroundColor: getColor('primary', '#1a202c') }}
+                    className="flex-shrink-0 flex"
+                    style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Target size={20} style={{ color: getColor('textColorContrast', '#ffffff') }} />
-                        <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: getColor('textColorContrast', '#ffffff') }}>
-                          {t('statistics.questionAnalysis')}
-                        </h3>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {/* Users count badge */}
-                        {questionStats?.global_stats?.total_users > 0 && (
-                          <div 
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg"
-                            style={{ backgroundColor: 'rgba(255, 255, 255, 0.15)' }}
-                          >
-                            <Users size={12} style={{ color: getColor('textColorContrast', '#ffffff') }} />
-                            <span className="text-xs font-medium" style={{ color: getColor('textColorContrast', '#ffffff') }}>
-                              {questionStats.global_stats.total_users}
-                            </span>
-                          </div>
-                        )}
-                        {/* Risk Analysis Button */}
-                        {questionStats && (questionStats.correct_with_risk > 0 || questionStats.incorrect_with_risk > 0 || 
-                          questionStats.global_stats?.correct_with_risk_pct > 0) && (
-                          <button
-                            onClick={() => setShowRiskPanel(true)}
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg transition-all"
-                            style={{ backgroundColor: 'rgba(245, 158, 11, 0.3)' }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.5)'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.3)'}
-                          >
-                            <Zap size={12} style={{ color: '#fcd34d' }} />
-                            <span className="text-xs font-medium" style={{ color: '#fcd34d' }}>
-                              Riesgo
-                            </span>
-                            <ChevronRight size={12} style={{ color: '#fcd34d' }} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                    <button
+                      onClick={() => setActiveAnalysisTab('lessons')}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-all"
+                      style={{ 
+                        backgroundColor: activeAnalysisTab === 'lessons' ? pageColors.cardBg : 'transparent',
+                        color: activeAnalysisTab === 'lessons' ? (isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6')) : pageColors.textMuted,
+                        borderBottom: activeAnalysisTab === 'lessons' ? `2px solid ${isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6')}` : '2px solid transparent'
+                      }}
+                    >
+                      <BookOpen size={12} />
+                      Temas
+                    </button>
+                    <button
+                      onClick={() => setActiveAnalysisTab('questions')}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-all"
+                      style={{ 
+                        backgroundColor: activeAnalysisTab === 'questions' ? pageColors.cardBg : 'transparent',
+                        color: activeAnalysisTab === 'questions' ? getColor('accent', '#f59e0b') : pageColors.textMuted,
+                        borderBottom: activeAnalysisTab === 'questions' ? `2px solid ${getColor('accent', '#f59e0b')}` : '2px solid transparent'
+                      }}
+                    >
+                      <Target size={12} />
+                      Preguntas
+                    </button>
                   </div>
-                  
-                  {/* Separador */}
-                  <div style={{ height: '1px', backgroundColor: 'rgba(156, 163, 175, 0.2)' }} />
-                  
-                  {/* Content */}
-                  <div className="flex-1 p-4">
-                    {questionStats ? (
-                      <div className="space-y-4">
-                        {/* User Stats Summary */}
-                        {questionStats.total_questions > 0 ? (
-                          <div className="text-center pb-3 border-b" style={{ borderColor: getColor('borderColor', '#e5e7eb') }}>
-                            <span className="text-3xl font-bold" style={{ color: getColor('primary', '#1a202c') }}>
-                              {questionStats.total_questions}
-                            </span>
-                            <span className="text-xs ml-2" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                              preguntas respondidas
-                            </span>
-                          </div>
-                        ) : (
-                          <div 
-                            className="text-center py-3 px-4 rounded-lg border"
+
+                  {/* Tab Content */}
+                  <div className="flex-1 overflow-hidden relative">
+                    {activeAnalysisTab === 'lessons' ? (
+                      /* Lessons Analysis Content */
+                      <div className="h-full flex flex-col">
+                        {/* Header row with expand button */}
+                        <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: pageColors.border }}>
+                          <span className="text-xs font-medium" style={{ color: pageColors.textMuted }}>
+                            Ordenados por nota (peor → mejor)
+                          </span>
+                          <button
+                            onClick={() => setShowAllLessons(true)}
+                            className="text-xs font-medium flex items-center gap-1 px-2 py-1 rounded transition-all"
                             style={{ 
-                              backgroundColor: '#fef3c7',
-                              borderColor: '#fcd34d'
+                              color: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6'),
+                              backgroundColor: isDarkMode ? '#451a03' : '#dbeafe'
                             }}
                           >
-                            <AlertCircle size={20} className="mx-auto mb-1 text-amber-600" />
-                            <p className="text-xs font-medium text-amber-800">
-                              Aún no has respondido preguntas en este curso
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Comparison Stats */}
-                        <div className="space-y-3">
-                          {/* Correctas */}
-                          {(() => {
-                            const userPct = questionStats.user_correct_pct || 0;
-                            const globalPct = questionStats.global_stats?.correct_pct || 0;
-                            const diff = questionStats.comparison?.correct_diff || 0;
-                            const isAbove = diff > 0.5;
-                            const isBelow = diff < -0.5;
-                            
-                            return (
-                              <div 
-                                className="p-3 rounded-lg border"
-                                style={{ 
-                                  backgroundColor: getColor('background', '#ffffff'),
-                                  borderColor: getColor('borderColor', '#e5e7eb')
-                                }}
-                              >
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <CheckCircle size={16} style={{ color: '#10b981' }} />
-                                    <span className="text-sm font-semibold" style={{ color: getColor('primary', '#1a202c') }}>
-                                      Correctas
-                                    </span>
-                                  </div>
-                                  {questionStats.total_questions > 0 && (
-                                    <div 
-                                      className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-                                      style={{ 
-                                        backgroundColor: isAbove ? '#dcfce7' : isBelow ? '#fee2e2' : '#f3f4f6',
-                                      }}
-                                    >
-                                      {isAbove ? (
-                                        <TrendingUp size={12} style={{ color: '#16a34a' }} />
-                                      ) : isBelow ? (
-                                        <TrendingDown size={12} style={{ color: '#dc2626' }} />
-                                      ) : (
-                                        <Minus size={12} style={{ color: '#6b7280' }} />
-                                      )}
-                                      <span 
-                                        className="text-xs font-bold"
-                                        style={{ color: isAbove ? '#16a34a' : isBelow ? '#dc2626' : '#6b7280' }}
-                                      >
-                                        {diff > 0 ? '+' : ''}{diff}%
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                                {/* Two rows: Tú and Media */}
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs w-12 font-medium" style={{ color: getColor('primary', '#1a202c') }}>Tú</span>
-                                    <span className="text-xs w-10 font-bold" style={{ color: '#10b981' }}>{userPct}%</span>
-                                    <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
-                                      <div 
-                                        className="h-full rounded-full transition-all duration-500"
-                                        style={{ width: `${userPct}%`, backgroundColor: '#10b981' }}
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs w-12" style={{ color: `${getColor('primary', '#1a202c')}60` }}>Media</span>
-                                    <span className="text-xs w-10" style={{ color: `${getColor('primary', '#1a202c')}60` }}>{globalPct}%</span>
-                                    <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                                      <div 
-                                        className="h-full rounded-full transition-all duration-500"
-                                        style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }}
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {/* Incorrectas */}
-                          {(() => {
-                            const userPct = questionStats.user_incorrect_pct || 0;
-                            const globalPct = questionStats.global_stats?.incorrect_pct || 0;
-                            const diff = questionStats.comparison?.incorrect_diff || 0;
-                            const isAbove = diff < -0.5;
-                            const isBelow = diff > 0.5;
-                            
-                            return (
-                              <div 
-                                className="p-3 rounded-lg border"
-                                style={{ 
-                                  backgroundColor: getColor('background', '#ffffff'),
-                                  borderColor: getColor('borderColor', '#e5e7eb')
-                                }}
-                              >
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <X size={16} style={{ color: '#ef4444' }} />
-                                    <span className="text-sm font-semibold" style={{ color: getColor('primary', '#1a202c') }}>
-                                      Incorrectas
-                                    </span>
-                                  </div>
-                                  {questionStats.total_questions > 0 && (
-                                    <div 
-                                      className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-                                      style={{ 
-                                        backgroundColor: isAbove ? '#dcfce7' : isBelow ? '#fee2e2' : '#f3f4f6',
-                                      }}
-                                    >
-                                      {isAbove ? (
-                                        <TrendingUp size={12} style={{ color: '#16a34a' }} />
-                                      ) : isBelow ? (
-                                        <TrendingDown size={12} style={{ color: '#dc2626' }} />
-                                      ) : (
-                                        <Minus size={12} style={{ color: '#6b7280' }} />
-                                      )}
-                                      <span 
-                                        className="text-xs font-bold"
-                                        style={{ color: isAbove ? '#16a34a' : isBelow ? '#dc2626' : '#6b7280' }}
-                                      >
-                                        {diff > 0 ? '+' : ''}{diff}%
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                                {/* Two rows: Tú and Media */}
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs w-12 font-medium" style={{ color: getColor('primary', '#1a202c') }}>Tú</span>
-                                    <span className="text-xs w-10 font-bold" style={{ color: '#ef4444' }}>{userPct}%</span>
-                                    <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
-                                      <div 
-                                        className="h-full rounded-full transition-all duration-500"
-                                        style={{ width: `${userPct}%`, backgroundColor: '#ef4444' }}
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs w-12" style={{ color: `${getColor('primary', '#1a202c')}60` }}>Media</span>
-                                    <span className="text-xs w-10" style={{ color: `${getColor('primary', '#1a202c')}60` }}>{globalPct}%</span>
-                                    <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                                      <div 
-                                        className="h-full rounded-full transition-all duration-500"
-                                        style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }}
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {/* Sin contestar - Solo mostrar si hay datos */}
-                          {(questionStats.user_unanswered_pct > 0 || questionStats.global_stats?.unanswered_pct > 0) && (() => {
-                            const userPct = questionStats.user_unanswered_pct || 0;
-                            const globalPct = questionStats.global_stats?.unanswered_pct || 0;
-                            const diff = questionStats.comparison?.unanswered_diff || 0;
-                            const isAbove = diff < -0.5;
-                            const isBelow = diff > 0.5;
-                            
-                            return (
-                              <div 
-                                className="p-3 rounded-lg border"
-                                style={{ 
-                                  backgroundColor: getColor('background', '#ffffff'),
-                                  borderColor: getColor('borderColor', '#e5e7eb')
-                                }}
-                              >
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <AlertCircle size={16} style={{ color: '#6b7280' }} />
-                                    <span className="text-sm font-semibold" style={{ color: getColor('primary', '#1a202c') }}>
-                                      Sin contestar
-                                    </span>
-                                  </div>
-                                  {questionStats.total_questions > 0 && (
-                                    <div 
-                                      className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-                                      style={{ 
-                                        backgroundColor: isAbove ? '#dcfce7' : isBelow ? '#fee2e2' : '#f3f4f6',
-                                      }}
-                                    >
-                                      {isAbove ? (
-                                        <TrendingUp size={12} style={{ color: '#16a34a' }} />
-                                      ) : isBelow ? (
-                                        <TrendingDown size={12} style={{ color: '#dc2626' }} />
-                                      ) : (
-                                        <Minus size={12} style={{ color: '#6b7280' }} />
-                                      )}
-                                      <span 
-                                        className="text-xs font-bold"
-                                        style={{ color: isAbove ? '#16a34a' : isBelow ? '#dc2626' : '#6b7280' }}
-                                      >
-                                        {diff > 0 ? '+' : ''}{diff}%
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                                {/* Two rows: Tú and Media */}
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs w-12 font-medium" style={{ color: getColor('primary', '#1a202c') }}>Tú</span>
-                                    <span className="text-xs w-10 font-bold" style={{ color: '#6b7280' }}>{userPct}%</span>
-                                    <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
-                                      <div 
-                                        className="h-full rounded-full transition-all duration-500"
-                                        style={{ width: `${userPct}%`, backgroundColor: '#94a3b8' }}
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs w-12" style={{ color: `${getColor('primary', '#1a202c')}60` }}>Media</span>
-                                    <span className="text-xs w-10" style={{ color: `${getColor('primary', '#1a202c')}60` }}>{globalPct}%</span>
-                                    <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                                      <div 
-                                        className="h-full rounded-full transition-all duration-500"
-                                        style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }}
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <Target size={32} className="mx-auto mb-2" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
-                        <p className="text-sm" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                          Cargando datos de análisis...
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Risk Analysis Slide Panel */}
-                  <div 
-                    className={`absolute inset-0 transition-transform duration-300 ease-in-out rounded-xl ${
-                      showRiskPanel ? 'translate-x-0' : 'translate-x-full'
-                    }`}
-                    style={{ backgroundColor: getColor('secondaryBackground', '#f8f9fa') }}
-                  >
-                    {showRiskPanel && questionStats && (
-                      <div className="h-full flex flex-col">
-                        {/* Risk Panel Header */}
-                        <div 
-                          className="px-4 py-3 flex items-center justify-between"
-                          style={{ backgroundColor: getColor('accent', '#f59e0b') }}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Zap size={18} className="text-white" />
-                            <h3 className="text-sm font-bold uppercase tracking-wide text-white">
-                              Análisis Con Riesgo
-                            </h3>
-                          </div>
-                          <button
-                            onClick={() => setShowRiskPanel(false)}
-                            className="p-1.5 rounded-lg transition-all"
-                            style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.3)'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'}
-                          >
-                            <X size={18} className="text-white" />
+                            Ver todas
+                            <ChevronRight size={12} />
                           </button>
                         </div>
                         
-                        <div style={{ height: '1px', backgroundColor: 'rgba(156, 163, 175, 0.2)' }} />
-                        
-                        {/* Risk Panel Content */}
-                        <div className="flex-1 p-4 overflow-y-auto">
-                          <div className="space-y-4">
-                            {/* Correctas con riesgo */}
-                            <div 
-                              className="p-4 rounded-lg border"
-                              style={{ 
-                                backgroundColor: '#dcfce7',
-                                borderColor: '#86efac'
-                              }}
-                            >
-                              <div className="flex items-center gap-2 mb-3">
-                                <CheckCircle size={18} style={{ color: '#16a34a' }} />
-                                <span className="text-sm font-bold" style={{ color: '#166534' }}>
-                                  Correctas con riesgo
+                        {/* Scrollable lessons list */}
+                        <div className="flex-1 overflow-y-auto p-2">
+                          {lessonsLowToHigh.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {lessonsLowToHigh.slice(0, 6).map((lesson, index) => {
+                                const scoreColor = getScoreColor(lesson.avg_score);
+                                return (
+                                  <div 
+                                    key={lesson.lesson_id} 
+                                    className="p-2 rounded border transition-all hover:shadow-sm cursor-pointer"
+                                    style={{ 
+                                      backgroundColor: isDarkMode ? '#111827' : '#fafafa',
+                                      borderColor: pageColors.border
+                                    }}
+                                    onClick={() => handleNavigateToLesson(lesson)}
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <span 
+                                          className="text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                                          style={{ backgroundColor: `${scoreColor}20`, color: scoreColor }}
+                                        >
+                                          {index + 1}
+                                        </span>
+                                        <span className="font-medium text-xs truncate" style={{ color: pageColors.text }}>
+                                          {lesson.lesson_title}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                                        <span className="font-bold text-xs" style={{ color: scoreColor }}>
+                                          {formatScore(lesson.avg_score)}
+                                        </span>
+                                        <ChevronRight size={12} style={{ color: pageColors.textMuted }} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-center py-6">
+                              <BookOpen size={24} className="mx-auto mb-2" style={{ color: pageColors.textMuted }} />
+                              <p className="text-xs" style={{ color: pageColors.textMuted }}>
+                                {t('statistics.noLessonsData')}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      /* Questions Analysis Content */
+                      <div className="h-full flex flex-col relative">
+                        {/* Header with users count and risk button */}
+                        <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: pageColors.border }}>
+                          <div className="flex items-center gap-2">
+                            {questionStats?.global_stats?.total_users > 0 && (
+                              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded" style={{ backgroundColor: isDarkMode ? '#374151' : '#f3f4f6' }}>
+                                <Users size={10} style={{ color: pageColors.textMuted }} />
+                                <span className="text-xs" style={{ color: pageColors.textMuted }}>
+                                  {questionStats.global_stats.total_users}
                                 </span>
                               </div>
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-medium" style={{ color: '#166534' }}>Tú</span>
-                                  <span className="text-lg font-bold" style={{ color: '#16a34a' }}>
-                                    {questionStats.correct_with_risk || 0}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs" style={{ color: '#166534' }}>Media global</span>
-                                  <span className="text-sm font-medium" style={{ color: '#166534' }}>
-                                    {questionStats.global_stats?.correct_with_risk_pct || 0}%
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Incorrectas con riesgo */}
-                            <div 
-                              className="p-4 rounded-lg border"
-                              style={{ 
-                                backgroundColor: '#fee2e2',
-                                borderColor: '#fca5a5'
-                              }}
-                            >
-                              <div className="flex items-center gap-2 mb-3">
-                                <X size={18} style={{ color: '#dc2626' }} />
-                                <span className="text-sm font-bold" style={{ color: '#991b1b' }}>
-                                  Incorrectas con riesgo
-                                </span>
-                              </div>
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-medium" style={{ color: '#991b1b' }}>Tú</span>
-                                  <span className="text-lg font-bold" style={{ color: '#dc2626' }}>
-                                    {questionStats.incorrect_with_risk || 0}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs" style={{ color: '#991b1b' }}>Media global</span>
-                                  <span className="text-sm font-medium" style={{ color: '#991b1b' }}>
-                                    {questionStats.global_stats?.incorrect_with_risk_pct || 0}%
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
+                            )}
+                            {questionStats?.total_questions > 0 && (
+                              <span className="text-xs font-medium" style={{ color: pageColors.text }}>
+                                {questionStats.total_questions} respondidas
+                              </span>
+                            )}
                           </div>
+                          {questionStats && (questionStats.correct_with_risk > 0 || questionStats.incorrect_with_risk > 0) && (
+                            <button
+                              onClick={() => setShowRiskPanel(true)}
+                              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all"
+                              style={{ backgroundColor: isDarkMode ? '#78350f' : '#fef3c7', color: isDarkMode ? '#fcd34d' : '#92400e' }}
+                            >
+                              <Zap size={10} />
+                              Riesgo
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Questions stats content */}
+                        <div className="flex-1 overflow-y-auto p-2">
+                          {questionStats ? (
+                            <div className="space-y-2">
+                              {/* Correctas */}
+                              {(() => {
+                                const userPct = questionStats.user_correct_pct || 0;
+                                const globalPct = questionStats.global_stats?.correct_pct || 0;
+                                const diff = questionStats.comparison?.correct_diff || 0;
+                                const isAbove = diff > 0.5;
+                                const isBelow = diff < -0.5;
+                                
+                                return (
+                                  <div className="p-2 rounded border" style={{ backgroundColor: isDarkMode ? '#111827' : '#fafafa', borderColor: pageColors.border }}>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <div className="flex items-center gap-1.5">
+                                        <CheckCircle size={12} style={{ color: '#10b981' }} />
+                                        <span className="text-xs font-semibold" style={{ color: pageColors.text }}>Correctas</span>
+                                      </div>
+                                      {questionStats.total_questions > 0 && (
+                                        <span className="text-xs font-bold" style={{ color: isAbove ? '#16a34a' : isBelow ? '#dc2626' : pageColors.textMuted }}>
+                                          {diff > 0 ? '+' : ''}{diff}%
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs w-10" style={{ color: pageColors.text }}>Tú</span>
+                                        <span className="text-xs w-8 font-bold" style={{ color: '#10b981' }}>{userPct}%</span>
+                                        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                          <div className="h-full rounded-full" style={{ width: `${userPct}%`, backgroundColor: '#10b981' }} />
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs w-10" style={{ color: pageColors.textMuted }}>Media</span>
+                                        <span className="text-xs w-8" style={{ color: pageColors.textMuted }}>{globalPct}%</span>
+                                        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                          <div className="h-full rounded-full" style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }} />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+
+                              {/* Incorrectas */}
+                              {(() => {
+                                const userPct = questionStats.user_incorrect_pct || 0;
+                                const globalPct = questionStats.global_stats?.incorrect_pct || 0;
+                                const diff = questionStats.comparison?.incorrect_diff || 0;
+                                const isAbove = diff < -0.5;
+                                const isBelow = diff > 0.5;
+                                
+                                return (
+                                  <div className="p-2 rounded border" style={{ backgroundColor: isDarkMode ? '#111827' : '#fafafa', borderColor: pageColors.border }}>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <div className="flex items-center gap-1.5">
+                                        <X size={12} style={{ color: '#ef4444' }} />
+                                        <span className="text-xs font-semibold" style={{ color: pageColors.text }}>Incorrectas</span>
+                                      </div>
+                                      {questionStats.total_questions > 0 && (
+                                        <span className="text-xs font-bold" style={{ color: isAbove ? '#16a34a' : isBelow ? '#dc2626' : pageColors.textMuted }}>
+                                          {diff > 0 ? '+' : ''}{diff}%
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs w-10" style={{ color: pageColors.text }}>Tú</span>
+                                        <span className="text-xs w-8 font-bold" style={{ color: '#ef4444' }}>{userPct}%</span>
+                                        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                          <div className="h-full rounded-full" style={{ width: `${userPct}%`, backgroundColor: '#ef4444' }} />
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs w-10" style={{ color: pageColors.textMuted }}>Media</span>
+                                        <span className="text-xs w-8" style={{ color: pageColors.textMuted }}>{globalPct}%</span>
+                                        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                          <div className="h-full rounded-full" style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }} />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+
+                              {/* Sin contestar */}
+                              {(questionStats.user_unanswered_pct > 0 || questionStats.global_stats?.unanswered_pct > 0) && (() => {
+                                const userPct = questionStats.user_unanswered_pct || 0;
+                                const globalPct = questionStats.global_stats?.unanswered_pct || 0;
+                                
+                                return (
+                                  <div className="p-2 rounded border" style={{ backgroundColor: isDarkMode ? '#111827' : '#fafafa', borderColor: pageColors.border }}>
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <AlertCircle size={12} style={{ color: '#6b7280' }} />
+                                      <span className="text-xs font-semibold" style={{ color: pageColors.text }}>Sin contestar</span>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs w-10" style={{ color: pageColors.text }}>Tú</span>
+                                        <span className="text-xs w-8 font-bold" style={{ color: '#6b7280' }}>{userPct}%</span>
+                                        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                          <div className="h-full rounded-full" style={{ width: `${userPct}%`, backgroundColor: '#94a3b8' }} />
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs w-10" style={{ color: pageColors.textMuted }}>Media</span>
+                                        <span className="text-xs w-8" style={{ color: pageColors.textMuted }}>{globalPct}%</span>
+                                        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                          <div className="h-full rounded-full" style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }} />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          ) : questionStats?.total_questions === 0 ? (
+                            <div className="text-center py-6">
+                              <AlertCircle size={24} className="mx-auto mb-2" style={{ color: '#f59e0b' }} />
+                              <p className="text-xs" style={{ color: pageColors.textMuted }}>
+                                Aún no has respondido preguntas
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="text-center py-6">
+                              <Target size={24} className="mx-auto mb-2" style={{ color: pageColors.textMuted }} />
+                              <p className="text-xs" style={{ color: pageColors.textMuted }}>
+                                Cargando...
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Risk Analysis Slide Panel */}
+                        <div 
+                          className={`absolute inset-0 transition-transform duration-300 ease-in-out ${showRiskPanel ? 'translate-x-0' : 'translate-x-full'}`}
+                          style={{ backgroundColor: pageColors.cardBg }}
+                        >
+                          {showRiskPanel && questionStats && (
+                            <div className="h-full flex flex-col">
+                              <div className="px-3 py-2 flex items-center justify-between" style={{ backgroundColor: getColor('accent', '#f59e0b') }}>
+                                <div className="flex items-center gap-2">
+                                  <Zap size={14} className="text-white" />
+                                  <span className="text-xs font-bold uppercase text-white">Con Riesgo</span>
+                                </div>
+                                <button onClick={() => setShowRiskPanel(false)} className="p-1 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
+                                  <X size={14} className="text-white" />
+                                </button>
+                              </div>
+                              <div className="flex-1 p-3 overflow-y-auto space-y-2">
+                                <div className="p-3 rounded border" style={{ backgroundColor: isDarkMode ? '#14532d' : '#dcfce7', borderColor: isDarkMode ? '#166534' : '#86efac' }}>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <CheckCircle size={14} style={{ color: isDarkMode ? '#86efac' : '#16a34a' }} />
+                                    <span className="text-xs font-bold" style={{ color: isDarkMode ? '#86efac' : '#166534' }}>Correctas con riesgo</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-xs" style={{ color: isDarkMode ? '#86efac' : '#166534' }}>Tú: <strong>{questionStats.correct_with_risk || 0}</strong></span>
+                                    <span className="text-xs" style={{ color: isDarkMode ? '#86efac' : '#166534' }}>Media: {questionStats.global_stats?.correct_with_risk_pct || 0}%</span>
+                                  </div>
+                                </div>
+                                <div className="p-3 rounded border" style={{ backgroundColor: isDarkMode ? '#7f1d1d' : '#fee2e2', borderColor: isDarkMode ? '#991b1b' : '#fca5a5' }}>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <X size={14} style={{ color: isDarkMode ? '#fca5a5' : '#dc2626' }} />
+                                    <span className="text-xs font-bold" style={{ color: isDarkMode ? '#fca5a5' : '#991b1b' }}>Incorrectas con riesgo</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-xs" style={{ color: isDarkMode ? '#fca5a5' : '#991b1b' }}>Tú: <strong>{questionStats.incorrect_with_risk || 0}</strong></span>
+                                    <span className="text-xs" style={{ color: isDarkMode ? '#fca5a5' : '#991b1b' }}>Media: {questionStats.global_stats?.incorrect_with_risk_pct || 0}%</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
-
               </div>
             </div>
           </div>
         </div>
-
         {/* All Lessons View - Slides from Right */}
         <div 
           className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
             showAllLessons ? 'translate-x-0' : 'translate-x-full'
           }`}
-          style={{ backgroundColor: getColor('secondaryBackground', '#f8f9fa') }}
+          style={{ backgroundColor: pageColors.secondaryBg }}
         >
           {showAllLessons && (
             <div className="h-full flex flex-col">
               {/* Header Compacto con ordenación */}
               <div 
-                className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0 gap-2"
+                className="flex items-center justify-between px-3 py-2 border-b flex-shrink-0 gap-2"
                 style={{ 
                   backgroundColor: getColor('primary', '#1a202c'),
-                  borderColor: `${getColor('primary', '#1a202c')}` 
+                  borderColor: pageColors.border 
                 }}
               >
                 <div className="flex items-center gap-2 overflow-hidden">
-                  <BarChart2 size={18} style={{ color: getColor('textColorContrast', '#ffffff') }} className="flex-shrink-0" />
-                  <h2 className="text-sm sm:text-base font-bold leading-tight truncate uppercase tracking-wide" style={{ color: getColor('textColorContrast', '#ffffff') }}>
+                  <BarChart2 size={16} style={{ color: '#ffffff' }} className="flex-shrink-0" />
+                  <h2 className="text-xs sm:text-sm font-bold leading-tight truncate uppercase tracking-wide" style={{ color: '#ffffff' }}>
                     {t('statistics.performanceByLesson')}
                   </h2>
                   <span 
-                    className="text-xs px-2 py-0.5 rounded-full flex-shrink-0 ml-1"
+                    className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0"
                     style={{ 
                       backgroundColor: 'rgba(255,255,255,0.2)',
                       color: getColor('textColorContrast', '#ffffff')
@@ -1218,9 +990,9 @@ const CourseStatisticsPage = () => {
 
               {/* Content */}
               <div className="flex-1 overflow-y-auto">
-                <div className="p-6 max-w-5xl mx-auto">
+                <div className="p-4 max-w-5xl mx-auto">
                   {sortedAllLessons.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                       {sortedAllLessons.map((lesson, index) => {
                         const lessonScore = lesson.avg_score;
                         const scoreColor = getScoreColor(lesson.avg_score);
@@ -1228,30 +1000,30 @@ const CourseStatisticsPage = () => {
                         return (
                           <div 
                             key={lesson.lesson_id} 
-                            className="rounded-xl overflow-hidden border-2 transition-all duration-200 hover:shadow-md"
+                            className="rounded-lg overflow-hidden border transition-all duration-200 hover:shadow-md"
                             style={{ 
-                              backgroundColor: getColor('background', '#ffffff'),
-                              borderColor: getColor('borderColor')
+                              backgroundColor: pageColors.cardBg,
+                              borderColor: pageColors.border
                             }}
                           >
                             <div 
-                            className="px-4 py-2"
+                            className="px-3 py-1.5"
                             style={{ backgroundColor: scoreColor }}
                           >
                             <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-3 flex-1 min-w-0 mr-3">
+                              <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
                                 <span 
-                                  className="text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                                  className="text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
                                   style={{ backgroundColor: 'rgba(255,255,255,0.25)' }}
                                 >
                                   {index + 1}
                                 </span>
-                                <span className="font-bold text-sm text-white truncate">
+                                <span className="font-bold text-xs text-white truncate">
                                   {lesson.lesson_title}
                                 </span>
                               </div>
                               <div className="flex items-baseline gap-1 flex-shrink-0">
-                                <span className="font-bold text-lg text-white">
+                                <span className="font-bold text-sm text-white">
                                   {formatScore(lessonScore)}
                                 </span>
                                 <span className="text-xs text-white opacity-80">
@@ -1261,22 +1033,15 @@ const CourseStatisticsPage = () => {
                             </div>
                             </div>
                             
-                            <div 
-                              style={{ 
-                                height: '1px', 
-                                backgroundColor: 'rgba(156, 163, 175, 0.2)'
-                              }} 
-                            />
-                            
-                            <div className="p-4">
+                            <div className="p-3">
                               <ProgressBar 
                                 value={lesson.avg_score} 
                                 color={scoreColor}
-                                height="h-2"
+                                height="h-1.5"
                               />
-                              <div className="flex justify-between mt-2 text-xs" style={{ color: `${getColor('primary', '#1a202c')}60` }}>
-                                <span className="font-medium">{lesson.quizzes_completed} {t('statistics.quizzesCompleted')}</span>
-                                <span className="font-medium">{lesson.total_attempts} {t('statistics.attempts')}</span>
+                              <div className="flex justify-between mt-1.5 text-xs" style={{ color: pageColors.textMuted }}>
+                                <span>{lesson.quizzes_completed} {t('statistics.quizzesCompleted')}</span>
+                                <span>{lesson.total_attempts} {t('statistics.attempts')}</span>
                               </div>
                             </div>
                           </div>
@@ -1284,9 +1049,9 @@ const CourseStatisticsPage = () => {
                       })}
                     </div>
                   ) : (
-                    <div className="text-center py-12">
-                      <BarChart2 size={48} className="mx-auto mb-3" style={{ color: `${getColor('primary', '#1a202c')}40` }} />
-                      <p className="text-sm font-medium" style={{ color: `${getColor('primary', '#1a202c')}80` }}>
+                    <div className="text-center py-8">
+                      <BarChart2 size={32} className="mx-auto mb-2" style={{ color: pageColors.textMuted }} />
+                      <p className="text-xs" style={{ color: pageColors.textMuted }}>
                         {t('statistics.noDataAvailable')}
                       </p>
                     </div>

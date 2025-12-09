@@ -83,10 +83,10 @@ const WeakLessonsPanel = ({
   if (loading) {
     return (
       <div 
-        className="p-4 rounded-lg border animate-pulse"
+        className="p-3 rounded-lg border animate-pulse"
         style={{ 
           backgroundColor: colors.background,
-          borderColor: isDarkMode ? colors.primary + '40' : '#e5e7eb'
+          borderColor: colors.border || (isDarkMode ? '#374151' : '#e5e7eb')
         }}
       >
         <div className="h-4 rounded mb-3 w-1/2" style={{ backgroundColor: isDarkMode ? colors.primary + '20' : '#e5e7eb' }}></div>
@@ -101,14 +101,14 @@ const WeakLessonsPanel = ({
 
   return (
     <div 
-      className={`p-4 rounded-lg border ${compact ? '' : 'shadow-lg'}`}
+      className={`p-3 rounded-lg border ${compact ? '' : 'shadow-lg'}`}
       style={{ 
         backgroundColor: colors.background,
-        borderColor: isDarkMode ? colors.primary + '40' : '#e5e7eb'
+        borderColor: colors.border || (isDarkMode ? '#374151' : '#e5e7eb')
       }}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 mb-3 pb-2 border-b" style={{ borderColor: isDarkMode ? colors.primary + '30' : '#e5e7eb' }}>
+      <div className="flex items-center gap-2 mb-2 pb-2 border-b" style={{ borderColor: colors.border || (isDarkMode ? '#374151' : '#e5e7eb') }}>
         <AlertTriangle className="w-4 h-4" style={{ color: colors.accent }} />
         <h2 className="text-sm font-semibold" style={{ color: colors.text }}>Lecciones a Repasar</h2>
       </div>
