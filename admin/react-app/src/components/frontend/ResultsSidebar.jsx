@@ -81,12 +81,12 @@ const ResultsSidebar = ({ result, questions }) => {
     : detailed_results;
 
   return (
-    <aside className="w-full">
+    <aside className="w-full pt-2">
       <div 
-        className="sticky top-4 p-4 rounded-lg border-2 shadow-sm max-h-[calc(100vh-2rem)] overflow-y-auto"
+        className="sticky top-14 p-4 rounded-lg border-2 shadow-sm max-h-[calc(100vh-5rem)] overflow-y-auto"
         style={{
           backgroundColor: getColor('secondaryBackground', '#ffffff'),
-          borderColor: getColor('borderColor', getColor('primary', '#1a202c'))
+          borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
         }}
       >
         <h3 

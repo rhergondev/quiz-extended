@@ -42,10 +42,10 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3 py-2 text-left border rounded-lg flex items-center justify-between transition-all text-sm"
+        className="w-full px-3 py-2 text-left rounded-lg flex items-center justify-between transition-all text-sm"
         style={{ 
-          borderColor: isOpen ? pageColors.accent : (isDarkMode ? 'rgba(255,255,255,0.2)' : getColor('borderColor', '#e5e7eb')),
-          backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : getColor('background', '#ffffff'),
+          border: `2px solid ${isOpen ? pageColors.accent : pageColors.inputBorder}`,
+          backgroundColor: pageColors.inputBg,
           color: pageColors.text
         }}
       >
@@ -62,10 +62,10 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
         <>
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
           <div 
-            className="absolute z-20 w-full mt-1 max-h-48 overflow-auto rounded-lg shadow-lg border"
+            className="absolute z-20 w-full mt-1 max-h-48 overflow-auto rounded-lg shadow-lg"
             style={{ 
-              backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1f2937') : getColor('background', '#ffffff'),
-              borderColor: isDarkMode ? 'rgba(255,255,255,0.2)' : getColor('borderColor', '#e5e7eb')
+              border: `2px solid ${isDarkMode ? pageColors.accent : pageColors.inputBorder}`,
+              backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff'
             }}
           >
             {options.map(option => (
@@ -140,10 +140,10 @@ const SelfPacedTestsPage = () => {
     textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : `${getColor('primary', '#1a202c')}60`,
     accent: getColor('accent', '#f59e0b'),
     hoverBg: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#1a202c'),
-    // Colores para inputs y cards en modo oscuro
-    inputBg: isDarkMode ? 'rgba(255,255,255,0.05)' : getColor('background', '#ffffff'),
-    inputBorder: isDarkMode ? 'rgba(255,255,255,0.2)' : getColor('borderColor', '#e5e7eb'),
-    cardBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : getColor('background', '#ffffff'),
+    // Colores para inputs y cards - bordes más visibles
+    inputBg: isDarkMode ? 'rgba(0,0,0,0.2)' : '#ffffff',
+    inputBorder: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c'),
+    cardBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
   };
 
   // State
@@ -338,9 +338,9 @@ const SelfPacedTestsPage = () => {
                               <select
                                 value={config.difficulty}
                                 onChange={(e) => handleConfigChange('difficulty', e.target.value)}
-                                className="w-full px-3 py-2 text-sm border rounded-lg appearance-none transition-all"
+                                className="w-full px-3 py-2 text-sm rounded-lg appearance-none transition-all"
                                 style={{ 
-                                  borderColor: pageColors.inputBorder,
+                                  border: `2px solid ${pageColors.inputBorder}`,
                                   backgroundColor: pageColors.inputBg,
                                   color: pageColors.text
                                 }}
@@ -368,9 +368,9 @@ const SelfPacedTestsPage = () => {
                               max="100"
                               value={config.numQuestions}
                               onChange={(e) => handleConfigChange('numQuestions', parseInt(e.target.value) || 10)}
-                              className="w-full px-3 py-2 text-sm border rounded-lg transition-all"
+                              className="w-full px-3 py-2 text-sm rounded-lg transition-all"
                               style={{ 
-                                borderColor: pageColors.inputBorder,
+                                border: `2px solid ${pageColors.inputBorder}`,
                                 backgroundColor: pageColors.inputBg,
                                 color: pageColors.text
                               }}
@@ -404,19 +404,19 @@ const SelfPacedTestsPage = () => {
                             <button
                               key={status.id}
                               onClick={() => toggleStatusFilter(status.id)}
-                              className="relative px-2 py-3 rounded-lg border transition-all flex flex-col items-center gap-1.5"
+                              className="relative px-2 py-3 rounded-lg transition-all flex flex-col items-center gap-1.5"
                               style={{ 
-                                borderColor: isSelected ? status.colorHex : pageColors.inputBorder,
-                                backgroundColor: isSelected ? `${status.colorHex}15` : 'transparent'
+                                border: `2px solid ${isSelected ? status.colorHex : pageColors.inputBorder}`,
+                                backgroundColor: isSelected ? `${status.colorHex}15` : pageColors.inputBg
                               }}
                               onMouseEnter={(e) => {
                                 if (!isSelected) {
-                                  e.currentTarget.style.backgroundColor = isDarkMode ? `${status.colorHex}10` : `${pageColors.text}03`;
+                                  e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
                                 }
                               }}
                               onMouseLeave={(e) => {
                                 if (!isSelected) {
-                                  e.currentTarget.style.backgroundColor = 'transparent';
+                                  e.currentTarget.style.backgroundColor = pageColors.inputBg;
                                 }
                               }}
                             >

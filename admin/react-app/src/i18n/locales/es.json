@@ -51,7 +51,20 @@
     "featureComingSoon": "Funcionalidad próximamente disponible.",
     "found": "encontrados",
     "addToFavorites": "Añadir a favoritos",
-    "removeFromFavorites": "Quitar de favoritos"
+    "removeFromFavorites": "Quitar de favoritos",
+    "quiz": "Cuestionario",
+    "progress": "Progreso",
+    "of": "de",
+    "lastSaved": "Última actualización",
+    "untitled": "Sin título",
+    "ago": "Hace",
+    "days": "días",
+    "day": "día",
+    "hours": "horas",
+    "hour": "hora",
+    "minutes": "minutos",
+    "minute": "minuto",
+    "justNow": "Hace unos segundos"
   },
   "errors": {
     "fetchQuiz": "Error al cargar los datos del cuestionario.",
@@ -651,7 +664,20 @@
       "submittingAnswers": "Enviando respuestas...",
       "noQuestionsAssigned": "Este cuestionario no tiene preguntas asignadas.",
       "loadingMoreQuestions": "Cargando más preguntas...",
-      "questionsLoadedCount": "{{loaded}} de {{total}} preguntas cargadas"
+      "questionsLoadedCount": "{{loaded}} de {{total}} preguntas cargadas",
+      "inProgress": "Cuestionario en progreso",
+      "savedProgressFound": "Se encontró progreso guardado",
+      "continueWhereYouLeft": "¿Deseas continuar donde lo dejaste o empezar de nuevo?",
+      "currentQuestion": "Pregunta actual",
+      "timeRemaining": "Tiempo restante",
+      "continueQuiz": "Continuar",
+      "startOver": "Empezar de nuevo"
+    },
+    "exitModal": {
+      "title": "Salir del cuestionario",
+      "message": "¿Estás seguro de que quieres salir? Tu progreso se guardará automáticamente y podrás continuar más tarde.",
+      "cancel": "Cancelar",
+      "confirm": "Salir"
     },
     "stats": {
       "totalQuizzes": "Total de Cuestionarios",

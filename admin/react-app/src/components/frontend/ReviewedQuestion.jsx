@@ -36,8 +36,9 @@ const ReviewedQuestion = ({
   // Dark mode aware colors
   const bgCard = isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff';
   const bgSubtle = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
-  const borderSubtle = isDarkMode ? 'rgba(255,255,255,0.1)' : '#e5e7eb';
-  const textMuted = isDarkMode ? getColor('textSecondary', '#9ca3af') : '#6b7280';
+  const borderSubtle = isDarkMode ? 'rgba(255,255,255,0.2)' : '#e5e7eb';
+  // En dark mode usar blanco para mejor contraste en texto de opciones no seleccionadas
+  const textMuted = isDarkMode ? getColor('textPrimary', '#f9fafb') : '#6b7280';
 
   if (!formattedQuestion || !result) {
     return (

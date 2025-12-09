@@ -15,7 +15,7 @@ const Timer = ({ durationMinutes, onTimeUp, isPaused, initialTimeRemaining = nul
   const bgCard = isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff';
   const textPrimary = isDarkMode ? getColor('textPrimary', '#f9fafb') : '#111827';
   const textSecondary = isDarkMode ? getColor('textSecondary', '#9ca3af') : '#374151';
-  const borderColor = isDarkMode ? getColor('borderColor', '#374151') : '#e5e7eb';
+  const borderColor = isDarkMode ? 'rgba(255,255,255,0.3)' : '#e5e7eb';
 
   // Actualizar tiempo inicial cuando se resume desde autoguardado
   useEffect(() => {

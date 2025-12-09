@@ -46,7 +46,20 @@
     "medium": "Medium",
     "hard": "Hard",
     "featureComingSoon": "Feature coming soon!",
-    "found": "found"
+    "found": "found",
+    "quiz": "Quiz",
+    "progress": "Progress",
+    "of": "of",
+    "lastSaved": "Last saved",
+    "untitled": "Untitled",
+    "ago": "",
+    "days": "days ago",
+    "day": "day ago",
+    "hours": "hours ago",
+    "hour": "hour ago",
+    "minutes": "minutes ago",
+    "minute": "minute ago",
+    "justNow": "Just now"
   },
   "errors": {
     "fetchQuiz": "Failed to load quiz data.",
@@ -631,7 +644,20 @@
       "submittingAnswers": "Submitting answers...",
       "noQuestionsAssigned": "This quiz has no questions assigned.",
       "loadingMoreQuestions": "Loading more questions...",
-      "questionsLoadedCount": "{{loaded}} of {{total}} questions loaded"
+      "questionsLoadedCount": "{{loaded}} of {{total}} questions loaded",
+      "inProgress": "Quiz in progress",
+      "savedProgressFound": "Saved progress found",
+      "continueWhereYouLeft": "Would you like to continue where you left off or start over?",
+      "currentQuestion": "Current question",
+      "timeRemaining": "Time remaining",
+      "continueQuiz": "Continue",
+      "startOver": "Start over"
+    },
+    "exitModal": {
+      "title": "Exit quiz",
+      "message": "Are you sure you want to exit? Your progress will be saved automatically and you can continue later.",
+      "cancel": "Cancel",
+      "confirm": "Exit"
     },
     "stats": {
       "totalQuizzes": "Total Quizzes",

@@ -51,12 +51,53 @@ const Question = ({
   const getQuestionColor = (opacity = '') => {
     switch (questionState) {
       case 'unanswered':
-        return `#6b7280${opacity}`; // Gris
+        // En dark mode usar blanco para mejor contraste
+        return isDarkMode ? `#ffffff${opacity}` : `#6b7280${opacity}`;
       case 'risked':
         return `${getColor('accent', '#f59e0b')}${opacity}`; // Naranja
       case 'answered':
       default:
+        // En dark mode aplicar más brillo al color primary para mejor contraste
+        if (isDarkMode) {
+          const primaryColor = getColor('primary', '#3b82f6');
+          // Aplicar brightness 1.1 simulado mezclando con blanco
+          return opacity ? `${primaryColor}${opacity}` : primaryColor;
+        }
         return `${getColor('primary', '#3b82f6')}${opacity}`; // Azul
+    }
+  };
+  
+  // Obtener color de borde según estado (para dark mode con mejor contraste)
+  const getBorderColor = () => {
+    switch (questionState) {
+      case 'unanswered':
+        return isDarkMode ? 'rgba(255,255,255,0.3)' : 'rgba(107,114,128,0.4)';
+      case 'risked':
+        return getColor('accent', '#f59e0b');
+      case 'answered':
+      default:
+        // En dark mode, aplicar filter brightness 1.1 equivalente
+        if (isDarkMode) {
+          // Extraer el color y hacerlo más brillante
+          return getColor('primary', '#5a9cfc'); // Versión más brillante del primary
+        }
+        return getColor('primary', '#3b82f6');
+    }
+  };
+  
+  // Color de borde secundario (laterales y abajo)
+  const getSecondaryBorderColor = () => {
+    switch (questionState) {
+      case 'unanswered':
+        return isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(107,114,128,0.25)';
+      case 'risked':
+        return isDarkMode ? `${getColor('accent', '#f59e0b')}60` : `${getColor('accent', '#f59e0b')}40`;
+      case 'answered':
+      default:
+        if (isDarkMode) {
+          return `${getColor('primary', '#3b82f6')}80`; // Más visible en dark
+        }
+        return `${getColor('primary', '#3b82f6')}40`;
     }
   };
 
@@ -75,10 +116,10 @@ const Question = ({
       className={`rounded-lg overflow-hidden shadow-sm mb-4 scroll-mt-6 transition-all duration-200 ${className}`}
       style={{ 
         backgroundColor: bgCard,
-        borderTop: `2px solid ${getQuestionColor('40')}`,
-        borderRight: `2px solid ${getQuestionColor('40')}`,
-        borderBottom: `2px solid ${getQuestionColor('40')}`,
-        borderLeft: `4px solid ${getQuestionColor()}`
+        borderTop: `2px solid ${getSecondaryBorderColor()}`,
+        borderRight: `2px solid ${getSecondaryBorderColor()}`,
+        borderBottom: `2px solid ${getSecondaryBorderColor()}`,
+        borderLeft: `4px solid ${getBorderColor()}`
       }}
     >
       <div>
@@ -86,8 +127,12 @@ const Question = ({
         <div 
           className="px-4 py-3 border-b"
           style={{ 
-            backgroundColor: getQuestionColor('08'),
-            borderColor: getQuestionColor('10')
+            backgroundColor: isDarkMode 
+              ? (questionState === 'unanswered' ? 'rgba(255,255,255,0.03)' : getQuestionColor('10'))
+              : getQuestionColor('08'),
+            borderColor: isDarkMode 
+              ? (questionState === 'unanswered' ? 'rgba(255,255,255,0.1)' : getQuestionColor('20'))
+              : getQuestionColor('10')
           }}
         >
           <div className="flex items-center justify-between">
@@ -97,8 +142,10 @@ const Question = ({
                 style={{ 
                   width: '28px',
                   height: '28px',
-                  backgroundColor: getQuestionColor(),
-                  color: '#ffffff'
+                  backgroundColor: getBorderColor(),
+                  color: questionState === 'unanswered' && isDarkMode 
+                    ? getColor('secondaryBackground', '#1f2937') 
+                    : '#ffffff'
                 }}
               >
                 {displayIndex}
@@ -107,8 +154,8 @@ const Question = ({
                 <div 
                   className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
                   style={{ 
-                    backgroundColor: `${getQuestionColor()}20`,
-                    color: getQuestionColor()
+                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.15)' : `${getQuestionColor()}20`,
+                    color: isDarkMode ? '#ffffff' : getQuestionColor()
                   }}
                 >
                   <Circle size={12} />
@@ -131,8 +178,8 @@ const Question = ({
                 <div 
                   className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
                   style={{ 
-                    backgroundColor: getQuestionColor('20'),
-                    color: getQuestionColor()
+                    backgroundColor: isDarkMode ? `${getColor('primary', '#3b82f6')}30` : getQuestionColor('20'),
+                    color: isDarkMode ? '#93c5fd' : getQuestionColor() // Azul más claro en dark mode
                   }}
                 >
                   <CheckCircle size={12} />
@@ -261,12 +308,12 @@ const Question = ({
                   
                   {/* Texto de la opción */}
                   <span 
-                    className="text-sm leading-relaxed transition-colors duration-200"
+                    className="text-base leading-relaxed transition-colors duration-200"
                     style={{ 
                       color: isSelected 
                         ? textPrimary
-                        : isDarkMode ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)',
-                      fontWeight: isSelected ? '600' : '400'
+                        : textPrimary,
+                      fontWeight: isSelected ? '600' : '500'
                     }}
                   >
                     {option.text}

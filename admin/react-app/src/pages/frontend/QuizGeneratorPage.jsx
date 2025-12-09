@@ -44,10 +44,10 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3 py-2 text-left border rounded-lg flex items-center justify-between transition-all text-sm"
+        className="w-full px-3 py-2 text-left rounded-lg flex items-center justify-between transition-all text-sm"
         style={{ 
-          borderColor: isOpen ? pageColors.accent : (isDarkMode ? 'rgba(255,255,255,0.2)' : getColor('borderColor', '#e5e7eb')),
-          backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : getColor('background', '#ffffff'),
+          border: `2px solid ${isOpen ? pageColors.accent : pageColors.inputBorder}`,
+          backgroundColor: pageColors.inputBg,
           color: pageColors.text
         }}
       >
@@ -64,10 +64,10 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
         <>
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
           <div 
-            className="absolute z-20 w-full mt-1 max-h-48 overflow-auto rounded-lg shadow-lg border"
+            className="absolute z-20 w-full mt-1 max-h-48 overflow-auto rounded-lg shadow-lg border-2"
             style={{ 
-              backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1f2937') : getColor('background', '#ffffff'),
-              borderColor: isDarkMode ? 'rgba(255,255,255,0.2)' : getColor('borderColor', '#e5e7eb')
+              backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+              borderColor: isDarkMode ? pageColors.accent : pageColors.inputBorder
             }}
           >
             {options.map(option => (
@@ -77,17 +77,17 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
                 className="px-3 py-2 cursor-pointer flex items-center gap-2 transition-colors"
                 style={{ backgroundColor: 'transparent' }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}05`;
+                  e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
                 <div 
-                  className="w-4 h-4 rounded border flex items-center justify-center transition-colors flex-shrink-0"
+                  className="w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0"
                   style={{ 
                     backgroundColor: selected.includes(option.value) ? pageColors.accent : 'transparent',
-                    borderColor: selected.includes(option.value) ? pageColors.accent : (isDarkMode ? 'rgba(255,255,255,0.3)' : getColor('borderColor', '#d1d5db'))
+                    borderColor: selected.includes(option.value) ? pageColors.accent : pageColors.inputBorder
                   }}
                 >
                   {selected.includes(option.value) && <Check size={10} className="text-white" />}
@@ -107,8 +107,8 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
               key={idx}
               className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
               style={{ 
-                backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.text}10`,
-                color: isDarkMode ? pageColors.accent : pageColors.text
+                backgroundColor: isDarkMode ? `${pageColors.accent}30` : `${pageColors.text}15`,
+                color: isDarkMode ? '#ffffff' : pageColors.text
               }}
             >
               {label}
@@ -141,11 +141,14 @@ const QuizGeneratorPage = () => {
     text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
     textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : `${getColor('primary', '#1a202c')}60`,
     accent: getColor('accent', '#f59e0b'),
+    primary: getColor('primary', '#1a202c'),
     hoverBg: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#1a202c'),
-    // Colores para inputs y cards en modo oscuro
-    inputBg: isDarkMode ? 'rgba(255,255,255,0.05)' : getColor('background', '#ffffff'),
-    inputBorder: isDarkMode ? 'rgba(255,255,255,0.2)' : getColor('borderColor', '#e5e7eb'),
-    cardBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : getColor('background', '#ffffff'),
+    // Colores para inputs - bordes más visibles en ambos modos
+    inputBg: isDarkMode ? 'rgba(0,0,0,0.2)' : '#ffffff',
+    inputBorder: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c'),
+    cardBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    // Borde de contenedor principal - accent en dark mode
+    containerBorder: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb'),
   };
 
   // State
@@ -263,35 +266,35 @@ const QuizGeneratorPage = () => {
             <div className="max-w-3xl mx-auto px-4 pt-8 pb-24">
               {isLoading ? (
                 <div 
-                  className="rounded-lg border overflow-hidden"
+                  className="rounded-xl border-2 overflow-hidden"
                   style={{ 
                     backgroundColor: pageColors.cardBg,
-                    borderColor: pageColors.inputBorder
+                    borderColor: pageColors.containerBorder
                   }}
                 >
                   {[1, 2, 3].map(i => (
                     <div 
                       key={i} 
                       className="px-4 py-3 flex items-center gap-3 animate-pulse"
-                      style={{ borderBottom: i < 3 ? `1px solid ${pageColors.inputBorder}` : 'none' }}
+                      style={{ borderBottom: i < 3 ? `1px solid rgba(156, 163, 175, 0.2)` : 'none' }}
                     >
-                      <div className="w-5 h-5 rounded" style={{ backgroundColor: pageColors.text + '20' }}></div>
-                      <div className="h-4 rounded flex-1" style={{ backgroundColor: pageColors.text + '15', maxWidth: '200px' }}></div>
+                      <div className="w-5 h-5 rounded" style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}></div>
+                      <div className="h-4 rounded flex-1" style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', maxWidth: '200px' }}></div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div 
-                  className="rounded-lg border overflow-hidden"
+                  className="rounded-xl border-2 overflow-hidden"
                   style={{ 
                     backgroundColor: pageColors.cardBg,
-                    borderColor: pageColors.inputBorder
+                    borderColor: pageColors.containerBorder
                   }}
                 >
                   {/* Header */}
                   <div 
                     className="px-4 py-3 flex items-center gap-3"
-                    style={{ backgroundColor: isDarkMode ? pageColors.accent : getColor('primary', '#1a202c') }}
+                    style={{ backgroundColor: pageColors.primary }}
                   >
                     <Sparkles size={20} className="text-white flex-shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -338,15 +341,15 @@ const QuizGeneratorPage = () => {
                               <select
                                 value={config.difficulty}
                                 onChange={(e) => handleConfigChange('difficulty', e.target.value)}
-                                className="w-full px-3 py-2 text-sm border rounded-lg appearance-none transition-all"
+                                className="w-full px-3 py-2 text-sm rounded-lg appearance-none transition-all"
                                 style={{ 
-                                  borderColor: pageColors.inputBorder,
+                                  border: `2px solid ${pageColors.inputBorder}`,
                                   backgroundColor: pageColors.inputBg,
                                   color: pageColors.text
                                 }}
                               >
                                 {difficultyOptions.map(opt => (
-                                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                  <option key={opt.value} value={opt.value} style={{ backgroundColor: pageColors.inputBg, color: pageColors.text }}>{opt.label}</option>
                                 ))}
                               </select>
                               <ChevronDown 
@@ -368,9 +371,9 @@ const QuizGeneratorPage = () => {
                               max="100"
                               value={config.numQuestions}
                               onChange={(e) => handleConfigChange('numQuestions', parseInt(e.target.value) || 10)}
-                              className="w-full px-3 py-2 text-sm border rounded-lg transition-all"
+                              className="w-full px-3 py-2 text-sm rounded-lg transition-all"
                               style={{ 
-                                borderColor: pageColors.inputBorder,
+                                border: `2px solid ${pageColors.inputBorder}`,
                                 backgroundColor: pageColors.inputBg,
                                 color: pageColors.text
                               }}
@@ -388,9 +391,9 @@ const QuizGeneratorPage = () => {
                               placeholder="0"
                               value={config.timeLimit}
                               onChange={(e) => handleConfigChange('timeLimit', parseInt(e.target.value) || 0)}
-                              className="w-full px-3 py-2 text-sm border rounded-lg transition-all"
+                              className="w-full px-3 py-2 text-sm rounded-lg transition-all"
                               style={{ 
-                                borderColor: pageColors.inputBorder,
+                                border: `2px solid ${pageColors.inputBorder}`,
                                 backgroundColor: pageColors.inputBg,
                                 color: pageColors.text
                               }}
@@ -424,19 +427,19 @@ const QuizGeneratorPage = () => {
                             <button
                               key={status.id}
                               onClick={() => toggleStatusFilter(status.id)}
-                              className="relative px-2 py-3 rounded-lg border transition-all flex flex-col items-center gap-1.5"
+                              className="relative px-2 py-3 rounded-lg transition-all flex flex-col items-center gap-1.5"
                               style={{ 
-                                borderColor: isSelected ? status.colorHex : pageColors.inputBorder,
-                                backgroundColor: isSelected ? `${status.colorHex}15` : 'transparent'
+                                border: `2px solid ${isSelected ? status.colorHex : pageColors.inputBorder}`,
+                                backgroundColor: isSelected ? `${status.colorHex}15` : pageColors.inputBg
                               }}
                               onMouseEnter={(e) => {
                                 if (!isSelected) {
-                                  e.currentTarget.style.backgroundColor = isDarkMode ? `${status.colorHex}10` : `${pageColors.text}03`;
+                                  e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
                                 }
                               }}
                               onMouseLeave={(e) => {
                                 if (!isSelected) {
-                                  e.currentTarget.style.backgroundColor = 'transparent';
+                                  e.currentTarget.style.backgroundColor = pageColors.inputBg;
                                 }
                               }}
                             >

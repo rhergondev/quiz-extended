@@ -58,9 +58,13 @@ const QuizSidebar = ({
 
   // Colores del sistema de 3 estados
   const colors = {
-    unanswered: isDarkMode ? '#9ca3af' : '#6b7280', // gray-500 / gray-400 in dark
+    unanswered: isDarkMode ? '#ffffff' : '#6b7280', // Blanco en dark mode para mejor contraste
+    unansweredBg: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(107,114,128,0.1)',
+    unansweredBorder: isDarkMode ? 'rgba(255,255,255,0.3)' : 'rgba(107,114,128,0.3)',
     answered: textPrimary, // Para texto e iconos - adaptativo
     answeredBg: primaryBg, // Para fondos de botones - siempre oscuro
+    // En dark mode usar versión más brillante del primary (brightness ~1.1)
+    answeredBgBright: isDarkMode ? '#5a9cfc' : primaryBg,
     risked: getColor('accent', '#f59e0b'),
     impugned: '#9ca3af' // gray-400
   };
@@ -99,14 +103,14 @@ const QuizSidebar = ({
         className="rounded-lg shadow-sm border-2 transition-all duration-200"
         style={{ 
           backgroundColor: getColor('secondaryBackground', '#ffffff'),
-          borderColor: getColor('borderColor', colors.answered)
+          borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
         }}
       >
         
         {/* Leyenda de estados */}
         <div 
           className="p-3 border-b"
-          style={{ borderColor: getColor('borderColor', colors.answered) + '30' }}
+          style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
         >
           <div className="flex flex-wrap gap-3 justify-around">
             <LegendItem 
@@ -128,7 +132,7 @@ const QuizSidebar = ({
         </div>
 
         {/* Estadísticas */}
-        <div className="p-3 border-b" style={{ borderColor: getColor('borderColor', colors.answered) + '30' }}>
+        <div className="p-3 border-b" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
           <div className="grid grid-cols-2 gap-2">
             <StatBox 
               label={t('quizzes.sidebar.answered')} 
@@ -162,7 +166,7 @@ const QuizSidebar = ({
         </div>
 
         {/* Mapa de preguntas */}
-        <div className="p-3 border-b" style={{ borderColor: getColor('borderColor', colors.answered) + '30' }}>
+        <div className="p-3 border-b" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
           <h3 className="text-xs font-semibold mb-2" style={{ color: textPrimary }}>
             {t('quizzes.sidebar.questionsMap')}
           </h3>
@@ -179,21 +183,23 @@ const QuizSidebar = ({
               let opacity = '1';
               
               if (!isLoaded) {
-                bgColor = colors.unanswered + '15';
-                borderColor = colors.unanswered + '30';
-                textColor = colors.unanswered + '60';
+                bgColor = isDarkMode ? 'rgba(255,255,255,0.05)' : colors.unanswered + '15';
+                borderColor = isDarkMode ? 'rgba(255,255,255,0.15)' : colors.unanswered + '30';
+                textColor = isDarkMode ? 'rgba(255,255,255,0.4)' : colors.unanswered + '60';
                 opacity = '0.5';
               } else if (isRisked) {
                 bgColor = colors.risked;
                 borderColor = colors.risked;
                 textColor = '#ffffff';
               } else if (isAnswered) {
-                bgColor = colors.answeredBg;
-                borderColor = colors.answeredBg;
+                // En dark mode usar versión más brillante para mejor contraste
+                bgColor = colors.answeredBgBright;
+                borderColor = colors.answeredBgBright;
                 textColor = '#ffffff';
               } else {
-                bgColor = colors.unanswered + '10';
-                borderColor = colors.unanswered + '30';
+                // Sin contestar: fondo y borde blancos semi-transparentes en dark mode
+                bgColor = colors.unansweredBg;
+                borderColor = colors.unansweredBorder;
                 textColor = colors.unanswered;
               }
 

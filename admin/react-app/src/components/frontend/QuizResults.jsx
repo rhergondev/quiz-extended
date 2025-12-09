@@ -35,7 +35,7 @@ const QuizResults = ({
     textMuted: getColor('textSecondary', '#6b7280'),
     accent: accentColor,
     bg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
-    border: isDarkMode ? 'rgba(255,255,255,0.1)' : `${primaryColor}20`,
+    border: isDarkMode ? accentColor : `${primaryColor}20`,
   };
 
   if (!result) {
@@ -188,28 +188,29 @@ const QuizResults = ({
           </div>
           
           {/* Sin Riesgo Row */}
-          <div 
-            className="px-4 py-3 border-b"
-            style={{ 
-              borderColor: pageColors.border,
-              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.02)' : `${primaryColor}03`
-            }}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <div 
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: primaryColor }}
-              />
-              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: isDarkMode ? pageColors.text : primaryColor }}>
-                {t('quizzes.results.scoreWithoutRisk')}
-              </span>
+          <div>
+            {/* Header Sin Riesgo */}
+            <div 
+              className="px-4 py-2"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>
+                  {t('quizzes.results.scoreWithoutRisk')}
+                </span>
+                <div 
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: '#ffffff' }}
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            {/* Contenido Sin Riesgo */}
+            <div className="grid grid-cols-3 gap-4 px-4 py-3">
               <div className="text-center">
                 <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
                   {t('quizzes.results.myScore')}
                 </p>
-                <p className="text-lg font-bold" style={{ color: isDarkMode ? pageColors.text : primaryColor }}>
+                <p className="text-lg font-bold" style={{ color: pageColors.text }}>
                   {formatScore(score)}
                 </p>
               </div>
@@ -217,7 +218,7 @@ const QuizResults = ({
                 <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
                   {t('quizzes.results.globalAverage')}
                 </p>
-                <p className="text-lg font-bold" style={{ color: isDarkMode ? pageColors.text : primaryColor }}>
+                <p className="text-lg font-bold" style={{ color: pageColors.text }}>
                   {averageScore !== null ? formatScore(averageScore) : '-'}
                 </p>
               </div>
@@ -239,23 +240,28 @@ const QuizResults = ({
             </div>
           </div>
           
+          {/* Separador */}
+          <div style={{ height: '1px', backgroundColor: 'rgba(156, 163, 175, 0.2)' }} />
+          
           {/* Con Riesgo Row */}
-          <div 
-            className="px-4 py-3"
-            style={{ 
-              backgroundColor: isDarkMode ? `${pageColors.accent}10` : `${pageColors.accent}08`
-            }}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <div 
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: pageColors.accent }}
-              />
-              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: pageColors.accent }}>
-                {t('quizzes.results.scoreWithRisk')}
-              </span>
+          <div>
+            {/* Header Con Riesgo */}
+            <div 
+              className="px-4 py-2"
+              style={{ backgroundColor: pageColors.accent }}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>
+                  {t('quizzes.results.scoreWithRisk')}
+                </span>
+                <div 
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: '#ffffff' }}
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            {/* Contenido Con Riesgo */}
+            <div className="grid grid-cols-3 gap-4 px-4 py-3">
               <div className="text-center">
                 <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
                   {t('quizzes.results.myScore')}

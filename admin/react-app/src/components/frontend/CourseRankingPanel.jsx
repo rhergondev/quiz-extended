@@ -50,6 +50,8 @@ export const CourseRankingProvider = ({ courseId, courseName, isOpen, onOpen, on
         textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : `${primaryColor}60`,
         accent: getColor('accent', '#f59e0b'),
         border: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb'),
+        // Main container border - accent in dark mode for consistency
+        containerBorder: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb'),
         hoverBg: isDarkMode ? getColor('accent', '#f59e0b') : primaryColor,
         iconColor: isDarkMode ? getColor('textPrimary', '#f9fafb') : primaryColor,
         positionColor: isDarkMode ? getColor('textPrimary', '#f9fafb') : primaryColor,
@@ -325,7 +327,7 @@ export const CourseRankingSlidePanel = () => {
                                         className="rounded-xl overflow-hidden border-2"
                                         style={{ 
                                             backgroundColor: pageColors.bg,
-                                            borderColor: pageColors.border
+                                            borderColor: pageColors.containerBorder
                                         }}
                                     >
                                         {/* Header */}
@@ -385,7 +387,7 @@ export const CourseRankingSlidePanel = () => {
                                             className="rounded-xl overflow-hidden border-2"
                                             style={{ 
                                                 backgroundColor: pageColors.bg,
-                                                borderColor: pageColors.border
+                                                borderColor: pageColors.containerBorder
                                             }}
                                         >
                                             {/* Header */}
@@ -400,28 +402,29 @@ export const CourseRankingSlidePanel = () => {
                                             </div>
                                             
                                             {/* Sin Riesgo Row */}
-                                            <div 
-                                                className="px-4 py-3 border-b"
-                                                style={{ 
-                                                    borderColor: pageColors.border,
-                                                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.02)' : `${primaryColor}03`
-                                                }}
-                                            >
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <div 
-                                                        className="w-2 h-2 rounded-full"
-                                                        style={{ backgroundColor: primaryColor }}
-                                                    />
-                                                    <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: isDarkMode ? pageColors.text : primaryColor }}>
-                                                        Sin Riesgo
-                                                    </span>
+                                            <div>
+                                                {/* Header Sin Riesgo */}
+                                                <div 
+                                                    className="px-4 py-2"
+                                                    style={{ backgroundColor: primaryColor }}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>
+                                                            Sin Riesgo
+                                                        </span>
+                                                        <div 
+                                                            className="w-2 h-2 rounded-full"
+                                                            style={{ backgroundColor: '#ffffff' }}
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <div className="grid grid-cols-3 gap-4">
+                                                {/* Contenido Sin Riesgo */}
+                                                <div className="grid grid-cols-3 gap-4 px-4 py-3">
                                                     <div className="text-center">
                                                         <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
                                                             Posición
                                                         </p>
-                                                        <p className="text-lg font-bold" style={{ color: isDarkMode ? pageColors.text : primaryColor }}>
+                                                        <p className="text-lg font-bold" style={{ color: pageColors.text }}>
                                                             #{myStats?.position_without_risk || userPosition || '-'}
                                                         </p>
                                                     </div>
@@ -429,7 +432,7 @@ export const CourseRankingSlidePanel = () => {
                                                         <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
                                                             Mi Media
                                                         </p>
-                                                        <p className="text-lg font-bold" style={{ color: isDarkMode ? pageColors.text : primaryColor }}>
+                                                        <p className="text-lg font-bold" style={{ color: pageColors.text }}>
                                                             {formatScore(myStats?.score_without_risk || userScore || 0)}
                                                         </p>
                                                     </div>
@@ -452,23 +455,28 @@ export const CourseRankingSlidePanel = () => {
                                                 </div>
                                             </div>
                                             
+                                            {/* Separador */}
+                                            <div style={{ height: '1px', backgroundColor: 'rgba(156, 163, 175, 0.2)' }} />
+                                            
                                             {/* Con Riesgo Row */}
-                                            <div 
-                                                className="px-4 py-3"
-                                                style={{ 
-                                                    backgroundColor: isDarkMode ? `${pageColors.accent}10` : `${pageColors.accent}08`
-                                                }}
-                                            >
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <div 
-                                                        className="w-2 h-2 rounded-full"
-                                                        style={{ backgroundColor: pageColors.accent }}
-                                                    />
-                                                    <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: pageColors.accent }}>
-                                                        Con Riesgo
-                                                    </span>
+                                            <div>
+                                                {/* Header Con Riesgo */}
+                                                <div 
+                                                    className="px-4 py-2"
+                                                    style={{ backgroundColor: pageColors.accent }}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>
+                                                            Con Riesgo
+                                                        </span>
+                                                        <div 
+                                                            className="w-2 h-2 rounded-full"
+                                                            style={{ backgroundColor: '#ffffff' }}
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <div className="grid grid-cols-3 gap-4">
+                                                {/* Contenido Con Riesgo */}
+                                                <div className="grid grid-cols-3 gap-4 px-4 py-3">
                                                     <div className="text-center">
                                                         <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
                                                             Posición
@@ -509,7 +517,7 @@ export const CourseRankingSlidePanel = () => {
                                     {/* Ranking Table */}
                                     <div 
                                         className="rounded-xl border-2 overflow-hidden"
-                                        style={{ backgroundColor: pageColors.bg, borderColor: pageColors.border }}
+                                        style={{ backgroundColor: pageColors.bg, borderColor: pageColors.containerBorder }}
                                     >
                                         <table className="w-full">
                                             <thead>
@@ -619,8 +627,8 @@ export const CourseRankingSlidePanel = () => {
                                     {/* Pagination */}
                                     {pagination.totalUsers > 0 && (
                                         <div 
-                                            className="flex flex-col sm:flex-row items-center justify-between p-3 rounded-lg border gap-2"
-                                            style={{ backgroundColor: pageColors.bg, borderColor: pageColors.border }}
+                                            className="flex flex-col sm:flex-row items-center justify-between p-3 rounded-lg border-2 gap-2"
+                                            style={{ backgroundColor: pageColors.bg, borderColor: pageColors.containerBorder }}
                                         >
                                             <span className="text-sm" style={{ color: pageColors.textMuted }}>
                                                 {((pagination.currentPage - 1) * pagination.perPage) + 1}-{Math.min(pagination.currentPage * pagination.perPage, pagination.totalUsers)} de {pagination.totalUsers}

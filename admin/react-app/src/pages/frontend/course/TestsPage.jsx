@@ -40,6 +40,8 @@ const TestsPage = () => {
     buttonBg: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6'),
     buttonText: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
     buttonHoverBg: isDarkMode ? getColor('primary', '#3b82f6') : getColor('accent', '#f59e0b'),
+    // Container border - accent in dark mode for consistency
+    containerBorder: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb'),
   };
   
   // 🔥 Ref para controlar que la navegación externa solo se procese una vez
@@ -129,6 +131,23 @@ const TestsPage = () => {
       fetchCompletedContent();
     }
   }, [courseId, fetchCompletedContent]);
+
+  // 🔄 Reset state when navigating to tests page without specific state (clean navigation)
+  useEffect(() => {
+    // If there's no state (clean navigation from sidebar), reset to list view
+    if (!location.state) {
+      setSelectedTest(null);
+      setSelectedLesson(null);
+      setQuizToStart(null);
+      setQuizResults(null);
+      setResultsQuestions(null);
+      setResultsQuizInfo(null);
+      setIsQuizRunning(false);
+      setIsQuizFocusMode(false);
+      setViewingAttemptId(null);
+      hasProcessedNavigation.current = false;
+    }
+  }, [location.key]); // location.key changes on every navigation
 
   // 🎯 FOCUS MODE: Hide body overflow and Topbar when quiz is running
   useEffect(() => {
@@ -255,27 +274,68 @@ const TestsPage = () => {
       }
     } else if (location.state?.selectedQuizId && location.state?.scrollToQuiz) {
       const quizId = location.state.selectedQuizId;
-      console.log('TestsPage - scrolling to quiz:', quizId);
+      const shouldResumeAutosave = location.state?.resumeAutosave;
+      console.log('TestsPage - scrolling to quiz:', quizId, 'type:', typeof quizId, 'resumeAutosave:', shouldResumeAutosave);
+      console.log('TestsPage - available lessons:', lessons.length);
       
       // Find and open the quiz
+      let found = false;
       for (const lesson of lessons) {
-        const quizStep = lesson.quizSteps?.find(step => step.data?.quiz_id === quizId);
+        console.log('TestsPage - checking lesson:', lesson.id, 'quizSteps:', lesson.quizSteps?.length);
+        // Use loose comparison to handle string/number mismatch
+        const quizStep = lesson.quizSteps?.find(step => {
+          const stepQuizId = step.data?.quiz_id;
+          console.log('TestsPage - comparing stepQuizId:', stepQuizId, 'with quizId:', quizId);
+          return String(stepQuizId) === String(quizId);
+        });
         if (quizStep) {
+          console.log('TestsPage - Found quiz step:', quizStep);
+          found = true;
           setSelectedTest(quizStep);
           setSelectedLesson(lesson);
           setQuizResults(null);
           setResultsQuestions(null);
           setResultsQuizInfo(null);
-          setIsQuizRunning(false);
-          setQuizToStart(null);
-          setIsQuizFocusMode(false);
           setViewingAttemptId(null);
-          setLoading(false);
+          
+          // If resumeAutosave flag is set, trigger the start quiz flow which will show recovery modal
+          if (shouldResumeAutosave) {
+            // Keep loading true while we load the quiz
+            // Load the full quiz data before starting (same as clicking "Start" button)
+            const stepQuizId = quizStep.data?.quiz_id;
+            if (stepQuizId) {
+              (async () => {
+                try {
+                  const { getQuiz } = await import('../../../api/services/quizService');
+                  const quizData = await getQuiz(stepQuizId);
+                  console.log('✅ Quiz loaded for resume:', quizData);
+                  setQuizToStart(quizData);
+                  setIsQuizRunning(true);
+                  setIsQuizFocusMode(true);
+                  setLoading(false); // Only stop loading after quiz is ready
+                } catch (error) {
+                  console.error('❌ Error loading quiz for resume:', error);
+                  setLoading(false);
+                }
+              })();
+            } else {
+              setLoading(false);
+            }
+          } else {
+            setLoading(false);
+            setIsQuizRunning(false);
+            setQuizToStart(null);
+            setIsQuizFocusMode(false);
+          }
           
           // 🔥 Marcar como procesado
           hasProcessedNavigation.current = true;
           break;
         }
+      }
+      
+      if (!found) {
+        console.warn('TestsPage - Quiz not found in any lesson! quizId:', quizId);
       }
     }
   }, [location.state, lessons]);
@@ -387,12 +447,21 @@ const TestsPage = () => {
   };
 
   const handleCloseResults = () => {
-    // Limpiar resultados y volver a la vista de info
+    // Limpiar resultados y volver a la lista de tests
     setQuizResults(null);
     setResultsQuestions(null);
     setResultsQuizInfo(null);
     setQuizToStart(null);
+    setSelectedTest(null);
+    setSelectedLesson(null);
     setIsQuizFocusMode(false); // 🎯 Deactivate focus mode
+  };
+
+  const handleExitQuiz = () => {
+    // Salir del quiz y volver a la vista de info (el progreso ya se guarda automáticamente con autosave)
+    setIsQuizRunning(false);
+    setQuizToStart(null);
+    setIsQuizFocusMode(false);
   };
 
   const handleClearCanvas = () => {
@@ -984,7 +1053,7 @@ const TestsPage = () => {
                         className="rounded-xl overflow-hidden border-2 animate-pulse"
                         style={{ 
                           backgroundColor: getColor('secondaryBackground'),
-                          borderColor: getColor('borderColor')
+                          borderColor: pageColors.containerBorder
                         }}
                       >
                         <div className="h-48" style={{ backgroundColor: `${getColor('primary', '#1a202c')}05` }}></div>
@@ -1000,7 +1069,7 @@ const TestsPage = () => {
                         className="rounded-xl overflow-hidden border-2"
                         style={{ 
                           backgroundColor: getColor('secondaryBackground'),
-                          borderColor: getColor('borderColor')
+                          borderColor: pageColors.containerBorder
                         }}
                       >
                         {/* Sin Riesgo - Primera fila */}
@@ -1173,7 +1242,7 @@ const TestsPage = () => {
                     className="rounded-xl overflow-hidden border-2"
                     style={{ 
                       backgroundColor: getColor('secondaryBackground'),
-                      borderColor: getColor('borderColor')
+                      borderColor: pageColors.containerBorder
                     }}
                   >
                     {/* Header con título y estado */}
@@ -1384,7 +1453,7 @@ const TestsPage = () => {
                         className="rounded-xl overflow-hidden border-2"
                         style={{ 
                           backgroundColor: getColor('secondaryBackground'),
-                          borderColor: getColor('borderColor')
+                          borderColor: pageColors.containerBorder
                         }}
                       >
                         {/* Header con fondo de color */}
@@ -1611,6 +1680,7 @@ const TestsPage = () => {
                       quizId={quizToStart.id}
                       lessonId={selectedLesson?.id}
                       onQuizComplete={handleQuizComplete}
+                      onExit={handleExitQuiz}
                       isDrawingMode={isDrawingMode}
                       setIsDrawingMode={setIsDrawingMode}
                       isDrawingEnabled={isDrawingEnabled}
@@ -1689,6 +1759,7 @@ const TestsPage = () => {
             quizId={quizToStart.id}
             lessonId={selectedLesson?.id}
             onQuizComplete={handleQuizComplete}
+            onExit={handleExitQuiz}
             isDrawingMode={isDrawingMode}
             setIsDrawingMode={setIsDrawingMode}
             isDrawingEnabled={isDrawingEnabled}

@@ -1,5 +1,7 @@
 import React from 'react';
-import { AlertCircle, Clock, CheckCircle } from 'lucide-react';
+import { AlertCircle, Clock, CheckCircle, RotateCcw, PlayCircle } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Modal to prompt user to resume or restart a quiz with saved progress
@@ -12,9 +14,24 @@ import { AlertCircle, Clock, CheckCircle } from 'lucide-react';
  * @param {boolean} props.isOpen - Modal visibility state
  */
 const QuizRecoveryModal = ({ autosaveData, onResume, onRestart, onClose, isOpen = true }) => {
+  const { getColor, isDarkMode } = useTheme();
+  const { t } = useTranslation();
+
   if (!isOpen || !autosaveData) {
     return null;
   }
+
+  // Colores adaptativos
+  const colors = {
+    text: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c'),
+    textMuted: isDarkMode ? 'rgba(255,255,255,0.7)' : getColor('textMuted', '#6b7280'),
+    accent: getColor('accent', '#f59e0b'),
+    primary: getColor('primary', '#1a202c'),
+    cardBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    overlayBg: isDarkMode ? getColor('background', '#111827') : 'rgba(0,0,0,0.5)',
+    infoBg: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.03)',
+    border: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+  };
 
   const {
     quiz_title,
@@ -41,10 +58,10 @@ const QuizRecoveryModal = ({ autosaveData, onResume, onRestart, onClose, isOpen 
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffDays > 0) return `hace ${diffDays} día${diffDays > 1 ? 's' : ''}`;
-    if (diffHours > 0) return `hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
-    if (diffMins > 0) return `hace ${diffMins} minuto${diffMins > 1 ? 's' : ''}`;
-    return 'hace unos segundos';
+    if (diffDays > 0) return `${t('common.ago')} ${diffDays} ${diffDays > 1 ? t('common.days') : t('common.day')}`;
+    if (diffHours > 0) return `${t('common.ago')} ${diffHours} ${diffHours > 1 ? t('common.hours') : t('common.hour')}`;
+    if (diffMins > 0) return `${t('common.ago')} ${diffMins} ${diffMins > 1 ? t('common.minutes') : t('common.minute')}`;
+    return t('common.justNow');
   };
 
   // Format time remaining
@@ -58,99 +75,164 @@ const QuizRecoveryModal = ({ autosaveData, onResume, onRestart, onClose, isOpen 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       {/* Backdrop */}
-      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+      <div className="flex items-center justify-center min-h-screen p-4">
         <div 
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+          className="fixed inset-0 transition-opacity" 
+          style={{ backgroundColor: colors.overlayBg }}
           aria-hidden="true"
           onClick={onClose}
-        ></div>
-
-        {/* Modal positioning */}
-        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        />
 
         {/* Modal content */}
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <div className="sm:flex sm:items-start">
-              <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                <AlertCircle className="h-6 w-6 text-blue-600" />
+        <div 
+          className="relative w-full max-w-md rounded-xl shadow-2xl overflow-hidden"
+          style={{ backgroundColor: colors.cardBg }}
+        >
+          {/* Header with accent color */}
+          <div 
+            className="px-5 py-4 flex items-center gap-3"
+            style={{ backgroundColor: isDarkMode ? colors.accent : colors.primary }}
+          >
+            <div 
+              className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+            >
+              <PlayCircle className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base font-bold text-white truncate">
+                {t('quizzes.quiz.inProgress')}
+              </h3>
+              <p className="text-xs text-white/70 truncate">
+                {t('quizzes.quiz.savedProgressFound')}
+              </p>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="p-5 space-y-4">
+            <p className="text-sm" style={{ color: colors.textMuted }}>
+              {t('quizzes.quiz.continueWhereYouLeft')}
+            </p>
+
+            {/* Quiz info card */}
+            <div 
+              className="rounded-lg p-4 space-y-3"
+              style={{ 
+                backgroundColor: colors.infoBg,
+                border: `1px solid ${colors.border}`
+              }}
+            >
+              {/* Quiz title */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: colors.textMuted }}>
+                  {t('common.quiz')}
+                </span>
+                <span className="text-sm font-medium truncate" style={{ color: colors.text }}>
+                  {quiz_title || t('common.untitled')}
+                </span>
               </div>
-              <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
-                <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                  Cuestionario en progreso
-                </h3>
-                <div className="mt-4 space-y-3">
-                  <p className="text-sm text-gray-500">
-                    Se encontró un cuestionario sin terminar. ¿Deseas continuar donde lo dejaste?
-                  </p>
+              
+              {/* Progress */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: colors.textMuted }}>
+                  {t('common.progress')}
+                </span>
+                <span className="text-sm font-medium" style={{ color: colors.text }}>
+                  {answeredQuestions}/{totalQuestions} ({progressPercent}%)
+                </span>
+              </div>
 
-                  {/* Quiz info */}
-                  <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">Cuestionario:</span>
-                      <span className="text-sm text-gray-900">{quiz_title || 'Sin título'}</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">Progreso:</span>
-                      <span className="text-sm text-gray-900">
-                        {answeredQuestions} de {totalQuestions} preguntas ({progressPercent}%)
-                      </span>
-                    </div>
+              {/* Current question */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide" style={{ color: colors.textMuted }}>
+                  {t('quizzes.quiz.currentQuestion')}
+                </span>
+                <span className="text-sm font-medium" style={{ color: colors.text }}>
+                  {(current_question_index || 0) + 1} {t('common.of')} {totalQuestions}
+                </span>
+              </div>
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">Pregunta actual:</span>
-                      <span className="text-sm text-gray-900">
-                        {(current_question_index || 0) + 1} de {totalQuestions}
-                      </span>
-                    </div>
-
-                    {time_remaining && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          Tiempo restante:
-                        </span>
-                        <span className="text-sm text-gray-900">
-                          {formatTimeRemaining(time_remaining)}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-200">
-                      <span>Última actualización:</span>
-                      <span>{getTimeAgo(updated_at)}</span>
-                    </div>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${progressPercent}%` }}
-                    ></div>
-                  </div>
+              {/* Time remaining */}
+              {time_remaining && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium uppercase tracking-wide flex items-center gap-1.5" style={{ color: colors.textMuted }}>
+                    <Clock className="w-3.5 h-3.5" />
+                    {t('quizzes.quiz.timeRemaining')}
+                  </span>
+                  <span className="text-sm font-medium" style={{ color: colors.accent }}>
+                    {formatTimeRemaining(time_remaining)}
+                  </span>
                 </div>
+              )}
+
+              {/* Progress bar */}
+              <div className="pt-2">
+                <div 
+                  className="w-full h-2 rounded-full overflow-hidden"
+                  style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
+                >
+                  <div 
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{ 
+                      width: `${progressPercent}%`,
+                      backgroundColor: colors.accent
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Last saved */}
+              <div 
+                className="flex items-center justify-between gap-2 pt-2 text-xs"
+                style={{ 
+                  borderTop: `1px solid ${colors.border}`,
+                  color: colors.textMuted 
+                }}
+              >
+                <span>{t('common.lastSaved')}</span>
+                <span>{getTimeAgo(updated_at)}</span>
               </div>
             </div>
           </div>
 
           {/* Buttons */}
-          <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-3">
+          <div 
+            className="px-5 py-4 flex flex-col sm:flex-row gap-2"
+            style={{ 
+              backgroundColor: colors.infoBg,
+              borderTop: `1px solid ${colors.border}`
+            }}
+          >
             <button
               type="button"
               onClick={onResume}
-              className="w-full inline-flex justify-center items-center gap-2 rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
+              className="flex-1 inline-flex justify-center items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-all"
+              style={{ backgroundColor: colors.accent }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
             >
-              <CheckCircle className="h-4 w-4" />
-              Continuar donde lo dejé
+              <CheckCircle className="w-4 h-4" />
+              {t('quizzes.quiz.continueQuiz')}
             </button>
             <button
               type="button"
               onClick={onRestart}
-              className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm transition-colors"
+              className="flex-1 inline-flex justify-center items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all"
+              style={{ 
+                backgroundColor: 'transparent',
+                color: colors.text,
+                border: `2px solid ${colors.border}`
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
             >
-              Empezar de nuevo
+              <RotateCcw className="w-4 h-4" />
+              {t('quizzes.quiz.startOver')}
             </button>
           </div>
         </div>

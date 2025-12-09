@@ -10,7 +10,7 @@ import QuizSidebar from './QuizSidebar';
 import Timer from './Timer';
 import DrawingCanvas from './DrawingCanvas';
 import DrawingToolbar from './DrawingToolbar';
-import { Loader, Menu, X } from 'lucide-react';
+import { Loader, Menu, X, ChevronLeft } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useQuizAutosave from '../../hooks/useQuizAutosave';
 import quizAutosaveService from '../../api/services/quizAutosaveService';
@@ -22,6 +22,7 @@ const Quiz = ({
   customQuiz = null, 
   onQuizComplete,
   onQuizStateChange,
+  onExit,
   isDrawingMode, 
   setIsDrawingMode, 
   isDrawingEnabled, 
@@ -48,6 +49,7 @@ const Quiz = ({
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [autosaveData, setAutosaveData] = useState(null);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isQuizSidebarOpen, setIsQuizSidebarOpen] = useState(false);
   const [clearCanvasCallback, setClearCanvasCallback] = useState(null);
@@ -442,12 +444,92 @@ const Quiz = ({
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
+      {/* Modal de confirmación de salida */}
+      {showExitModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50">
+          <div 
+            className="w-full max-w-md rounded-xl shadow-2xl overflow-hidden"
+            style={{ backgroundColor: isDarkMode ? getColor('secondaryBackground') : '#ffffff' }}
+          >
+            {/* Header */}
+            <div 
+              className="px-6 py-4"
+              style={{ backgroundColor: isDarkMode ? getColor('accent') : getColor('primary') }}
+            >
+              <h3 className="text-lg font-bold text-white">
+                {t('quizzes.exitModal.title')}
+              </h3>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6">
+              <p style={{ color: isDarkMode ? getColor('textPrimary') : '#374151' }}>
+                {t('quizzes.exitModal.message')}
+              </p>
+            </div>
+            
+            {/* Actions */}
+            <div className="flex gap-3 px-6 pb-6">
+              <button
+                onClick={() => setShowExitModal(false)}
+                className="flex-1 px-4 py-3 rounded-lg font-medium transition-colors"
+                style={{ 
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6',
+                  color: isDarkMode ? getColor('textPrimary') : '#374151'
+                }}
+              >
+                {t('quizzes.exitModal.cancel')}
+              </button>
+              <button
+                onClick={() => {
+                  setShowExitModal(false);
+                  if (onExit) onExit();
+                }}
+                className="flex-1 px-4 py-3 rounded-lg font-medium text-white transition-colors"
+                style={{ backgroundColor: isDarkMode ? getColor('accent') : getColor('primary') }}
+              >
+                {t('quizzes.exitModal.confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Overlay para móvil */}
       {isQuizSidebarOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={() => setIsQuizSidebarOpen(false)}
         />
+      )}
+
+      {/* Barra superior con botón de salida */}
+      {onExit && (
+        <div 
+          className="flex items-center gap-3 px-4 py-3 border-b"
+          style={{
+            backgroundColor: isDarkMode ? getColor('secondaryBackground') : '#ffffff',
+            borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'
+          }}
+        >
+          <button
+            onClick={() => setShowExitModal(true)}
+            className="p-2 rounded-lg transition-all duration-200 hover:scale-105"
+            style={{
+              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+              color: isDarkMode ? getColor('textPrimary') : getColor('primary')
+            }}
+            aria-label={t('quizzes.exitModal.title')}
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <span 
+            className="font-medium text-sm truncate"
+            style={{ color: isDarkMode ? getColor('textPrimary') : getColor('primary') }}
+          >
+            {quizInfo?.title?.rendered || quizInfo?.title || t('quizzes.quiz.inProgress')}
+          </span>
+        </div>
       )}
 
       {/* Botón flotante para el subrayador */}
