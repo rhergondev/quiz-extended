@@ -669,11 +669,14 @@ class QE_Debug_API extends QE_API_Base
                  OR option_name LIKE '_transient_timeout_qe_login_%'"
             );
 
-            // qem_map_quiz_ legacy options
-            $stats['qem_map_quiz_options'] = (int) $wpdb->get_var(
+            // qem_map_* legacy options (quiz, lesson, course, etc.)
+            $stats['qem_map_options'] = (int) $wpdb->get_var(
                 "SELECT COUNT(*) FROM {$wpdb->options} 
-                 WHERE option_name LIKE 'qem_map_quiz_%'"
+                 WHERE option_name LIKE 'qem_map_%'"
             );
+
+            // For backwards compatibility
+            $stats['qem_map_quiz_options'] = $stats['qem_map_options'];
 
             // Options with autoload='yes'
             $stats['qe_autoload_yes'] = (int) $wpdb->get_var(
@@ -681,7 +684,7 @@ class QE_Debug_API extends QE_API_Base
                  WHERE autoload = 'yes' 
                  AND (option_name LIKE '_transient_qe_%' 
                       OR option_name LIKE '_transient_timeout_qe_%'
-                      OR option_name LIKE 'qem_map_quiz_%')"
+                      OR option_name LIKE 'qem_map_%')"
             );
 
             // Total autoload size
@@ -697,7 +700,7 @@ class QE_Debug_API extends QE_API_Base
                 "SELECT ROUND(SUM(LENGTH(option_value)) / 1024 / 1024, 2) 
                  FROM {$wpdb->options} 
                  WHERE option_name LIKE '_transient_qe_%' 
-                 OR option_name LIKE 'qem_map_quiz_%'"
+                 OR option_name LIKE 'qem_map_%'"
             );
             $stats['problematic_options_size_mb'] = $problematic_size ? (float) $problematic_size : 0;
 
@@ -707,7 +710,7 @@ class QE_Debug_API extends QE_API_Base
             return new WP_REST_Response([
                 'success' => true,
                 'data' => $stats,
-                'recommendation' => $stats['qe_transients'] > 100 || $stats['qem_map_quiz_options'] > 0
+                'recommendation' => $stats['qe_transients'] > 100 || $stats['qem_map_options'] > 0
                     ? 'Se recomienda ejecutar limpieza POST /debug/cleanup-autoload'
                     : 'Todo OK, no se requiere limpieza'
             ], 200);
@@ -743,16 +746,16 @@ class QE_Debug_API extends QE_API_Base
         );
         $results['before']['qem_map_quiz'] = (int) $wpdb->get_var(
             "SELECT COUNT(*) FROM {$wpdb->options} 
-             WHERE option_name LIKE 'qem_map_quiz_%'"
+             WHERE option_name LIKE 'qem_map_%'"
         );
         $results['before']['autoload_size_mb'] = (float) $wpdb->get_var(
             "SELECT ROUND(SUM(LENGTH(option_value)) / 1024 / 1024, 2) 
              FROM {$wpdb->options} WHERE autoload = 'yes'"
         );
 
-        // 1. Delete qem_map_quiz_ legacy options
+        // 1. Delete ALL qem_map_* legacy options (quiz, lesson, course, etc.)
         $results['deleted']['qem_map_quiz'] = (int) $wpdb->query(
-            "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'qem_map_quiz_%'"
+            "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'qem_map_%'"
         );
 
         // 2. Delete rate limit transients
@@ -813,7 +816,7 @@ class QE_Debug_API extends QE_API_Base
         );
         $results['after']['qem_map_quiz'] = (int) $wpdb->get_var(
             "SELECT COUNT(*) FROM {$wpdb->options} 
-             WHERE option_name LIKE 'qem_map_quiz_%'"
+             WHERE option_name LIKE 'qem_map_%'"
         );
         $results['after']['autoload_size_mb'] = (float) $wpdb->get_var(
             "SELECT ROUND(SUM(LENGTH(option_value)) / 1024 / 1024, 2) 

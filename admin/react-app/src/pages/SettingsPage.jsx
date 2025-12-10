@@ -1165,7 +1165,7 @@ const SettingsPage = () => {
                     </p>
                     <ul className="text-sm text-gray-600 mb-4 ml-4 list-disc space-y-1">
                       <li>Transients de rate limiting expirados</li>
-                      <li>Opciones legadas <code className="bg-gray-200 px-1 rounded">qem_map_quiz_*</code></li>
+                      <li>Opciones legadas <code className="bg-gray-200 px-1 rounded">qem_map_*</code> (quiz, lesson, course)</li>
                       <li>Logs de debug antiguos</li>
                       <li>Transients de seguridad expirados</li>
                     </ul>
@@ -1266,8 +1266,8 @@ const SettingsPage = () => {
                           <Trash2 className="w-5 h-5 text-amber-600" />
                           <span className="font-medium text-gray-700">Opciones Legadas</span>
                         </div>
-                        <p className="text-2xl font-bold text-gray-900">{cleanupStats.qem_map_quiz_options || 0}</p>
-                        <p className="text-xs text-gray-500">qem_map_quiz_*</p>
+                        <p className="text-2xl font-bold text-gray-900">{cleanupStats.qem_map_options || cleanupStats.qem_map_quiz_options || 0}</p>
+                        <p className="text-xs text-gray-500">qem_map_*</p>
                       </div>
                       <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                         <div className="flex items-center gap-2 mb-2">
@@ -1289,7 +1289,7 @@ const SettingsPage = () => {
                   </div>
 
                   {/* Recommendation */}
-                  {(cleanupStats.qe_transients > 100 || cleanupStats.qem_map_quiz_options > 0) ? (
+                  {(cleanupStats.qe_transients > 100 || (cleanupStats.qem_map_options || cleanupStats.qem_map_quiz_options) > 0) ? (
                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                       <div className="flex items-start gap-3">
                         <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
@@ -1382,7 +1382,7 @@ const SettingsPage = () => {
                             </td>
                           </tr>
                           <tr>
-                            <td className="px-4 py-3 text-sm text-gray-900">Opciones qem_map_quiz_*</td>
+                            <td className="px-4 py-3 text-sm text-gray-900">Opciones qem_map_*</td>
                             <td className="px-4 py-3 text-sm text-center text-gray-600">{cleanupResults.before?.qem_map_quiz || 0}</td>
                             <td className="px-4 py-3 text-sm text-center text-gray-600">{cleanupResults.after?.qem_map_quiz || 0}</td>
                             <td className="px-4 py-3 text-sm text-center font-medium text-green-600">
