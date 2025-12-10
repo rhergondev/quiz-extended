@@ -46,7 +46,18 @@ const makeApiRequest = async (url, options = {}) => {
     throw new Error(error.message || 'Request failed');
   }
 
-  return response.json();
+  // Handle empty responses
+  const text = await response.text();
+  if (!text || text.trim() === '') {
+    return { success: true, data: {} };
+  }
+  
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.error('JSON parse error. Response was:', text.substring(0, 500));
+    throw new Error('Invalid JSON response from server');
+  }
 };
 
 /**

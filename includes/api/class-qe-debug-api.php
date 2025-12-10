@@ -645,66 +645,79 @@ class QE_Debug_API extends QE_API_Base
     {
         global $wpdb;
 
-        $stats = [];
+        try {
+            $stats = [];
 
-        // QE transients
-        $stats['qe_transients'] = (int) $wpdb->get_var(
-            "SELECT COUNT(*) FROM {$wpdb->options} 
-             WHERE option_name LIKE '_transient_qe_%' 
-             OR option_name LIKE '_transient_timeout_qe_%'"
-        );
+            // QE transients
+            $stats['qe_transients'] = (int) $wpdb->get_var(
+                "SELECT COUNT(*) FROM {$wpdb->options} 
+                 WHERE option_name LIKE '_transient_qe_%' 
+                 OR option_name LIKE '_transient_timeout_qe_%'"
+            );
 
-        // Rate limit transients
-        $stats['rate_limit_transients'] = (int) $wpdb->get_var(
-            "SELECT COUNT(*) FROM {$wpdb->options} 
-             WHERE option_name LIKE '_transient_qe_rate_limit_%' 
-             OR option_name LIKE '_transient_timeout_qe_rate_limit_%'"
-        );
+            // Rate limit transients
+            $stats['rate_limit_transients'] = (int) $wpdb->get_var(
+                "SELECT COUNT(*) FROM {$wpdb->options} 
+                 WHERE option_name LIKE '_transient_qe_rate_limit_%' 
+                 OR option_name LIKE '_transient_timeout_qe_rate_limit_%'"
+            );
 
-        // Login transients
-        $stats['login_transients'] = (int) $wpdb->get_var(
-            "SELECT COUNT(*) FROM {$wpdb->options} 
-             WHERE option_name LIKE '_transient_qe_login_%' 
-             OR option_name LIKE '_transient_timeout_qe_login_%'"
-        );
+            // Login transients
+            $stats['login_transients'] = (int) $wpdb->get_var(
+                "SELECT COUNT(*) FROM {$wpdb->options} 
+                 WHERE option_name LIKE '_transient_qe_login_%' 
+                 OR option_name LIKE '_transient_timeout_qe_login_%'"
+            );
 
-        // qem_map_quiz_ legacy options
-        $stats['qem_map_quiz_options'] = (int) $wpdb->get_var(
-            "SELECT COUNT(*) FROM {$wpdb->options} 
-             WHERE option_name LIKE 'qem_map_quiz_%'"
-        );
+            // qem_map_quiz_ legacy options
+            $stats['qem_map_quiz_options'] = (int) $wpdb->get_var(
+                "SELECT COUNT(*) FROM {$wpdb->options} 
+                 WHERE option_name LIKE 'qem_map_quiz_%'"
+            );
 
-        // Options with autoload='yes'
-        $stats['qe_autoload_yes'] = (int) $wpdb->get_var(
-            "SELECT COUNT(*) FROM {$wpdb->options} 
-             WHERE autoload = 'yes' 
-             AND (option_name LIKE '_transient_qe_%' 
-                  OR option_name LIKE '_transient_timeout_qe_%'
-                  OR option_name LIKE 'qem_map_quiz_%')"
-        );
+            // Options with autoload='yes'
+            $stats['qe_autoload_yes'] = (int) $wpdb->get_var(
+                "SELECT COUNT(*) FROM {$wpdb->options} 
+                 WHERE autoload = 'yes' 
+                 AND (option_name LIKE '_transient_qe_%' 
+                      OR option_name LIKE '_transient_timeout_qe_%'
+                      OR option_name LIKE 'qem_map_quiz_%')"
+            );
 
-        // Total autoload size
-        $stats['total_autoload_size_mb'] = (float) $wpdb->get_var(
-            "SELECT ROUND(SUM(LENGTH(option_value)) / 1024 / 1024, 2) 
-             FROM {$wpdb->options} 
-             WHERE autoload = 'yes'"
-        );
+            // Total autoload size
+            $autoload_size = $wpdb->get_var(
+                "SELECT ROUND(SUM(LENGTH(option_value)) / 1024 / 1024, 2) 
+                 FROM {$wpdb->options} 
+                 WHERE autoload = 'yes'"
+            );
+            $stats['total_autoload_size_mb'] = $autoload_size ? (float) $autoload_size : 0;
 
-        // Size of problematic options
-        $stats['problematic_options_size_mb'] = (float) $wpdb->get_var(
-            "SELECT ROUND(SUM(LENGTH(option_value)) / 1024 / 1024, 2) 
-             FROM {$wpdb->options} 
-             WHERE option_name LIKE '_transient_qe_%' 
-             OR option_name LIKE 'qem_map_quiz_%'"
-        );
+            // Size of problematic options  
+            $problematic_size = $wpdb->get_var(
+                "SELECT ROUND(SUM(LENGTH(option_value)) / 1024 / 1024, 2) 
+                 FROM {$wpdb->options} 
+                 WHERE option_name LIKE '_transient_qe_%' 
+                 OR option_name LIKE 'qem_map_quiz_%'"
+            );
+            $stats['problematic_options_size_mb'] = $problematic_size ? (float) $problematic_size : 0;
 
-        return new WP_REST_Response([
-            'success' => true,
-            'data' => $stats,
-            'recommendation' => $stats['qe_transients'] > 100 || $stats['qem_map_quiz_options'] > 0
-                ? 'Se recomienda ejecutar limpieza POST /debug/cleanup-autoload'
-                : 'Todo OK, no se requiere limpieza'
-        ], 200);
+            // Alias for frontend compatibility
+            $stats['autoload_size_mb'] = $stats['total_autoload_size_mb'];
+
+            return new WP_REST_Response([
+                'success' => true,
+                'data' => $stats,
+                'recommendation' => $stats['qe_transients'] > 100 || $stats['qem_map_quiz_options'] > 0
+                    ? 'Se recomienda ejecutar limpieza POST /debug/cleanup-autoload'
+                    : 'Todo OK, no se requiere limpieza'
+            ], 200);
+        } catch (Exception $e) {
+            return new WP_REST_Response([
+                'success' => false,
+                'message' => 'Error al obtener estadísticas: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
     }
 
     /**
