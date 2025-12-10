@@ -74,6 +74,13 @@ $login_transients = $wpdb->get_var(
 );
 echo "- Transients de login: {$login_transients}\n";
 
+// Buscar opciones qem_map_quiz_ (residuales de versiones anteriores)
+$qem_map_options = $wpdb->get_var(
+    "SELECT COUNT(*) FROM {$wpdb->options} 
+     WHERE option_name LIKE 'qem_map_quiz_%'"
+);
+echo "- Opciones qem_map_quiz_ (legacy): {$qem_map_options}\n";
+
 $autoload_yes = $wpdb->get_var(
     "SELECT COUNT(*) FROM {$wpdb->options} 
      WHERE autoload = 'yes' 
@@ -89,10 +96,17 @@ $autoload_size = $wpdb->get_var(
 );
 echo "- Tamaño total autoload: {$autoload_size} MB\n\n";
 
-// 2. Eliminar transients de rate limiting (el mayor problema)
+// 2. Eliminar opciones qem_map_quiz_ (LEGACY - ya no se usan)
 echo "🧹 LIMPIEZA EN PROCESO:\n";
 echo "------------------------\n";
 
+$deleted_qem_map = $wpdb->query(
+    "DELETE FROM {$wpdb->options} 
+     WHERE option_name LIKE 'qem_map_quiz_%'"
+);
+echo "✅ Eliminadas opciones qem_map_quiz_ (legacy): {$deleted_qem_map}\n";
+
+// 3. Eliminar transients de rate limiting (el mayor problema)
 $deleted_rate_limits = $wpdb->query(
     "DELETE FROM {$wpdb->options} 
      WHERE option_name LIKE '_transient_qe_rate_limit_%' 
@@ -127,7 +141,14 @@ $deleted_expired = $wpdb->query($wpdb->prepare(
 ));
 echo "✅ Eliminados transients expirados: " . max(0, $deleted_expired) . "\n";
 
-// 6. Actualizar autoload a 'no' para opciones de QE que no son críticas
+// 6. Limpiar debug logs (reducir a últimos 20 registros)
+$debug_log = get_option('qe_notification_debug_log', []);
+if (count($debug_log) > 20) {
+    update_option('qe_notification_debug_log', array_slice($debug_log, -20), false);
+    echo "✅ Debug log reducido a 20 entradas\n";
+}
+
+// 7. Actualizar autoload a 'no' para opciones de QE que no son críticas
 $updated_autoload = $wpdb->query(
     "UPDATE {$wpdb->options} 
      SET autoload = 'no' 
@@ -141,7 +162,7 @@ $updated_autoload = $wpdb->query(
 );
 echo "✅ Opciones actualizadas a autoload='no': {$updated_autoload}\n\n";
 
-// 7. Verificación final
+// 8. Verificación final
 echo "📊 VERIFICACIÓN FINAL:\n";
 echo "----------------------\n";
 

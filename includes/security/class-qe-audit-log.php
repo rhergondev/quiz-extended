@@ -411,6 +411,8 @@ class QE_Audit_Log
 
     /**
      * Log user meta changes (for enrollment tracking)
+     * OPTIMIZED: Only log enrollment changes, not progress updates
+     * Progress updates are too frequent and would bloat the audit log
      *
      * @param int $meta_id Meta ID
      * @param int $user_id User ID
@@ -419,11 +421,14 @@ class QE_Audit_Log
      */
     public function log_user_meta_change($meta_id, $user_id, $meta_key, $meta_value)
     {
-        // Only log course-related meta
-        if (
-            strpos($meta_key, '_enrolled_course_') !== 0 &&
-            strpos($meta_key, '_course_') !== 0
-        ) {
+        // ONLY log enrollment changes (not progress or activity updates)
+        // This prevents audit log bloat from frequent progress updates
+        if (strpos($meta_key, '_enrolled_course_') !== 0) {
+            return;
+        }
+
+        // Skip date and order_id meta (only log main enrollment)
+        if (strpos($meta_key, '_date') !== false || strpos($meta_key, '_order_id') !== false) {
             return;
         }
 

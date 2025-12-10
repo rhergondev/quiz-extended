@@ -64,20 +64,43 @@ class QE_Notification_Hooks
 
     /**
      * Log debug message to WordPress option (visible via API)
+     * Only logs when WP_DEBUG is enabled to prevent unnecessary DB writes
      */
     private function debug_log($message, $data = [])
     {
-        $logs = get_option('qe_notification_debug_log', []);
-        $logs[] = [
+        // Only log in debug mode to prevent excessive DB writes
+        if (!defined('WP_DEBUG') || !WP_DEBUG) {
+            return;
+        }
+
+        // Use static variable to batch writes (only write once per request)
+        static $pending_logs = null;
+        static $registered_shutdown = false;
+
+        if ($pending_logs === null) {
+            $pending_logs = get_option('qe_notification_debug_log', []);
+        }
+
+        $pending_logs[] = [
             'time' => current_time('mysql'),
             'message' => $message,
             'data' => $data
         ];
-        // Keep only last 100 entries
-        if (count($logs) > 100) {
-            $logs = array_slice($logs, -100);
+
+        // Keep only last 50 entries (reduced from 100)
+        if (count($pending_logs) > 50) {
+            $pending_logs = array_slice($pending_logs, -50);
         }
-        update_option('qe_notification_debug_log', $logs);
+
+        // Register shutdown handler to write once per request
+        if (!$registered_shutdown) {
+            $registered_shutdown = true;
+            register_shutdown_function(function () use (&$pending_logs) {
+                if (!empty($pending_logs)) {
+                    update_option('qe_notification_debug_log', $pending_logs, false); // autoload = false
+                }
+            });
+        }
     }
 
     /**

@@ -370,14 +370,12 @@ class QE_Messages_API extends QE_API_Base
             ]);
 
             if ($send_to_all) {
-                // Get ALL users
-                $all_users = get_users([
-                    'fields' => 'ID',
-                    'number' => -1  // No limit
-                ]);
+                // Get ALL user IDs directly from database (more efficient than get_users)
+                global $wpdb;
+                $all_users = $wpdb->get_col("SELECT ID FROM {$wpdb->users}");
 
                 // *** FIX STARTS HERE ***
-                $recipient_ids = $all_users;
+                $recipient_ids = array_map('absint', $all_users);
                 // *** FIX ENDS HERE ***
 
                 $this->log_info('Fetched all users', [
