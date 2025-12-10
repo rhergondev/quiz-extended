@@ -22,7 +22,7 @@ if (!defined('ABSPATH')) {
         dirname(__FILE__) . '/../../../wp-load.php',
         dirname(__FILE__) . '/../../wp-load.php',
     ];
-    
+
     $wp_loaded = false;
     foreach ($wp_load_paths as $path) {
         if (file_exists($path)) {
@@ -31,7 +31,7 @@ if (!defined('ABSPATH')) {
             break;
         }
     }
-    
+
     if (!$wp_loaded) {
         die('WordPress not found. Run this script via WP-CLI.');
     }

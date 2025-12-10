@@ -513,16 +513,16 @@ class QE_Security
     private function get_transient_no_autoload($key)
     {
         global $wpdb;
-        
+
         $timeout_key = '_transient_timeout_' . $key;
         $transient_key = '_transient_' . $key;
-        
+
         // Check expiration
         $timeout = $wpdb->get_var($wpdb->prepare(
             "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
             $timeout_key
         ));
-        
+
         if ($timeout && $timeout < time()) {
             // Expired - delete
             $wpdb->query($wpdb->prepare(
@@ -532,12 +532,12 @@ class QE_Security
             ));
             return false;
         }
-        
+
         $value = $wpdb->get_var($wpdb->prepare(
             "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
             $transient_key
         ));
-        
+
         return $value !== null ? maybe_unserialize($value) : false;
     }
 
@@ -553,32 +553,32 @@ class QE_Security
     private function set_transient_no_autoload($key, $value, $expiration)
     {
         global $wpdb;
-        
+
         $timeout_key = '_transient_timeout_' . $key;
         $transient_key = '_transient_' . $key;
         $timeout_value = time() + $expiration;
         $serialized = maybe_serialize($value);
-        
+
         // Delete existing first
         $wpdb->query($wpdb->prepare(
             "DELETE FROM {$wpdb->options} WHERE option_name IN (%s, %s)",
             $timeout_key,
             $transient_key
         ));
-        
+
         // Insert with autoload = 'no'
         $wpdb->insert($wpdb->options, [
             'option_name' => $timeout_key,
             'option_value' => $timeout_value,
             'autoload' => 'no'
         ]);
-        
+
         $wpdb->insert($wpdb->options, [
             'option_name' => $transient_key,
             'option_value' => $serialized,
             'autoload' => 'no'
         ]);
-        
+
         return true;
     }
 
@@ -631,7 +631,7 @@ class QE_Security
     public function clear_login_attempts($username, $user)
     {
         global $wpdb;
-        
+
         $ip = $this->get_client_ip();
         $attempts_key = 'qe_login_attempts_' . md5($ip);
         $lockout_key = 'qe_login_lockout_' . md5($ip);

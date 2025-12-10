@@ -74,7 +74,7 @@ final class QE_Loader
 
         // Verificar y asignar permisos si es necesario
         add_action('init', [$this, 'ensure_capabilities'], 999);
-        
+
         // Schedule transient cleanup (more frequent than default daily)
         $this->schedule_transient_cleanup();
     }
@@ -88,7 +88,7 @@ final class QE_Loader
     private function schedule_transient_cleanup()
     {
         // Register custom cron interval
-        add_filter('cron_schedules', function($schedules) {
+        add_filter('cron_schedules', function ($schedules) {
             $schedules['every_six_hours'] = [
                 'interval' => 6 * HOUR_IN_SECONDS,
                 'display' => __('Every 6 Hours', 'quiz-extended')
@@ -114,7 +114,7 @@ final class QE_Loader
     public function cleanup_expired_transients()
     {
         global $wpdb;
-        
+
         $current_time = time();
 
         // Clean expired rate limit transients

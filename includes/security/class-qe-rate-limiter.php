@@ -249,11 +249,11 @@ class QE_Rate_Limiter
                 // Increment count
                 $data['count']++;
             }
-            
+
             // Store in memory cache
             $this->memory_cache[$key] = $data;
         }
-        
+
         // Save to database without autoload (deferred to end of request)
         $this->save_rate_limit_data($key, $data, $config['window']);
 
@@ -280,16 +280,16 @@ class QE_Rate_Limiter
     private function get_rate_limit_data($key)
     {
         global $wpdb;
-        
+
         $timeout_key = '_transient_timeout_' . $key;
         $transient_key = '_transient_' . $key;
-        
+
         // Check expiration
         $timeout = $wpdb->get_var($wpdb->prepare(
             "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
             $timeout_key
         ));
-        
+
         if ($timeout && $timeout < time()) {
             // Expired - delete and return false
             $wpdb->query($wpdb->prepare(
@@ -299,17 +299,17 @@ class QE_Rate_Limiter
             ));
             return false;
         }
-        
+
         // Get value
         $value = $wpdb->get_var($wpdb->prepare(
             "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
             $transient_key
         ));
-        
+
         if ($value === null) {
             return false;
         }
-        
+
         return maybe_unserialize($value);
     }
 
@@ -323,12 +323,12 @@ class QE_Rate_Limiter
     private function save_rate_limit_data($key, $data, $expiration)
     {
         global $wpdb;
-        
+
         $timeout_key = '_transient_timeout_' . $key;
         $transient_key = '_transient_' . $key;
         $timeout_value = time() + $expiration;
         $serialized = maybe_serialize($data);
-        
+
         // Use INSERT ... ON DUPLICATE KEY UPDATE for efficiency
         // IMPORTANT: autoload = 'no' to prevent RAM issues
         $wpdb->query($wpdb->prepare(
@@ -523,7 +523,7 @@ class QE_Rate_Limiter
     public function cleanup_old_data()
     {
         global $wpdb;
-        
+
         $current_time = time();
 
         // Delete ONLY expired transients (where timeout has passed)
@@ -713,7 +713,7 @@ class QE_Rate_Limiter
         if ($violations === false) {
             $violations = 1;
         } else {
-            $violations = is_array($violations) ? ($violations['count'] ?? 1) : (int)$violations;
+            $violations = is_array($violations) ? ($violations['count'] ?? 1) : (int) $violations;
             $violations++;
         }
 
