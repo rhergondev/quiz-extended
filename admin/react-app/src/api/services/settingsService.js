@@ -241,6 +241,48 @@ const settingsService = {
       console.error('Error sending test email:', error);
       throw error;
     }
+  },
+
+  // ============================================================
+  // DATABASE CLEANUP
+  // ============================================================
+
+  /**
+   * Get autoload status (admin only)
+   */
+  getAutoloadStatus: async () => {
+    const config = getWpConfig();
+    const url = `${config.api_url}/quiz-extended/v1/debug/autoload-status`;
+    
+    try {
+      const response = await makeApiRequest(url, {
+        method: 'GET'
+      });
+      
+      return response;
+    } catch (error) {
+      console.error('Error fetching autoload status:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Cleanup autoload options (admin only)
+   */
+  cleanupAutoloadOptions: async () => {
+    const config = getWpConfig();
+    const url = `${config.api_url}/quiz-extended/v1/debug/cleanup-autoload`;
+    
+    try {
+      const response = await makeApiRequest(url, {
+        method: 'POST'
+      });
+      
+      return response;
+    } catch (error) {
+      console.error('Error cleaning up autoload options:', error);
+      throw error;
+    }
   }
 };
 

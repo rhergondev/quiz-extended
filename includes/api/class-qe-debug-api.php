@@ -101,6 +101,20 @@ class QE_Debug_API extends QE_API_Base
             'callback' => [$this, 'get_question_stats_debug'],
             'permission_callback' => [$this, 'permissions_check']
         ]);
+
+        // 🧹 Endpoint para limpieza de opciones autoload
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/cleanup-autoload', [
+            'methods' => 'POST',
+            'callback' => [$this, 'cleanup_autoload_options'],
+            'permission_callback' => [$this, 'permissions_check']
+        ]);
+
+        // 📊 Endpoint para ver estado de opciones autoload
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/autoload-status', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_autoload_status'],
+            'permission_callback' => [$this, 'permissions_check']
+        ]);
     }
 
     /**
@@ -619,6 +633,193 @@ class QE_Debug_API extends QE_API_Base
         return new WP_REST_Response([
             'success' => true,
             'data' => $debug_data
+        ], 200);
+    }
+
+    /**
+     * Get autoload options status
+     * 
+     * GET /wp-json/quiz-extended/v1/debug/autoload-status
+     */
+    public function get_autoload_status($request)
+    {
+        global $wpdb;
+
+        $stats = [];
+
+        // QE transients
+        $stats['qe_transients'] = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->options} 
+             WHERE option_name LIKE '_transient_qe_%' 
+             OR option_name LIKE '_transient_timeout_qe_%'"
+        );
+
+        // Rate limit transients
+        $stats['rate_limit_transients'] = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->options} 
+             WHERE option_name LIKE '_transient_qe_rate_limit_%' 
+             OR option_name LIKE '_transient_timeout_qe_rate_limit_%'"
+        );
+
+        // Login transients
+        $stats['login_transients'] = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->options} 
+             WHERE option_name LIKE '_transient_qe_login_%' 
+             OR option_name LIKE '_transient_timeout_qe_login_%'"
+        );
+
+        // qem_map_quiz_ legacy options
+        $stats['qem_map_quiz_options'] = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->options} 
+             WHERE option_name LIKE 'qem_map_quiz_%'"
+        );
+
+        // Options with autoload='yes'
+        $stats['qe_autoload_yes'] = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->options} 
+             WHERE autoload = 'yes' 
+             AND (option_name LIKE '_transient_qe_%' 
+                  OR option_name LIKE '_transient_timeout_qe_%'
+                  OR option_name LIKE 'qem_map_quiz_%')"
+        );
+
+        // Total autoload size
+        $stats['total_autoload_size_mb'] = (float) $wpdb->get_var(
+            "SELECT ROUND(SUM(LENGTH(option_value)) / 1024 / 1024, 2) 
+             FROM {$wpdb->options} 
+             WHERE autoload = 'yes'"
+        );
+
+        // Size of problematic options
+        $stats['problematic_options_size_mb'] = (float) $wpdb->get_var(
+            "SELECT ROUND(SUM(LENGTH(option_value)) / 1024 / 1024, 2) 
+             FROM {$wpdb->options} 
+             WHERE option_name LIKE '_transient_qe_%' 
+             OR option_name LIKE 'qem_map_quiz_%'"
+        );
+
+        return new WP_REST_Response([
+            'success' => true,
+            'data' => $stats,
+            'recommendation' => $stats['qe_transients'] > 100 || $stats['qem_map_quiz_options'] > 0
+                ? 'Se recomienda ejecutar limpieza POST /debug/cleanup-autoload'
+                : 'Todo OK, no se requiere limpieza'
+        ], 200);
+    }
+
+    /**
+     * Cleanup autoload options
+     * 
+     * POST /wp-json/quiz-extended/v1/debug/cleanup-autoload
+     */
+    public function cleanup_autoload_options($request)
+    {
+        global $wpdb;
+
+        $results = [
+            'before' => [],
+            'deleted' => [],
+            'after' => []
+        ];
+
+        // BEFORE stats
+        $results['before']['qe_transients'] = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->options} 
+             WHERE option_name LIKE '_transient_qe_%' 
+             OR option_name LIKE '_transient_timeout_qe_%'"
+        );
+        $results['before']['qem_map_quiz'] = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->options} 
+             WHERE option_name LIKE 'qem_map_quiz_%'"
+        );
+        $results['before']['autoload_size_mb'] = (float) $wpdb->get_var(
+            "SELECT ROUND(SUM(LENGTH(option_value)) / 1024 / 1024, 2) 
+             FROM {$wpdb->options} WHERE autoload = 'yes'"
+        );
+
+        // 1. Delete qem_map_quiz_ legacy options
+        $results['deleted']['qem_map_quiz'] = (int) $wpdb->query(
+            "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'qem_map_quiz_%'"
+        );
+
+        // 2. Delete rate limit transients
+        $results['deleted']['rate_limit_transients'] = (int) $wpdb->query(
+            "DELETE FROM {$wpdb->options} 
+             WHERE option_name LIKE '_transient_qe_rate_limit_%' 
+             OR option_name LIKE '_transient_timeout_qe_rate_limit_%'"
+        );
+
+        // 3. Delete violations transients
+        $results['deleted']['violations_transients'] = (int) $wpdb->query(
+            "DELETE FROM {$wpdb->options} 
+             WHERE option_name LIKE '_transient_qe_rate_limit_violations_%' 
+             OR option_name LIKE '_transient_timeout_qe_rate_limit_violations_%'"
+        );
+
+        // 4. Delete login transients
+        $results['deleted']['login_transients'] = (int) $wpdb->query(
+            "DELETE FROM {$wpdb->options} 
+             WHERE option_name LIKE '_transient_qe_login_%' 
+             OR option_name LIKE '_transient_timeout_qe_login_%'"
+        );
+
+        // 5. Delete expired QE transients
+        $current_time = time();
+        $results['deleted']['expired_transients'] = (int) $wpdb->query($wpdb->prepare(
+            "DELETE a, b FROM {$wpdb->options} a
+             LEFT JOIN {$wpdb->options} b 
+             ON b.option_name = REPLACE(a.option_name, '_transient_timeout_', '_transient_')
+             WHERE a.option_name LIKE '_transient_timeout_qe_%%'
+             AND CAST(a.option_value AS UNSIGNED) < %d",
+            $current_time
+        ));
+
+        // 6. Update remaining QE options to autoload='no'
+        $results['deleted']['updated_autoload'] = (int) $wpdb->query(
+            "UPDATE {$wpdb->options} 
+             SET autoload = 'no' 
+             WHERE autoload = 'yes' 
+             AND (option_name LIKE '_transient_qe_%' 
+                  OR option_name LIKE '_transient_timeout_qe_%'
+                  OR option_name LIKE 'qe_rate_limit%'
+                  OR option_name LIKE 'qe_notification_debug%')"
+        );
+
+        // 7. Clean notification debug log
+        $debug_log = get_option('qe_notification_debug_log', []);
+        if (count($debug_log) > 20) {
+            update_option('qe_notification_debug_log', array_slice($debug_log, -20), false);
+            $results['deleted']['debug_log_trimmed'] = true;
+        }
+
+        // AFTER stats
+        $results['after']['qe_transients'] = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->options} 
+             WHERE option_name LIKE '_transient_qe_%' 
+             OR option_name LIKE '_transient_timeout_qe_%'"
+        );
+        $results['after']['qem_map_quiz'] = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->options} 
+             WHERE option_name LIKE 'qem_map_quiz_%'"
+        );
+        $results['after']['autoload_size_mb'] = (float) $wpdb->get_var(
+            "SELECT ROUND(SUM(LENGTH(option_value)) / 1024 / 1024, 2) 
+             FROM {$wpdb->options} WHERE autoload = 'yes'"
+        );
+
+        // Calculate savings
+        $results['ram_freed_mb'] = round(
+            $results['before']['autoload_size_mb'] - $results['after']['autoload_size_mb'],
+            2
+        );
+
+        // Flush cache
+        wp_cache_flush();
+
+        return new WP_REST_Response([
+            'success' => true,
+            'message' => 'Limpieza completada exitosamente',
+            'data' => $results
         ], 200);
     }
 }
