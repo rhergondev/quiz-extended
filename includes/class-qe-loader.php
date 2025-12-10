@@ -74,6 +74,84 @@ final class QE_Loader
 
         // Verificar y asignar permisos si es necesario
         add_action('init', [$this, 'ensure_capabilities'], 999);
+        
+        // Schedule transient cleanup (more frequent than default daily)
+        $this->schedule_transient_cleanup();
+    }
+
+    /**
+     * Schedule transient cleanup every 6 hours
+     * Prevents database bloat from rate limiting transients
+     *
+     * @since 2.0.0
+     */
+    private function schedule_transient_cleanup()
+    {
+        // Register custom cron interval
+        add_filter('cron_schedules', function($schedules) {
+            $schedules['every_six_hours'] = [
+                'interval' => 6 * HOUR_IN_SECONDS,
+                'display' => __('Every 6 Hours', 'quiz-extended')
+            ];
+            return $schedules;
+        });
+
+        // Schedule cleanup if not already scheduled
+        if (!wp_next_scheduled('qe_cleanup_expired_transients')) {
+            wp_schedule_event(time(), 'every_six_hours', 'qe_cleanup_expired_transients');
+        }
+
+        // Hook the cleanup function
+        add_action('qe_cleanup_expired_transients', [$this, 'cleanup_expired_transients']);
+    }
+
+    /**
+     * Clean up expired QE transients from the database
+     * Only removes expired transients, preserving active ones
+     *
+     * @since 2.0.0
+     */
+    public function cleanup_expired_transients()
+    {
+        global $wpdb;
+        
+        $current_time = time();
+
+        // Clean expired rate limit transients
+        $deleted_rate_limits = $wpdb->query($wpdb->prepare(
+            "DELETE a, b FROM {$wpdb->options} a
+             LEFT JOIN {$wpdb->options} b 
+             ON b.option_name = REPLACE(a.option_name, '_transient_timeout_', '_transient_')
+             WHERE a.option_name LIKE '_transient_timeout_qe_rate_limit%%'
+             AND CAST(a.option_value AS UNSIGNED) < %d",
+            $current_time
+        ));
+
+        // Clean expired login transients
+        $deleted_login = $wpdb->query($wpdb->prepare(
+            "DELETE a, b FROM {$wpdb->options} a
+             LEFT JOIN {$wpdb->options} b 
+             ON b.option_name = REPLACE(a.option_name, '_transient_timeout_', '_transient_')
+             WHERE a.option_name LIKE '_transient_timeout_qe_login%%'
+             AND CAST(a.option_value AS UNSIGNED) < %d",
+            $current_time
+        ));
+
+        // Update autoload to 'no' for any QE transients that somehow got autoload='yes'
+        $wpdb->query(
+            "UPDATE {$wpdb->options} 
+             SET autoload = 'no' 
+             WHERE autoload = 'yes' 
+             AND (option_name LIKE '_transient_qe_%' OR option_name LIKE '_transient_timeout_qe_%')"
+        );
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log(sprintf(
+                '[Quiz Extended] Transient cleanup: deleted %d rate limit, %d login transients',
+                max(0, $deleted_rate_limits),
+                max(0, $deleted_login)
+            ));
+        }
     }
 
     /**

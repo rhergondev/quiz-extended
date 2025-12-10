@@ -20,13 +20,20 @@ class QE_Rate_Limiter
 {
     /**
      * The single instance of the class
-     * * @var QE_Rate_Limiter
+     * @var QE_Rate_Limiter
      */
     private static $instance = null;
 
     /**
+     * In-memory cache for rate limit data
+     * Reduces database queries during single request
+     * @var array
+     */
+    private $memory_cache = [];
+
+    /**
      * Rate limit rules
-     * * @var array
+     * @var array
      */
     private $limits = [
         // 🔥 CORRECCIÓN: Aumentado significativamente para desarrollo y carga inicial de dashboard
@@ -202,6 +209,7 @@ class QE_Rate_Limiter
 
     /**
      * Check if rate limit is exceeded
+     * Uses memory cache first, then database with NO autoload
      *
      * @param string $limit_type Type of rate limit
      * @param string $identifier Unique identifier (IP or user ID)
@@ -221,29 +229,33 @@ class QE_Rate_Limiter
         $config = $this->limits[$limit_type];
         $key = $this->get_rate_limit_key($limit_type, $identifier);
 
-        // Get current count
-        $data = get_transient($key);
+        // Check memory cache first (for multiple checks in same request)
+        if (isset($this->memory_cache[$key])) {
+            $data = $this->memory_cache[$key];
+            // Just increment in memory, don't save yet
+            $data['count']++;
+            $this->memory_cache[$key] = $data;
+        } else {
+            // Get from database using custom function (no autoload)
+            $data = $this->get_rate_limit_data($key);
 
-        if ($data === false) {
-            // First request in this window
-            $data = [
-                'count' => 1,
-                'reset_time' => time() + $config['window']
-            ];
-            set_transient($key, $data, $config['window']);
-
-            return [
-                'exceeded' => false,
-                'remaining' => $config['limit'] - 1,
-                'limit' => $config['limit'],
-                'reset_time' => $data['reset_time'],
-                'retry_after' => 0
-            ];
+            if ($data === false) {
+                // First request in this window
+                $data = [
+                    'count' => 1,
+                    'reset_time' => time() + $config['window']
+                ];
+            } else {
+                // Increment count
+                $data['count']++;
+            }
+            
+            // Store in memory cache
+            $this->memory_cache[$key] = $data;
         }
-
-        // Increment count
-        $data['count']++;
-        set_transient($key, $data, $config['window']);
+        
+        // Save to database without autoload (deferred to end of request)
+        $this->save_rate_limit_data($key, $data, $config['window']);
 
         $exceeded = $data['count'] > $config['limit'];
         $remaining = max(0, $config['limit'] - $data['count']);
@@ -256,6 +268,78 @@ class QE_Rate_Limiter
             'reset_time' => $data['reset_time'],
             'retry_after' => max(0, $retry_after)
         ];
+    }
+
+    /**
+     * Get rate limit data from database WITHOUT using transients
+     * This avoids the autoload problem
+     *
+     * @param string $key Rate limit key
+     * @return array|false Data or false if not found/expired
+     */
+    private function get_rate_limit_data($key)
+    {
+        global $wpdb;
+        
+        $timeout_key = '_transient_timeout_' . $key;
+        $transient_key = '_transient_' . $key;
+        
+        // Check expiration
+        $timeout = $wpdb->get_var($wpdb->prepare(
+            "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
+            $timeout_key
+        ));
+        
+        if ($timeout && $timeout < time()) {
+            // Expired - delete and return false
+            $wpdb->query($wpdb->prepare(
+                "DELETE FROM {$wpdb->options} WHERE option_name IN (%s, %s)",
+                $timeout_key,
+                $transient_key
+            ));
+            return false;
+        }
+        
+        // Get value
+        $value = $wpdb->get_var($wpdb->prepare(
+            "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
+            $transient_key
+        ));
+        
+        if ($value === null) {
+            return false;
+        }
+        
+        return maybe_unserialize($value);
+    }
+
+    /**
+     * Save rate limit data WITHOUT autoload
+     *
+     * @param string $key Rate limit key
+     * @param array $data Data to save
+     * @param int $expiration Expiration in seconds
+     */
+    private function save_rate_limit_data($key, $data, $expiration)
+    {
+        global $wpdb;
+        
+        $timeout_key = '_transient_timeout_' . $key;
+        $transient_key = '_transient_' . $key;
+        $timeout_value = time() + $expiration;
+        $serialized = maybe_serialize($data);
+        
+        // Use INSERT ... ON DUPLICATE KEY UPDATE for efficiency
+        // IMPORTANT: autoload = 'no' to prevent RAM issues
+        $wpdb->query($wpdb->prepare(
+            "INSERT INTO {$wpdb->options} (option_name, option_value, autoload) 
+             VALUES (%s, %s, 'no'), (%s, %s, 'no')
+             ON DUPLICATE KEY UPDATE option_value = VALUES(option_value)",
+            $timeout_key,
+            $timeout_value,
+            $transient_key,
+            $serialized
+        ));
     }
 
     /**
@@ -434,19 +518,50 @@ class QE_Rate_Limiter
 
     /**
      * Clean up old rate limit data
+     * Only removes EXPIRED transients to prevent data loss
      */
     public function cleanup_old_data()
     {
         global $wpdb;
+        
+        $current_time = time();
 
-        // Delete expired transients
+        // Delete ONLY expired transients (where timeout has passed)
+        // This is more efficient and doesn't delete active rate limits
+        $deleted = $wpdb->query($wpdb->prepare(
+            "DELETE a, b FROM {$wpdb->options} a
+             INNER JOIN {$wpdb->options} b 
+             ON b.option_name = REPLACE(a.option_name, '_transient_timeout_', '_transient_')
+             WHERE a.option_name LIKE '_transient_timeout_qe_rate_limit%%'
+             AND CAST(a.option_value AS UNSIGNED) < %d",
+            $current_time
+        ));
+
+        // Also clean up violations transients
+        $deleted_violations = $wpdb->query($wpdb->prepare(
+            "DELETE a, b FROM {$wpdb->options} a
+             INNER JOIN {$wpdb->options} b 
+             ON b.option_name = REPLACE(a.option_name, '_transient_timeout_', '_transient_')
+             WHERE a.option_name LIKE '_transient_timeout_qe_rate_limit_violations%%'
+             AND CAST(a.option_value AS UNSIGNED) < %d",
+            $current_time
+        ));
+
+        // Clean orphaned transients (timeout exists but value doesn't, or vice versa)
         $wpdb->query(
             "DELETE FROM {$wpdb->options} 
-             WHERE option_name LIKE '_transient_qe_rate_limit_%' 
-             OR option_name LIKE '_transient_timeout_qe_rate_limit_%'"
+             WHERE option_name LIKE '_transient_qe_rate_limit_%'
+             AND option_name NOT LIKE '_transient_timeout_%'
+             AND NOT EXISTS (
+                 SELECT 1 FROM (SELECT option_name FROM {$wpdb->options}) AS t
+                 WHERE t.option_name = CONCAT('_transient_timeout_', SUBSTRING({$wpdb->options}.option_name, 12))
+             )"
         );
 
-        $this->log_info('Rate limit data cleaned up');
+        $this->log_info('Rate limit data cleaned up', [
+            'deleted_rate_limits' => $deleted,
+            'deleted_violations' => $deleted_violations
+        ]);
     }
 
     /**
@@ -586,21 +701,24 @@ class QE_Rate_Limiter
 
     /**
      * Check for attack patterns
+     * Uses database directly with NO autoload
      *
      * @param array $data Violation data
      */
     private function check_for_attack_pattern($data)
     {
         $violations_key = 'qe_rate_limit_violations_' . md5($data['identifier']);
-        $violations = get_transient($violations_key);
+        $violations = $this->get_rate_limit_data($violations_key);
 
         if ($violations === false) {
             $violations = 1;
         } else {
+            $violations = is_array($violations) ? ($violations['count'] ?? 1) : (int)$violations;
             $violations++;
         }
 
-        set_transient($violations_key, $violations, HOUR_IN_SECONDS);
+        // Save without autoload
+        $this->save_rate_limit_data($violations_key, ['count' => $violations], HOUR_IN_SECONDS);
 
         // If more than 50 violations in 1 hour, add to blacklist and alert
         // Aumentado de 10 a 50 para evitar bloqueos en desarrollo

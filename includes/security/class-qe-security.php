@@ -454,6 +454,7 @@ class QE_Security
 
     /**
      * Log failed login attempt
+     * Uses custom transient storage WITHOUT autoload to prevent RAM issues
      *
      * @param string $username Username
      */
@@ -464,17 +465,17 @@ class QE_Security
         $lockout_key = 'qe_login_lockout_' . md5($ip);
 
         // Check if already locked out
-        if (get_transient($lockout_key)) {
+        if ($this->get_transient_no_autoload($lockout_key)) {
             return;
         }
 
         // Get current attempts
-        $attempts = get_transient($attempts_key);
+        $attempts = $this->get_transient_no_autoload($attempts_key);
         $attempts = $attempts ? (int) $attempts : 0;
         $attempts++;
 
-        // Store attempts (expires in 1 hour)
-        set_transient($attempts_key, $attempts, HOUR_IN_SECONDS);
+        // Store attempts (expires in 1 hour) WITHOUT autoload
+        $this->set_transient_no_autoload($attempts_key, $attempts, HOUR_IN_SECONDS);
 
         // Log the attempt
         $this->log_security_event('login_failed', [
@@ -485,7 +486,7 @@ class QE_Security
 
         // Check if lockout threshold reached
         if ($attempts >= self::MAX_LOGIN_ATTEMPTS) {
-            set_transient($lockout_key, true, self::LOCKOUT_DURATION);
+            $this->set_transient_no_autoload($lockout_key, true, self::LOCKOUT_DURATION);
 
             $this->log_security_event('login_locked_out', [
                 'username' => $username,
@@ -503,7 +504,87 @@ class QE_Security
     }
 
     /**
+     * Get transient WITHOUT autoload
+     * Direct database query to avoid loading into memory on every page load
+     *
+     * @param string $key Transient key
+     * @return mixed Value or false if not found/expired
+     */
+    private function get_transient_no_autoload($key)
+    {
+        global $wpdb;
+        
+        $timeout_key = '_transient_timeout_' . $key;
+        $transient_key = '_transient_' . $key;
+        
+        // Check expiration
+        $timeout = $wpdb->get_var($wpdb->prepare(
+            "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
+            $timeout_key
+        ));
+        
+        if ($timeout && $timeout < time()) {
+            // Expired - delete
+            $wpdb->query($wpdb->prepare(
+                "DELETE FROM {$wpdb->options} WHERE option_name IN (%s, %s)",
+                $timeout_key,
+                $transient_key
+            ));
+            return false;
+        }
+        
+        $value = $wpdb->get_var($wpdb->prepare(
+            "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
+            $transient_key
+        ));
+        
+        return $value !== null ? maybe_unserialize($value) : false;
+    }
+
+    /**
+     * Set transient WITHOUT autoload
+     * Prevents RAM issues from loading transients on every page load
+     *
+     * @param string $key Transient key
+     * @param mixed $value Value to store
+     * @param int $expiration Expiration in seconds
+     * @return bool Success
+     */
+    private function set_transient_no_autoload($key, $value, $expiration)
+    {
+        global $wpdb;
+        
+        $timeout_key = '_transient_timeout_' . $key;
+        $transient_key = '_transient_' . $key;
+        $timeout_value = time() + $expiration;
+        $serialized = maybe_serialize($value);
+        
+        // Delete existing first
+        $wpdb->query($wpdb->prepare(
+            "DELETE FROM {$wpdb->options} WHERE option_name IN (%s, %s)",
+            $timeout_key,
+            $transient_key
+        ));
+        
+        // Insert with autoload = 'no'
+        $wpdb->insert($wpdb->options, [
+            'option_name' => $timeout_key,
+            'option_value' => $timeout_value,
+            'autoload' => 'no'
+        ]);
+        
+        $wpdb->insert($wpdb->options, [
+            'option_name' => $transient_key,
+            'option_value' => $serialized,
+            'autoload' => 'no'
+        ]);
+        
+        return true;
+    }
+
+    /**
      * Check login attempts before authentication
+     * Uses custom transient storage WITHOUT autoload
      *
      * @param WP_User|WP_Error|null $user User object or error
      * @param string $username Username
@@ -520,14 +601,19 @@ class QE_Security
         $ip = $this->get_client_ip();
         $lockout_key = 'qe_login_lockout_' . md5($ip);
 
-        if (get_transient($lockout_key)) {
-            $remaining = get_option('_transient_timeout_' . $lockout_key) - time();
+        if ($this->get_transient_no_autoload($lockout_key)) {
+            global $wpdb;
+            $timeout = $wpdb->get_var($wpdb->prepare(
+                "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
+                '_transient_timeout_' . $lockout_key
+            ));
+            $remaining = $timeout ? ($timeout - time()) : 60;
 
             return new WP_Error(
                 'login_locked_out',
                 sprintf(
                     __('Too many failed login attempts. Please try again in %d minutes.', 'quiz-extended'),
-                    ceil($remaining / 60)
+                    ceil(max(1, $remaining) / 60)
                 )
             );
         }
@@ -537,18 +623,27 @@ class QE_Security
 
     /**
      * Clear login attempts on successful login
+     * Uses direct database deletion for consistency
      *
      * @param string $username Username
      * @param WP_User $user User object
      */
     public function clear_login_attempts($username, $user)
     {
+        global $wpdb;
+        
         $ip = $this->get_client_ip();
         $attempts_key = 'qe_login_attempts_' . md5($ip);
         $lockout_key = 'qe_login_lockout_' . md5($ip);
 
-        delete_transient($attempts_key);
-        delete_transient($lockout_key);
+        // Delete directly from database
+        $wpdb->query($wpdb->prepare(
+            "DELETE FROM {$wpdb->options} WHERE option_name IN (%s, %s, %s, %s)",
+            '_transient_' . $attempts_key,
+            '_transient_timeout_' . $attempts_key,
+            '_transient_' . $lockout_key,
+            '_transient_timeout_' . $lockout_key
+        ));
 
         $this->log_security_event('login_success', [
             'user_id' => $user->ID,
