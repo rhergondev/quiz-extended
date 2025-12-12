@@ -37,8 +37,10 @@ const ReviewedQuestion = ({
   const bgCard = isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff';
   const bgSubtle = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
   const borderSubtle = isDarkMode ? 'rgba(255,255,255,0.2)' : '#e5e7eb';
-  // En dark mode usar blanco para mejor contraste en texto de opciones no seleccionadas
-  const textMuted = isDarkMode ? getColor('textPrimary', '#f9fafb') : '#6b7280';
+  // Texto principal - blanco en dark mode para legibilidad
+  const textPrimary = isDarkMode ? '#f9fafb' : '#1a202c';
+  // Texto secundario/muted
+  const textMuted = isDarkMode ? '#9ca3af' : '#6b7280';
 
   if (!formattedQuestion || !result) {
     return (
@@ -64,7 +66,7 @@ const ReviewedQuestion = ({
   // Colores específicos para respuestas correctas e incorrectas
   const SUCCESS_COLOR = '#22c55e'; // green-500 más suave
   const ERROR_COLOR = '#ef4444';   // red-500
-  const GRAY_COLOR = textMuted;    // gray-500 (dark mode aware)
+  const GRAY_COLOR = '#6b7280';    // gray-500 para indicadores visuales
 
   // Sistema de colores basado en el estado de la respuesta
   const getQuestionColor = (opacity = '') => {
@@ -128,7 +130,7 @@ const ReviewedQuestion = ({
     return {
       backgroundColor: bgCard,
       borderColor: borderSubtle,
-      color: textMuted
+      color: textPrimary
     };
   };
 
@@ -190,7 +192,7 @@ const ReviewedQuestion = ({
               className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs"
               style={{
                 backgroundColor: borderColor + '15',
-                color: borderColor
+                color: textPrimary
               }}
             >
               {displayIndex || index + 1}
@@ -320,7 +322,7 @@ const ReviewedQuestion = ({
         <div className="p-4">
           <h3
             className="text-sm font-medium mb-3 leading-relaxed"
-            style={{ color: borderColor }}
+            style={{ color: textPrimary }}
             dangerouslySetInnerHTML={{ __html: title }}
           />
 

@@ -196,10 +196,34 @@ const VideosPage = () => {
   const hasPrevious = currentIndex > 0;
   const hasNext = currentIndex < allVideoSteps.length - 1;
 
+  // Convert video URL to embeddable format (Vimeo, YouTube, etc.)
+  const convertToEmbedUrl = (url) => {
+    if (!url) return null;
+    
+    // Vimeo: convert https://vimeo.com/123456789 to https://player.vimeo.com/video/123456789
+    const vimeoRegex = /(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(\d+)/;
+    const vimeoMatch = url.match(vimeoRegex);
+    if (vimeoMatch) {
+      return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    }
+    
+    // YouTube: convert various formats to embed URL
+    // Handles: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID
+    const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/;
+    const youtubeMatch = url.match(youtubeRegex);
+    if (youtubeMatch) {
+      return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+    }
+    
+    // If already an embed URL or other format, return as is
+    return url;
+  };
+
   // Get video URL from step data
   const getVideoUrl = (step) => {
     if (step.data?.video_url || step.data?.url) {
-      return step.data.video_url || step.data.url;
+      const rawUrl = step.data.video_url || step.data.url;
+      return convertToEmbedUrl(rawUrl);
     }
     return null;
   };
