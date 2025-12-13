@@ -798,7 +798,7 @@ const StudyPlannerPage = () => {
             <LessonCalendar
               lessons={lessons}
               onSelectLesson={handleNavigateToContent}
-              defaultView="month"
+              defaultView="week"
               pageColors={pageColors}
               getColor={getColor}
               isDarkMode={isDarkMode}

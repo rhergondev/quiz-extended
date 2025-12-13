@@ -628,7 +628,7 @@ const LessonCalendar = ({
       {...props}
       label={getLabel()}
       view={view}
-      views={['month', 'week', 'year']}
+      views={['week', 'month', 'year']}
       onView={handleViewChange}
       onNavigate={handleNavigate}
       pageColors={pageColors}

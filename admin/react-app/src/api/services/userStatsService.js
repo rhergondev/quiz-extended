@@ -6,11 +6,14 @@ const getBaseUrl = () => {
   return config.endpoints?.custom_api || `${config.api_url}/quiz-extended/v1`;
 };
 
-export const getUserQuestionStats = async (courseId, lessonId = null) => {
+export const getUserQuestionStats = async (courseId, lessonId = null, difficulty = null) => {
   const baseUrl = getBaseUrl();
   let url = `${baseUrl}/user-stats/questions?course_id=${courseId}`;
   if (lessonId) {
     url += `&lesson_id=${lessonId}`;
+  }
+  if (difficulty) {
+    url += `&difficulty=${difficulty}`;
   }
   const { data } = await makeApiRequest(url);
   return data;
