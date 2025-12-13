@@ -220,6 +220,7 @@ const sanitizeLessonSteps = (steps) => {
       ),
       order: sanitizeInteger(step.order, index + 1, 1),
       title: sanitizeString(step.title),
+      start_date: sanitizeString(step.start_date || ''),
       data: step.data && typeof step.data === 'object' ? step.data : {} 
     };
   }).filter(step => step !== null);

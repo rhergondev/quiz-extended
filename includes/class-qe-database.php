@@ -65,6 +65,7 @@ class QE_Database
             $results['quiz_autosave'] = self::create_quiz_autosave_table($prefix, $charset_collate);
             $results['user_question_stats'] = self::create_user_question_stats_table($prefix, $charset_collate);
             $results['course_notifications'] = self::create_course_notifications_table($prefix, $charset_collate);
+            $results['calendar_notes'] = self::create_calendar_notes_table($prefix, $charset_collate);
 
             // Check if all tables were created successfully
             $all_success = !in_array(false, $results, true);
@@ -606,6 +607,57 @@ class QE_Database
 
         } catch (Exception $e) {
             self::log_error('Failed to create course_notifications table', [
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Create calendar notes table
+     *
+     * Stores custom calendar notes created by admins
+     *
+     * @param string $prefix Table prefix
+     * @param string $charset_collate Charset collation
+     * @return bool True if successful
+     * @since 2.0.4
+     */
+    private static function create_calendar_notes_table($prefix, $charset_collate)
+    {
+        try {
+            global $wpdb;
+
+            $table_name = $prefix . 'calendar_notes';
+
+            $sql = "CREATE TABLE $table_name (
+                id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+                course_id BIGINT(20) UNSIGNED NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT DEFAULT NULL,
+                note_date DATE NOT NULL,
+                color VARCHAR(20) DEFAULT '#8B5CF6',
+                created_by BIGINT(20) UNSIGNED NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY course_id (course_id),
+                KEY note_date (note_date),
+                KEY created_by (created_by)
+            ) $charset_collate;";
+
+            dbDelta($sql);
+
+            if (self::table_exists($table_name)) {
+                self::log_info("Table created: {$table_name}");
+                return true;
+            } else {
+                self::log_error("Table creation failed: {$table_name}");
+                return false;
+            }
+
+        } catch (Exception $e) {
+            self::log_error('Failed to create calendar_notes table', [
                 'error' => $e->getMessage()
             ]);
             return false;

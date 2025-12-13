@@ -22,15 +22,18 @@ const QuizRecoveryModal = ({ autosaveData, onResume, onRestart, onClose, isOpen 
   }
 
   // Colores adaptativos
+  const textPrimary = getColor('textPrimary', '#f9fafb');
+  const secondaryBg = getColor('secondaryBackground', '#1f2937');
+  
   const colors = {
-    text: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c'),
-    textMuted: isDarkMode ? 'rgba(255,255,255,0.7)' : getColor('textMuted', '#6b7280'),
+    text: isDarkMode ? textPrimary : getColor('primary', '#1a202c'),
+    textMuted: isDarkMode ? `${textPrimary}B3` : getColor('textMuted', '#6b7280'), // B3 = 70% opacity
     accent: getColor('accent', '#f59e0b'),
     primary: getColor('primary', '#1a202c'),
-    cardBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
-    overlayBg: isDarkMode ? getColor('background', '#111827') : 'rgba(0,0,0,0.5)',
+    cardBg: isDarkMode ? secondaryBg : '#ffffff',
+    overlayBg: isDarkMode ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.5)',
     infoBg: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.03)',
-    border: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+    border: isDarkMode ? `${textPrimary}20` : 'rgba(0,0,0,0.1)', // 20 = 12% opacity
   };
 
   const {

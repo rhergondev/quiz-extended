@@ -5,7 +5,6 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import useCourse from '../../../hooks/useCourse';
 import useStudentProgress from '../../../hooks/useStudentProgress';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
-import { filterAvailableLessons } from '../../../api/utils/lessonDataUtils';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import { ChevronRight, ChevronDown, ChevronUp, FileText, File, X, ChevronLeft, Check, Circle, FolderOpen } from 'lucide-react';
 
@@ -63,11 +62,8 @@ const SupportMaterialPage = () => {
         
         const result = await getCourseLessons(courseIdInt, { perPage: 100 });
         
-        // Filter lessons by start date availability first
-        const availableLessons = filterAvailableLessons(result.data || []);
-        
-        // Filter lessons to only include those with PDF or text steps
-        const lessonsWithMaterial = availableLessons
+        // Map lessons with their material steps (show all lessons, even without material)
+        const lessonsWithMaterial = (result.data || [])
           .map(lesson => {
             const materialSteps = (lesson.meta?._lesson_steps || [])
               .filter(step => step.type === 'pdf' || step.type === 'text')
@@ -77,8 +73,7 @@ const SupportMaterialPage = () => {
               ...lesson,
               materialSteps
             };
-          })
-          .filter(lesson => lesson.materialSteps.length > 0);
+          });
         
         setLessons(lessonsWithMaterial);
       } catch (error) {
@@ -316,13 +311,15 @@ const SupportMaterialPage = () => {
                           
                           {/* Expand/Collapse Button - same style as CourseCard */}
                           <button
-                            onClick={() => toggleLesson(lesson.id)}
-                            className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-1.5"
+                            onClick={() => materialCount > 0 && toggleLesson(lesson.id)}
+                            disabled={materialCount === 0}
+                            className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                             style={{ 
                               backgroundColor: pageColors.buttonBg,
                               color: pageColors.buttonText
                             }}
                             onMouseEnter={(e) => {
+                              if (materialCount === 0) return;
                               if (isDarkMode) {
                                 e.currentTarget.style.filter = 'brightness(1.15)';
                               } else {

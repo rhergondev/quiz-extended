@@ -19,6 +19,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
     return cached ? JSON.parse(cached) : null;
   });
   const [currentCourseId, setCurrentCourseId] = useState(courseId);
+  const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
   const { t } = useTranslation();
   const { getColor, isDarkMode, toggleDarkMode } = useTheme();
 
@@ -31,20 +32,12 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
 
   // Fetch course progress
   useEffect(() => {
-    // Check if courseId changed - if so, load from cache or fetch
-    if (courseId !== currentCourseId) {
-      setCurrentCourseId(courseId);
-      const cached = sessionStorage.getItem(`courseProgress_${courseId}`);
-      if (cached) {
-        setCourseProgress(JSON.parse(cached));
-        return;
-      }
-    }
-
     const loadProgress = () => {
       if (courseId) {
+        console.log(`📊 CourseSidebar: Fetching progress for course ${courseId}`);
         getCourseProgress(courseId)
           .then(progress => {
+            console.log('📊 CourseSidebar: Progress received:', progress?.steps_by_type);
             setCourseProgress(progress);
             // Cache in sessionStorage to prevent flickering on navigation
             sessionStorage.setItem(`courseProgress_${courseId}`, JSON.stringify(progress));
@@ -55,28 +48,39 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
       }
     };
 
-    // Load if no progress data yet
-    if (!courseProgress) {
+    // Check if courseId changed
+    if (courseId !== currentCourseId) {
+      setCurrentCourseId(courseId);
+      setHasLoadedInitial(false);
+      // Try to load from cache first for instant display
+      const cached = sessionStorage.getItem(`courseProgress_${courseId}`);
+      if (cached) {
+        setCourseProgress(JSON.parse(cached));
+      } else {
+        // No cache - clear old data and load fresh
+        setCourseProgress(null);
+      }
+      // Always fetch fresh data when course changes (even if cached)
+      loadProgress();
+      return;
+    }
+
+    // Always load fresh data on initial mount
+    if (!hasLoadedInitial) {
+      setHasLoadedInitial(true);
       loadProgress();
     }
 
     const handleProgressUpdate = (event) => {
       if (event.detail?.courseId && String(event.detail.courseId) === String(courseId)) {
         // Force reload on progress update event
-        getCourseProgress(courseId)
-          .then(progress => {
-            setCourseProgress(progress);
-            sessionStorage.setItem(`courseProgress_${courseId}`, JSON.stringify(progress));
-          })
-          .catch(error => {
-            console.error('Error loading course progress:', error);
-          });
+        loadProgress();
       }
     };
 
     window.addEventListener('courseProgressUpdated', handleProgressUpdate);
     return () => window.removeEventListener('courseProgressUpdated', handleProgressUpdate);
-  }, [courseId, currentCourseId, courseProgress]);
+  }, [courseId, currentCourseId, hasLoadedInitial]);
 
   // Menu items with stats (Dashboard and Statistics moved to header)
   const menuItems = useMemo(() => {

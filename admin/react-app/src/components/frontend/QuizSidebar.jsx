@@ -70,9 +70,13 @@ const QuizSidebar = ({
   };
 
   const scrollToQuestion = (index) => {
+    console.log('🎯 scrollToQuestion called with index:', index);
+    
     // Try to find the question element
     const questionNumber = index + 1;
     const element = document.getElementById(`quiz-question-${questionNumber}`);
+    
+    console.log('🔍 Looking for element:', `quiz-question-${questionNumber}`, 'Found:', !!element);
     
     if (element) {
       // Use scrollIntoView with nearest block to avoid issues with fixed elements
@@ -90,17 +94,26 @@ const QuizSidebar = ({
       setTimeout(() => {
         element.style.borderLeftWidth = originalBorderWidth;
       }, 2000);
+    } else {
+      console.warn('⚠️ Element not found, trying alternative selectors...');
+      // Try alternative: find by data attribute or class
+      const altElement = document.querySelector(`[data-question-index="${index}"]`);
+      if (altElement) {
+        console.log('✅ Found via data-question-index');
+        altElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
     
     if (onQuestionSelect) {
+      console.log('📞 Calling onQuestionSelect with index:', index);
       onQuestionSelect(index);
     }
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full h-full flex flex-col">
       <div 
-        className="rounded-lg shadow-sm border-2 transition-all duration-200"
+        className="rounded-lg shadow-sm border-2 transition-all duration-200 flex flex-col h-full max-h-full"
         style={{ 
           backgroundColor: getColor('secondaryBackground', '#ffffff'),
           borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
@@ -165,12 +178,13 @@ const QuizSidebar = ({
           </div>
         </div>
 
-        {/* Mapa de preguntas */}
-        <div className="p-3 border-b" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
-          <h3 className="text-xs font-semibold mb-2" style={{ color: textPrimary }}>
+        {/* Mapa de preguntas - con scroll interno */}
+        <div className="p-3 border-b flex-1 min-h-0 flex flex-col" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
+          <h3 className="text-xs font-semibold mb-2 flex-shrink-0" style={{ color: textPrimary }}>
             {t('quizzes.sidebar.questionsMap')}
           </h3>
-          <div className="grid grid-cols-10 gap-1">
+          <div className="overflow-y-auto flex-1 min-h-0" style={{ maxHeight: '200px' }}>
+            <div className="grid grid-cols-10 gap-1">
             {Array.from({ length: effectiveTotal }).map((_, index) => {
               const qId = questionIds && questionIds[index] ? questionIds[index] : (questions && questions[index] ? questions[index].id : `unloaded-${index}`);
               const isLoaded = questions && questions[index];
@@ -206,9 +220,14 @@ const QuizSidebar = ({
               return (
                 <button
                   key={qId}
-                  onClick={() => isLoaded && scrollToQuestion(index)}
+                  onClick={() => {
+                    console.log('🖱️ Button clicked for question:', index + 1, 'isLoaded:', isLoaded);
+                    if (isLoaded) {
+                      scrollToQuestion(index);
+                    }
+                  }}
                   disabled={!isLoaded}
-                  className="w-full h-6 rounded text-[10px] font-bold transition-all duration-200 flex items-center justify-center border disabled:cursor-wait hover:enabled:scale-105 hover:enabled:shadow-md"
+                  className="w-full h-6 rounded text-[10px] font-bold transition-all duration-200 flex items-center justify-center border disabled:cursor-wait hover:enabled:scale-105 hover:enabled:shadow-md cursor-pointer"
                   style={{
                     backgroundColor: bgColor,
                     borderColor: borderColor,
@@ -221,11 +240,12 @@ const QuizSidebar = ({
                 </button>
               );
             })}
+            </div>
           </div>
         </div>
 
-        {/* Botón finalizar */}
-        <div className="p-3">
+        {/* Botón finalizar - siempre visible al final */}
+        <div className="p-3 flex-shrink-0">
           <button
             onClick={onSubmit}
             className="w-full px-4 py-3 text-sm text-white font-semibold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98]"

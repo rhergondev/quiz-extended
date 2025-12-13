@@ -36,13 +36,16 @@ const localizer = dateFnsLocalizer({
  * Get lesson type color
  * @param {string} lessonType - The lesson type
  * @param {boolean} isDarkMode - Dark mode flag
+ * @param {string} customColor - Custom color for notes
  * @returns {Object} Color configuration
  */
-const getLessonTypeColor = (lessonType, isDarkMode) => {
+const getLessonTypeColor = (lessonType, isDarkMode, customColor = null) => {
   const colors = {
     video: { bg: '#3B82F6', border: '#2563EB', text: '#FFFFFF' },
+    quiz: { bg: '#EF4444', border: '#DC2626', text: '#FFFFFF' },
     test: { bg: '#EF4444', border: '#DC2626', text: '#FFFFFF' },
     pdf: { bg: '#10B981', border: '#059669', text: '#FFFFFF' },
+    note: { bg: customColor || '#8B5CF6', border: customColor || '#7C3AED', text: '#FFFFFF' },
     default: { bg: '#8B5CF6', border: '#7C3AED', text: '#FFFFFF' },
   };
   return colors[lessonType] || colors.default;
@@ -62,7 +65,7 @@ const EventComponent = ({ event }) => {
 /**
  * Custom Week View - Simple 7 days without hours
  */
-const CustomWeekView = ({ date, events, pageColors, getColor, isDarkMode, t }) => {
+const CustomWeekView = ({ date, events, pageColors, getColor, isDarkMode, t, onSelectEvent }) => {
   const weekStart = startOfWeek(date, { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }, (_, i) => {
     const day = new Date(weekStart);
@@ -124,16 +127,19 @@ const CustomWeekView = ({ date, events, pageColors, getColor, isDarkMode, t }) =
                 </div>
               ) : (
                 dayEvents.map((event, idx) => {
-                  const colors = getLessonTypeColor(event.lessonType, isDarkMode);
+                  const colors = event.isNote 
+                    ? { bg: event.color, text: '#FFFFFF' }
+                    : getLessonTypeColor(event.lessonType, isDarkMode);
                   return (
                     <div 
                       key={idx}
-                      className="text-xs p-1.5 rounded truncate"
+                      className="text-xs p-1.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity"
                       style={{ 
                         backgroundColor: colors.bg,
                         color: colors.text
                       }}
                       title={event.title}
+                      onClick={() => onSelectEvent && onSelectEvent(event)}
                     >
                       {event.title}
                     </div>
@@ -151,7 +157,7 @@ const CustomWeekView = ({ date, events, pageColors, getColor, isDarkMode, t }) =
 /**
  * Custom Year View - Annual calendar with small checks and tooltips
  */
-const CustomYearView = ({ date, events, pageColors, getColor, isDarkMode, t }) => {
+const CustomYearView = ({ date, events, pageColors, getColor, isDarkMode, t, onSelectEvent }) => {
   const year = date.getFullYear();
   const yearStart = startOfYear(date);
   const yearEnd = endOfYear(date);
@@ -245,7 +251,7 @@ const CustomYearView = ({ date, events, pageColors, getColor, isDarkMode, t }) =
                   return (
                     <div
                       key={dayIndex}
-                      className="w-5 h-5 flex items-center justify-center text-[10px] rounded relative cursor-default"
+                      className={`w-5 h-5 flex items-center justify-center text-[10px] rounded relative ${hasEvents ? 'cursor-pointer' : 'cursor-default'}`}
                       style={{ 
                         backgroundColor: isCurrentDay 
                           ? pageColors.accent 
@@ -256,6 +262,15 @@ const CustomYearView = ({ date, events, pageColors, getColor, isDarkMode, t }) =
                       }}
                       onMouseEnter={(e) => handleDayHover(e, day, dayEvents)}
                       onMouseLeave={handleDayLeave}
+                      onClick={() => {
+                        if (hasEvents && onSelectEvent) {
+                          // If there's only one event, select it directly
+                          // Otherwise, show tooltip (already handled by hover)
+                          if (dayEvents.length === 1) {
+                            onSelectEvent(dayEvents[0]);
+                          }
+                        }
+                      }}
                     >
                       <span style={{ opacity: hasEvents || isCurrentDay ? 1 : 0.6 }}>
                         {getDate(day)}
@@ -289,8 +304,9 @@ const CustomYearView = ({ date, events, pageColors, getColor, isDarkMode, t }) =
             return (
               <div 
                 key={idx}
-                className="text-xs py-0.5 flex items-center gap-1"
+                className="text-xs py-0.5 flex items-center gap-1 cursor-pointer hover:opacity-80"
                 style={{ color: pageColors.text }}
+                onClick={() => onSelectEvent && onSelectEvent(event)}
               >
                 <span 
                   className="w-2 h-2 rounded-full"
@@ -392,7 +408,9 @@ const CustomToolbar = ({ label, onNavigate, onView, view, views, pageColors, get
  * 
  * @param {Object} props - Component props
  * @param {Array} props.lessons - Array of lesson objects
+ * @param {Array} props.calendarNotes - Array of custom calendar notes (admin-created)
  * @param {Function} props.onSelectLesson - Callback when a lesson is selected
+ * @param {Function} props.onSelectNote - Callback when a note is selected
  * @param {string} props.defaultView - Default calendar view ('month', 'week', 'year')
  * @param {Object} props.pageColors - Theme colors object
  * @param {Function} props.getColor - Theme color getter function
@@ -400,7 +418,9 @@ const CustomToolbar = ({ label, onNavigate, onView, view, views, pageColors, get
  */
 const LessonCalendar = ({ 
   lessons = [], 
+  calendarNotes = [],
   onSelectLesson,
+  onSelectNote,
   defaultView = 'month',
   pageColors,
   getColor,
@@ -412,8 +432,50 @@ const LessonCalendar = ({
 
   // Transform lessons to calendar events
   const events = useMemo(() => {
-    return lessons
-      .filter(lesson => lesson.meta?._start_date)
+    // Step events - individual steps with their own start_date
+    const stepEvents = [];
+    lessons.forEach(lesson => {
+      const steps = lesson.meta?._lesson_steps || [];
+      steps.forEach((step, stepIndex) => {
+        if (step.start_date) {
+          const startDate = new Date(step.start_date);
+          startDate.setHours(0, 0, 0, 0);
+          const endDate = addHours(startDate, 24);
+          
+          // Map step type to lesson type for colors
+          const stepType = step.type || 'default';
+          const colors = getLessonTypeColor(stepType, isDarkMode);
+          
+          const lessonTitle = lesson.title?.rendered || lesson.title || '';
+          const stepTitle = step.title || `${t('calendar.step', 'Paso')} ${stepIndex + 1}`;
+          
+          stepEvents.push({
+            id: `step-${lesson.id}-${stepIndex}`,
+            title: `${lessonTitle}: ${stepTitle}`,
+            start: startDate,
+            end: endDate,
+            allDay: true,
+            lessonType: stepType,
+            lesson,
+            step,
+            stepIndex,
+            isNote: false,
+            isStep: true,
+            color: colors.bg,
+            borderColor: colors.border,
+            textColor: colors.text,
+          });
+        }
+      });
+    });
+
+    // Lesson events (lessons without steps but with start_date at lesson level)
+    const lessonEvents = lessons
+      .filter(lesson => {
+        // Only show lesson-level events if lesson has _start_date and NO steps with start_date
+        const hasStepsWithDates = (lesson.meta?._lesson_steps || []).some(s => s.start_date);
+        return lesson.meta?._start_date && !hasStepsWithDates;
+      })
       .map(lesson => {
         const startDate = new Date(lesson.meta._start_date);
         startDate.setHours(0, 0, 0, 0);
@@ -423,23 +485,53 @@ const LessonCalendar = ({
         const colors = getLessonTypeColor(lessonType, isDarkMode);
         
         return {
-          id: lesson.id,
+          id: `lesson-${lesson.id}`,
           title: lesson.title?.rendered || lesson.title || t('calendar.untitledLesson', 'Lección sin título'),
           start: startDate,
           end: endDate,
           allDay: true,
           lessonType,
           lesson,
+          isNote: false,
+          isStep: false,
           color: colors.bg,
           borderColor: colors.border,
           textColor: colors.text,
         };
       });
-  }, [lessons, t, isDarkMode]);
 
-  // Count lessons without dates
+    // Calendar note events (admin-created)
+    const noteEvents = calendarNotes.map(note => {
+      const startDate = new Date(note.note_date);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = addHours(startDate, 24);
+      
+      return {
+        id: `note-${note.id}`,
+        title: note.title,
+        start: startDate,
+        end: endDate,
+        allDay: true,
+        lessonType: 'note',
+        note,
+        isNote: true,
+        isStep: false,
+        color: note.color || '#8B5CF6',
+        borderColor: note.color || '#7C3AED',
+        textColor: '#FFFFFF',
+      };
+    });
+
+    return [...stepEvents, ...lessonEvents, ...noteEvents];
+  }, [lessons, calendarNotes, t, isDarkMode]);
+
+  // Count lessons without any dates (neither lesson-level nor step-level)
   const lessonsWithoutDates = useMemo(() => {
-    return lessons.filter(lesson => !lesson.meta?._start_date).length;
+    return lessons.filter(lesson => {
+      const hasLessonDate = !!lesson.meta?._start_date;
+      const hasStepDates = (lesson.meta?._lesson_steps || []).some(s => s.start_date);
+      return !hasLessonDate && !hasStepDates;
+    }).length;
   }, [lessons]);
 
   // Custom event styling
@@ -453,10 +545,20 @@ const LessonCalendar = ({
         border: `2px solid ${event.borderColor}`,
         fontSize: '12px',
         padding: '2px 6px',
-        cursor: 'default',
+        cursor: 'pointer',
       },
     };
   }, []);
+
+  // Handle event selection
+  const handleSelectEvent = useCallback((event) => {
+    if (event.isNote && onSelectNote) {
+      onSelectNote(event.note);
+    } else if (!event.isNote && onSelectLesson) {
+      // Pass the full event object so caller can access step info, lessonType, etc.
+      onSelectLesson(event);
+    }
+  }, [onSelectLesson, onSelectNote]);
 
   // Calendar messages (i18n)
   const messages = useMemo(() => ({
@@ -561,7 +663,7 @@ const LessonCalendar = ({
             onNavigate={setDate}
             views={['month']}
             eventPropGetter={eventStyleGetter}
-            onSelectEvent={() => {}}
+            onSelectEvent={handleSelectEvent}
             messages={messages}
             culture={culture}
             components={{
@@ -582,6 +684,7 @@ const LessonCalendar = ({
           getColor={getColor}
           isDarkMode={isDarkMode}
           t={t}
+          onSelectEvent={handleSelectEvent}
         />
       )}
 
@@ -593,6 +696,7 @@ const LessonCalendar = ({
           getColor={getColor}
           isDarkMode={isDarkMode}
           t={t}
+          onSelectEvent={handleSelectEvent}
         />
       )}
 
@@ -690,8 +794,11 @@ const LessonCalendar = ({
           color: ${pageColors.textMuted} !important;
         }
         .rbc-event {
-          cursor: default;
-          pointer-events: none;
+          cursor: pointer;
+          pointer-events: auto;
+        }
+        .rbc-event:hover {
+          opacity: 0.85;
         }
         .rbc-day-bg {
           cursor: default;
@@ -701,10 +808,26 @@ const LessonCalendar = ({
           font-weight: 500;
           font-size: 12px;
           background: transparent;
-          pointer-events: none;
+          cursor: pointer;
+          pointer-events: auto;
         }
         .rbc-row-content {
           z-index: 1;
+        }
+        .rbc-overlay {
+          background: ${pageColors.bgCard};
+          border: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb')};
+          border-radius: 8px;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+          padding: 8px;
+          z-index: 100;
+        }
+        .rbc-overlay-header {
+          color: ${pageColors.text};
+          font-weight: 600;
+          padding: 4px 8px;
+          border-bottom: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb')};
+          margin-bottom: 4px;
         }
       `}</style>
     </div>

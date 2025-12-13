@@ -618,7 +618,7 @@
       "correct": "Correct",
       "incorrect": "Incorrect",
       "unanswered": "Unanswered",
-      "globalAverage": "Average",
+      "globalAverage": "UA Average",
       "percentile": "Percentile",
       "myScore": "My Score",
       "answeredWithRisk": "At risk",
@@ -1046,7 +1046,12 @@
     "tryAgain": "Try again",
     "viewQuiz": "View quiz",
     "aboveAverage": "above average",
-    "belowAverage": "below average"
+    "belowAverage": "below average",
+    "date": "Date",
+    "status": "Status",
+    "actions": "View",
+    "testInfo": "Information",
+    "myStats": "My Stats"
   },
   "navigation": {
     "previous": "Previous",

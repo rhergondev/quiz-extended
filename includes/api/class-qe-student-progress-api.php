@@ -573,12 +573,14 @@ class QE_Student_Progress_API extends QE_API_Base
                 return;
             }
 
+            // Re-index array to ensure numeric keys starting from 0
+            $steps = array_values($steps);
             $total_steps = count($steps);
             $completed_steps = 0;
 
             // Check each step
             foreach ($steps as $index => $step) {
-                $unique_step_id = ($lesson_id * 10000) + $index;
+                $unique_step_id = (intval($lesson_id) * 10000) + intval($index);
 
                 $is_completed = $this->db_get_var(
                     "SELECT progress_id FROM {$this->get_table('student_progress')} 
@@ -656,12 +658,14 @@ class QE_Student_Progress_API extends QE_API_Base
                 return;
             }
 
+            // Re-index array to ensure numeric keys starting from 0
+            $steps = array_values($steps);
             $total_steps = count($steps);
             $completed_steps = 0;
 
             // Check each step
             foreach ($steps as $index => $step) {
-                $unique_step_id = ($lesson_id * 10000) + $index;
+                $unique_step_id = (intval($lesson_id) * 10000) + intval($index);
 
                 $is_completed = $this->db_get_var(
                     "SELECT progress_id FROM {$this->get_table('student_progress')} 
@@ -736,6 +740,8 @@ class QE_Student_Progress_API extends QE_API_Base
             foreach ($lesson_ids as $lesson_id) {
                 $steps = get_post_meta($lesson_id, '_lesson_steps', true);
                 if (is_array($steps)) {
+                    // Re-index array to ensure numeric keys starting from 0
+                    $steps = array_values($steps);
                     foreach ($steps as $index => $step) {
                         $step_type = isset($step['type']) ? $step['type'] : 'text';
 
@@ -748,7 +754,7 @@ class QE_Student_Progress_API extends QE_API_Base
                         $stats['total_steps']++;
 
                         // Check if this step is completed
-                        $unique_step_id = ($lesson_id * 10000) + $index;
+                        $unique_step_id = (intval($lesson_id) * 10000) + intval($index);
                         $is_completed = $this->db_get_var(
                             "SELECT progress_id FROM {$this->get_table('student_progress')} 
                              WHERE user_id = %d AND content_id = %d AND content_type = 'step' AND status = 'completed'",

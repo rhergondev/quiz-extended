@@ -1,11 +1,13 @@
-import React, { useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useLessons } from '../../../hooks/useLessons';
 import CourseSidebar from '../../../components/course/CourseSidebar';
 import LessonCalendar from '../../../components/calendar/LessonCalendar';
-import { Calendar, ChevronRight, Loader, Video, FileText, ClipboardList, X } from 'lucide-react';
+import { Calendar, ChevronRight, Loader, Video, FileText, ClipboardList, X, Plus, Edit2, Trash2, StickyNote, Download } from 'lucide-react';
+import { isUserAdmin } from '../../../utils/userUtils';
+import { getCalendarNotes, createCalendarNote, updateCalendarNote, deleteCalendarNote } from '../../../api/services/calendarNotesService';
 
 /**
  * LessonDetailModal - Modal to show lesson details when clicked
@@ -133,6 +135,316 @@ const LessonDetailModal = ({ lesson, onClose, pageColors, getColor, isDarkMode }
 };
 
 /**
+ * NoteModal - Modal to create/edit calendar notes (admin only)
+ */
+const NoteModal = ({ note, onSave, onDelete, onClose, pageColors, getColor, isDarkMode, t, isEditing }) => {
+  const [title, setTitle] = useState(note?.title || '');
+  const [description, setDescription] = useState(note?.description || '');
+  const [noteDate, setNoteDate] = useState(note?.note_date || new Date().toISOString().split('T')[0]);
+  const [color, setColor] = useState(note?.color || '#8B5CF6');
+  const [saving, setSaving] = useState(false);
+
+  const colors = [
+    '#8B5CF6', // Purple
+    '#3B82F6', // Blue
+    '#10B981', // Green
+    '#F59E0B', // Amber
+    '#EF4444', // Red
+    '#EC4899', // Pink
+    '#6366F1', // Indigo
+    '#14B8A6', // Teal
+  ];
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!title.trim() || !noteDate) return;
+    
+    setSaving(true);
+    try {
+      await onSave({
+        title: title.trim(),
+        description: description.trim(),
+        note_date: noteDate,
+        color
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="rounded-xl shadow-2xl max-w-md w-full p-6"
+        style={{ backgroundColor: pageColors.bgCard }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div 
+              className="p-3 rounded-xl"
+              style={{ backgroundColor: color + '20' }}
+            >
+              <StickyNote size={24} style={{ color }} />
+            </div>
+            <h3 className="text-lg font-bold" style={{ color: pageColors.text }}>
+              {isEditing ? t('calendar.editNote', 'Editar nota') : t('calendar.newNote', 'Nueva nota')}
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg transition-colors"
+            style={{ backgroundColor: pageColors.hoverBg }}
+          >
+            <X size={18} style={{ color: pageColors.text }} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>
+              {t('calendar.noteTitle', 'Título')} *
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border-2 focus:outline-none transition-colors"
+              style={{ 
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f9fafb',
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb'),
+                color: pageColors.text
+              }}
+              placeholder={t('calendar.noteTitlePlaceholder', 'Ej: Examen parcial')}
+              required
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>
+              {t('calendar.noteDescription', 'Descripción')}
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 rounded-lg border-2 focus:outline-none transition-colors resize-none"
+              style={{ 
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f9fafb',
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb'),
+                color: pageColors.text
+              }}
+              placeholder={t('calendar.noteDescriptionPlaceholder', 'Añade una descripción opcional...')}
+            />
+          </div>
+
+          {/* Date */}
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>
+              {t('calendar.noteDate', 'Fecha')} *
+            </label>
+            <input
+              type="date"
+              value={noteDate}
+              onChange={(e) => setNoteDate(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border-2 focus:outline-none transition-colors"
+              style={{ 
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f9fafb',
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb'),
+                color: pageColors.text
+              }}
+              required
+            />
+          </div>
+
+          {/* Color picker */}
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>
+              {t('calendar.noteColor', 'Color')}
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {colors.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c)}
+                  className={`w-8 h-8 rounded-full transition-transform ${color === c ? 'scale-110 ring-2 ring-offset-2' : ''}`}
+                  style={{ 
+                    backgroundColor: c,
+                    ringColor: c,
+                    ringOffsetColor: pageColors.bgCard
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-4">
+            {isEditing && onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                style={{ 
+                  backgroundColor: '#ef4444',
+                  color: '#fff'
+                }}
+              >
+                <Trash2 size={16} />
+                {t('common.delete', 'Eliminar')}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2 px-4 rounded-lg font-medium transition-colors"
+              style={{ 
+                backgroundColor: pageColors.hoverBg,
+                color: pageColors.text
+              }}
+            >
+              {t('common.cancel', 'Cancelar')}
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !title.trim()}
+              className="flex-1 py-2 px-4 rounded-lg font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ 
+                backgroundColor: pageColors.primaryBg,
+                color: '#fff'
+              }}
+            >
+              {saving ? t('common.saving', 'Guardando...') : t('common.save', 'Guardar')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * NoteDetailModal - Modal to show note details when clicked (for non-admins or viewing)
+ */
+const NoteDetailModal = ({ note, onClose, onEdit, pageColors, getColor, isDarkMode, t, isAdmin }) => {
+  if (!note) return null;
+
+  const formattedDate = note.note_date 
+    ? new Date(note.note_date).toLocaleDateString('es-ES', { 
+        day: '2-digit', 
+        month: 'long',
+        year: 'numeric'
+      })
+    : '';
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="rounded-xl shadow-2xl max-w-md w-full p-6"
+        style={{ backgroundColor: pageColors.bgCard }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div 
+              className="p-3 rounded-xl"
+              style={{ backgroundColor: (note.color || '#8B5CF6') + '20' }}
+            >
+              <StickyNote size={24} style={{ color: note.color || '#8B5CF6' }} />
+            </div>
+            <span 
+              className="text-xs font-medium px-3 py-1 rounded-full"
+              style={{ 
+                backgroundColor: (note.color || '#8B5CF6') + '20',
+                color: note.color || '#8B5CF6'
+              }}
+            >
+              {t('calendar.note', 'Nota')}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg transition-colors"
+            style={{ backgroundColor: pageColors.hoverBg }}
+          >
+            <X size={18} style={{ color: pageColors.text }} />
+          </button>
+        </div>
+
+        {/* Title */}
+        <h3 className="text-xl font-bold mb-4" style={{ color: pageColors.text }}>
+          {note.title}
+        </h3>
+
+        {/* Description */}
+        {note.description && (
+          <p className="mb-4" style={{ color: pageColors.textMuted }}>
+            {note.description}
+          </p>
+        )}
+
+        {/* Date */}
+        <div 
+          className="flex items-center gap-3 p-3 rounded-lg"
+          style={{ backgroundColor: pageColors.bgSubtle }}
+        >
+          <Calendar size={18} style={{ color: pageColors.textMuted }} />
+          <div>
+            <div className="text-xs" style={{ color: pageColors.textMuted }}>
+              {t('calendar.date', 'Fecha')}
+            </div>
+            <div className="font-semibold" style={{ color: pageColors.text }}>
+              {formattedDate}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div 
+          className="mt-6 pt-4 border-t flex gap-3"
+          style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb') }}
+        >
+          {isAdmin && onEdit && (
+            <button
+              onClick={onEdit}
+              className="flex-1 py-2.5 px-4 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+              style={{ 
+                backgroundColor: pageColors.hoverBg,
+                color: pageColors.text
+              }}
+            >
+              <Edit2 size={16} />
+              {t('common.edit', 'Editar')}
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className={`${isAdmin && onEdit ? 'flex-1' : 'w-full'} py-2.5 px-4 font-medium rounded-lg transition-opacity hover:opacity-90`}
+            style={{ 
+              backgroundColor: pageColors.primaryBg,
+              color: '#ffffff'
+            }}
+          >
+            {t('common.close', 'Cerrar')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
  * StudyPlannerPage - Calendar view of course lessons
  */
 const StudyPlannerPage = () => {
@@ -140,8 +452,34 @@ const StudyPlannerPage = () => {
   const { courseId } = useParams();
   const { getColor, isDarkMode } = useTheme();
   const { lessons, loading, error } = useLessons({ courseId, perPage: 100 });
+  const navigate = useNavigate();
   
   const [selectedLesson, setSelectedLesson] = useState(null);
+  
+  // Calendar notes state (admin feature)
+  const isAdmin = isUserAdmin();
+  const [calendarNotes, setCalendarNotes] = useState([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [selectedNote, setSelectedNote] = useState(null);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [editingNote, setEditingNote] = useState(null);
+
+  // Fetch calendar notes
+  useEffect(() => {
+    const fetchNotes = async () => {
+      if (!courseId) return;
+      setNotesLoading(true);
+      try {
+        const notes = await getCalendarNotes(courseId);
+        setCalendarNotes(notes);
+      } catch (err) {
+        console.error('Error fetching calendar notes:', err);
+      } finally {
+        setNotesLoading(false);
+      }
+    };
+    fetchNotes();
+  }, [courseId]);
 
   // Dark mode aware colors (same pattern as TestHistoryPage)
   const pageColors = {
@@ -155,15 +493,124 @@ const StudyPlannerPage = () => {
     primaryBg: getColor('primary', '#1a202c'),
   };
 
-  // Handle lesson selection from calendar
-  const handleSelectLesson = useCallback((lesson) => {
-    setSelectedLesson(lesson);
-  }, []);
+  // Navigate to content based on step/lesson type
+  const handleNavigateToContent = useCallback((event) => {
+    const { lesson, step, isStep, lessonType } = event;
+    
+    if (!lesson) return;
+    
+    // Determine the type and navigate accordingly
+    const type = isStep ? (step?.type || 'default') : lessonType;
+    
+    switch (type) {
+      case 'quiz':
+      case 'test':
+        // For quiz/test steps, navigate to tests page with the quiz selected
+        if (step?.data?.quiz_id) {
+          navigate(`/courses/${courseId}/tests`, {
+            state: {
+              selectedQuizId: step.data.quiz_id,
+              scrollToQuiz: true,
+              returnTo: `/courses/${courseId}/study-planner`
+            }
+          });
+        } else {
+          navigate(`/courses/${courseId}/tests`);
+        }
+        break;
+        
+      case 'video':
+        // Navigate to videos page with the video selected
+        navigate(`/courses/${courseId}/videos`, {
+          state: {
+            selectedLessonId: lesson.id,
+            selectedStepIndex: event.stepIndex,
+            returnTo: `/courses/${courseId}/study-planner`
+          }
+        });
+        break;
+        
+      case 'pdf':
+        // Navigate to support material page
+        navigate(`/courses/${courseId}/material`, {
+          state: {
+            selectedLessonId: lesson.id,
+            selectedStepIndex: event.stepIndex,
+            returnTo: `/courses/${courseId}/study-planner`
+          }
+        });
+        break;
+        
+      default:
+        // For default/text lessons, show the modal with details
+        setSelectedLesson(lesson);
+        break;
+    }
+  }, [courseId, navigate]);
 
   // Close modal
   const handleCloseModal = useCallback(() => {
     setSelectedLesson(null);
   }, []);
+
+  // Handle note selection from calendar
+  const handleSelectNote = useCallback((note) => {
+    setSelectedNote(note);
+  }, []);
+
+  // Close note detail modal
+  const handleCloseNoteModal = useCallback(() => {
+    setSelectedNote(null);
+  }, []);
+
+  // Open create note modal
+  const handleOpenCreateNote = useCallback(() => {
+    setEditingNote(null);
+    setShowNoteModal(true);
+  }, []);
+
+  // Open edit note modal
+  const handleEditNote = useCallback(() => {
+    setEditingNote(selectedNote);
+    setSelectedNote(null);
+    setShowNoteModal(true);
+  }, [selectedNote]);
+
+  // Save note (create or update)
+  const handleSaveNote = useCallback(async (noteData) => {
+    try {
+      if (editingNote) {
+        // Update existing note
+        const updated = await updateCalendarNote(courseId, editingNote.id, noteData);
+        setCalendarNotes(prev => prev.map(n => n.id === editingNote.id ? updated : n));
+      } else {
+        // Create new note
+        const created = await createCalendarNote(courseId, noteData);
+        setCalendarNotes(prev => [...prev, created]);
+      }
+      setShowNoteModal(false);
+      setEditingNote(null);
+    } catch (err) {
+      console.error('Error saving note:', err);
+      alert(err.message || t('common.errorSaving', 'Error al guardar'));
+    }
+  }, [editingNote, courseId, t]);
+
+  // Delete note
+  const handleDeleteNote = useCallback(async () => {
+    if (!editingNote) return;
+    if (!confirm(t('calendar.confirmDeleteNote', '¿Eliminar esta nota?'))) return;
+    
+    try {
+      await deleteCalendarNote(courseId, editingNote.id);
+      setCalendarNotes(prev => prev.filter(n => n.id !== editingNote.id));
+      setShowNoteModal(false);
+      setEditingNote(null);
+    } catch (err) {
+      console.error('Error deleting note:', err);
+      alert(err.message || t('common.errorDeleting', 'Error al eliminar'));
+    }
+  }, [editingNote, courseId, t]);
 
   return (
     <div className="flex h-full w-full">
@@ -202,20 +649,106 @@ const StudyPlannerPage = () => {
         <div className="max-w-7xl w-full mx-auto px-4 py-6 pb-24">
           {/* Header */}
           <div className="mb-6">
-            <div className="flex items-center gap-3">
-              <div 
-                className="p-3 rounded-xl"
-                style={{ backgroundColor: pageColors.hoverBg }}
-              >
-                <Calendar size={28} style={{ color: pageColors.text }} />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div 
+                  className="p-3 rounded-xl"
+                  style={{ backgroundColor: pageColors.hoverBg }}
+                >
+                  <Calendar size={28} style={{ color: pageColors.text }} />
+                </div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: pageColors.text }}>
+                    {t('courses.studyPlanner', 'Planificador')}
+                  </h1>
+                  <p className="text-sm mt-1" style={{ color: pageColors.textMuted }}>
+                    {t('calendar.description', 'Visualiza el calendario de lecciones del curso')}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: pageColors.text }}>
-                  {t('courses.studyPlanner', 'Planificador')}
-                </h1>
-                <p className="text-sm mt-1" style={{ color: pageColors.textMuted }}>
-                  {t('calendar.description', 'Visualiza el calendario de lecciones del curso')}
-                </p>
+              {/* Admin: Add note button */}
+              {isAdmin && (
+                <button
+                  onClick={handleOpenCreateNote}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-opacity hover:opacity-90"
+                  style={{ 
+                    backgroundColor: '#8B5CF6',
+                    color: '#fff'
+                  }}
+                >
+                  <Plus size={18} />
+                  <span className="hidden sm:inline">{t('calendar.addNote', 'Añadir nota')}</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Color Legend */}
+          <div 
+            className="mb-6 p-4 rounded-xl border-2"
+            style={{ 
+              backgroundColor: pageColors.bgCard,
+              borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb')
+            }}
+          >
+            <h3 className="text-sm font-semibold mb-3" style={{ color: pageColors.text }}>
+              {t('calendar.legend', 'Leyenda')}
+            </h3>
+            <div className="flex flex-wrap gap-4">
+              {/* Video */}
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-4 h-4 rounded"
+                  style={{ backgroundColor: '#3B82F6' }}
+                />
+                <Video size={14} style={{ color: pageColors.textMuted }} />
+                <span className="text-sm" style={{ color: pageColors.text }}>
+                  {t('calendar.legendVideo', 'Video')}
+                </span>
+              </div>
+              {/* Test/Quiz */}
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-4 h-4 rounded"
+                  style={{ backgroundColor: '#EF4444' }}
+                />
+                <ClipboardList size={14} style={{ color: pageColors.textMuted }} />
+                <span className="text-sm" style={{ color: pageColors.text }}>
+                  {t('calendar.legendTest', 'Test')}
+                </span>
+              </div>
+              {/* PDF */}
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-4 h-4 rounded"
+                  style={{ backgroundColor: '#10B981' }}
+                />
+                <Download size={14} style={{ color: pageColors.textMuted }} />
+                <span className="text-sm" style={{ color: pageColors.text }}>
+                  {t('calendar.legendPdf', 'PDF')}
+                </span>
+              </div>
+              {/* Lesson/Text */}
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-4 h-4 rounded"
+                  style={{ backgroundColor: '#8B5CF6' }}
+                />
+                <FileText size={14} style={{ color: pageColors.textMuted }} />
+                <span className="text-sm" style={{ color: pageColors.text }}>
+                  {t('calendar.legendLesson', 'Tema')}
+                </span>
+              </div>
+              {/* Note - always visible */}
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-4 h-4 rounded border-2 border-dashed"
+                  style={{ borderColor: '#8B5CF6', backgroundColor: 'transparent' }}
+                />
+                <StickyNote size={14} style={{ color: pageColors.textMuted }} />
+                <span className="text-sm" style={{ color: pageColors.text }}>
+                  {t('calendar.legendNote', 'Nota')}
+                </span>
               </div>
             </div>
           </div>
@@ -264,11 +797,14 @@ const StudyPlannerPage = () => {
           {!loading && !error && lessons.length > 0 && (
             <LessonCalendar
               lessons={lessons}
-              onSelectLesson={handleSelectLesson}
+              onSelectLesson={handleNavigateToContent}
               defaultView="month"
               pageColors={pageColors}
               getColor={getColor}
               isDarkMode={isDarkMode}
+              calendarNotes={calendarNotes}
+              onSelectNote={handleSelectNote}
+              isAdmin={isAdmin}
             />
           )}
 
@@ -280,6 +816,35 @@ const StudyPlannerPage = () => {
               pageColors={pageColors}
               getColor={getColor}
               isDarkMode={isDarkMode}
+            />
+          )}
+
+          {/* Note detail modal */}
+          {selectedNote && (
+            <NoteDetailModal
+              note={selectedNote}
+              onClose={handleCloseNoteModal}
+              onEdit={isAdmin ? handleEditNote : null}
+              pageColors={pageColors}
+              getColor={getColor}
+              isDarkMode={isDarkMode}
+              t={t}
+              isAdmin={isAdmin}
+            />
+          )}
+
+          {/* Note create/edit modal (admin only) */}
+          {showNoteModal && isAdmin && (
+            <NoteModal
+              note={editingNote}
+              onSave={handleSaveNote}
+              onDelete={editingNote ? handleDeleteNote : null}
+              onClose={() => { setShowNoteModal(false); setEditingNote(null); }}
+              pageColors={pageColors}
+              getColor={getColor}
+              isDarkMode={isDarkMode}
+              t={t}
+              isEditing={!!editingNote}
             />
           )}
         </div>

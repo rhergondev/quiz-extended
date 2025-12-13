@@ -5,7 +5,6 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import useCourse from '../../../hooks/useCourse';
 import useStudentProgress from '../../../hooks/useStudentProgress';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
-import { filterAvailableLessons } from '../../../api/utils/lessonDataUtils';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import { ChevronDown, ChevronUp, ChevronRight, Video, Play, X, ChevronLeft, Check, Circle, Film } from 'lucide-react';
 
@@ -63,11 +62,8 @@ const VideosPage = () => {
         
         const result = await getCourseLessons(courseIdInt, { perPage: 100 });
         
-        // Filter lessons by start date availability first
-        const availableLessons = filterAvailableLessons(result.data || []);
-        
-        // Filter lessons to only include those with video steps
-        const lessonsWithVideos = availableLessons
+        // Map lessons with their video steps (show all lessons, even without videos)
+        const lessonsWithVideos = (result.data || [])
           .map(lesson => {
             const videoSteps = (lesson.meta?._lesson_steps || [])
               .filter(step => step.type === 'video')
@@ -77,8 +73,7 @@ const VideosPage = () => {
               ...lesson,
               videoSteps
             };
-          })
-          .filter(lesson => lesson.videoSteps.length > 0);
+          });
         
         setLessons(lessonsWithVideos);
       } catch (error) {
@@ -338,13 +333,15 @@ const VideosPage = () => {
                           
                           {/* Expand/Collapse Button - same style as CourseCard */}
                           <button
-                            onClick={() => toggleLesson(lesson.id)}
-                            className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-1.5"
+                            onClick={() => videoCount > 0 && toggleLesson(lesson.id)}
+                            disabled={videoCount === 0}
+                            className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                             style={{ 
                               backgroundColor: pageColors.buttonBg,
                               color: pageColors.buttonText
                             }}
                             onMouseEnter={(e) => {
+                              if (videoCount === 0) return;
                               if (isDarkMode) {
                                 e.currentTarget.style.filter = 'brightness(1.15)';
                               } else {

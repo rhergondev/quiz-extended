@@ -58,6 +58,16 @@ const QuizResults = ({
   const answeredWithRisk = detailed_results?.filter(r => r.is_risked && r.answer_given !== null).length || 0;
   const totalQuestions = detailed_results?.length || 0;
 
+  // Estadísticas SIN RIESGO (todas las preguntas contestadas sin riesgo)
+  const withoutRiskAnswers = detailed_results?.filter(r => !r.is_risked && r.answer_given !== null) || [];
+  const withoutRiskCorrect = withoutRiskAnswers.filter(r => r.is_correct).length;
+  const withoutRiskIncorrect = withoutRiskAnswers.filter(r => !r.is_correct).length;
+  
+  // Estadísticas CON RIESGO (todas las preguntas contestadas con riesgo)
+  const withRiskAnswers = detailed_results?.filter(r => r.is_risked && r.answer_given !== null) || [];
+  const withRiskCorrect = withRiskAnswers.filter(r => r.is_correct).length;
+  const withRiskIncorrect = withRiskAnswers.filter(r => !r.is_correct).length;
+
   // Debug log para verificar datos de riesgo
   console.log('QuizResults - detailed_results:', detailed_results);
   console.log('QuizResults - answeredWithRisk:', answeredWithRisk);
@@ -147,7 +157,7 @@ const QuizResults = ({
           </h2>
         </div>
 
-        {/* Resumen de respuestas - Compact */}
+        {/* Resumen de respuestas - Formato Vertical Compacto */}
         <div 
           className={`rounded-xl overflow-hidden border-2 mb-4 ${noPadding ? 'mt-4 lg:mt-0' : ''}`}
           style={{ 
@@ -155,143 +165,110 @@ const QuizResults = ({
             borderColor: pageColors.border
           }}
         >
-          {/* Header */}
+          {/* Header Principal */}
           <div 
-            className="px-4 py-2 flex items-center gap-2 flex-wrap"
+            className="px-4 py-2 flex items-center gap-2"
             style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : `${primaryColor}08` }}
           >
-            <Trophy size={14} style={{ color: isDarkMode ? pageColors.accent : primaryColor }} />
-            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>
+            <Trophy size={16} style={{ color: isDarkMode ? pageColors.accent : primaryColor }} />
+            <span className="text-sm font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>
               {t('quizzes.results.summary')}
             </span>
-            {/* Question Stats inline */}
-            <div className="flex items-center gap-2 sm:gap-3 ml-auto text-[10px] sm:text-xs">
-              <span className="flex items-center gap-1" style={{ color: SUCCESS_COLOR }}>
-                <CheckCircle size={12} />
-                <span className="hidden sm:inline">{t('quizzes.results.correct')}</span> {correctAnswers}
-              </span>
-              <span className="flex items-center gap-1" style={{ color: GRAY_COLOR }}>
-                <MinusCircle size={12} />
-                <span className="hidden sm:inline">{t('quizzes.results.unanswered')}</span> {unanswered}
-              </span>
-              <span className="flex items-center gap-1" style={{ color: ERROR_COLOR }}>
-                <XCircle size={12} />
-                <span className="hidden sm:inline">{t('quizzes.results.incorrect')}</span> {incorrectAnswers}
-              </span>
-              {answeredWithRisk > 0 && (
-                <span className="flex items-center gap-1" style={{ color: pageColors.accent }}>
-                  <Award size={12} />
-                  <span className="hidden sm:inline">{t('quizzes.results.answeredWithRisk')}</span> {answeredWithRisk}
-                </span>
-              )}
-            </div>
           </div>
           
-          {/* Sin Riesgo Row */}
-          <div>
-            {/* Header Sin Riesgo */}
-            <div 
-              className="px-4 py-2"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>
+          {/* Resumen Global de Respuestas */}
+          <div 
+            className="px-4 py-2 border-b flex items-center justify-around"
+            style={{ borderColor: 'rgba(156, 163, 175, 0.2)' }}
+          >
+            <div className="flex items-center gap-1.5">
+              <CheckCircle size={14} style={{ color: SUCCESS_COLOR }} />
+              <span className="text-xs font-medium" style={{ color: SUCCESS_COLOR }}>{correctAnswers}</span>
+              <span className="text-[10px]" style={{ color: pageColors.textMuted }}>{t('quizzes.results.correct')}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <MinusCircle size={14} style={{ color: GRAY_COLOR }} />
+              <span className="text-xs font-medium" style={{ color: GRAY_COLOR }}>{unanswered}</span>
+              <span className="text-[10px]" style={{ color: pageColors.textMuted }}>{t('quizzes.results.unanswered')}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <XCircle size={14} style={{ color: ERROR_COLOR }} />
+              <span className="text-xs font-medium" style={{ color: ERROR_COLOR }}>{incorrectAnswers}</span>
+              <span className="text-[10px]" style={{ color: pageColors.textMuted }}>{t('quizzes.results.incorrect')}</span>
+            </div>
+          </div>
+
+          {/* Grid de 2 columnas: Sin Riesgo | Con Riesgo */}
+          <div className="grid grid-cols-2">
+            {/* Columna SIN RIESGO */}
+            <div className="border-r" style={{ borderColor: 'rgba(156, 163, 175, 0.2)' }}>
+              {/* Header Sin Riesgo */}
+              <div className="px-3 py-1.5 text-center" style={{ backgroundColor: primaryColor }}>
+                <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>
                   {t('quizzes.results.scoreWithoutRisk')}
                 </span>
-                <div 
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: '#ffffff' }}
-                />
               </div>
-            </div>
-            {/* Contenido Sin Riesgo */}
-            <div className="grid grid-cols-3 gap-4 px-4 py-3">
-              <div className="text-center">
-                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
-                  {t('quizzes.results.myScore')}
-                </p>
-                <p className="text-lg font-bold" style={{ color: pageColors.text }}>
-                  {formatScore(score)}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
-                  {t('quizzes.results.globalAverage')}
-                </p>
-                <p className="text-lg font-bold" style={{ color: pageColors.text }}>
-                  {averageScore !== null ? formatScore(averageScore) : '-'}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
-                  {t('quizzes.results.percentile')}
-                </p>
-                {percentil !== null ? (
-                  <p 
-                    className="text-lg font-bold"
-                    style={{ color: parseFloat(percentil) >= 0 ? SUCCESS_COLOR : ERROR_COLOR }}
-                  >
-                    {parseFloat(percentil) >= 0 ? '+' : ''}{formatScore(parseFloat(percentil))}
+              
+              {/* Mi Nota, Media y Percentil en línea */}
+              <div className="px-3 py-2 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-lg font-bold" style={{ color: pageColors.text }}>
+                    {formatScore(score)}
                   </p>
-                ) : (
-                  <p className="text-lg font-bold" style={{ color: pageColors.textMuted }}>-</p>
-                )}
+                  <p className="text-[8px] uppercase" style={{ color: pageColors.textMuted }}>{t('quizzes.results.myScore')}</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold" style={{ color: pageColors.text }}>
+                    {averageScore !== null ? formatScore(averageScore) : '-'}
+                  </p>
+                  <p className="text-[8px] uppercase" style={{ color: pageColors.textMuted }}>{t('quizzes.results.globalAverage')}</p>
+                </div>
+                <div>
+                  {percentil !== null ? (
+                    <p className="text-lg font-bold" style={{ color: parseFloat(percentil) >= 0 ? SUCCESS_COLOR : ERROR_COLOR }}>
+                      {parseFloat(percentil) >= 0 ? '+' : ''}{formatScore(parseFloat(percentil))}
+                    </p>
+                  ) : (
+                    <p className="text-lg font-bold" style={{ color: pageColors.textMuted }}>-</p>
+                  )}
+                  <p className="text-[8px] uppercase" style={{ color: pageColors.textMuted }}>{t('quizzes.results.percentile')}</p>
+                </div>
               </div>
             </div>
-          </div>
-          
-          {/* Separador */}
-          <div style={{ height: '1px', backgroundColor: 'rgba(156, 163, 175, 0.2)' }} />
-          
-          {/* Con Riesgo Row */}
-          <div>
-            {/* Header Con Riesgo */}
-            <div 
-              className="px-4 py-2"
-              style={{ backgroundColor: pageColors.accent }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>
+
+            {/* Columna CON RIESGO */}
+            <div>
+              {/* Header Con Riesgo */}
+              <div className="px-3 py-1.5 text-center" style={{ backgroundColor: pageColors.accent }}>
+                <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>
                   {t('quizzes.results.scoreWithRisk')}
                 </span>
-                <div 
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: '#ffffff' }}
-                />
               </div>
-            </div>
-            {/* Contenido Con Riesgo */}
-            <div className="grid grid-cols-3 gap-4 px-4 py-3">
-              <div className="text-center">
-                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
-                  {t('quizzes.results.myScore')}
-                </p>
-                <p className="text-lg font-bold" style={{ color: pageColors.accent }}>
-                  {formatScore(score_with_risk)}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
-                  {t('quizzes.results.globalAverage')}
-                </p>
-                <p className="text-lg font-bold" style={{ color: pageColors.accent }}>
-                  {averageScoreWithRisk !== null ? formatScore(averageScoreWithRisk) : '-'}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
-                  {t('quizzes.results.percentile')}
-                </p>
-                {percentilWithRisk !== null ? (
-                  <p 
-                    className="text-lg font-bold"
-                    style={{ color: parseFloat(percentilWithRisk) >= 0 ? SUCCESS_COLOR : ERROR_COLOR }}
-                  >
-                    {parseFloat(percentilWithRisk) >= 0 ? '+' : ''}{formatScore(parseFloat(percentilWithRisk))}
+              
+              {/* Mi Nota, Media y Percentil en línea */}
+              <div className="px-3 py-2 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-lg font-bold" style={{ color: pageColors.accent }}>
+                    {formatScore(score_with_risk)}
                   </p>
-                ) : (
-                  <p className="text-lg font-bold" style={{ color: pageColors.textMuted }}>-</p>
-                )}
+                  <p className="text-[8px] uppercase" style={{ color: pageColors.textMuted }}>{t('quizzes.results.myScore')}</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold" style={{ color: pageColors.accent }}>
+                    {averageScoreWithRisk !== null ? formatScore(averageScoreWithRisk) : '-'}
+                  </p>
+                  <p className="text-[8px] uppercase" style={{ color: pageColors.textMuted }}>{t('quizzes.results.globalAverage')}</p>
+                </div>
+                <div>
+                  {percentilWithRisk !== null ? (
+                    <p className="text-lg font-bold" style={{ color: parseFloat(percentilWithRisk) >= 0 ? SUCCESS_COLOR : ERROR_COLOR }}>
+                      {parseFloat(percentilWithRisk) >= 0 ? '+' : ''}{formatScore(parseFloat(percentilWithRisk))}
+                    </p>
+                  ) : (
+                    <p className="text-lg font-bold" style={{ color: pageColors.textMuted }}>-</p>
+                  )}
+                  <p className="text-[8px] uppercase" style={{ color: pageColors.textMuted }}>{t('quizzes.results.percentile')}</p>
+                </div>
               </div>
             </div>
           </div>

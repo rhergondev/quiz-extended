@@ -87,6 +87,15 @@ const SortableStepItem = ({ step, index, onUpdate, onRemove, onTriggerCreation }
     pdf: <Download className="h-4 w-4 text-red-700" />,
   };
 
+  // Format date for input
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
   return (
     <div ref={setNodeRef} style={style} className="bg-white border border-gray-200 rounded-lg">
       <div className="flex items-center justify-between p-3">
@@ -100,6 +109,13 @@ const SortableStepItem = ({ step, index, onUpdate, onRemove, onTriggerCreation }
           </div>
         </div>
         <div className="flex items-center space-x-2">
+          {/* Show date badge if set */}
+          {step.start_date && (
+            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {new Date(step.start_date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+            </span>
+          )}
           <button type="button" onClick={() => setIsExpanded(!isExpanded)} className="p-1 text-gray-400 hover:text-gray-600">
             {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
@@ -109,7 +125,23 @@ const SortableStepItem = ({ step, index, onUpdate, onRemove, onTriggerCreation }
         </div>
       </div>
       {isExpanded && (
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200 space-y-4">
+          {/* Start Date field for step */}
+          <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                Fecha de inicio del paso
+              </label>
+              <input 
+                type="date" 
+                value={formatDateForInput(step.start_date)} 
+                onChange={(e) => onUpdate(index, 'start_date', e.target.value || '')} 
+                className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+              />
+              <p className="text-xs text-gray-500 mt-1">Este paso aparecerá en el planificador a partir de esta fecha.</p>
+            </div>
+          </div>
           <StepRenderer step={step} index={index} onUpdate={onUpdate} quillRef={quillRef} onTriggerCreation={onTriggerCreation} />
         </div>
       )}
@@ -204,6 +236,7 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
       title: `Nuevo Paso (${type})`, 
       type: type, 
       order: newOrder,
+      start_date: '', // Initialize start_date for new steps
       data: {} 
     };
     handleFieldChange('steps', [...currentSteps, newStep]);
@@ -246,8 +279,11 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
       // Recalcular el orden secuencial antes de guardar y eliminar el id temporal (comenzando desde 1)
       const stepsForApi = formData.steps.map(({ id, ...rest }, index) => ({
         ...rest,
-        order: index + 1
+        order: index + 1,
+        start_date: rest.start_date || '', // Ensure start_date is included
       }));
+      
+      console.log('Steps being saved:', stepsForApi); // Debug log
       
       // Solo incluir _course_id si tiene un valor válido
       // "0" o "" significa "sin curso seleccionado"

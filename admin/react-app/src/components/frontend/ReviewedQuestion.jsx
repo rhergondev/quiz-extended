@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp, Bookmark, MessageSquare, Circle } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Bookmark, MessageSquare, Circle } from 'lucide-react';
 import { formatQuestionForDisplay } from '../../api/utils/questionDataUtils';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -17,7 +17,6 @@ const ReviewedQuestion = ({
   lessonId = null,
   lessonTitle = null
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [feedbackType, setFeedbackType] = useState('feedback');
   const [isFavorite, setIsFavorite] = useState(false);
@@ -95,14 +94,16 @@ const ReviewedQuestion = ({
         return {
           backgroundColor: bgCard,
           borderColor: SUCCESS_COLOR,
-          color: SUCCESS_COLOR
+          indicatorColor: SUCCESS_COLOR,
+          textColor: textPrimary
         };
       } else {
         // Normal: fondo verde transparente, borde verde
         return {
           backgroundColor: SUCCESS_COLOR + '15',
           borderColor: SUCCESS_COLOR,
-          color: SUCCESS_COLOR
+          indicatorColor: SUCCESS_COLOR,
+          textColor: textPrimary
         };
       }
     }
@@ -114,14 +115,16 @@ const ReviewedQuestion = ({
         return {
           backgroundColor: bgCard,
           borderColor: ERROR_COLOR,
-          color: ERROR_COLOR
+          indicatorColor: ERROR_COLOR,
+          textColor: textPrimary
         };
       } else {
         // Normal: fondo rojo transparente, borde rojo
         return {
           backgroundColor: ERROR_COLOR + '15',
           borderColor: ERROR_COLOR,
-          color: ERROR_COLOR
+          indicatorColor: ERROR_COLOR,
+          textColor: textPrimary
         };
       }
     }
@@ -130,7 +133,8 @@ const ReviewedQuestion = ({
     return {
       backgroundColor: bgCard,
       borderColor: borderSubtle,
-      color: textPrimary
+      indicatorColor: textMuted,
+      textColor: textPrimary
     };
   };
 
@@ -348,13 +352,13 @@ const ReviewedQuestion = ({
                       <CheckCircle 
                         size={18} 
                         strokeWidth={2.5}
-                        style={{ color: optionStyle.color }}
+                        style={{ color: optionStyle.indicatorColor }}
                       />
                     ) : isSelected ? (
                       <XCircle 
                         size={18} 
                         strokeWidth={2.5}
-                        style={{ color: optionStyle.color }}
+                        style={{ color: optionStyle.indicatorColor }}
                       />
                     ) : (
                       <Circle 
@@ -369,8 +373,8 @@ const ReviewedQuestion = ({
                   <div 
                     className="flex-shrink-0 w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold"
                     style={{
-                      backgroundColor: optionStyle.color + '20',
-                      color: optionStyle.color
+                      backgroundColor: optionStyle.indicatorColor + '20',
+                      color: optionStyle.indicatorColor
                     }}
                   >
                     {String.fromCharCode(65 + optionIndex)}
@@ -379,7 +383,7 @@ const ReviewedQuestion = ({
                   {/* Texto de la opción */}
                   <span 
                     className="text-sm font-medium flex-1"
-                    style={{ color: optionStyle.color }}
+                    style={{ color: optionStyle.textColor }}
                   >
                     {option.text}
                   </span>
@@ -402,50 +406,30 @@ const ReviewedQuestion = ({
           </div>
         )}
 
-        {/* Sección expandible de explicación */}
+        {/* Sección de explicación - siempre visible */}
         {fullExplanation && (
           <div 
             className="border-t"
             style={{ borderColor: borderColor + '15' }}
           >
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="flex justify-between items-center w-full px-4 py-3 text-left transition-all duration-200"
-              style={{ 
-                color: textMuted,
-                backgroundColor: 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              <span className="text-xs font-semibold">
+            <div className="px-4 py-3">
+              <span 
+                className="text-xs font-semibold block mb-2"
+                style={{ color: textMuted }}
+              >
                 {t('quizzes.reviewedQuestion.answerExplanation')}
               </span>
-              {isExpanded ? (
-                <ChevronUp size={16} strokeWidth={2} />
-              ) : (
-                <ChevronDown size={16} strokeWidth={2} />
-              )}
-            </button>
-
-            {isExpanded && (
-              <div className="px-4 pb-3">
-                <div 
-                  className="rounded-lg p-3"
-                  style={{ backgroundColor: bgSubtle }}
-                >
-                  <div
-                    className="text-xs leading-relaxed"
-                    style={{ color: textMuted }}
-                    dangerouslySetInnerHTML={{ __html: fullExplanation }}
-                  />
-                </div>
+              <div 
+                className="rounded-lg p-3"
+                style={{ backgroundColor: bgSubtle }}
+              >
+                <div
+                  className="text-xs leading-relaxed"
+                  style={{ color: textMuted }}
+                  dangerouslySetInnerHTML={{ __html: fullExplanation }}
+                />
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>

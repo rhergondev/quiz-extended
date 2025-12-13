@@ -235,6 +235,10 @@ class QE_Lesson_Meta
                             'title' => [
                                 'type' => 'string'
                             ],
+                            'start_date' => [
+                                'type' => 'string',
+                                'description' => __('Start date for this step (YYYY-MM-DD format)', 'quiz-extended')
+                            ],
                             'data' => [
                                 'type' => 'object',
                                 'additionalProperties' => true,
@@ -383,6 +387,7 @@ class QE_Lesson_Meta
                 'type' => in_array($step['type'], $valid_types) ? $step['type'] : 'text',
                 'order' => isset($step['order']) ? absint($step['order']) : 0,
                 'title' => isset($step['title']) ? sanitize_text_field($step['title']) : '',
+                'start_date' => isset($step['start_date']) ? sanitize_text_field($step['start_date']) : '',
                 'data' => []
             ];
 

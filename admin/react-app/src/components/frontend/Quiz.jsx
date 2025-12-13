@@ -10,7 +10,7 @@ import QuizSidebar from './QuizSidebar';
 import Timer from './Timer';
 import DrawingCanvas from './DrawingCanvas';
 import DrawingToolbar from './DrawingToolbar';
-import { Loader, Menu, X, ChevronLeft } from 'lucide-react';
+import { Loader, Menu, X, ChevronLeft, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useQuizAutosave from '../../hooks/useQuizAutosave';
 import quizAutosaveService from '../../api/services/quizAutosaveService';
@@ -98,7 +98,7 @@ const Quiz = ({
     }
   };
   
-  const { getColor, isDarkMode } = useTheme();
+  const { getColor, isDarkMode, toggleDarkMode } = useTheme();
   const { t } = useTranslation();
   const questionsContainerRef = useRef(null);
 
@@ -463,7 +463,7 @@ const Quiz = ({
             
             {/* Content */}
             <div className="p-6">
-              <p style={{ color: isDarkMode ? getColor('textPrimary') : '#374151' }}>
+              <p style={{ color: isDarkMode ? '#f9fafb' : '#374151' }}>
                 {t('quizzes.exitModal.message')}
               </p>
             </div>
@@ -475,7 +475,7 @@ const Quiz = ({
                 className="flex-1 px-4 py-3 rounded-lg font-medium transition-colors"
                 style={{ 
                   backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6',
-                  color: isDarkMode ? getColor('textPrimary') : '#374151'
+                  color: isDarkMode ? '#f9fafb' : '#374151'
                 }}
               >
                 {t('quizzes.exitModal.cancel')}
@@ -503,32 +503,47 @@ const Quiz = ({
         />
       )}
 
-      {/* Barra superior con botón de salida */}
+      {/* Barra superior con botón de salida y dark mode */}
       {onExit && (
         <div 
-          className="flex items-center gap-3 px-4 py-3 border-b"
+          className="flex items-center justify-between px-4 py-3 border-b"
           style={{
             backgroundColor: isDarkMode ? getColor('secondaryBackground') : '#ffffff',
             borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'
           }}
         >
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowExitModal(true)}
+              className="p-2 rounded-lg transition-all duration-200 hover:scale-105"
+              style={{
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                color: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c')
+              }}
+              aria-label={t('quizzes.exitModal.title')}
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <span 
+              className="font-medium text-sm truncate"
+              style={{ color: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c') }}
+            >
+              {quizInfo?.title?.rendered || quizInfo?.title || t('quizzes.quiz.inProgress')}
+            </span>
+          </div>
+          
+          {/* Botón Dark Mode */}
           <button
-            onClick={() => setShowExitModal(true)}
+            onClick={toggleDarkMode}
             className="p-2 rounded-lg transition-all duration-200 hover:scale-105"
             style={{
               backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-              color: isDarkMode ? getColor('textPrimary') : getColor('primary')
+              color: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c')
             }}
-            aria-label={t('quizzes.exitModal.title')}
+            aria-label={isDarkMode ? 'Modo claro' : 'Modo oscuro'}
           >
-            <ChevronLeft className="w-5 h-5" />
+            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
-          <span 
-            className="font-medium text-sm truncate"
-            style={{ color: isDarkMode ? getColor('textPrimary') : getColor('primary') }}
-          >
-            {quizInfo?.title?.rendered || quizInfo?.title || t('quizzes.quiz.inProgress')}
-          </span>
         </div>
       )}
 

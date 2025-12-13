@@ -638,7 +638,7 @@
       "correct": "Aciertos",
       "incorrect": "Errores",
       "unanswered": "Sin contestar",
-      "globalAverage": "Media",
+      "globalAverage": "Media UA",
       "percentile": "Percentil",
       "myScore": "Mi Nota",
       "answeredWithRisk": "Con riesgo",
@@ -1061,7 +1061,12 @@
     "tryAgain": "Intentar de nuevo",
     "viewQuiz": "Ver test",
     "aboveAverage": "sobre la media",
-    "belowAverage": "bajo la media"
+    "belowAverage": "bajo la media",
+    "date": "Fecha",
+    "status": "Estado",
+    "actions": "Ver",
+    "testInfo": "Información",
+    "myStats": "Mis Estadísticas"
   },
   "navigation": {
     "previous": "Anterior",
