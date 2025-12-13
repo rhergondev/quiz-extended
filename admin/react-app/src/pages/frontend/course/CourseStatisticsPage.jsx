@@ -455,8 +455,13 @@ const CourseStatisticsPage = () => {
                         <span className="text-2xl font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
                           #{rankingStatus?.position || '-'}
                         </span>
+                        {rankingStatus?.total_users && (
+                          <span className="text-sm" style={{ color: pageColors.textMuted }}>
+                            /{rankingStatus.total_users}
+                          </span>
+                        )}
                         {computedStats?.completedQuizzes === computedStats?.totalQuizzes && computedStats?.totalQuizzes > 0 && (
-                          <CheckCircle size={14} className="text-green-500" />
+                          <CheckCircle size={14} className="text-green-500 ml-1" />
                         )}
                       </div>
                     </div>

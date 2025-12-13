@@ -284,8 +284,13 @@ const CourseDashboardPage = () => {
                     className="inline-flex items-center justify-center w-20 h-20 rounded-full"
                     style={{ backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.accent}15` }}
                   >
-                    <span className="text-3xl font-bold" style={{ color: pageColors.accent }}>
+                    <span className="text-2xl font-bold" style={{ color: pageColors.accent }}>
                       #{rankingStatus.position || '?'}
+                      {rankingStatus.total_users && (
+                        <span className="text-sm font-normal" style={{ color: pageColors.textMuted }}>
+                          /{rankingStatus.total_users}
+                        </span>
+                      )}
                     </span>
                   </div>
                   

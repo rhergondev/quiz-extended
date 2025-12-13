@@ -62,6 +62,7 @@ export const CourseRankingProvider = ({ courseId, courseName, isOpen, onOpen, on
     const totalQuizzes = myStatus?.total_quizzes ?? 0;
     const userScore = myStatus?.average_score ?? 0;
     const userPosition = myStatus?.position ?? null;
+    const totalUsersInRanking = myStatus?.total_users ?? statistics?.total_users ?? null;
 
     useEffect(() => {
         if (isOpen && pagination.userPage && pagination.currentPage === 1) {
@@ -94,6 +95,7 @@ export const CourseRankingProvider = ({ courseId, courseName, isOpen, onOpen, on
         totalQuizzes,
         userScore,
         userPosition,
+        totalUsersInRanking,
         courseId,
         courseName,
         isOpen,
@@ -116,6 +118,7 @@ export const CourseRankingTrigger = () => {
         pageColors, 
         myStats,
         userPosition,
+        totalUsersInRanking,
         completedQuizzes,
         withRisk,
         onOpen 
@@ -125,6 +128,8 @@ export const CourseRankingTrigger = () => {
     const buttonBg = isDarkMode ? pageColors.accent : pageColors.hoverBg;
     const buttonText = isDarkMode ? pageColors.bgSecondary : '#ffffff';
     const buttonHoverBg = isDarkMode ? pageColors.hoverBg : pageColors.accent;
+
+    const currentPosition = withRisk ? myStats?.position_with_risk : myStats?.position_without_risk || userPosition;
 
     return (
         <div className="flex justify-end mb-4">
@@ -149,12 +154,12 @@ export const CourseRankingTrigger = () => {
             >
                 <Trophy className="w-4 h-4" />
                 <span>{t('ranking.ranking', 'Ranking')}</span>
-                {completedQuizzes > 0 && (myStats || userPosition) && (
+                {completedQuizzes > 0 && currentPosition && (
                     <span 
                         className="px-1.5 py-0.5 rounded text-xs font-bold"
                         style={{ backgroundColor: 'rgba(0,0,0,0.2)', color: buttonText }}
                     >
-                        #{withRisk ? myStats?.position_with_risk : myStats?.position_without_risk || userPosition}
+                        #{currentPosition}{totalUsersInRanking ? `/${totalUsersInRanking}` : ''}
                     </span>
                 )}
             </button>

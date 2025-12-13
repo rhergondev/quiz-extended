@@ -445,6 +445,7 @@ class QE_Course_Ranking_API extends QE_API_Base
 
             // Filter to only include existing users and count those with higher scores
             $position = 1;
+            $total_users_in_ranking = 0;
             foreach ($all_user_scores as $user_score) {
                 // Skip if user doesn't exist in WordPress
                 $wp_user = get_userdata($user_score->user_id);
@@ -452,7 +453,10 @@ class QE_Course_Ranking_API extends QE_API_Base
                     continue;
                 }
 
-                // Skip current user
+                // Count valid users in ranking
+                $total_users_in_ranking++;
+
+                // Skip current user for position calculation
                 if ((int) $user_score->user_id === $user_id) {
                     continue;
                 }
@@ -464,6 +468,7 @@ class QE_Course_Ranking_API extends QE_API_Base
             }
 
             $response_data['position'] = $position;
+            $response_data['total_users'] = $total_users_in_ranking;
         }
 
         return new WP_REST_Response([
