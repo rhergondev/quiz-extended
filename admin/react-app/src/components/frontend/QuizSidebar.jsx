@@ -125,7 +125,7 @@ const QuizSidebar = ({
           className="p-3 border-b"
           style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
         >
-          <div className="flex flex-wrap gap-3 justify-around">
+          <div className="flex flex-col gap-2">
             <LegendItem 
               icon={Circle} 
               color={colors.unanswered} 
@@ -183,8 +183,8 @@ const QuizSidebar = ({
           <h3 className="text-xs font-semibold mb-2 flex-shrink-0" style={{ color: textPrimary }}>
             {t('quizzes.sidebar.questionsMap')}
           </h3>
-          <div className="overflow-y-auto flex-1 min-h-0" style={{ maxHeight: '200px' }}>
-            <div className="grid grid-cols-10 gap-1">
+          <div className="overflow-y-scroll flex-1 min-h-0" style={{ maxHeight: '280px', scrollbarGutter: 'stable' }}>
+            <div className="grid grid-cols-5 gap-1">
             {Array.from({ length: effectiveTotal }).map((_, index) => {
               const qId = questionIds && questionIds[index] ? questionIds[index] : (questions && questions[index] ? questions[index].id : `unloaded-${index}`);
               const isLoaded = questions && questions[index];
@@ -227,7 +227,7 @@ const QuizSidebar = ({
                     }
                   }}
                   disabled={!isLoaded}
-                  className="w-full h-6 rounded text-[10px] font-bold transition-all duration-200 flex items-center justify-center border disabled:cursor-wait hover:enabled:scale-105 hover:enabled:shadow-md cursor-pointer"
+                  className="w-10 h-10 rounded text-sm font-bold transition-all duration-200 flex items-center justify-center border disabled:cursor-wait hover:enabled:scale-105 hover:enabled:shadow-md cursor-pointer"
                   style={{
                     backgroundColor: bgColor,
                     borderColor: borderColor,
@@ -245,10 +245,10 @@ const QuizSidebar = ({
         </div>
 
         {/* Botón finalizar - siempre visible al final */}
-        <div className="p-3 flex-shrink-0">
+        <div className="p-3 flex-shrink-0 flex justify-center">
           <button
             onClick={onSubmit}
-            className="w-full px-4 py-3 text-sm text-white font-semibold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98]"
+            className="px-8 py-2 text-sm text-white font-semibold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98]"
             style={{ backgroundColor: colors.answeredBg }}
           >
             {t('quizzes.sidebar.finishExam')}

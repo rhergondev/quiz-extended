@@ -613,7 +613,7 @@
       "addComment": "Add comment",
       "challenge": "Challenge",
       "questionStatistics": "Question statistics",
-      "failedBy": "This question has been failed by {{percentage}}% of students ({{total}} total answers).",
+      "failedBy": "This question has been failed by {{percentage}}% of students.",
       "answerExplanation": "Answer explanation",
       "errorInvalidData": "Error: Invalid question data or result provided."
     },

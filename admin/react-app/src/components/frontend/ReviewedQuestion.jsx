@@ -425,7 +425,7 @@ const ReviewedQuestion = ({
               >
                 <div
                   className="text-xs leading-relaxed"
-                  style={{ color: textMuted }}
+                  style={{ color: isDarkMode ? '#ffffff' : textMuted }}
                   dangerouslySetInnerHTML={{ __html: fullExplanation }}
                 />
               </div>

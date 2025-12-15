@@ -633,7 +633,7 @@
       "addComment": "Agregar comentario",
       "challenge": "Impugnar",
       "questionStatistics": "Estadísticas de la pregunta",
-      "failedBy": "Esta pregunta ha sido fallada por el {{percentage}}% del alumnado ({{total}} respuestas totales).",
+      "failedBy": "Esta pregunta ha sido fallada por el {{percentage}}% del alumnado.",
       "answerExplanation": "Explicación de la respuesta",
       "errorInvalidData": "Error: Datos de pregunta o resultado inválidos."
     },
