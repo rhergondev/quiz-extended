@@ -184,7 +184,10 @@ const QuizSidebar = ({
             {t('quizzes.sidebar.questionsMap')}
           </h3>
           <div className="overflow-y-scroll flex-1 min-h-0" style={{ maxHeight: '280px', scrollbarGutter: 'stable' }}>
-            <div className="grid grid-cols-5 gap-1">
+            <div 
+              className="grid grid-cols-5 gap-1.5 p-2 rounded-lg"
+              style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
+            >
             {Array.from({ length: effectiveTotal }).map((_, index) => {
               const qId = questionIds && questionIds[index] ? questionIds[index] : (questions && questions[index] ? questions[index].id : `unloaded-${index}`);
               const isLoaded = questions && questions[index];
@@ -227,7 +230,7 @@ const QuizSidebar = ({
                     }
                   }}
                   disabled={!isLoaded}
-                  className="w-10 h-10 rounded text-sm font-bold transition-all duration-200 flex items-center justify-center border disabled:cursor-wait hover:enabled:scale-105 hover:enabled:shadow-md cursor-pointer"
+                  className="w-full aspect-square rounded text-xs font-bold transition-all duration-200 flex items-center justify-center border disabled:cursor-wait hover:enabled:scale-105 hover:enabled:shadow-md cursor-pointer"
                   style={{
                     backgroundColor: bgColor,
                     borderColor: borderColor,
