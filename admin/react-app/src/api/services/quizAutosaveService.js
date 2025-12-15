@@ -17,6 +17,7 @@ const quizAutosaveService = {
    * @param {number} data.quiz_id - Quiz ID
    * @param {number} [data.attempt_id] - Attempt ID (if already started)
    * @param {Object} data.quiz_data - Complete quiz data
+   * @param {number[]} [data.shuffled_question_ids] - Current order of question IDs (preserves shuffle order)
    * @param {number} data.current_question_index - Current question index
    * @param {Object} data.answers - User answers object
    * @param {number} [data.time_remaining] - Time remaining in seconds

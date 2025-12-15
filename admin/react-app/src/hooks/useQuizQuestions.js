@@ -22,14 +22,16 @@ import { useState, useEffect, useCallback, useRef } from 'react';
  * @param {number} options.questionsPerPage - Questions per page (default: 50)
  * @param {number} options.prefetchThreshold - Load next page when this many questions remain (default: 5)
  * @param {boolean} options.randomize - Randomize question order (default: false)
- * @returns {Object} { questions, loading, error, progress, hasMore, loadMore }
+ * @param {number[]} options.preservedOrder - If provided, use this order instead of randomizing (for recovery)
+ * @returns {Object} { questions, loading, error, progress, hasMore, loadMore, orderedQuestionIds }
  */
 export const useQuizQuestions = (questionIds, options = {}) => {
   const {
     enabled = true,
     questionsPerPage = 50, // 🔥 50 questions per page
     prefetchThreshold = 5,
-    randomize = false
+    randomize = false,
+    preservedOrder = null // 🔥 FIX: For recovery - use this order instead of shuffling
   } = options;
 
   const [questions, setQuestions] = useState([]);
@@ -46,14 +48,19 @@ export const useQuizQuestions = (questionIds, options = {}) => {
 
   useEffect(() => {
     if (questionIds && questionIds.length > 0) {
-      if (randomize) {
+      // 🔥 FIX: If preservedOrder is provided (recovery mode), use it directly
+      if (preservedOrder && preservedOrder.length > 0) {
+        console.log('📋 Using preserved question order from autosave');
+        setOrderedIds(preservedOrder);
+      } else if (randomize) {
         const shuffled = [...questionIds].sort(() => Math.random() - 0.5);
+        console.log('🔀 Shuffling questions for new quiz');
         setOrderedIds(shuffled);
       } else {
         setOrderedIds(questionIds);
       }
     }
-  }, [questionIds, randomize]);
+  }, [questionIds, randomize, preservedOrder]);
 
   /**
    * Load a page of questions using WordPress REST pagination
@@ -194,7 +201,8 @@ export const useQuizQuestions = (questionIds, options = {}) => {
     checkPrefetch,
     totalCount: orderedIds.length,
     loadedCount,
-    currentPage
+    currentPage,
+    orderedQuestionIds: orderedIds // 🔥 FIX: Expose for autosave
   };
 };
 

@@ -12,6 +12,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/frontend/DashboardPage';
 import QuizAttemptDetailsPage from './pages/frontend/QuizAttemptDetailsPage';
 import CoursesPage from './pages/frontend/CoursesPage';
+import BooksPage from './pages/frontend/BooksPage';
 import CourseDashboardPage from './pages/frontend/CourseDashboardPage';
 import CourseLessonsPage from './pages/frontend/CourseLessonsPage';
 import QuizGeneratorPage from './pages/frontend/QuizGeneratorPage';
@@ -60,6 +61,7 @@ function FrontendApp() {
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="/dashboard/attempts/:attemptId" element={<QuizAttemptDetailsPage />} />
                 <Route path="courses" element={<CoursesPage />} />
+                <Route path="books" element={<BooksPage />} />
                 
                 {/* Course Dashboard Routes */}
                 <Route path="courses/:courseId/dashboard" element={<CourseDashboardPage />} />

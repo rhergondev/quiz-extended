@@ -39,6 +39,7 @@ const Quiz = ({
 }) => {
   const [quizInfo, setQuizInfo] = useState(null);
   const [questionIds, setQuestionIds] = useState([]);
+  const [preservedQuestionOrder, setPreservedQuestionOrder] = useState(null); // 🔥 FIX: For recovery - preserve shuffle order
   const [userAnswers, setUserAnswers] = useState({});
   const [riskedAnswers, setRiskedAnswers] = useState([]);
   const [quizState, setQuizState] = useState('loading');
@@ -123,12 +124,14 @@ const Quiz = ({
     hasMore: hasMoreQuestions,
     loadedCount,
     totalCount: totalQuestions,
-    currentPage
+    currentPage,
+    orderedQuestionIds // 🔥 FIX: Get the actual order being used (for autosave)
   } = useQuizQuestions(questionIds, {
     enabled: quizState === 'in-progress' || quizState === 'loading',
     questionsPerPage: 50, // 🔥 PAGINATION: 50 questions per page
     prefetchThreshold: 5, // 🔥 PAGINATION: Prefetch when 5 questions from end of current page
-    randomize: quizInfo?.meta?._randomize_questions || false
+    randomize: quizInfo?.meta?._randomize_questions || false,
+    preservedOrder: preservedQuestionOrder // 🔥 FIX: Use preserved order if recovering
   });
 
   // Auto-prefetch questions as user progresses
@@ -198,6 +201,7 @@ const Quiz = ({
   const { clearAutosave } = useQuizAutosave({
     quizId: quizId,
     quizData: quizInfo,
+    shuffledQuestionIds: orderedQuestionIds, // 🔥 FIX: Save the current question order
     currentQuestionIndex,
     answers: userAnswers,
     timeRemaining,
@@ -258,7 +262,17 @@ const Quiz = ({
       setQuizInfo(savedQuizData);
       
       const ids = savedQuizData.meta?._quiz_question_ids || [];
-      setQuestionIds(ids); // Let hook handle loading
+      setQuestionIds(ids);
+      
+      // 🔥 FIX: Restore the preserved question order to maintain same shuffle
+      // Check both autosaveData.shuffled_question_ids and savedQuizData._shuffled_question_ids
+      const savedOrder = autosaveData.shuffled_question_ids || 
+                         savedQuizData._shuffled_question_ids || 
+                         null;
+      if (savedOrder && savedOrder.length > 0) {
+        console.log('📋 Restoring preserved question order from autosave');
+        setPreservedQuestionOrder(savedOrder);
+      }
       
       setUserAnswers(savedAnswers);
       setCurrentQuestionIndex(autosaveData.current_question_index || 0);
@@ -290,6 +304,9 @@ const Quiz = ({
       
       const ids = quizData.meta?._quiz_question_ids || [];
       setQuestionIds(ids); // Let hook handle loading
+      
+      // 🔥 FIX: Clear preserved order so new shuffle happens
+      setPreservedQuestionOrder(null);
 
       const attemptResponse = await startQuizAttempt(quizId, lessonId);
       if (attemptResponse.attempt_id) {

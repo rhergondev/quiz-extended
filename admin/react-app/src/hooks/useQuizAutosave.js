@@ -8,6 +8,7 @@ import quizAutosaveService from '../api/services/quizAutosaveService';
  * @param {Object} params
  * @param {number} params.quizId - Quiz ID
  * @param {Object} params.quizData - Complete quiz data
+ * @param {number[]} params.shuffledQuestionIds - Current order of question IDs (possibly shuffled)
  * @param {number} params.currentQuestionIndex - Current question index
  * @param {Object} params.answers - User answers object
  * @param {number} params.timeRemaining - Time remaining in seconds (optional)
@@ -19,6 +20,7 @@ import quizAutosaveService from '../api/services/quizAutosaveService';
 const useQuizAutosave = ({
   quizId,
   quizData,
+  shuffledQuestionIds,
   currentQuestionIndex,
   answers,
   timeRemaining,
@@ -48,6 +50,7 @@ const useQuizAutosave = ({
       const saveData = {
         quiz_id: quizId,
         quiz_data: quizData,
+        shuffled_question_ids: shuffledQuestionIds || [],
         current_question_index: currentQuestionIndex || 0,
         answers: answers || {},
         time_remaining: timeRemaining || null,
@@ -64,7 +67,7 @@ const useQuizAutosave = ({
     } finally {
       setIsSaving(false);
     }
-  }, [quizId, quizData, currentQuestionIndex, answers, timeRemaining, attemptId, enabled]);
+  }, [quizId, quizData, shuffledQuestionIds, currentQuestionIndex, answers, timeRemaining, attemptId, enabled]);
 
   /**
    * Clear autosave for this quiz
@@ -102,6 +105,7 @@ const useQuizAutosave = ({
     // Create current state snapshot
     const currentState = JSON.stringify({
       quiz_id: quizId,
+      shuffled_question_ids: shuffledQuestionIds || [],
       current_question_index: currentQuestionIndex || 0,
       answers: answers || {},
       time_remaining: timeRemaining || null,

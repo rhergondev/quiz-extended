@@ -35,6 +35,10 @@ class QE_Enrollment
         add_action('add_meta_boxes', [$this, 'add_course_link_meta_box']);
         add_action('save_post_product', [$this, 'save_course_link_meta_box'], 10, 1);
 
+        // Product meta box for book linking
+        add_action('add_meta_boxes', [$this, 'add_book_link_meta_box']);
+        add_action('save_post_product', [$this, 'save_book_link_meta_box'], 10, 1);
+
         // Admin notices
         add_action('admin_notices', [$this, 'display_admin_notices']);
 
@@ -542,6 +546,222 @@ class QE_Enrollment
                 'qe_course_link_error',
                 sprintf(
                     __('Failed to link course: %s', 'quiz-extended'),
+                    $e->getMessage()
+                ),
+                'error'
+            );
+        }
+    }
+
+    // ============================================================
+    // PRODUCT META BOX (BOOK LINKING)
+    // ============================================================
+
+    /**
+     * Add meta box to product edit page for book linking
+     *
+     * @return void
+     * @since 2.0.0
+     */
+    public function add_book_link_meta_box()
+    {
+        add_meta_box(
+            'qe_book_link_meta_box',
+            __('Link to PDF Book', 'quiz-extended'),
+            [$this, 'render_book_link_meta_box'],
+            'product',
+            'side',
+            'high'
+        );
+    }
+
+    /**
+     * Render the book link meta box
+     *
+     * @param WP_Post $post The product post object
+     * @return void
+     * @since 2.0.0
+     */
+    public function render_book_link_meta_box($post)
+    {
+        try {
+            // Add nonce for security
+            wp_nonce_field('qe_save_book_link', 'qe_book_link_nonce');
+
+            // Get current linked book
+            $linked_book_id = get_post_meta($post->ID, '_quiz_extended_book_id', true);
+
+            // Get all published books
+            $books = get_posts([
+                'post_type' => 'qe_book',
+                'post_status' => ['publish', 'draft'],
+                'posts_per_page' => -1,
+                'orderby' => 'title',
+                'order' => 'ASC',
+            ]);
+
+            ?>
+            <div class="qe-book-link-wrapper">
+                <p>
+                    <label for="qe_book_id">
+                        <strong><?php _e('Select Book:', 'quiz-extended'); ?></strong>
+                    </label>
+                </p>
+                <select name="qe_book_id" id="qe_book_id" style="width: 100%;">
+                    <option value="">
+                        <?php _e('-- No Book Linked --', 'quiz-extended'); ?>
+                    </option>
+                    <?php foreach ($books as $book): ?>
+                        <?php
+                        $pdf_filename = get_post_meta($book->ID, '_pdf_filename', true);
+                        $has_pdf = !empty($pdf_filename);
+                        $status_label = $book->post_status === 'draft' ? ' [' . __('Draft', 'quiz-extended') . ']' : '';
+                        ?>
+                        <option value="<?php echo esc_attr($book->ID); ?>" <?php selected($linked_book_id, $book->ID); ?>>
+                            <?php echo esc_html($book->post_title . $status_label); ?>
+                            <?php if ($has_pdf): ?>
+                                (📄 <?php echo esc_html($pdf_filename); ?>)
+                            <?php endif; ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="description">
+                    <?php _e('Link a PDF book to this product. Customers who purchase this product will get access to the book.', 'quiz-extended'); ?>
+                </p>
+
+                <?php if ($linked_book_id && get_post($linked_book_id)): ?>
+                    <?php
+                    $book = get_post($linked_book_id);
+                    $pdf_url = get_post_meta($linked_book_id, '_pdf_url', true);
+                    ?>
+                    <p style="margin-top: 10px;">
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=quiz-extended-lms#/books')); ?>"
+                            class="button button-small" target="_blank">
+                            <?php _e('Manage Books', 'quiz-extended'); ?> ↗
+                        </a>
+                        <?php if ($pdf_url): ?>
+                            <a href="<?php echo esc_url($pdf_url); ?>" class="button button-small" target="_blank"
+                                style="margin-left: 5px;">
+                                <?php _e('View PDF', 'quiz-extended'); ?> ↗
+                            </a>
+                        <?php endif; ?>
+                    </p>
+                <?php endif; ?>
+
+                <?php if (empty($books)): ?>
+                    <p style="margin-top: 10px; color: #d63638;">
+                        <?php _e('No books found. Create books first in the LMS admin.', 'quiz-extended'); ?>
+                        <br>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=quiz-extended-lms#/books')); ?>">
+                            <?php _e('Go to Books Manager', 'quiz-extended'); ?> →
+                        </a>
+                    </p>
+                <?php endif; ?>
+            </div>
+            <?php
+
+        } catch (Exception $e) {
+            $this->log_error('Failed to render book link meta box', [
+                'product_id' => $post->ID,
+                'error' => $e->getMessage()
+            ]);
+
+            echo '<p class="error">' . esc_html__('Error loading books. Please check the error log.', 'quiz-extended') . '</p>';
+        }
+    }
+
+    /**
+     * Save the linked book when product is saved
+     *
+     * @param int $post_id Product post ID
+     * @return void
+     * @since 2.0.0
+     */
+    public function save_book_link_meta_box($post_id)
+    {
+        try {
+            // Security checks
+            if (!isset($_POST['qe_book_link_nonce'])) {
+                return;
+            }
+
+            if (!wp_verify_nonce($_POST['qe_book_link_nonce'], 'qe_save_book_link')) {
+                throw new Exception('Nonce verification failed');
+            }
+
+            if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+                return;
+            }
+
+            if (!current_user_can('edit_post', $post_id)) {
+                throw new Exception('User lacks permission to edit product');
+            }
+
+            // Get and validate book ID
+            $book_id = isset($_POST['qe_book_id']) ? $_POST['qe_book_id'] : '';
+
+            // Get previous linked book to update its meta
+            $previous_book_id = get_post_meta($post_id, '_quiz_extended_book_id', true);
+
+            if (empty($book_id)) {
+                // Remove link if no book selected
+                delete_post_meta($post_id, '_quiz_extended_book_id');
+
+                // Also remove the product link from the previous book
+                if ($previous_book_id) {
+                    delete_post_meta($previous_book_id, '_woocommerce_product_id');
+                }
+
+                $this->log_info('Book link removed from product', [
+                    'product_id' => $post_id
+                ]);
+
+                return;
+            }
+
+            // Validate book ID
+            $book_id = absint($book_id);
+
+            if ($book_id <= 0) {
+                throw new Exception('Invalid book ID');
+            }
+
+            // Verify book exists
+            $book = get_post($book_id);
+
+            if (!$book || $book->post_type !== 'qe_book') {
+                throw new Exception("Book not found or invalid: {$book_id}");
+            }
+
+            // Remove link from previous book if different
+            if ($previous_book_id && $previous_book_id != $book_id) {
+                delete_post_meta($previous_book_id, '_woocommerce_product_id');
+            }
+
+            // Save the link
+            update_post_meta($post_id, '_quiz_extended_book_id', $book_id);
+
+            // Also update the book with the product ID (bidirectional)
+            update_post_meta($book_id, '_woocommerce_product_id', $post_id);
+
+            $this->log_info('Book linked to product', [
+                'product_id' => $post_id,
+                'book_id' => $book_id,
+                'book_title' => $book->post_title
+            ]);
+
+        } catch (Exception $e) {
+            $this->log_error('Failed to save book link', [
+                'product_id' => $post_id,
+                'error' => $e->getMessage()
+            ]);
+
+            // Add admin notice
+            add_settings_error(
+                'qe_book_link',
+                'qe_book_link_error',
+                sprintf(
+                    __('Failed to link book: %s', 'quiz-extended'),
                     $e->getMessage()
                 ),
                 'error'

@@ -12,6 +12,7 @@ import QuizzesManager from './components/quizzes/QuizzesManager';
 import UsersManager from './components/users/UsersManager';
 import QuestionsManager from './components/questions/QuestionsManager';
 import MessagesManager from './components/messages/MessagesManager';
+import BooksManager from './components/books/BooksManager';
 import MigrationPage from './pages/admin/MigrationPage';
 import SettingsPage from './pages/SettingsPage';
 import ThemeSettingsPage from './pages/ThemeSettingsPage';
@@ -34,6 +35,7 @@ function AdminApp() {
             <Route path="/questions" element={<QuestionsManager />} />
             <Route path="/students" element={<UsersManager />} />
             <Route path="/messages" element={<MessagesManager />} />
+            <Route path="/books" element={<BooksManager />} />
             <Route path="/migrations" element={<MigrationPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/theme" element={<ThemeSettingsPage />} />

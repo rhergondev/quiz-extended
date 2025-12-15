@@ -689,6 +689,10 @@ class QE_Quiz_Attempts_API extends QE_API_Base
 
                 $this->get_db()->query('COMMIT');
 
+                // 🔥 FIX: Limpiar autosave después de completar exitosamente el quiz
+                // Esto evita el edge case donde el frontend falla al limpiar el autosave
+                $this->clear_quiz_autosave($user_id, $attempt->quiz_id);
+
             } catch (Exception $e) {
                 $this->get_db()->query('ROLLBACK');
                 $this->log_error('Exception during attempt submission transaction', [
@@ -1259,6 +1263,66 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             ['%s', '%f', '%f', '%s', '%d'],
             ['%d']
         );
+    }
+
+    /**
+     * Clear quiz autosave for a user after successful submission
+     * 
+     * This is a server-side cleanup to handle edge cases where the frontend
+     * fails to clear the autosave (network errors, browser closed, etc.)
+     *
+     * @param int $user_id User ID
+     * @param int $quiz_id Quiz ID
+     * @return bool True if deleted or didn't exist, false on error
+     * @since 2.0.0
+     */
+    private function clear_quiz_autosave($user_id, $quiz_id)
+    {
+        try {
+            global $wpdb;
+            $table = $wpdb->prefix . 'qe_quiz_autosave';
+
+            // Check if table exists to avoid errors on older installations
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table'") === $table;
+            if (!$table_exists) {
+                return true; // Table doesn't exist, nothing to clean
+            }
+
+            $result = $wpdb->delete(
+                $table,
+                [
+                    'user_id' => $user_id,
+                    'quiz_id' => $quiz_id,
+                ],
+                ['%d', '%d']
+            );
+
+            if ($result !== false) {
+                if ($result > 0) {
+                    $this->log_info('Cleared quiz autosave after submission', [
+                        'user_id' => $user_id,
+                        'quiz_id' => $quiz_id,
+                    ]);
+                }
+                return true;
+            }
+
+            $this->log_error('Failed to clear quiz autosave', [
+                'user_id' => $user_id,
+                'quiz_id' => $quiz_id,
+                'db_error' => $wpdb->last_error,
+            ]);
+            return false;
+
+        } catch (Exception $e) {
+            // Don't fail the submission if autosave cleanup fails
+            $this->log_error('Exception clearing quiz autosave', [
+                'user_id' => $user_id,
+                'quiz_id' => $quiz_id,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
     }
 
     /**

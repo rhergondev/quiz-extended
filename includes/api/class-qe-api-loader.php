@@ -127,6 +127,7 @@ class QE_API_Loader
             'ghost-users' => 'class-qe-ghost-users-api.php',
             'notifications' => 'class-qe-notifications-api.php',
             'calendar-notes' => 'class-qe-calendar-notes-api.php',
+            'books' => 'class-qe-books-api.php',
             'debug' => 'class-qe-debug-api.php',
             'seeder' => 'class-qe-seeder-api.php',
         ];

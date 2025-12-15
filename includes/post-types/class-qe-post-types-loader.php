@@ -184,7 +184,7 @@ class QE_Post_Types_Loader
             'lesson' => 'types/class-qe-lesson-type.php',
             'quiz' => 'types/class-qe-quiz-type.php',
             'question' => 'types/class-qe-question-type.php',
-            // Note: Book post type removed as it's not used in the project
+            'book' => 'types/class-qe-book-type.php',
         ];
 
         foreach ($post_type_files as $name => $file) {

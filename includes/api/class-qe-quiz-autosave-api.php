@@ -65,6 +65,14 @@ class QE_Quiz_Autosave_API extends QE_API_Base
                         'required' => true,
                         'type' => 'object',
                     ],
+                    'shuffled_question_ids' => [
+                        'required' => false,
+                        'type' => 'array',
+                        'items' => [
+                            'type' => 'integer',
+                        ],
+                        'default' => [],
+                    ],
                     'current_question_index' => [
                         'required' => true,
                         'type' => 'integer',
@@ -167,6 +175,7 @@ class QE_Quiz_Autosave_API extends QE_API_Base
             $quiz_id = $request->get_param('quiz_id');
             $attempt_id = $request->get_param('attempt_id');
             $quiz_data = $request->get_param('quiz_data');
+            $shuffled_question_ids = $request->get_param('shuffled_question_ids');
             $current_question_index = $request->get_param('current_question_index');
             $answers = $request->get_param('answers');
             $time_remaining = $request->get_param('time_remaining');
@@ -178,6 +187,11 @@ class QE_Quiz_Autosave_API extends QE_API_Base
                     __('Missing required parameters', 'quiz-extended'),
                     ['status' => 400]
                 );
+            }
+
+            // 🔥 FIX: Include shuffled_question_ids in quiz_data to preserve question order on recovery
+            if (!empty($shuffled_question_ids) && is_array($shuffled_question_ids)) {
+                $quiz_data['_shuffled_question_ids'] = array_map('absint', $shuffled_question_ids);
             }
 
             // Serialize data
@@ -296,6 +310,14 @@ class QE_Quiz_Autosave_API extends QE_API_Base
             // Get quiz title
             $quiz_title = get_the_title($autosave->quiz_id);
 
+            $quiz_data = json_decode($autosave->quiz_data, true);
+
+            // 🔥 FIX: Extract shuffled_question_ids from quiz_data for recovery
+            $shuffled_question_ids = null;
+            if (isset($quiz_data['_shuffled_question_ids']) && is_array($quiz_data['_shuffled_question_ids'])) {
+                $shuffled_question_ids = $quiz_data['_shuffled_question_ids'];
+            }
+
             return rest_ensure_response([
                 'success' => true,
                 'data' => [
@@ -303,7 +325,8 @@ class QE_Quiz_Autosave_API extends QE_API_Base
                     'quiz_id' => (int) $autosave->quiz_id,
                     'quiz_title' => $quiz_title,
                     'attempt_id' => $autosave->attempt_id ? (int) $autosave->attempt_id : null,
-                    'quiz_data' => json_decode($autosave->quiz_data, true),
+                    'quiz_data' => $quiz_data,
+                    'shuffled_question_ids' => $shuffled_question_ids,
                     'current_question_index' => (int) $autosave->current_question_index,
                     'answers' => json_decode($autosave->answers, true),
                     'time_remaining' => $autosave->time_remaining ? (int) $autosave->time_remaining : null,
@@ -349,13 +372,22 @@ class QE_Quiz_Autosave_API extends QE_API_Base
                 ]);
             }
 
+            $quiz_data = json_decode($autosave->quiz_data, true);
+
+            // 🔥 FIX: Extract shuffled_question_ids from quiz_data for recovery
+            $shuffled_question_ids = null;
+            if (isset($quiz_data['_shuffled_question_ids']) && is_array($quiz_data['_shuffled_question_ids'])) {
+                $shuffled_question_ids = $quiz_data['_shuffled_question_ids'];
+            }
+
             return rest_ensure_response([
                 'success' => true,
                 'data' => [
                     'autosave_id' => (int) $autosave->autosave_id,
                     'quiz_id' => (int) $autosave->quiz_id,
                     'attempt_id' => $autosave->attempt_id ? (int) $autosave->attempt_id : null,
-                    'quiz_data' => json_decode($autosave->quiz_data, true),
+                    'quiz_data' => $quiz_data,
+                    'shuffled_question_ids' => $shuffled_question_ids,
                     'current_question_index' => (int) $autosave->current_question_index,
                     'answers' => json_decode($autosave->answers, true),
                     'time_remaining' => $autosave->time_remaining ? (int) $autosave->time_remaining : null,
