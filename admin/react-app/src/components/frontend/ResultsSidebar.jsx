@@ -1,61 +1,45 @@
 import React from 'react';
-import { Award, Zap, Clock } from 'lucide-react';
-import { useScoreFormat } from '../../contexts/ScoreFormatContext';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 
-const StatBox = ({ label, value, icon: Icon, bgColor, textColor, bgCard }) => (
+// Componente de leyenda - box ancho con texto (usando box-shadow inset para bordes)
+const LegendBox = ({ bgColor, borderColor, textColor, text }) => (
   <div 
-    className="text-center p-3 rounded-lg border-2"
+    className="px-2 py-1 rounded text-[9px] font-semibold text-center truncate"
     style={{ 
-      backgroundColor: bgCard,
-      borderColor: textColor
+      backgroundColor: bgColor, 
+      boxShadow: `inset 0 0 0 2px ${borderColor}`,
+      color: textColor
     }}
   >
-    <div className="flex items-center justify-center mb-1.5">
-      <Icon className="w-4 h-4 mr-1.5" style={{ color: textColor }} />
-      <span 
-        className="text-[10px] font-semibold uppercase tracking-wider"
-        style={{ color: textColor }}
-      >
-        {label}
-      </span>
-    </div>
-    <span 
-      className="block text-xl font-bold"
-      style={{ color: textColor }}
-    >
-      {value}
-    </span>
+    {text}
   </div>
 );
 
 const ResultsSidebar = ({ result, questions }) => {
-  const { formatScore } = useScoreFormat();
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
   
   const SUCCESS_COLOR = '#22c55e';
   const ERROR_COLOR = '#ef4444';
-  const GRAY_COLOR = isDarkMode ? '#9ca3af' : '#6b7280';
+  
+  // Colores para texto en elementos con riesgo
+  const riskTextColor = isDarkMode ? '#ffffff' : getColor('primary', '#1a202c');
+  
+  // Colores para sin contestar
+  const unansweredBg = isDarkMode ? '#4b5563' : '#9ca3af';
+  const unansweredBorder = isDarkMode ? '#ffffff' : '#6b7280';
+  const unansweredText = '#ffffff'; // Siempre blanco porque el fondo es gris
 
   // Dark mode aware colors
   const textPrimary = isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c');
-  const bgCard = isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff';
-  const bgSubtle = isDarkMode ? 'rgba(255,255,255,0.05)' : getColor('primary', '#1a202c') + '05';
+  const bgSubtle = isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
   
   if (!result) {
     return null;
   }
 
-  const { score, score_with_risk, detailed_results, duration_seconds } = result;
-
-  const formatTime = (seconds) => {
-    if (seconds === null || seconds === undefined) return 'N/A';
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
+  const { detailed_results } = result;
 
   const scrollToQuestion = (displayIndex) => {
     const element = document.getElementById(`question-${displayIndex}`);
@@ -65,7 +49,6 @@ const ResultsSidebar = ({ result, questions }) => {
         block: 'center' 
       });
       
-      // Añadir efecto visual con el borde izquierdo pulsante
       element.style.borderLeftWidth = '8px';
       element.style.transition = 'border-left-width 0.3s ease';
       
@@ -81,109 +64,110 @@ const ResultsSidebar = ({ result, questions }) => {
     : detailed_results;
 
   return (
-    <aside className="w-full pt-2">
+    <aside className="w-full pr-4 pt-4">
       <div 
-        className="sticky top-14 p-4 rounded-lg border-2 shadow-sm max-h-[calc(100vh-5rem)] overflow-y-auto"
+        className="sticky top-6 p-2 rounded-lg border-2 shadow-sm max-h-[calc(100vh-5rem)] overflow-y-auto"
         style={{
           backgroundColor: getColor('secondaryBackground', '#ffffff'),
           borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
         }}
       >
-        <h3 
-          className="text-lg font-bold mb-4 text-center"
-          style={{ color: textPrimary }}
+        {/* Leyenda de estados - 4 elementos en 2x2 */}
+        <div 
+          className="px-1 py-1.5 border-b mb-2"
+          style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
         >
-          {t('quizzes.resultsSidebar.title')}
-        </h3>
-
-        <div className="grid grid-cols-1 gap-2 mb-4">
-          <StatBox
-            label={t('quizzes.resultsSidebar.score')}
-            value={formatScore(score)}
-            icon={Award}
-            bgColor={getColor('primary', '#1a202c') + '10'}
-            textColor={isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c')}
-            bgCard={bgCard}
-          />
-          <StatBox
-            label={t('quizzes.resultsSidebar.scoreWithRisk')}
-            value={formatScore(score_with_risk)}
-            icon={Zap}
-            bgColor={getColor('accent', '#f59e0b') + '15'}
-            textColor={getColor('accent', '#f59e0b')}
-            bgCard={bgCard}
-          />
-          <StatBox
-            label={t('quizzes.resultsSidebar.timeSpent')}
-            value={formatTime(duration_seconds)}
-            icon={Clock}
-            bgColor={getColor('primary', '#1a202c') + '10'}
-            textColor={isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c')}
-            bgCard={bgCard}
-          />
+          <div className="grid grid-cols-2 gap-1">
+            {/* Correcta */}
+            <LegendBox 
+              bgColor={SUCCESS_COLOR}
+              borderColor={SUCCESS_COLOR}
+              textColor="#ffffff"
+              text={t('quizzes.resultsSidebar.legendCorrect')}
+            />
+            {/* Arriesgando (correcta) */}
+            <LegendBox 
+              bgColor="transparent"
+              borderColor={SUCCESS_COLOR}
+              textColor={riskTextColor}
+              text={t('quizzes.resultsSidebar.legendRisking')}
+            />
+            {/* Incorrecta */}
+            <LegendBox 
+              bgColor={ERROR_COLOR}
+              borderColor={ERROR_COLOR}
+              textColor="#ffffff"
+              text={t('quizzes.resultsSidebar.legendIncorrect')}
+            />
+            {/* Arriesgando (incorrecta) */}
+            <LegendBox 
+              bgColor="transparent"
+              borderColor={ERROR_COLOR}
+              textColor={riskTextColor}
+              text={t('quizzes.resultsSidebar.legendRisking')}
+            />
+          </div>
         </div>
 
-        <h4 
-          className="text-xs font-semibold mb-2"
-          style={{ color: textPrimary }}
-        >
-          {t('quizzes.resultsSidebar.questionsMap')}
-        </h4>
-        <div 
-          className="grid grid-cols-5 gap-1.5 p-2 rounded-lg"
-          style={{ backgroundColor: bgSubtle }}
-        >
-          {orderedResults && orderedResults.map((res, index) => {
-            const wasAnswered = res.answer_given !== null && res.answer_given !== undefined;
-            
-            let bgColor, borderColor, textColor, title;
-            
-            if (!wasAnswered) {
-              bgColor = GRAY_COLOR + '20';
-              borderColor = GRAY_COLOR;
-              textColor = GRAY_COLOR;
-              title = t('quizzes.resultsSidebar.questionUnanswered', { number: index + 1 });
-            } else if (res.is_risked) {
-              bgColor = bgCard;
-              borderColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
-              textColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
-              title = res.is_correct 
-                ? t('quizzes.resultsSidebar.questionCorrectWithRisk', { number: index + 1 })
-                : t('quizzes.resultsSidebar.questionIncorrectWithRisk', { number: index + 1 });
-            } else {
-              bgColor = res.is_correct ? SUCCESS_COLOR + '20' : ERROR_COLOR + '20';
-              borderColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
-              textColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
-              title = res.is_correct 
-                ? t('quizzes.resultsSidebar.questionCorrect', { number: index + 1 })
-                : t('quizzes.resultsSidebar.questionIncorrect', { number: index + 1 });
-            }
+        {/* Mapa de preguntas - 10 columnas */}
+        <div className="px-1 py-1">
+          <h4 
+            className="text-[10px] font-semibold mb-1"
+            style={{ color: textPrimary }}
+          >
+            {t('quizzes.resultsSidebar.questionsMap')}
+          </h4>
+          <div 
+            className="grid grid-cols-10 gap-0.5 rounded"
+            style={{ backgroundColor: bgSubtle }}
+          >
+            {orderedResults && orderedResults.map((res, index) => {
+              const wasAnswered = res.answer_given !== null && res.answer_given !== undefined;
+              
+              let bgColor, borderColor, textColor, title;
+              
+              if (!wasAnswered) {
+                // Sin contestar: fondo gris, borde blanco (dark) / gris oscuro (light), texto blanco/gris
+                bgColor = unansweredBg;
+                borderColor = unansweredBorder;
+                textColor = unansweredText;
+                title = t('quizzes.resultsSidebar.questionUnanswered', { number: index + 1 });
+              } else if (res.is_risked) {
+                // Con riesgo: solo borde, sin fondo
+                bgColor = 'transparent';
+                borderColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
+                textColor = riskTextColor;
+                title = res.is_correct 
+                  ? t('quizzes.resultsSidebar.questionCorrectWithRisk', { number: index + 1 })
+                  : t('quizzes.resultsSidebar.questionIncorrectWithRisk', { number: index + 1 });
+              } else {
+                // Sin riesgo: fondo sólido
+                bgColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
+                borderColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
+                textColor = '#ffffff';
+                title = res.is_correct 
+                  ? t('quizzes.resultsSidebar.questionCorrect', { number: index + 1 })
+                  : t('quizzes.resultsSidebar.questionIncorrect', { number: index + 1 });
+              }
 
-            return (
-              <button
-                key={res.question_id}
-                onClick={() => scrollToQuestion(index + 1)}
-                className="w-full aspect-square rounded text-xs font-bold transition-all duration-200 flex items-center justify-center cursor-pointer border"
-                style={{
-                  backgroundColor: bgColor,
-                  borderColor: borderColor,
-                  color: textColor
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.1)';
-                  e.currentTarget.style.boxShadow = `0 4px 8px ${borderColor}40`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-                title={title}
-                aria-label={title}
-              >
-                {index + 1}
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={res.question_id}
+                  onClick={() => scrollToQuestion(index + 1)}
+                  className="w-full aspect-square rounded text-[9px] font-semibold transition-all duration-150 flex items-center justify-center cursor-pointer hover:scale-110 hover:shadow-sm"
+                  style={{
+                    backgroundColor: bgColor,
+                    boxShadow: `inset 0 0 0 2px ${borderColor}`,
+                    color: textColor
+                  }}
+                  title={title}
+                  aria-label={title}
+                >
+                  {index + 1}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </aside>

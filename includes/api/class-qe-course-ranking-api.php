@@ -368,12 +368,13 @@ class QE_Course_Ranking_API extends QE_API_Base
 
         // Get user's stats using ONLY the last attempt of each quiz
         $last_attempts_scores = [];
+        $last_attempts_scores_with_risk = [];
         $total_attempts_count = 0;
         $last_attempt_time = null;
 
         foreach ($quiz_ids as $quiz_id) {
             $last_attempt = $wpdb->get_row($wpdb->prepare("
-                SELECT score, end_time
+                SELECT score, score_with_risk, end_time
                 FROM {$table_name}
                 WHERE user_id = %d 
                 AND quiz_id = %d
@@ -384,6 +385,7 @@ class QE_Course_Ranking_API extends QE_API_Base
 
             if ($last_attempt) {
                 $last_attempts_scores[] = (float) $last_attempt->score;
+                $last_attempts_scores_with_risk[] = (float) $last_attempt->score_with_risk;
                 $total_attempts_count++;
 
                 if (!$last_attempt_time || $last_attempt->end_time > $last_attempt_time) {
@@ -395,10 +397,12 @@ class QE_Course_Ranking_API extends QE_API_Base
         // Calculate stats from last attempts only
         $quizzes_completed = count($last_attempts_scores);
         $average_score = $quizzes_completed > 0 ? array_sum($last_attempts_scores) / $quizzes_completed : 0;
+        $average_score_with_risk = $quizzes_completed > 0 ? array_sum($last_attempts_scores_with_risk) / $quizzes_completed : 0;
 
         $user_stats = (object) [
             'quizzes_completed' => $quizzes_completed,
             'average_score' => $average_score,
+            'average_score_with_risk' => $average_score_with_risk,
             'total_attempts' => $total_attempts_count,
             'last_attempt' => $last_attempt_time
         ];
@@ -412,6 +416,7 @@ class QE_Course_Ranking_API extends QE_API_Base
             'completed_quizzes' => $completed_quizzes,
             'pending_quizzes' => $total_quizzes - $completed_quizzes,
             'average_score' => $user_stats ? round((float) $user_stats->average_score, 2) : 0,
+            'average_score_with_risk' => $user_stats ? round((float) $user_stats->average_score_with_risk, 2) : 0,
             'total_attempts' => $user_stats ? (int) $user_stats->total_attempts : 0,
             'last_attempt' => $user_stats ? $user_stats->last_attempt : null
         ];
@@ -419,14 +424,15 @@ class QE_Course_Ranking_API extends QE_API_Base
         // Calculate position among ALL users with at least 1 quiz completed
         // IMPORTANT: Only count users that still exist in WordPress
         if ($user_stats && $completed_quizzes > 0) {
-            // Get all users with scores and filter out non-existent users
+            // Get all users with scores (including score_with_risk) and filter out non-existent users
             $all_user_scores = $wpdb->get_results($wpdb->prepare("
                 SELECT 
                     la.user_id,
                     AVG(la.score) as avg_score,
+                    AVG(la.score_with_risk) as avg_score_with_risk,
                     COUNT(DISTINCT la.quiz_id) as completed
                 FROM (
-                    SELECT t1.user_id, t1.quiz_id, t1.score
+                    SELECT t1.user_id, t1.quiz_id, t1.score, t1.score_with_risk
                     FROM {$table_name} t1
                     INNER JOIN (
                         SELECT user_id, quiz_id, MAX(end_time) as max_end_time
@@ -445,6 +451,7 @@ class QE_Course_Ranking_API extends QE_API_Base
 
             // Filter to only include existing users and count those with higher scores
             $position = 1;
+            $position_with_risk = 1;
             $total_users_in_ranking = 0;
             foreach ($all_user_scores as $user_score) {
                 // Skip if user doesn't exist in WordPress
@@ -461,13 +468,19 @@ class QE_Course_Ranking_API extends QE_API_Base
                     continue;
                 }
 
-                // Count users with higher scores
+                // Count users with higher scores (without risk)
                 if ((float) $user_score->avg_score > $user_stats->average_score) {
                     $position++;
+                }
+
+                // Count users with higher scores (with risk)
+                if ((float) $user_score->avg_score_with_risk > $user_stats->average_score_with_risk) {
+                    $position_with_risk++;
                 }
             }
 
             $response_data['position'] = $position;
+            $response_data['position_with_risk'] = $position_with_risk;
             $response_data['total_users'] = $total_users_in_ranking;
         }
 

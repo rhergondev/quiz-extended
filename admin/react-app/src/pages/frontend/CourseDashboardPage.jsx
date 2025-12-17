@@ -8,7 +8,7 @@ import CoursePageTemplate from '../../components/course/CoursePageTemplate';
 import PendingQuizBanner from '../../components/frontend/PendingQuizBanner';
 import { getCourseProgress } from '../../api/services/studentProgressService';
 import { getMyRankingStatus } from '../../api/services/courseRankingService';
-import { ClipboardList, FileText, Video, Trophy, TrendingUp, Target, Award, Users } from 'lucide-react';
+import { ClipboardList, FileText, Video, Trophy, TrendingUp, Target, Award, Users, ToggleLeft, ToggleRight } from 'lucide-react';
 
 const CourseDashboardPage = () => {
   const { t } = useTranslation();
@@ -21,6 +21,7 @@ const CourseDashboardPage = () => {
   const [courseProgress, setCourseProgress] = useState(null);
   const [rankingStatus, setRankingStatus] = useState(null);
   const [rankingLoading, setRankingLoading] = useState(true);
+  const [showWithRisk, setShowWithRisk] = useState(false);
 
   // Dark mode aware colors (same pattern as SupportMaterialPage)
   const pageColors = {
@@ -261,11 +262,30 @@ const CourseDashboardPage = () => {
               className="px-4 py-3"
               style={{ backgroundColor: pageColors.primary }}
             >
-              <div className="flex items-center gap-2">
-                <Trophy size={18} className="text-white" />
-                <span className="font-semibold text-white text-sm">
-                  {t('ranking.yourPosition')}
-                </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Trophy size={18} className="text-white" />
+                  <span className="font-semibold text-white text-sm">
+                    {t('ranking.yourPosition')}
+                  </span>
+                </div>
+                {/* Toggle for risk mode */}
+                {rankingStatus && rankingStatus.completed_quizzes > 0 && (
+                  <button
+                    onClick={() => setShowWithRisk(!showWithRisk)}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors"
+                    style={{ 
+                      backgroundColor: showWithRisk ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)',
+                    }}
+                  >
+                    {showWithRisk ? (
+                      <ToggleRight size={14} className="text-white" />
+                    ) : (
+                      <ToggleLeft size={14} className="text-white" />
+                    )}
+                    <span className="text-white">{showWithRisk ? t('tests.withRisk') : t('tests.withoutRisk')}</span>
+                  </button>
+                )}
               </div>
             </div>
             
@@ -285,7 +305,7 @@ const CourseDashboardPage = () => {
                     style={{ backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.accent}15` }}
                   >
                     <span className="text-2xl font-bold" style={{ color: pageColors.accent }}>
-                      #{rankingStatus.position || '?'}
+                      #{showWithRisk ? (rankingStatus.position_with_risk || '?') : (rankingStatus.position || '?')}
                       {rankingStatus.total_users && (
                         <span className="text-sm font-normal" style={{ color: pageColors.textMuted }}>
                           /{rankingStatus.total_users}
@@ -298,7 +318,7 @@ const CourseDashboardPage = () => {
                     <div className="flex items-center justify-center gap-2">
                       <TrendingUp size={16} style={{ color: pageColors.primary }} />
                       <span className="text-lg font-bold" style={{ color: pageColors.text }}>
-                        {formatScore(rankingStatus.average_score || 0)}
+                        {formatScore(showWithRisk ? (rankingStatus.average_score_with_risk || 0) : (rankingStatus.average_score || 0))}
                       </span>
                     </div>
                     <p className="text-xs" style={{ color: pageColors.textMuted }}>
@@ -408,42 +428,6 @@ const CourseDashboardPage = () => {
             </div>
           </div>
         </div>
-
-        {/* Quick Stats Row */}
-        {availableContentTypes.length > 0 && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              icon={Target}
-              label={t('courses.totalProgress')}
-              value={`${overallProgress}%`}
-              color={pageColors.primary}
-            />
-            <StatCard
-              icon={ClipboardList}
-              label={t('courses.testsCompleted')}
-              value={`${stepsByType.quiz?.completed || 0}/${stepsByType.quiz?.total || 0}`}
-              color={pageColors.primary}
-            />
-            {rankingStatus && (
-              <StatCard
-                icon={TrendingUp}
-                label={t('ranking.averageScore')}
-                value={formatScore(rankingStatus.average_score || 0)}
-                color={pageColors.accent}
-                highlight={rankingStatus.completed_quizzes > 0}
-              />
-            )}
-            {rankingStatus && rankingStatus.completed_quizzes > 0 && (
-              <StatCard
-                icon={Trophy}
-                label={t('ranking.yourPosition')}
-                value={`#${rankingStatus.position || '?'}`}
-                color={pageColors.accent}
-                highlight
-              />
-            )}
-          </div>
-        )}
       </div>
     </CoursePageTemplate>
   );

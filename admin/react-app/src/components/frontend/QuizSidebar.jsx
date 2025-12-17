@@ -7,16 +7,16 @@ import { Circle, CheckCircle, TrendingDown, AlertCircle } from 'lucide-react';
 
 const StatBox = ({ label, value, bgColor, textColor, bgCard }) => (
   <div 
-    className="text-center p-2 rounded-lg border-2 transition-all duration-200"
+    className="text-center px-1 py-1.5 rounded border transition-all duration-200"
     style={{ 
       backgroundColor: bgCard,
       borderColor: textColor
     }}
   >
-    <span className="block text-[10px] font-medium mb-0.5" style={{ color: textColor + '90' }}>
+    <span className="block text-[8px] font-medium leading-tight" style={{ color: textColor + '90' }}>
       {label}
     </span>
-    <span className="block text-xl font-bold" style={{ color: textColor }}>
+    <span className="block text-sm font-bold" style={{ color: textColor }}>
       {value}
     </span>
   </div>
@@ -113,7 +113,7 @@ const QuizSidebar = ({
   return (
     <div className="w-full h-full flex flex-col">
       <div 
-        className="rounded-lg shadow-sm border-2 transition-all duration-200 flex flex-col h-full max-h-full"
+        className="rounded-lg shadow-sm border-2 transition-all duration-200 flex flex-col h-full max-h-full p-2"
         style={{ 
           backgroundColor: getColor('secondaryBackground', '#ffffff'),
           borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
@@ -122,10 +122,10 @@ const QuizSidebar = ({
         
         {/* Leyenda de estados */}
         <div 
-          className="p-3 border-b"
+          className="px-1 py-1.5 border-b"
           style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
         >
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
             <LegendItem 
               icon={Circle} 
               color={colors.unanswered} 
@@ -145,8 +145,8 @@ const QuizSidebar = ({
         </div>
 
         {/* Estadísticas */}
-        <div className="p-3 border-b" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
-          <div className="grid grid-cols-2 gap-2">
+        <div className="px-1 py-1.5 border-b" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
+          <div className="grid grid-cols-2 gap-1">
             <StatBox 
               label={t('quizzes.sidebar.answered')} 
               value={answeredCount} 
@@ -179,13 +179,13 @@ const QuizSidebar = ({
         </div>
 
         {/* Mapa de preguntas - con scroll interno */}
-        <div className="p-3 border-b flex-1 min-h-0 flex flex-col" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
-          <h3 className="text-xs font-semibold mb-2 flex-shrink-0" style={{ color: textPrimary }}>
+        <div className="px-1 py-1.5 border-b flex-1 min-h-0 flex flex-col" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
+          <h3 className="text-[10px] font-semibold mb-1 flex-shrink-0" style={{ color: textPrimary }}>
             {t('quizzes.sidebar.questionsMap')}
           </h3>
           <div className="overflow-y-scroll flex-1 min-h-0" style={{ maxHeight: '280px', scrollbarGutter: 'stable' }}>
             <div 
-              className="grid grid-cols-5 gap-1.5 p-2 rounded-lg"
+              className="grid grid-cols-10 gap-0.5 rounded"
               style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
             >
             {Array.from({ length: effectiveTotal }).map((_, index) => {
@@ -230,7 +230,7 @@ const QuizSidebar = ({
                     }
                   }}
                   disabled={!isLoaded}
-                  className="w-full aspect-square rounded text-xs font-bold transition-all duration-200 flex items-center justify-center border disabled:cursor-wait hover:enabled:scale-105 hover:enabled:shadow-md cursor-pointer"
+                  className="w-full aspect-square rounded text-[9px] font-semibold transition-all duration-150 flex items-center justify-center border disabled:cursor-wait hover:enabled:scale-110 hover:enabled:shadow-sm cursor-pointer"
                   style={{
                     backgroundColor: bgColor,
                     borderColor: borderColor,
@@ -248,10 +248,10 @@ const QuizSidebar = ({
         </div>
 
         {/* Botón finalizar - siempre visible al final */}
-        <div className="p-3 flex-shrink-0 flex justify-center">
+        <div className="p-2 flex-shrink-0 flex justify-center">
           <button
             onClick={onSubmit}
-            className="px-8 py-2 text-sm text-white font-semibold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98]"
+            className="px-6 py-1.5 text-xs text-white font-semibold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98]"
             style={{ backgroundColor: colors.answeredBg }}
           >
             {t('quizzes.sidebar.finishExam')}

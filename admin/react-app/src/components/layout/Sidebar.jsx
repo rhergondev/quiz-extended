@@ -121,8 +121,7 @@ const Sidebar = () => {
       items.push(
         { to: `/courses/${courseId}/test-generator`, text: t('courses.testGenerator'), icon: Sparkles, type: 'internal' },
         { to: `/courses/${courseId}/self-paced-tests`, text: t('courses.selfPacedTests'), icon: Clock, type: 'internal' },
-        { to: `/courses/${courseId}/test-browser`, text: t('courses.testBrowser'), icon: FolderOpen, type: 'internal' },
-        { to: `/courses/${courseId}/test-history`, text: t('courses.testHistory'), icon: History, type: 'internal', divider: true },
+        { to: `/courses/${courseId}/test-browser`, text: t('courses.testBrowser'), icon: FolderOpen, type: 'internal', divider: true },
         { to: `/courses/${courseId}/statistics`, text: t('courses.statistics'), icon: BarChart3, type: 'internal' }
       );
 

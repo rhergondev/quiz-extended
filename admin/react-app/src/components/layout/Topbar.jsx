@@ -256,10 +256,12 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                 <div style={{ height: '1px', backgroundColor: `${topbarColors.text}15` }} />
                 
                 {/* Mis Libros */}
-                <a
-                  href={`${homeUrl}/mi-cuenta/downloads/`}
-                  onClick={() => setIsDropdownOpen(false)}
-                  className="w-full flex items-center gap-3 px-4 py-3 transition-all duration-200"
+                <button
+                  onClick={() => {
+                    navigate('/books');
+                    setIsDropdownOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 transition-all duration-200 text-left"
                   style={{ 
                     color: topbarColors.text,
                     backgroundColor: 'transparent'
@@ -271,9 +273,9 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                     e.currentTarget.style.color = topbarColors.text;
                   }}
                 >
-                  <FileText className="w-5 h-5" />
+                  <Book className="w-5 h-5" />
                   <span className="font-medium">{t('sidebar.books')}</span>
-                </a>
+                </button>
               </div>
             )}
           </div>

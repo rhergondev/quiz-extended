@@ -999,60 +999,38 @@ const TestsPage = () => {
                       </div>
                     </div>
                   ) : attemptDetails ? (
-                    <div className="h-full flex flex-col relative">
-                      {/* Botón flotante de volver - posición absoluta */}
-                      <button
-                        onClick={handleBackFromAttemptView}
-                        className="absolute top-4 left-4 z-10 p-2 rounded-full shadow-lg transition-all"
-                        style={{ 
-                          backgroundColor: pageColors.bgCard,
-                          border: `2px solid ${pageColors.borderSubtle}`
+                    <div className="h-full overflow-hidden">
+                      <QuizResults
+                        result={{
+                          ...attemptDetails.attempt,
+                          detailed_results: attemptDetails.detailed_results
                         }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = getColor('primary', '#1a202c');
-                          e.currentTarget.querySelector('svg').style.color = '#ffffff';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = pageColors.bgCard;
-                          e.currentTarget.querySelector('svg').style.color = pageColors.text;
-                        }}
-                        title={t('common.back')}
-                      >
-                        <ChevronLeft size={24} style={{ color: pageColors.text }} />
-                      </button>
-                      
-                      {/* Renderizar QuizResults - h-full para ocupar todo el espacio */}
-                      <div className="h-full overflow-hidden">
-                        <QuizResults
-                          result={{
-                            ...attemptDetails.attempt,
-                            detailed_results: attemptDetails.detailed_results
-                          }}
-                          quizTitle={attemptDetails.attempt.quizTitle || selectedTest?.title}
-                          questions={attemptDetails.questions}
-                          noPadding={true}
-                          courseId={courseId}
-                          courseName={courseName}
-                          lessonId={selectedLesson?.id}
-                          lessonTitle={selectedLesson?.title}
-                        />
-                      </div>
+                        quizTitle={attemptDetails.attempt.quizTitle || selectedTest?.title}
+                        questions={attemptDetails.questions}
+                        noPadding={true}
+                        difficulty={selectedTest?.data?.difficulty || 'medium'}
+                        onBack={handleBackFromAttemptView}
+                        courseId={courseId}
+                        courseName={courseName}
+                        lessonId={selectedLesson?.id}
+                        lessonTitle={selectedLesson?.title}
+                      />
                     </div>
                   ) : null
                 ) : !isQuizRunning && !quizResults ? (
-                  // Mostrar info del test - TODO EN UNA SOLA PANTALLA SIN SCROLL
-                  <div className="h-full flex flex-col p-4 overflow-hidden">
-                    {/* Contenedor único con todo el contenido */}
+                  // Mostrar info del test
+                  <div className="h-full flex flex-col p-4 overflow-y-auto">
+                    {/* Contenedor principal con borde */}
                     <div 
-                      className="flex-1 flex flex-col rounded-xl overflow-hidden border-2"
+                      className="flex-1 flex flex-col rounded-xl border-2 p-4"
                       style={{ 
-                        backgroundColor: getColor('secondaryBackground'),
+                        backgroundColor: pageColors.bgCard,
                         borderColor: pageColors.containerBorder
                       }}
                     >
                       {/* HEADER: Título del Quiz + Estado */}
                       <div 
-                        className="px-4 py-3 flex-shrink-0"
+                        className="px-4 py-3 flex-shrink-0 rounded-xl mb-4"
                         style={{ backgroundColor: getColor('primary', '#1a202c') }}
                       >
                         <div className="flex items-center justify-between">
@@ -1080,35 +1058,13 @@ const TestsPage = () => {
                         </div>
                       </div>
 
-                      {/* INFORMACIÓN DEL TEST: Preguntas, Tiempo, Dificultad */}
-                      <div className="flex-shrink-0 border-b" style={{ borderColor: pageColors.borderSubtle }}>
-                        {/* Header de sección */}
-                        <div className="px-3 py-0.5 border-b" style={{ borderColor: pageColors.borderSubtle, backgroundColor: `${getColor('primary', '#1a202c')}10` }}>
-                          <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>{t('tests.testInfo')}</span>
-                        </div>
-                        <div className="grid grid-cols-3">
-                          {/* Preguntas */}
-                          <div className="flex items-center justify-center gap-2 py-1.5 border-r" style={{ borderColor: pageColors.borderSubtle }}>
-                            <HelpCircle size={16} style={{ color: pageColors.textMuted }} />
-                            <span className="text-sm font-bold" style={{ color: pageColors.text }}>
-                              {selectedTest.data?.question_count || '?'}
-                          </span>
-                          <span className="text-[10px]" style={{ color: pageColors.textMuted }}>{t('tests.questions')}</span>
-                        </div>
-                        {/* Tiempo */}
-                        <div className="flex items-center justify-center gap-2 py-1.5 border-r" style={{ borderColor: pageColors.borderSubtle }}>
-                          <Clock size={16} style={{ color: pageColors.textMuted }} />
-                          <span className="text-sm font-bold" style={{ color: pageColors.text }}>
-                            {selectedTest.data?.time_limit ? `${selectedTest.data.time_limit}'` : '∞'}
-                          </span>
-                          <span className="text-[10px]" style={{ color: pageColors.textMuted }}>
-                            {selectedTest.data?.time_limit ? t('tests.minutes') : t('tests.noTimeLimit')}
-                          </span>
-                        </div>
+                      {/* SECCIÓN 1: Info del test (Dificultad, Preguntas, Tiempo) - Sin borde */}
+                      <div className="flex items-center justify-center gap-6 mb-4 py-3">
                         {/* Dificultad */}
-                        <div className="flex items-center justify-center gap-2 py-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('tests.difficulty')}:</span>
                           <span 
-                            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            className="text-xs font-bold px-2 py-0.5 rounded-full"
                             style={{ 
                               backgroundColor: (() => {
                                 const diff = selectedTest.data?.difficulty || 'medium';
@@ -1126,162 +1082,213 @@ const TestsPage = () => {
                             })()}
                           </span>
                         </div>
+                        
+                        {/* Separador */}
+                        <div className="h-4 w-px" style={{ backgroundColor: pageColors.borderSubtle }}></div>
+                        
+                        {/* Preguntas */}
+                        <div className="flex items-center gap-2">
+                          <HelpCircle size={14} style={{ color: pageColors.textMuted }} />
+                          <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('tests.questions')}:</span>
+                          <span className="text-sm font-bold" style={{ color: pageColors.text }}>
+                            {selectedTest.data?.question_count || '?'}
+                          </span>
+                        </div>
+                        
+                        {/* Separador */}
+                        <div className="h-4 w-px" style={{ backgroundColor: pageColors.borderSubtle }}></div>
+                        
+                        {/* Tiempo */}
+                        <div className="flex items-center gap-2">
+                          <Clock size={14} style={{ color: pageColors.textMuted }} />
+                          <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('tests.time')}:</span>
+                          <span className="text-sm font-bold" style={{ color: pageColors.text }}>
+                            {selectedTest.data?.time_limit ? `${selectedTest.data.time_limit} min` : '∞'}
+                          </span>
                         </div>
                       </div>
 
-                      {/* ESTADÍSTICAS: Sin Riesgo | Con Riesgo (solo si hay stats) */}
+                      {/* SECCIÓN 2: Estadísticas Sin Arriesgar */}
                       {hasUserStats && (
-                        <div className="flex-shrink-0 border-b" style={{ borderColor: pageColors.borderSubtle }}>
-                          {/* Header de sección */}
-                          <div className="px-3 py-0.5 border-b" style={{ borderColor: pageColors.borderSubtle, backgroundColor: `${getColor('primary', '#1a202c')}10` }}>
-                            <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>{t('tests.myStats')}</span>
-                          </div>
-                          <div className="grid grid-cols-2">
-                            {/* Sin Riesgo */}
-                            <div className="border-r" style={{ borderColor: pageColors.borderSubtle }}>
-                              <div className="px-2 py-0.5 text-center" style={{ backgroundColor: `${getColor('primary', '#1a202c')}15` }}>
-                                <span className="text-[9px] font-bold uppercase" style={{ color: pageColors.text }}>{t('tests.withoutRisk')}</span>
+                        <div className="mb-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: pageColors.text }}>
+                            {t('tests.withoutRisk')}
+                          </p>
+                          <div 
+                            className="rounded-xl border-2 overflow-hidden"
+                            style={{ 
+                              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.02)' : '#ffffff',
+                              borderColor: pageColors.borderSubtle
+                            }}
+                          >
+                            <div className="grid grid-cols-3 divide-x" style={{ borderColor: pageColors.borderSubtle }}>
+                              {/* Media UA */}
+                              <div className="py-3 text-center">
+                                <div className="text-[10px] uppercase mb-1" style={{ color: pageColors.textMuted }}>{t('tests.avgScore')}</div>
+                                <div className="text-lg font-bold" style={{ color: pageColors.text }}>{formatScore(ranking?.statistics?.avg_score_without_risk || 0)}</div>
                               </div>
-                              <div className="grid grid-cols-3 px-2 py-1 text-center">
-                              <div>
-                                <div className="text-[8px] uppercase" style={{ color: pageColors.textMuted }}>{t('tests.myScore')}</div>
-                                <div className="text-sm font-bold" style={{ color: pageColors.text }}>{formatScore(userStats?.score || 0)}</div>
+                              {/* Mi Nota */}
+                              <div className="py-3 text-center" style={{ borderColor: pageColors.borderSubtle }}>
+                                <div className="text-[10px] uppercase mb-1" style={{ color: pageColors.textMuted }}>{t('tests.myScore')}</div>
+                                <div className="text-lg font-bold" style={{ color: pageColors.text }}>{formatScore(userStats?.score || 0)}</div>
                               </div>
-                              <div>
-                                <div className="text-[8px] uppercase" style={{ color: pageColors.textMuted }}>{t('tests.avgScore')}</div>
-                                <div className="text-sm font-bold" style={{ color: pageColors.text }}>{formatScore(ranking?.statistics?.avg_score_without_risk || 0)}</div>
-                              </div>
-                              <div>
-                                <div className="text-[8px] uppercase" style={{ color: pageColors.textMuted }}>{t('tests.percentile')}</div>
-                                <div className="text-sm font-bold" style={{ color: calculatePercentile(userStats?.score || 0, false) >= 0 ? '#10b981' : '#ef4444' }}>
+                              {/* Mi Percentil */}
+                              <div className="py-3 text-center" style={{ borderColor: pageColors.borderSubtle }}>
+                                <div className="text-[10px] uppercase mb-1" style={{ color: pageColors.textMuted }}>{t('tests.percentile')}</div>
+                                <div className="text-lg font-bold" style={{ color: calculatePercentile(userStats?.score || 0, false) >= 0 ? '#10b981' : '#ef4444' }}>
                                   {calculatePercentile(userStats?.score || 0, false) >= 0 ? '+' : ''}{formatScore(calculatePercentile(userStats?.score || 0, false))}
                                 </div>
                               </div>
                             </div>
                           </div>
-                          {/* Con Riesgo */}
-                            <div>
-                              <div className="px-2 py-0.5 text-center" style={{ backgroundColor: `${getColor('accent', '#f59e0b')}15` }}>
-                                <span className="text-[9px] font-bold uppercase" style={{ color: getColor('accent', '#f59e0b') }}>{t('tests.withRisk')}</span>
-                              </div>
-                              <div className="grid grid-cols-3 px-2 py-1 text-center">
-                                <div>
-                                  <div className="text-[8px] uppercase" style={{ color: pageColors.textMuted }}>{t('tests.myScore')}</div>
-                                  <div className="text-sm font-bold" style={{ color: getColor('accent', '#f59e0b') }}>{formatScore(userStats?.score_with_risk || 0)}</div>
-                                </div>
-                                <div>
-                                  <div className="text-[8px] uppercase" style={{ color: pageColors.textMuted }}>{t('tests.avgScore')}</div>
-                                  <div className="text-sm font-bold" style={{ color: getColor('accent', '#f59e0b') }}>{formatScore(ranking?.statistics?.avg_score_with_risk || 0)}</div>
-                                </div>
-                                <div>
-                                  <div className="text-[8px] uppercase" style={{ color: pageColors.textMuted }}>{t('tests.percentile')}</div>
-                                  <div className="text-sm font-bold" style={{ color: calculatePercentile(userStats?.score_with_risk || 0, true) >= 0 ? '#10b981' : '#ef4444' }}>
-                                    {calculatePercentile(userStats?.score_with_risk || 0, true) >= 0 ? '+' : ''}{formatScore(calculatePercentile(userStats?.score_with_risk || 0, true))}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
                         </div>
                       )}
 
-                      {/* HISTORIAL DE INTENTOS: Ocupa el espacio restante con scroll interno */}
-                      {quizAttempts.length > 0 && !attemptsLoading && (
-                        <div className="flex-1 flex flex-col min-h-0">
-                          {/* Header del historial */}
+                      {/* SECCIÓN 3: Estadísticas Arriesgando */}
+                      {hasUserStats && (
+                        <div className="mb-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: getColor('accent', '#f59e0b') }}>
+                            {t('tests.withRisk')}
+                          </p>
                           <div 
-                            className="px-3 py-0.5 flex-shrink-0 border-b"
-                            style={{ borderColor: pageColors.borderSubtle, backgroundColor: `${getColor('primary', '#1a202c')}10` }}
+                            className="rounded-xl border-2 overflow-hidden"
+                            style={{ 
+                              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.02)' : '#ffffff',
+                              borderColor: getColor('accent', '#f59e0b') + '40'
+                            }}
                           >
-                            <div className="flex items-center justify-between">
-                              <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>{t('tests.recentAttempts')}</span>
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: pageColors.hoverBg, color: pageColors.textMuted }}>{quizAttempts.slice(0, 5).length}/5</span>
-                            </div>
-                          </div>
-                          {/* Headers de columnas */}
-                          <div className="grid grid-cols-5 gap-2 px-3 py-1 text-[8px] uppercase tracking-wide border-b" style={{ color: pageColors.textMuted, borderColor: pageColors.borderSubtle }}>
-                            <div>{t('tests.date')}</div>
-                            <div>{t('tests.withoutRisk')}</div>
-                            <div>{t('tests.withRisk')}</div>
-                            <div className="text-center">{t('tests.status')}</div>
-                            <div className="text-center">{t('tests.actions')}</div>
-                          </div>
-                          
-                          {/* Lista de intentos */}
-                          <div className="flex-1 overflow-y-auto">
-                            {quizAttempts.slice(0, 5).map((attempt, index) => {
-                              const percentileWithoutRisk = calculatePercentile(attempt.score || 0, false);
-                              const percentileWithRisk = calculatePercentile(attempt.score_with_risk || 0, true);
-                              return (
-                                <div 
-                                  key={attempt.attempt_id || attempt.id || index}
-                                  className="grid grid-cols-5 gap-2 items-center px-3 py-1.5 border-b transition-colors"
-                                  style={{ 
-                                    borderColor: pageColors.borderSubtle,
-                                    backgroundColor: index % 2 === 0 ? 'transparent' : `${pageColors.hoverBg}50`
-                                  }}
-                                >
-                                  {/* Fecha */}
-                                  <div className="text-xs font-medium" style={{ color: pageColors.text }}>
-                                    {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
-                                  </div>
-                                  {/* Sin Riesgo */}
-                                  <div>
-                                    <span className="text-sm font-bold" style={{ color: pageColors.text }}>
-                                      {formatScore(attempt.score || 0)}
-                                    </span>
-                                    <span className="text-[10px] ml-1" style={{ color: percentileWithoutRisk >= 0 ? '#10b981' : '#ef4444' }}>
-                                      {percentileWithoutRisk >= 0 ? '↑' : '↓'}{Math.abs(percentileWithoutRisk).toFixed(1)}
-                                    </span>
-                                  </div>
-                                  {/* Con Riesgo */}
-                                  <div>
-                                    <span className="text-sm font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
-                                      {formatScore(attempt.score_with_risk || 0)}
-                                    </span>
-                                    <span className="text-[10px] ml-1" style={{ color: percentileWithRisk >= 0 ? '#10b981' : '#ef4444' }}>
-                                      {percentileWithRisk >= 0 ? '↑' : '↓'}{Math.abs(percentileWithRisk).toFixed(1)}
-                                    </span>
-                                  </div>
-                                  {/* Estado */}
-                                  <div className="flex justify-center">
-                                    {attempt.passed ? (
-                                      <span className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ backgroundColor: '#10b98120', color: '#10b981' }}>
-                                        <CheckCircle size={10} />
-                                        {t('tests.passed')}
-                                      </span>
-                                    ) : (
-                                      <span className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ backgroundColor: '#ef444420', color: '#ef4444' }}>
-                                        <XCircle size={10} />
-                                        {t('tests.failed')}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {/* Ver detalles */}
-                                  <div className="flex justify-center">
-                                    <button
-                                      onClick={() => handleViewAttemptDetails(attempt.attempt_id || attempt.id)}
-                                      className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg transition-all"
-                                      style={{ 
-                                        backgroundColor: getColor('primary', '#1a202c'),
-                                        color: '#ffffff'
-                                      }}
-                                      onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
-                                      onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-                                    >
-                                      <Eye size={12} />
-                                      <span>{t('tests.details')}</span>
-                                    </button>
-                                  </div>
+                            <div className="grid grid-cols-3 divide-x" style={{ borderColor: getColor('accent', '#f59e0b') + '40' }}>
+                              {/* Media UA */}
+                              <div className="py-3 text-center">
+                                <div className="text-[10px] uppercase mb-1" style={{ color: pageColors.textMuted }}>{t('tests.avgScore')}</div>
+                                <div className="text-lg font-bold" style={{ color: getColor('accent', '#f59e0b') }}>{formatScore(ranking?.statistics?.avg_score_with_risk || 0)}</div>
+                              </div>
+                              {/* Mi Nota */}
+                              <div className="py-3 text-center" style={{ borderColor: getColor('accent', '#f59e0b') + '40' }}>
+                                <div className="text-[10px] uppercase mb-1" style={{ color: pageColors.textMuted }}>{t('tests.myScore')}</div>
+                                <div className="text-lg font-bold" style={{ color: getColor('accent', '#f59e0b') }}>{formatScore(userStats?.score_with_risk || 0)}</div>
+                              </div>
+                              {/* Mi Percentil */}
+                              <div className="py-3 text-center" style={{ borderColor: getColor('accent', '#f59e0b') + '40' }}>
+                                <div className="text-[10px] uppercase mb-1" style={{ color: pageColors.textMuted }}>{t('tests.percentile')}</div>
+                                <div className="text-lg font-bold" style={{ color: calculatePercentile(userStats?.score_with_risk || 0, true) >= 0 ? '#10b981' : '#ef4444' }}>
+                                  {calculatePercentile(userStats?.score_with_risk || 0, true) >= 0 ? '+' : ''}{formatScore(calculatePercentile(userStats?.score_with_risk || 0, true))}
                                 </div>
-                              );
-                            })}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       )}
 
-                      {/* BOTÓN DE INICIAR: Siempre al final */}
-                      <div className="p-3 flex-shrink-0 border-t mt-auto" style={{ borderColor: pageColors.borderSubtle }}>
+                      {/* SECCIÓN 4: Historial de intentos */}
+                      {quizAttempts.length > 0 && !attemptsLoading && (
+                        <div className="mb-4 flex-1 flex flex-col min-h-0">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: pageColors.text }}>
+                              {t('tests.recentAttempts')}
+                            </p>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: pageColors.hoverBg, color: pageColors.textMuted }}>
+                              {quizAttempts.slice(0, 5).length}/5
+                            </span>
+                          </div>
+                          <div 
+                            className="rounded-xl border-2 overflow-hidden flex-1 flex flex-col"
+                            style={{ 
+                              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.02)' : '#ffffff',
+                              borderColor: pageColors.borderSubtle
+                            }}
+                          >
+                            {/* Header de columnas - 7 columnas: Intento, Fecha | Nota, Percentil | Arriesgando, Percentil | Ver */}
+                            <div 
+                              className="grid grid-cols-7 text-[9px] uppercase tracking-wide font-semibold py-2 px-3 border-b"
+                              style={{ color: pageColors.textMuted, borderColor: pageColors.borderSubtle, backgroundColor: pageColors.bgSubtle }}
+                            >
+                              <div>{t('tests.attempt')}</div>
+                              <div>{t('tests.date')}</div>
+                              <div className="text-center border-l pl-2" style={{ borderColor: pageColors.borderSubtle }}>{t('tests.score')}</div>
+                              <div className="text-center">{t('tests.percentile')}</div>
+                              <div className="text-center border-l pl-2" style={{ borderColor: pageColors.borderSubtle }}>{t('tests.withRisk')}</div>
+                              <div className="text-center">{t('tests.percentile')}</div>
+                              <div className="text-center border-l pl-2" style={{ borderColor: pageColors.borderSubtle }}>{t('tests.viewCorrection')}</div>
+                            </div>
+                            
+                            {/* Lista de intentos */}
+                            <div className="flex-1 overflow-y-auto">
+                              {quizAttempts.slice(0, 5).map((attempt, index) => {
+                                const percentileWithoutRisk = calculatePercentile(attempt.score || 0, false);
+                                const percentileWithRisk = calculatePercentile(attempt.score_with_risk || 0, true);
+                                return (
+                                  <div 
+                                    key={attempt.attempt_id || attempt.id || index}
+                                    className="grid grid-cols-7 items-center px-3 py-2 border-b transition-colors"
+                                    style={{ 
+                                      borderColor: pageColors.borderSubtle,
+                                      backgroundColor: index % 2 === 0 ? 'transparent' : pageColors.bgSubtle
+                                    }}
+                                  >
+                                    {/* Intento */}
+                                    <div className="text-xs font-medium" style={{ color: pageColors.text }}>
+                                      #{index + 1}
+                                    </div>
+                                    
+                                    {/* Fecha */}
+                                    <div className="text-[10px]" style={{ color: pageColors.textMuted }}>
+                                      {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                                    </div>
+                                    
+                                    {/* Nota (Sin riesgo) */}
+                                    <div className="text-center border-l pl-2" style={{ borderColor: pageColors.borderSubtle }}>
+                                      <span className="text-sm font-bold" style={{ color: pageColors.text }}>
+                                        {formatScore(attempt.score || 0)}
+                                      </span>
+                                    </div>
+                                    
+                                    {/* Percentil (Sin riesgo) */}
+                                    <div className="text-center">
+                                      <span className="text-xs font-medium" style={{ color: percentileWithoutRisk >= 0 ? '#10b981' : '#ef4444' }}>
+                                        {percentileWithoutRisk >= 0 ? '+' : ''}{percentileWithoutRisk.toFixed(1)}
+                                      </span>
+                                    </div>
+                                    
+                                    {/* Arriesgando */}
+                                    <div className="text-center border-l pl-2" style={{ borderColor: pageColors.borderSubtle }}>
+                                      <span className="text-sm font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
+                                        {formatScore(attempt.score_with_risk || 0)}
+                                      </span>
+                                    </div>
+                                    
+                                    {/* Percentil (Arriesgando) */}
+                                    <div className="text-center">
+                                      <span className="text-xs font-medium" style={{ color: percentileWithRisk >= 0 ? '#10b981' : '#ef4444' }}>
+                                        {percentileWithRisk >= 0 ? '+' : ''}{percentileWithRisk.toFixed(1)}
+                                      </span>
+                                    </div>
+                                    
+                                    {/* Ver Corrección */}
+                                    <div className="flex justify-center border-l pl-2" style={{ borderColor: pageColors.borderSubtle }}>
+                                      <button
+                                        onClick={() => handleViewAttemptDetails(attempt.attempt_id || attempt.id)}
+                                        className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg transition-all"
+                                        style={{ 
+                                          backgroundColor: getColor('primary', '#1a202c'),
+                                          color: '#ffffff'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+                                        onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                                      >
+                                        <Eye size={12} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* BOTÓN DE INICIAR */}
+                      <div className="flex-shrink-0 mt-auto pt-4">
                         <button
                           onClick={async () => {
                             if (quizId) {
@@ -1296,7 +1303,7 @@ const TestsPage = () => {
                               }
                             }
                           }}
-                          className="w-full py-2.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2"
+                          className="w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
                           style={{ 
                             backgroundColor: getColor('primary', '#1a202c'),
                             color: '#ffffff'
@@ -1311,7 +1318,7 @@ const TestsPage = () => {
                           }}
                         >
                           <Play size={18} />
-                          <span>{isCurrentStepCompleted() ? t('tests.retake') : t('tests.startTest')}</span>
+                          <span>{isCurrentStepCompleted() ? t('tests.retakeQuiz') : t('tests.startQuiz')}</span>
                         </button>
                       </div>
                     </div>
@@ -1341,41 +1348,19 @@ const TestsPage = () => {
                   )
                 ) : (
                   // Mostrar resultados
-                  <div className="h-full flex flex-col relative">
-                    {/* Botón flotante de volver */}
-                    <button
-                      onClick={handleCloseResults}
-                      className="absolute top-4 left-4 z-10 p-2 rounded-full shadow-lg transition-all"
-                      style={{ 
-                        backgroundColor: getColor('background', '#ffffff'),
-                        border: `2px solid ${getColor('primary', '#1a202c')}15`
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = getColor('primary', '#1a202c');
-                        e.currentTarget.querySelector('svg').style.color = '#ffffff';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = getColor('background', '#ffffff');
-                        e.currentTarget.querySelector('svg').style.color = getColor('primary', '#1a202c');
-                      }}
-                      title={t('tests.backToInfo')}
-                    >
-                      <ChevronLeft size={24} style={{ color: getColor('primary', '#1a202c') }} />
-                    </button>
-                    
-                    {/* QuizResults sin padding para ocupar todo el espacio */}
-                    <div className="h-full overflow-hidden">
-                      <QuizResults
-                        result={quizResults}
-                        quizTitle={resultsQuizInfo?.title?.rendered || resultsQuizInfo?.title || selectedTest?.data?.title}
-                        questions={resultsQuestions}
-                        noPadding={true}
-                        courseId={courseId}
-                        courseName={courseName}
-                        lessonId={selectedLesson?.id}
-                        lessonTitle={selectedLesson?.title}
-                      />
-                    </div>
+                  <div className="h-full overflow-hidden">
+                    <QuizResults
+                      result={quizResults}
+                      quizTitle={resultsQuizInfo?.title?.rendered || resultsQuizInfo?.title || selectedTest?.data?.title}
+                      questions={resultsQuestions}
+                      noPadding={true}
+                      difficulty={selectedTest?.data?.difficulty || 'medium'}
+                      onBack={handleCloseResults}
+                      courseId={courseId}
+                      courseName={courseName}
+                      lessonId={selectedLesson?.id}
+                      lessonTitle={selectedLesson?.title}
+                    />
                   </div>
                 )}
               </div>

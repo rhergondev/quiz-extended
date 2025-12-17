@@ -123,8 +123,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
 
     items.push(
       { to: `/courses/${courseId}/test-generator`, text: t('courses.testGenerator'), icon: Sparkles },
-      { to: `/courses/${courseId}/self-paced-tests`, text: t('courses.selfPacedTests'), icon: Clock },
-      { to: `/courses/${courseId}/test-history`, text: t('courses.testHistory'), icon: History }
+      { to: `/courses/${courseId}/self-paced-tests`, text: t('courses.selfPacedTests'), icon: Clock }
     );
 
     return items;

@@ -646,7 +646,10 @@
       "questionCorrect": "Question {{number}}: Correct",
       "questionIncorrect": "Question {{number}}: Incorrect",
       "questionCorrectWithRisk": "Question {{number}}: Correct (with risk)",
-      "questionIncorrectWithRisk": "Question {{number}}: Incorrect (with risk)"
+      "questionIncorrectWithRisk": "Question {{number}}: Incorrect (with risk)",
+      "legendCorrect": "Correct",
+      "legendIncorrect": "Incorrect",
+      "legendRisking": "Risking"
     },
     "results": {
       "title": "Quiz Results",
@@ -660,7 +663,9 @@
       "percentile": "Percentile",
       "myScore": "My Score",
       "answeredWithRisk": "At risk",
-      "backToCourses": "Back to Courses"
+      "backToCourses": "Back to Courses",
+      "difficultyLevel": "Difficulty level",
+      "timeSpent": "Time"
     },
     "sidebar": {
       "loadingQuestions": "Loading questions...",
@@ -1022,9 +1027,12 @@
     "generateTest": "Generate Test",
     "start": "Start",
     "startTest": "Start Test",
+    "startQuiz": "Start Quiz",
     "retake": "Retake",
+    "retakeQuiz": "Retake Quiz",
     "passingScore": "Passing score",
     "timeLimit": "Time limit",
+    "time": "Time",
     "minutes": "minutes",
     "noTimeLimit": "No limit",
     "questions": "Questions",
@@ -1044,8 +1052,14 @@
     "withRisk": "With Risk",
     "avgScore": "UA Average",
     "myScore": "My Score",
-    "percentile": "My Percentile",
-    "recentAttempts": "Recent Attempts",
+    "percentile": "Percentile",
+    "score": "Score",
+    "recentAttempts": "Your Attempts Summary",
+    "attemptDate": "Attempt / Date",
+    "scorePercentile": "Score / Percentile",
+    "riskPercentile": "Risk / Percentile",
+    "viewCorrection": "View Correction",
+    "view": "View",
     "last5Attempts": "Last 5 attempts",
     "passed": "Passed",
     "failed": "Failed",

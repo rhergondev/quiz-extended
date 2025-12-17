@@ -549,18 +549,31 @@ const Quiz = ({
             </span>
           </div>
           
-          {/* Botón Dark Mode */}
-          <button
-            onClick={toggleDarkMode}
-            className="p-2 rounded-lg transition-all duration-200 hover:scale-105"
-            style={{
-              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-              color: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c')
-            }}
-            aria-label={isDarkMode ? 'Modo claro' : 'Modo oscuro'}
-          >
-            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
+          {/* Timer y Botón Dark Mode */}
+          <div className="flex items-center gap-3">
+            {/* Timer inline */}
+            <Timer
+              durationMinutes={timeLimit}
+              onTimeUp={handleSubmit}
+              isPaused={quizState === 'submitted' || quizState === 'submitting'}
+              initialTimeRemaining={timeRemaining}
+              onTick={(remainingSeconds) => setTimeRemaining(remainingSeconds)}
+              compact={true}
+            />
+            
+            {/* Botón Dark Mode */}
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 rounded-lg transition-all duration-200 hover:scale-105"
+              style={{
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                color: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c')
+              }}
+              aria-label={isDarkMode ? 'Modo claro' : 'Modo oscuro'}
+            >
+              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
       )}
 
@@ -610,9 +623,9 @@ const Quiz = ({
       </button>
 
       <div className="flex-1 overflow-hidden">
-        <div className="w-full h-full max-w-screen-2xl mx-auto flex flex-col lg:flex-row gap-8 px-4 sm:px-6 py-6">
+        <div className="w-full h-full max-w-screen-2xl mx-auto flex flex-col lg:flex-row gap-8 justify-between px-4 sm:px-6 py-6">
           {/* Columna de Preguntas (con scroll y canvas de dibujo) */}
-          <main ref={questionsContainerRef} className="w-full lg:w-2/3 lg:pr-4 relative overflow-y-auto pb-24 lg:pb-8">
+          <main ref={questionsContainerRef} className="w-full lg:pr-4 relative overflow-y-auto pb-24 lg:pb-8">
             {/* Canvas de dibujo relativo al contenedor */}
             {currentDrawingMode && (
               <DrawingCanvas 
@@ -696,7 +709,7 @@ const Quiz = ({
         fixed lg:relative
         top-0 right-0 
         h-full lg:h-auto
-        w-80 lg:w-1/3
+        w-80 lg:w-[280px] xl:w-[300px]
         flex-shrink-0
         transition-transform duration-300
         z-50 lg:z-auto
@@ -722,7 +735,7 @@ const Quiz = ({
           </button>
         </div>
 
-        <div className="space-y-4 p-4 lg:p-0 lg:sticky lg:top-6 overflow-y-auto h-[calc(100%-88px)] lg:h-auto">
+        <div className="space-y-3 p-4 lg:p-0 lg:sticky lg:top-6 overflow-y-auto h-[calc(100%-88px)] lg:h-auto lg:ml-auto">
             <QuizSidebar
               questions={quizQuestions}
               questionIds={questionIds}
@@ -731,13 +744,6 @@ const Quiz = ({
               riskedAnswers={riskedAnswers}
               onSubmit={handleSubmit}
               loadedCount={loadedCount}
-            />
-            <Timer
-                durationMinutes={timeLimit}
-                onTimeUp={handleSubmit}
-                isPaused={quizState === 'submitted' || quizState === 'submitting'}
-                initialTimeRemaining={timeRemaining}
-                onTick={(remainingSeconds) => setTimeRemaining(remainingSeconds)}
             />
         </div>
       </aside>

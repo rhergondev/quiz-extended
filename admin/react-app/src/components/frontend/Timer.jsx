@@ -4,7 +4,7 @@ import { Clock } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
 
-const Timer = ({ durationMinutes, onTimeUp, isPaused, initialTimeRemaining = null, onTick = null }) => {
+const Timer = ({ durationMinutes, onTimeUp, isPaused, initialTimeRemaining = null, onTick = null, compact = false }) => {
   const { getColor, isDarkMode } = useTheme();
   const { t } = useTranslation();
   const [remainingTime, setRemainingTime] = useState(
@@ -59,6 +59,24 @@ const Timer = ({ durationMinutes, onTimeUp, isPaused, initialTimeRemaining = nul
   
   if (durationMinutes <= 0) {
       return null; // No renderizar si no hay límite de tiempo
+  }
+
+  // Modo compacto para la barra superior
+  if (compact) {
+    return (
+      <div 
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+        style={{ 
+          backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+          color: textPrimary
+        }}
+      >
+        <Clock className="w-4 h-4" style={{ color: textSecondary }} />
+        <span className="text-sm font-semibold tabular-nums">
+          {formatTime(remainingTime)}
+        </span>
+      </div>
+    );
   }
 
   return (

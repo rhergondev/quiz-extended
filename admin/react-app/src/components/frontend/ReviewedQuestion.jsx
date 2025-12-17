@@ -82,6 +82,35 @@ const ReviewedQuestion = ({
 
   const questionState = getQuestionState();
   const borderColor = getQuestionColor();
+  
+  // Estilo de la tarjeta según si es arriesgando o no
+  // Usamos box-shadow inset para evitar que WordPress/Elementor sobrescriban los bordes
+  const getCardStyle = () => {
+    const baseColor = getQuestionColor();
+    const wasAnswered = answer_given !== null && answer_given !== undefined;
+    
+    if (!wasAnswered) {
+      // Sin contestar: fondo gris sutil
+      return {
+        backgroundColor: bgCard,
+        boxShadow: `inset 0 0 0 2px ${GRAY_COLOR}40, inset 4px 0 0 0 ${GRAY_COLOR}`
+      };
+    }
+    
+    if (is_risked) {
+      // Arriesgando: borde grueso de color, fondo neutro
+      return {
+        backgroundColor: bgCard,
+        boxShadow: `inset 0 0 0 3px ${baseColor}, inset 6px 0 0 0 ${baseColor}`
+      };
+    }
+    
+    // Sin riesgo: fondo coloreado sutil
+    return {
+      backgroundColor: baseColor + '10',
+      boxShadow: `inset 0 0 0 2px ${baseColor}60, inset 4px 0 0 0 ${baseColor}`
+    };
+  };
 
   const getOptionStyle = (optionId) => {
     const isSelected = optionId == answer_given;
@@ -178,11 +207,7 @@ const ReviewedQuestion = ({
         id={`question-${displayIndex || question.id}`} 
         className="rounded-lg mb-4 shadow-sm scroll-mt-6 transition-all duration-200"
         style={{
-          backgroundColor: getColor('secondaryBackground', '#ffffff'),
-          borderTop: `2px solid ${borderColor}40`,
-          borderRight: `2px solid ${borderColor}40`,
-          borderBottom: `2px solid ${borderColor}40`,
-          borderLeft: `4px solid ${borderColor}`
+          ...getCardStyle()
         }}
       >
         {/* Header */}
