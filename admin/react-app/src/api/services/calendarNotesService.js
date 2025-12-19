@@ -69,6 +69,9 @@ export const getCalendarNotes = async (courseId) => {
  * @param {string} [noteData.description] - Note description
  * @param {string} noteData.note_date - Date in YYYY-MM-DD format
  * @param {string} [noteData.color] - Hex color (default: #8B5CF6)
+ * @param {string} [noteData.type] - Type: 'note' or 'live_class' (default: 'note')
+ * @param {string} [noteData.link] - Meeting link (for live_class type)
+ * @param {string} [noteData.time] - Time in HH:MM format (for live_class type)
  * @returns {Promise<Object>} Created note
  */
 export const createCalendarNote = async (courseId, noteData) => {

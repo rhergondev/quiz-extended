@@ -28,7 +28,7 @@ const TestsPage = () => {
   // Dark mode aware colors
   const pageColors = {
     text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
-    textMuted: getColor('textSecondary', '#6b7280'),
+    textMuted: isDarkMode ? '#ffffff' : getColor('textSecondary', '#6b7280'),
     accent: getColor('accent', '#f59e0b'),
     bgCard: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
     bgSubtle: isDarkMode ? 'rgba(255,255,255,0.05)' : `${getColor('primary', '#1a202c')}05`,

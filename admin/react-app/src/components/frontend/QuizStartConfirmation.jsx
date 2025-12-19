@@ -10,13 +10,14 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useScoreFormat } from '../../contexts/ScoreFormatContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import useQuizRanking from '../../hooks/useQuizRanking';
 import QuizResultsSummary from './dashboard/QuizResultsSummary';
 import QEButton from '../common/QEButton';
 
-const StatItem = ({ icon: Icon, label, value }) => (
-  <div className="flex items-center text-sm text-gray-600">
-    <Icon className="w-4 h-4 mr-2 text-gray-400" />
+const StatItem = ({ icon: Icon, label, value, isDarkMode }) => (
+  <div className="flex items-center text-sm" style={{ color: isDarkMode ? '#ffffff' : '#4b5563' }}>
+    <Icon className="w-4 h-4 mr-2" style={{ color: isDarkMode ? '#9ca3af' : '#9ca3af' }} />
     <span className="font-semibold mr-1">{label}:</span>
     <span>{value}</span>
   </div>
@@ -25,14 +26,25 @@ const StatItem = ({ icon: Icon, label, value }) => (
 const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
   const navigate = useNavigate();
   const { formatScore } = useScoreFormat();
+  const { getColor, isDarkMode } = useTheme();
   
   // Obtener estadísticas del ranking
   const { ranking, loading: rankingLoading } = useQuizRanking(quiz?.id);
 
+  // Dark mode colors
+  const colors = {
+    text: isDarkMode ? '#ffffff' : '#1f2937',
+    textMuted: isDarkMode ? '#ffffff' : '#4b5563',
+    textSecondary: isDarkMode ? '#d1d5db' : '#6b7280',
+    bg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    bgSecondary: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f9fafb',
+    border: isDarkMode ? 'rgba(255,255,255,0.1)' : '#e5e7eb',
+  };
+
   if (!quiz) {
     return (
       <div className="text-center p-8">
-        <p className="text-gray-500">No se pudo cargar la información del cuestionario.</p>
+        <p style={{ color: colors.textSecondary }}>No se pudo cargar la información del cuestionario.</p>
       </div>
     );
   }
@@ -70,37 +82,56 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
   const hasUserStats = userStats !== null && userStats !== undefined && statistics.total_users > 0;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-8 shadow-lg max-w-5xl mx-auto space-y-6">
+    <div 
+      className="rounded-lg p-8 shadow-lg max-w-5xl mx-auto space-y-6"
+      style={{ 
+        backgroundColor: colors.bg,
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderColor: colors.border
+      }}
+    >
       {/* Header */}
       <div className="text-center">
         <HelpCircle className="mx-auto h-12 w-12 text-indigo-500 mb-4" />
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+        <h2 className="text-2xl font-bold mb-2" style={{ color: colors.text }}>
           {title?.rendered || title || 'Cuestionario'}
         </h2>
-        <p className="text-gray-600">
+        <p style={{ color: colors.textMuted }}>
           Estás a punto de comenzar el cuestionario. ¿Estás listo?
         </p>
       </div>
 
       {/* Barra de información del cuestionario */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left bg-gray-50 p-6 rounded-lg border border-gray-200">
+      <div 
+        className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left p-6 rounded-lg"
+        style={{ 
+          backgroundColor: colors.bgSecondary,
+          borderWidth: '1px',
+          borderStyle: 'solid',
+          borderColor: colors.border
+        }}
+      >
         <StatItem
           icon={HelpCircle}
           label="Preguntas"
           value={question_count}
+          isDarkMode={isDarkMode}
         />
         <StatItem
           icon={Clock}
           label="Tiempo Límite"
           value={time_limit > 0 ? `${time_limit} min` : 'Sin límite'}
+          isDarkMode={isDarkMode}
         />
         <StatItem
           icon={CheckCircle}
           label="Puntuación Mínima"
           value={formatScore(passing_score)}
+          isDarkMode={isDarkMode}
         />
-        <div className="flex items-center text-sm text-gray-600">
-          <Target className="w-4 h-4 mr-2 text-gray-400" />
+        <div className="flex items-center text-sm" style={{ color: colors.textMuted }}>
+          <Target className="w-4 h-4 mr-2" style={{ color: isDarkMode ? '#9ca3af' : '#9ca3af' }} />
           <span className="font-semibold mr-1">Dificultad:</span>
           <span className={`px-2 py-0.5 rounded text-xs font-semibold ${difficultyConfig.bg} ${difficultyConfig.color}`}>
             {difficultyConfig.label}
@@ -112,12 +143,18 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
       {hasUserStats && !rankingLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Tarjeta SIN RIESGO */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-lg border-2 border-blue-200 shadow-sm">
+          <div 
+            className="p-6 rounded-lg border-2 shadow-sm"
+            style={{
+              background: isDarkMode ? 'linear-gradient(to bottom right, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.15))' : 'linear-gradient(to bottom right, #eff6ff, #eef2ff)',
+              borderColor: isDarkMode ? 'rgba(59, 130, 246, 0.4)' : '#bfdbfe'
+            }}
+          >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+              <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: colors.textMuted }}>
                 Sin Riesgo
               </h3>
-              <div className="p-2 bg-white rounded-lg shadow-sm">
+              <div className="p-2 rounded-lg shadow-sm" style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#ffffff' }}>
                 <TrendingUp className="w-5 h-5 text-blue-600" />
               </div>
             </div>
@@ -125,26 +162,29 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
             <div className="space-y-3">
               {/* Media UA */}
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Media UA:</span>
-                <span className="text-lg font-bold text-gray-800">
+                <span className="text-sm" style={{ color: colors.textMuted }}>Media UA:</span>
+                <span className="text-lg font-bold" style={{ color: colors.text }}>
                   {formatScore(statistics.avg_score_without_risk || 0)}
                 </span>
               </div>
               
               {/* Mi Nota */}
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Mi Nota:</span>
+                <span className="text-sm" style={{ color: colors.textMuted }}>Mi Nota:</span>
                 <span className="text-lg font-bold text-blue-700">
                   {formatScore(userStats?.score || 0)}
                 </span>
               </div>
               
               {/* Separador */}
-              <div className="border-t border-blue-200 my-2"></div>
+              <div className="my-2" style={{ borderTopWidth: '1px', borderTopStyle: 'solid', borderTopColor: isDarkMode ? 'rgba(59, 130, 246, 0.3)' : '#bfdbfe' }}></div>
               
               {/* Mi Percentil */}
-              <div className="flex justify-between items-center bg-white bg-opacity-60 p-2 rounded">
-                <span className="text-sm font-semibold text-gray-700">Mi Percentil:</span>
+              <div 
+                className="flex justify-between items-center p-2 rounded"
+                style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.6)' }}
+              >
+                <span className="text-sm font-semibold" style={{ color: colors.textMuted }}>Mi Percentil:</span>
                 <span className="text-xl font-extrabold text-blue-600">
                   {(() => {
                     const myScore = userStats?.score || 0;
@@ -158,12 +198,18 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
           </div>
 
           {/* Tarjeta CON RIESGO */}
-          <div className="bg-gradient-to-br from-yellow-50 to-amber-50 p-6 rounded-lg border-2 border-yellow-300 shadow-sm">
+          <div 
+            className="p-6 rounded-lg border-2 shadow-sm"
+            style={{
+              background: isDarkMode ? 'linear-gradient(to bottom right, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.15))' : 'linear-gradient(to bottom right, #fefce8, #fffbeb)',
+              borderColor: isDarkMode ? 'rgba(245, 158, 11, 0.4)' : '#fcd34d'
+            }}
+          >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+              <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: colors.textMuted }}>
                 Con Riesgo
               </h3>
-              <div className="p-2 bg-white rounded-lg shadow-sm">
+              <div className="p-2 rounded-lg shadow-sm" style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#ffffff' }}>
                 <Target className="w-5 h-5 text-amber-600" />
               </div>
             </div>
@@ -171,26 +217,29 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
             <div className="space-y-3">
               {/* Media UA */}
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Media UA:</span>
-                <span className="text-lg font-bold text-gray-800">
+                <span className="text-sm" style={{ color: colors.textMuted }}>Media UA:</span>
+                <span className="text-lg font-bold" style={{ color: colors.text }}>
                   {formatScore(statistics.avg_score_with_risk || 0)}
                 </span>
               </div>
               
               {/* Mi Nota */}
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Mi Nota:</span>
+                <span className="text-sm" style={{ color: colors.textMuted }}>Mi Nota:</span>
                 <span className="text-lg font-bold text-amber-700">
                   {formatScore(userStats?.score_with_risk || 0)}
                 </span>
               </div>
               
               {/* Separador */}
-              <div className="border-t border-yellow-200 my-2"></div>
+              <div className="my-2" style={{ borderTopWidth: '1px', borderTopStyle: 'solid', borderTopColor: isDarkMode ? 'rgba(245, 158, 11, 0.3)' : '#fcd34d' }}></div>
               
               {/* Mi Percentil */}
-              <div className="flex justify-between items-center bg-white bg-opacity-60 p-2 rounded">
-                <span className="text-sm font-semibold text-gray-700">Mi Percentil:</span>
+              <div 
+                className="flex justify-between items-center p-2 rounded"
+                style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.6)' }}
+              >
+                <span className="text-sm font-semibold" style={{ color: colors.textMuted }}>Mi Percentil:</span>
                 <span className="text-xl font-extrabold text-amber-600">
                   {(() => {
                     const myScore = userStats?.score_with_risk || 0;
@@ -219,9 +268,9 @@ const QuizStartConfirmation = ({ quiz, onStartQuiz }) => {
       </div>
 
       {/* Tabla de Últimos Intentos */}
-      <div className="pt-2 border-t border-gray-200">
+      <div className="pt-2" style={{ borderTopWidth: '1px', borderTopStyle: 'solid', borderTopColor: colors.border }}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-800">
+          <h3 className="text-lg font-bold" style={{ color: colors.text }}>
             Mis Últimos Intentos
           </h3>
           <QEButton

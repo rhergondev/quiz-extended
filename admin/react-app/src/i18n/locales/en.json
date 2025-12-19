@@ -698,7 +698,9 @@
       "currentQuestion": "Current question",
       "timeRemaining": "Time remaining",
       "continueQuiz": "Continue",
-      "startOver": "Start over"
+      "startOver": "Start over",
+      "showTimer": "Show timer",
+      "hideTimer": "Hide timer"
     },
     "exitModal": {
       "title": "Exit quiz",
@@ -757,6 +759,9 @@
     "title": "LMS Dashboard",
     "recentResults": "Recent Results",
     "noAttempts": "You haven't completed any quizzes yet.",
+    "nextLiveClass": "Next Live Class",
+    "noLiveClasses": "No classes scheduled",
+    "noLiveClassesDescription": "No upcoming live classes",
     "stats": {
       "totalAttempts": "Total Attempts",
       "passed": "Passed",
@@ -1218,5 +1223,43 @@
       "new_text": "New Content",
       "topic_updated": "Topic Updated"
     }
+  },
+  "calendar": {
+    "description": "View the course topic calendar",
+    "legend": "Legend",
+    "legendVideo": "Video",
+    "legendTest": "Test",
+    "legendPdf": "PDF",
+    "legendLesson": "Topic",
+    "legendNote": "Note",
+    "legendLiveClass": "Live Class",
+    "noDate": "No date",
+    "noLessons": "No topics",
+    "noLessonsDescription": "This course has no scheduled topics yet.",
+    "date": "Date",
+    "note": "Note",
+    "liveClass": "Live Class",
+    "addNote": "Add note",
+    "addLiveClass": "Add class",
+    "newNote": "New note",
+    "editNote": "Edit note",
+    "newLiveClass": "New live class",
+    "editLiveClass": "Edit class",
+    "noteTitle": "Title",
+    "noteTitlePlaceholder": "E.g.: Midterm exam",
+    "noteDescription": "Description",
+    "noteDescriptionPlaceholder": "Add an optional description...",
+    "noteDate": "Date",
+    "noteColor": "Color",
+    "confirmDeleteNote": "Delete this note?",
+    "liveClassTitle": "Title",
+    "liveClassTitlePlaceholder": "E.g.: Topic 5 review class",
+    "liveClassLink": "Meeting link",
+    "liveClassDescription": "Description",
+    "liveClassDescriptionPlaceholder": "Add an optional description...",
+    "liveClassDate": "Date",
+    "liveClassTime": "Time",
+    "liveClassColor": "Color",
+    "joinClass": "Join class"
   }
 }

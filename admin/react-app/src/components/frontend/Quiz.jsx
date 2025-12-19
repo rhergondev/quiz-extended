@@ -54,6 +54,7 @@ const Quiz = ({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isQuizSidebarOpen, setIsQuizSidebarOpen] = useState(false);
   const [clearCanvasCallback, setClearCanvasCallback] = useState(null);
+  const [isTimerVisible, setIsTimerVisible] = useState(true);
   
   // Internal drawing states (fallback if not provided via props)
   const [internalDrawingMode, setInternalDrawingMode] = useState(false);
@@ -551,15 +552,46 @@ const Quiz = ({
           
           {/* Timer y Botón Dark Mode */}
           <div className="flex items-center gap-3">
+            {/* Timer toggle button */}
+            <button
+              onClick={() => setIsTimerVisible(!isTimerVisible)}
+              className="p-2 rounded-lg transition-all duration-200 hover:scale-105"
+              style={{
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                color: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c')
+              }}
+              aria-label={isTimerVisible ? t('quizzes.quiz.hideTimer') : t('quizzes.quiz.showTimer')}
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="20" 
+                height="20" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+                {!isTimerVisible && (
+                  <line x1="4" y1="4" x2="20" y2="20" strokeWidth="2.5"/>
+                )}
+              </svg>
+            </button>
+            
             {/* Timer inline */}
-            <Timer
-              durationMinutes={timeLimit}
-              onTimeUp={handleSubmit}
-              isPaused={quizState === 'submitted' || quizState === 'submitting'}
-              initialTimeRemaining={timeRemaining}
-              onTick={(remainingSeconds) => setTimeRemaining(remainingSeconds)}
-              compact={true}
-            />
+            {isTimerVisible && (
+              <Timer
+                durationMinutes={timeLimit}
+                onTimeUp={handleSubmit}
+                isPaused={quizState === 'submitted' || quizState === 'submitting'}
+                initialTimeRemaining={timeRemaining}
+                onTick={(remainingSeconds) => setTimeRemaining(remainingSeconds)}
+                compact={true}
+              />
+            )}
             
             {/* Botón Dark Mode */}
             <button
@@ -585,7 +617,7 @@ const Quiz = ({
           handleSetDrawingEnabled(newState);
           handleSetDrawingMode(true);
         }}
-        className="fixed bottom-6 left-6 z-50 p-4 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+        className="fixed bottom-24 right-6 z-50 p-4 rounded-full shadow-lg transition-all duration-200 hover:scale-110 lg:bottom-6"
         style={{
           backgroundColor: currentShowToolbar ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6'),
           color: '#ffffff'

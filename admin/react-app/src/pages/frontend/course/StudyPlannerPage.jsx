@@ -5,7 +5,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { useLessons } from '../../../hooks/useLessons';
 import CourseSidebar from '../../../components/course/CourseSidebar';
 import LessonCalendar from '../../../components/calendar/LessonCalendar';
-import { Calendar, ChevronRight, Loader, Video, FileText, ClipboardList, X, Plus, Edit2, Trash2, StickyNote, Download } from 'lucide-react';
+import { Calendar, ChevronRight, Loader, Video, FileText, ClipboardList, X, Plus, Edit2, Trash2, StickyNote, Download, ExternalLink } from 'lucide-react';
 import { isUserAdmin } from '../../../utils/userUtils';
 import { getCalendarNotes, createCalendarNote, updateCalendarNote, deleteCalendarNote } from '../../../api/services/calendarNotesService';
 
@@ -331,17 +331,262 @@ const NoteModal = ({ note, onSave, onDelete, onClose, pageColors, getColor, isDa
 };
 
 /**
+ * LiveClassModal - Modal to create/edit live class events (admin only)
+ */
+const LiveClassModal = ({ liveClass, onSave, onDelete, onClose, pageColors, getColor, isDarkMode, t, isEditing }) => {
+  const [title, setTitle] = useState(liveClass?.title || '');
+  const [description, setDescription] = useState(liveClass?.description || '');
+  const [noteDate, setNoteDate] = useState(liveClass?.note_date || new Date().toISOString().split('T')[0]);
+  const [time, setTime] = useState(liveClass?.time?.substring(0, 5) || '');
+  const [link, setLink] = useState(liveClass?.link || '');
+  const [color, setColor] = useState(liveClass?.color || '#EF4444');
+  const [saving, setSaving] = useState(false);
+
+  const colors = [
+    '#EF4444', // Red
+    '#3B82F6', // Blue
+    '#10B981', // Green
+    '#F59E0B', // Amber
+    '#8B5CF6', // Purple
+    '#EC4899', // Pink
+    '#6366F1', // Indigo
+    '#14B8A6', // Teal
+  ];
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!title.trim() || !noteDate || !link.trim()) return;
+    
+    setSaving(true);
+    try {
+      await onSave({
+        title: title.trim(),
+        description: description.trim(),
+        note_date: noteDate,
+        time: time || null,
+        link: link.trim(),
+        color,
+        type: 'live_class'
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="rounded-xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
+        style={{ backgroundColor: pageColors.bgCard }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div 
+              className="p-3 rounded-xl"
+              style={{ backgroundColor: color + '20' }}
+            >
+              <Video size={24} style={{ color }} />
+            </div>
+            <h3 className="text-lg font-bold" style={{ color: pageColors.text }}>
+              {isEditing ? t('calendar.editLiveClass', 'Editar clase') : t('calendar.newLiveClass', 'Nueva clase en directo')}
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg transition-colors"
+            style={{ backgroundColor: pageColors.hoverBg }}
+          >
+            <X size={18} style={{ color: pageColors.text }} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>
+              {t('calendar.liveClassTitle', 'Título')} *
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border-2 focus:outline-none transition-colors"
+              style={{ 
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f9fafb',
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb'),
+                color: pageColors.text
+              }}
+              placeholder={t('calendar.liveClassTitlePlaceholder', 'Ej: Clase de repaso tema 5')}
+              required
+            />
+          </div>
+
+          {/* Link */}
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>
+              {t('calendar.liveClassLink', 'Enlace de la reunión')} *
+            </label>
+            <input
+              type="url"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border-2 focus:outline-none transition-colors"
+              style={{ 
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f9fafb',
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb'),
+                color: pageColors.text
+              }}
+              placeholder="https://meet.google.com/... o https://teams.microsoft.com/..."
+              required
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>
+              {t('calendar.liveClassDescription', 'Descripción')}
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              className="w-full px-3 py-2 rounded-lg border-2 focus:outline-none transition-colors resize-none"
+              style={{ 
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f9fafb',
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb'),
+                color: pageColors.text
+              }}
+              placeholder={t('calendar.liveClassDescriptionPlaceholder', 'Añade una descripción opcional...')}
+            />
+          </div>
+
+          {/* Date and Time */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>
+                {t('calendar.liveClassDate', 'Fecha')} *
+              </label>
+              <input
+                type="date"
+                value={noteDate}
+                onChange={(e) => setNoteDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border-2 focus:outline-none transition-colors"
+                style={{ 
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f9fafb',
+                  borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb'),
+                  color: pageColors.text
+                }}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>
+                {t('calendar.liveClassTime', 'Hora')}
+              </label>
+              <input
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border-2 focus:outline-none transition-colors"
+                style={{ 
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f9fafb',
+                  borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb'),
+                  color: pageColors.text
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Color picker */}
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>
+              {t('calendar.liveClassColor', 'Color')}
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {colors.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c)}
+                  className={`w-8 h-8 rounded-full transition-transform ${color === c ? 'scale-110 ring-2 ring-offset-2' : ''}`}
+                  style={{ 
+                    backgroundColor: c,
+                    ringColor: c,
+                    ringOffsetColor: pageColors.bgCard
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-4">
+            {isEditing && onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                style={{ 
+                  backgroundColor: '#ef4444',
+                  color: '#fff'
+                }}
+              >
+                <Trash2 size={16} />
+                {t('common.delete', 'Eliminar')}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2 px-4 rounded-lg font-medium transition-colors"
+              style={{ 
+                backgroundColor: pageColors.hoverBg,
+                color: pageColors.text
+              }}
+            >
+              {t('common.cancel', 'Cancelar')}
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !title.trim() || !link.trim()}
+              className="flex-1 py-2 px-4 rounded-lg font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ 
+                backgroundColor: pageColors.primaryBg,
+                color: '#fff'
+              }}
+            >
+              {saving ? t('common.saving', 'Guardando...') : t('common.save', 'Guardar')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+/**
  * NoteDetailModal - Modal to show note details when clicked (for non-admins or viewing)
  */
 const NoteDetailModal = ({ note, onClose, onEdit, pageColors, getColor, isDarkMode, t, isAdmin }) => {
   if (!note) return null;
 
+  const isLiveClass = note.type === 'live_class';
+  
   const formattedDate = note.note_date 
     ? new Date(note.note_date).toLocaleDateString('es-ES', { 
         day: '2-digit', 
         month: 'long',
         year: 'numeric'
       })
+    : '';
+
+  const formattedTime = note.time 
+    ? note.time.substring(0, 5) // HH:MM format
     : '';
 
   return (
@@ -361,7 +606,11 @@ const NoteDetailModal = ({ note, onClose, onEdit, pageColors, getColor, isDarkMo
               className="p-3 rounded-xl"
               style={{ backgroundColor: (note.color || '#8B5CF6') + '20' }}
             >
-              <StickyNote size={24} style={{ color: note.color || '#8B5CF6' }} />
+              {isLiveClass ? (
+                <Video size={24} style={{ color: note.color || '#8B5CF6' }} />
+              ) : (
+                <StickyNote size={24} style={{ color: note.color || '#8B5CF6' }} />
+              )}
             </div>
             <span 
               className="text-xs font-medium px-3 py-1 rounded-full"
@@ -370,7 +619,7 @@ const NoteDetailModal = ({ note, onClose, onEdit, pageColors, getColor, isDarkMo
                 color: note.color || '#8B5CF6'
               }}
             >
-              {t('calendar.note', 'Nota')}
+              {isLiveClass ? t('calendar.liveClass', 'Clase en directo') : t('calendar.note', 'Nota')}
             </span>
           </div>
           <button
@@ -394,9 +643,9 @@ const NoteDetailModal = ({ note, onClose, onEdit, pageColors, getColor, isDarkMo
           </p>
         )}
 
-        {/* Date */}
+        {/* Date and Time */}
         <div 
-          className="flex items-center gap-3 p-3 rounded-lg"
+          className="flex items-center gap-3 p-3 rounded-lg mb-3"
           style={{ backgroundColor: pageColors.bgSubtle }}
         >
           <Calendar size={18} style={{ color: pageColors.textMuted }} />
@@ -405,14 +654,31 @@ const NoteDetailModal = ({ note, onClose, onEdit, pageColors, getColor, isDarkMo
               {t('calendar.date', 'Fecha')}
             </div>
             <div className="font-semibold" style={{ color: pageColors.text }}>
-              {formattedDate}
+              {formattedDate}{formattedTime && ` - ${formattedTime}`}
             </div>
           </div>
         </div>
 
+        {/* Link for live class */}
+        {isLiveClass && note.link && (
+          <a
+            href={note.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full p-3 rounded-lg font-medium transition-opacity hover:opacity-90"
+            style={{ 
+              backgroundColor: note.color || '#8B5CF6',
+              color: '#fff'
+            }}
+          >
+            <ExternalLink size={18} />
+            {t('calendar.joinClass', 'Unirse a la clase')}
+          </a>
+        )}
+
         {/* Footer */}
         <div 
-          className="mt-6 pt-4 border-t flex gap-3"
+          className={`mt-6 pt-4 border-t flex gap-3`}
           style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : getColor('borderColor', '#e5e7eb') }}
         >
           {isAdmin && onEdit && (
@@ -462,6 +728,7 @@ const StudyPlannerPage = () => {
   const [notesLoading, setNotesLoading] = useState(false);
   const [selectedNote, setSelectedNote] = useState(null);
   const [showNoteModal, setShowNoteModal] = useState(false);
+  const [showLiveClassModal, setShowLiveClassModal] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
 
   // Fetch calendar notes
@@ -605,10 +872,50 @@ const StudyPlannerPage = () => {
       await deleteCalendarNote(courseId, editingNote.id);
       setCalendarNotes(prev => prev.filter(n => n.id !== editingNote.id));
       setShowNoteModal(false);
+      setShowLiveClassModal(false);
       setEditingNote(null);
     } catch (err) {
       console.error('Error deleting note:', err);
       alert(err.message || t('common.errorDeleting', 'Error al eliminar'));
+    }
+  }, [editingNote, courseId, t]);
+
+  // Open create live class modal
+  const handleOpenCreateLiveClass = useCallback(() => {
+    setEditingNote(null);
+    setShowLiveClassModal(true);
+  }, []);
+
+  // Open edit live class/note modal (determines which modal based on type)
+  const handleEditNoteOrLiveClass = useCallback(() => {
+    if (selectedNote?.type === 'live_class') {
+      setEditingNote(selectedNote);
+      setSelectedNote(null);
+      setShowLiveClassModal(true);
+    } else {
+      setEditingNote(selectedNote);
+      setSelectedNote(null);
+      setShowNoteModal(true);
+    }
+  }, [selectedNote]);
+
+  // Save live class (create or update)
+  const handleSaveLiveClass = useCallback(async (liveClassData) => {
+    try {
+      if (editingNote) {
+        // Update existing live class
+        const updated = await updateCalendarNote(courseId, editingNote.id, liveClassData);
+        setCalendarNotes(prev => prev.map(n => n.id === editingNote.id ? updated : n));
+      } else {
+        // Create new live class
+        const created = await createCalendarNote(courseId, liveClassData);
+        setCalendarNotes(prev => [...prev, created]);
+      }
+      setShowLiveClassModal(false);
+      setEditingNote(null);
+    } catch (err) {
+      console.error('Error saving live class:', err);
+      alert(err.message || t('common.errorSaving', 'Error al guardar'));
     }
   }, [editingNote, courseId, t]);
 
@@ -666,19 +973,32 @@ const StudyPlannerPage = () => {
                   </p>
                 </div>
               </div>
-              {/* Admin: Add note button */}
+              {/* Admin: Add buttons */}
               {isAdmin && (
-                <button
-                  onClick={handleOpenCreateNote}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-opacity hover:opacity-90"
-                  style={{ 
-                    backgroundColor: '#8B5CF6',
-                    color: '#fff'
-                  }}
-                >
-                  <Plus size={18} />
-                  <span className="hidden sm:inline">{t('calendar.addNote', 'Añadir nota')}</span>
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleOpenCreateLiveClass}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-opacity hover:opacity-90"
+                    style={{ 
+                      backgroundColor: '#EF4444',
+                      color: '#fff'
+                    }}
+                  >
+                    <Video size={18} />
+                    <span className="hidden sm:inline">{t('calendar.addLiveClass', 'Añadir clase')}</span>
+                  </button>
+                  <button
+                    onClick={handleOpenCreateNote}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-opacity hover:opacity-90"
+                    style={{ 
+                      backgroundColor: '#8B5CF6',
+                      color: '#fff'
+                    }}
+                  >
+                    <Plus size={18} />
+                    <span className="hidden sm:inline">{t('calendar.addNote', 'Añadir nota')}</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -748,6 +1068,17 @@ const StudyPlannerPage = () => {
                 <StickyNote size={14} style={{ color: pageColors.textMuted }} />
                 <span className="text-sm" style={{ color: pageColors.text }}>
                   {t('calendar.legendNote', 'Nota')}
+                </span>
+              </div>
+              {/* Live Class */}
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-4 h-4 rounded border-2 border-dashed"
+                  style={{ borderColor: '#EF4444', backgroundColor: 'transparent' }}
+                />
+                <Video size={14} style={{ color: pageColors.textMuted }} />
+                <span className="text-sm" style={{ color: pageColors.text }}>
+                  {t('calendar.legendLiveClass', 'Clase en directo')}
                 </span>
               </div>
             </div>
@@ -824,7 +1155,7 @@ const StudyPlannerPage = () => {
             <NoteDetailModal
               note={selectedNote}
               onClose={handleCloseNoteModal}
-              onEdit={isAdmin ? handleEditNote : null}
+              onEdit={isAdmin ? handleEditNoteOrLiveClass : null}
               pageColors={pageColors}
               getColor={getColor}
               isDarkMode={isDarkMode}
@@ -840,6 +1171,21 @@ const StudyPlannerPage = () => {
               onSave={handleSaveNote}
               onDelete={editingNote ? handleDeleteNote : null}
               onClose={() => { setShowNoteModal(false); setEditingNote(null); }}
+              pageColors={pageColors}
+              getColor={getColor}
+              isDarkMode={isDarkMode}
+              t={t}
+              isEditing={!!editingNote}
+            />
+          )}
+
+          {/* Live class create/edit modal (admin only) */}
+          {showLiveClassModal && isAdmin && (
+            <LiveClassModal
+              liveClass={editingNote}
+              onSave={handleSaveLiveClass}
+              onDelete={editingNote ? handleDeleteNote : null}
+              onClose={() => { setShowLiveClassModal(false); setEditingNote(null); }}
               pageColors={pageColors}
               getColor={getColor}
               isDarkMode={isDarkMode}

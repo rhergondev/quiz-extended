@@ -500,24 +500,35 @@ const LessonCalendar = ({
         };
       });
 
-    // Calendar note events (admin-created)
+    // Calendar note events (admin-created) - includes notes and live classes
     const noteEvents = calendarNotes.map(note => {
       const startDate = new Date(note.note_date);
-      startDate.setHours(0, 0, 0, 0);
-      const endDate = addHours(startDate, 24);
+      // If live class has a time, set it; otherwise use start of day
+      if (note.type === 'live_class' && note.time) {
+        const [hours, minutes] = note.time.split(':');
+        startDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      } else {
+        startDate.setHours(0, 0, 0, 0);
+      }
+      const endDate = note.type === 'live_class' && note.time 
+        ? addHours(startDate, 1) // Live classes default to 1 hour
+        : addHours(startDate, 24); // Notes are all-day
+      
+      const isLiveClass = note.type === 'live_class';
       
       return {
         id: `note-${note.id}`,
         title: note.title,
         start: startDate,
         end: endDate,
-        allDay: true,
-        lessonType: 'note',
+        allDay: !isLiveClass || !note.time,
+        lessonType: isLiveClass ? 'live_class' : 'note',
         note,
         isNote: true,
+        isLiveClass,
         isStep: false,
-        color: note.color || '#8B5CF6',
-        borderColor: note.color || '#7C3AED',
+        color: note.color || (isLiveClass ? '#EF4444' : '#8B5CF6'),
+        borderColor: note.color || (isLiveClass ? '#DC2626' : '#7C3AED'),
         textColor: '#FFFFFF',
       };
     });

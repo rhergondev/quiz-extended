@@ -90,7 +90,7 @@ const CourseStatisticsPage = () => {
           getDifficultyStats(courseId),
           getMyRankingStatus(courseId),
           getCourseRanking(courseId, { page: 1, perPage: 20, withRisk: false }),
-          getUserQuestionStats(courseId, null) // Initial load without filter
+          getUserQuestionStats(courseId, selectedLessonFilter, selectedDifficulty) // Use current filters for initial load
         ]);
         
         console.log('📊 Question Stats API Response:', questionStatsData);

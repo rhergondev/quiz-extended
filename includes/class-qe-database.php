@@ -637,6 +637,9 @@ class QE_Database
                 description TEXT DEFAULT NULL,
                 note_date DATE NOT NULL,
                 color VARCHAR(20) DEFAULT '#8B5CF6',
+                type VARCHAR(20) DEFAULT 'note',
+                link VARCHAR(500) DEFAULT NULL,
+                time TIME DEFAULT NULL,
                 created_by BIGINT(20) UNSIGNED NOT NULL,
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
@@ -645,6 +648,12 @@ class QE_Database
                 KEY note_date (note_date),
                 KEY created_by (created_by)
             ) $charset_collate;";
+
+            // Run dbDelta for table creation
+            dbDelta($sql);
+
+            // Migration: Add new columns if table already exists but columns don't
+            self::migrate_calendar_notes_table($table_name);
 
             dbDelta($sql);
 
@@ -661,6 +670,42 @@ class QE_Database
                 'error' => $e->getMessage()
             ]);
             return false;
+        }
+    }
+
+    /**
+     * Migrate calendar_notes table to add new columns for live class support
+     *
+     * @param string $table_name Full table name
+     * @return void
+     * @since 2.0.5
+     */
+    private static function migrate_calendar_notes_table($table_name)
+    {
+        global $wpdb;
+
+        // Get existing columns
+        $columns = $wpdb->get_results("SHOW COLUMNS FROM {$table_name}");
+        $existing_columns = array_map(function ($col) {
+            return $col->Field;
+        }, $columns);
+
+        // Add 'type' column if it doesn't exist
+        if (!in_array('type', $existing_columns)) {
+            $wpdb->query("ALTER TABLE {$table_name} ADD COLUMN `type` VARCHAR(20) DEFAULT 'note' AFTER `color`");
+            self::log_info("Added 'type' column to {$table_name}");
+        }
+
+        // Add 'link' column if it doesn't exist
+        if (!in_array('link', $existing_columns)) {
+            $wpdb->query("ALTER TABLE {$table_name} ADD COLUMN `link` VARCHAR(500) DEFAULT NULL AFTER `type`");
+            self::log_info("Added 'link' column to {$table_name}");
+        }
+
+        // Add 'time' column if it doesn't exist
+        if (!in_array('time', $existing_columns)) {
+            $wpdb->query("ALTER TABLE {$table_name} ADD COLUMN `time` TIME DEFAULT NULL AFTER `link`");
+            self::log_info("Added 'time' column to {$table_name}");
         }
     }
 

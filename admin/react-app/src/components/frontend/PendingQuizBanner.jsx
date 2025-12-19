@@ -5,6 +5,14 @@ import { PlayCircle, Clock, X, ChevronRight } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import quizAutosaveService from '../../api/services/quizAutosaveService';
 
+// Helper function to decode HTML entities
+const decodeHtmlEntities = (text) => {
+  if (!text) return text;
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+};
+
 /**
  * Banner component that shows when user has an unfinished quiz
  * Displays in the course dashboard to remind users to continue
@@ -132,7 +140,7 @@ const PendingQuizBanner = ({ courseId }) => {
   }
 
   const progress = getProgress();
-  const quizTitle = autosaveData.quiz_title || t('common.untitled');
+  const quizTitle = decodeHtmlEntities(autosaveData.quiz_title) || t('common.untitled');
 
   // Border color: accent in dark mode, primary in light mode
   const borderColor = isDarkMode ? colors.accent : colors.primary;

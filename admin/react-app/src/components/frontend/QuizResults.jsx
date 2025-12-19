@@ -34,7 +34,7 @@ const QuizResults = ({
   const accentColor = getColor('accent', '#f59e0b');
   const pageColors = {
     text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
-    textMuted: getColor('textSecondary', '#6b7280'),
+    textMuted: isDarkMode ? '#ffffff' : getColor('textSecondary', '#6b7280'),
     accent: accentColor,
     bg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
     border: isDarkMode ? accentColor : `${primaryColor}20`,

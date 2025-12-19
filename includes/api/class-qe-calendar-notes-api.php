@@ -91,6 +91,23 @@ class QE_Calendar_Notes_API extends QE_API_Base
                         'default' => '#8B5CF6',
                         'sanitize_callback' => 'sanitize_hex_color',
                     ],
+                    'type' => [
+                        'required' => false,
+                        'type' => 'string',
+                        'default' => 'note',
+                        'enum' => ['note', 'live_class'],
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ],
+                    'link' => [
+                        'required' => false,
+                        'type' => 'string',
+                        'sanitize_callback' => 'esc_url_raw',
+                    ],
+                    'time' => [
+                        'required' => false,
+                        'type' => 'string',
+                        'validate_callback' => [$this, 'validate_time'],
+                    ],
                 ],
             ],
         ]);
@@ -132,6 +149,22 @@ class QE_Calendar_Notes_API extends QE_API_Base
                         'required' => false,
                         'type' => 'string',
                         'sanitize_callback' => 'sanitize_hex_color',
+                    ],
+                    'type' => [
+                        'required' => false,
+                        'type' => 'string',
+                        'enum' => ['note', 'live_class'],
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ],
+                    'link' => [
+                        'required' => false,
+                        'type' => 'string',
+                        'sanitize_callback' => 'esc_url_raw',
+                    ],
+                    'time' => [
+                        'required' => false,
+                        'type' => 'string',
+                        'validate_callback' => [$this, 'validate_time'],
                     ],
                 ],
             ],
@@ -202,6 +235,21 @@ class QE_Calendar_Notes_API extends QE_API_Base
     }
 
     /**
+     * Validate time format (HH:MM or HH:MM:SS)
+     *
+     * @param string $time Time string
+     * @return bool
+     */
+    public function validate_time($time)
+    {
+        if (empty($time)) {
+            return true; // Time is optional
+        }
+        // Accept HH:MM or HH:MM:SS format
+        return preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', $time);
+    }
+
+    /**
      * Get notes for a course
      *
      * @param WP_REST_Request $request
@@ -243,6 +291,9 @@ class QE_Calendar_Notes_API extends QE_API_Base
                     'description' => $note['description'],
                     'note_date' => $note['note_date'],
                     'color' => $note['color'] ?: '#8B5CF6',
+                    'type' => $note['type'] ?? 'note',
+                    'link' => $note['link'] ?? null,
+                    'time' => $note['time'] ?? null,
                     'created_by' => (int) $note['created_by'],
                     'created_by_name' => $note['created_by_name'],
                     'created_at' => $note['created_at'],
@@ -280,6 +331,9 @@ class QE_Calendar_Notes_API extends QE_API_Base
         $description = $request->get_param('description');
         $note_date = $request->get_param('note_date');
         $color = $request->get_param('color') ?: '#8B5CF6';
+        $type = $request->get_param('type') ?: 'note';
+        $link = $request->get_param('link');
+        $time = $request->get_param('time');
         $user_id = get_current_user_id();
 
         try {
@@ -291,10 +345,13 @@ class QE_Calendar_Notes_API extends QE_API_Base
                     'description' => $description,
                     'note_date' => $note_date,
                     'color' => $color,
+                    'type' => $type,
+                    'link' => $link,
+                    'time' => $time,
                     'created_by' => $user_id,
                     'created_at' => current_time('mysql'),
                 ],
-                ['%d', '%s', '%s', '%s', '%s', '%d', '%s']
+                ['%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s']
             );
 
             if ($result === false) {
@@ -329,6 +386,9 @@ class QE_Calendar_Notes_API extends QE_API_Base
                     'description' => $note['description'],
                     'note_date' => $note['note_date'],
                     'color' => $note['color'],
+                    'type' => $note['type'] ?? 'note',
+                    'link' => $note['link'] ?? null,
+                    'time' => $note['time'] ?? null,
                     'created_by' => (int) $note['created_by'],
                     'created_by_name' => $note['created_by_name'],
                     'created_at' => $note['created_at'],
@@ -397,6 +457,21 @@ class QE_Calendar_Notes_API extends QE_API_Base
             $update_format[] = '%s';
         }
 
+        if ($request->has_param('type')) {
+            $update_data['type'] = $request->get_param('type');
+            $update_format[] = '%s';
+        }
+
+        if ($request->has_param('link')) {
+            $update_data['link'] = $request->get_param('link');
+            $update_format[] = '%s';
+        }
+
+        if ($request->has_param('time')) {
+            $update_data['time'] = $request->get_param('time');
+            $update_format[] = '%s';
+        }
+
         if (empty($update_data)) {
             return new WP_Error(
                 'no_data',
@@ -444,6 +519,9 @@ class QE_Calendar_Notes_API extends QE_API_Base
                     'description' => $note['description'],
                     'note_date' => $note['note_date'],
                     'color' => $note['color'],
+                    'type' => $note['type'] ?? 'note',
+                    'link' => $note['link'] ?? null,
+                    'time' => $note['time'] ?? null,
                     'created_by' => (int) $note['created_by'],
                     'created_by_name' => $note['created_by_name'],
                     'created_at' => $note['created_at'],

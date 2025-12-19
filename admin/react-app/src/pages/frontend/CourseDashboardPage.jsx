@@ -8,7 +8,8 @@ import CoursePageTemplate from '../../components/course/CoursePageTemplate';
 import PendingQuizBanner from '../../components/frontend/PendingQuizBanner';
 import { getCourseProgress } from '../../api/services/studentProgressService';
 import { getMyRankingStatus } from '../../api/services/courseRankingService';
-import { ClipboardList, FileText, Video, Trophy, TrendingUp, Target, Award, Users, ToggleLeft, ToggleRight } from 'lucide-react';
+import { getCalendarNotes } from '../../api/services/calendarNotesService';
+import { ClipboardList, FileText, Video, Trophy, TrendingUp, Target, Award, Users, ToggleLeft, ToggleRight, Calendar, ExternalLink } from 'lucide-react';
 
 const CourseDashboardPage = () => {
   const { t } = useTranslation();
@@ -22,6 +23,8 @@ const CourseDashboardPage = () => {
   const [rankingStatus, setRankingStatus] = useState(null);
   const [rankingLoading, setRankingLoading] = useState(true);
   const [showWithRisk, setShowWithRisk] = useState(false);
+  const [nextLiveClass, setNextLiveClass] = useState(null);
+  const [liveClassLoading, setLiveClassLoading] = useState(true);
 
   // Dark mode aware colors (same pattern as SupportMaterialPage)
   const pageColors = {
@@ -51,6 +54,25 @@ const CourseDashboardPage = () => {
         .catch(error => {
           console.error('Error loading ranking status:', error);
           setRankingLoading(false);
+        });
+      
+      // Fetch live classes
+      setLiveClassLoading(true);
+      getCalendarNotes(courseId)
+        .then(notes => {
+          // Filter for live_class type and find next upcoming one
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const liveClasses = notes
+            .filter(n => n.type === 'live_class')
+            .filter(n => new Date(n.note_date) >= today)
+            .sort((a, b) => new Date(a.note_date) - new Date(b.note_date));
+          setNextLiveClass(liveClasses[0] || null);
+          setLiveClassLoading(false);
+        })
+        .catch(error => {
+          console.error('Error loading live classes:', error);
+          setLiveClassLoading(false);
         });
     }
   }, [courseId]);
@@ -247,8 +269,8 @@ const CourseDashboardPage = () => {
           </div>
         </div>
 
-        {/* Main Grid: Ranking + Content Progress */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Grid: Ranking + Content Progress + Next Live Class */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Ranking Card */}
           <div 
             className="rounded-xl border overflow-hidden"
@@ -376,7 +398,7 @@ const CourseDashboardPage = () => {
 
           {/* Content Progress Card */}
           <div 
-            className="lg:col-span-2 rounded-xl border overflow-hidden"
+            className="rounded-xl border overflow-hidden"
             style={{ 
               backgroundColor: pageColors.cardBg,
               borderColor: pageColors.border
@@ -398,11 +420,7 @@ const CourseDashboardPage = () => {
             {/* Content */}
             <div className="p-4">
               {availableContentTypes.length > 0 ? (
-                <div className={`grid gap-4 ${
-                  availableContentTypes.length === 1 ? 'grid-cols-1' :
-                  availableContentTypes.length === 2 ? 'grid-cols-2' :
-                  'grid-cols-1 sm:grid-cols-3'
-                }`}>
+                <div className="flex flex-wrap justify-center gap-2">
                   {availableContentTypes.map((contentType) => (
                     <DonutChart
                       key={contentType.type}
@@ -423,6 +441,105 @@ const CourseDashboardPage = () => {
                   <p className="text-xs mt-1" style={{ color: pageColors.textMuted }}>
                     {t('courses.noContentDescription')}
                   </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Next Live Class Card */}
+          <div 
+            className="rounded-xl border overflow-hidden"
+            style={{ 
+              backgroundColor: pageColors.cardBg,
+              borderColor: pageColors.border
+            }}
+          >
+            {/* Header */}
+            <div 
+              className="px-4 py-3"
+              style={{ backgroundColor: '#0891B2' }}
+            >
+              <div className="flex items-center gap-2">
+                <Video size={18} className="text-white" />
+                <span className="font-semibold text-white text-sm">
+                  {t('dashboard.nextLiveClass', 'Próxima Clase en Directo')}
+                </span>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6">
+              {liveClassLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div 
+                    className="animate-spin rounded-full h-8 w-8 border-b-2"
+                    style={{ borderColor: '#0891B2' }}
+                  ></div>
+                </div>
+              ) : nextLiveClass ? (
+                <div className="text-center space-y-4">
+                  {/* Date badge */}
+                  <div 
+                    className="inline-flex items-center justify-center px-4 py-2 rounded-full"
+                    style={{ backgroundColor: isDarkMode ? 'rgba(8, 145, 178, 0.2)' : 'rgba(8, 145, 178, 0.1)' }}
+                  >
+                    <Calendar size={16} style={{ color: '#0891B2' }} className="mr-2" />
+                    <span className="text-sm font-semibold" style={{ color: '#0891B2' }}>
+                      {new Date(nextLiveClass.note_date).toLocaleDateString('es-ES', { 
+                        day: '2-digit', 
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                      {nextLiveClass.time && ` - ${nextLiveClass.time.substring(0, 5)}`}
+                    </span>
+                  </div>
+                  
+                  {/* Title */}
+                  <div>
+                    <h4 className="text-base font-bold mb-1" style={{ color: pageColors.text }}>
+                      {nextLiveClass.title}
+                    </h4>
+                    {nextLiveClass.description && (
+                      <p className="text-xs line-clamp-2" style={{ color: pageColors.textMuted }}>
+                        {nextLiveClass.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Join button */}
+                  {nextLiveClass.link && (
+                    <a
+                      href={nextLiveClass.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-opacity hover:opacity-90"
+                      style={{ 
+                        backgroundColor: '#0891B2',
+                        color: '#fff'
+                      }}
+                    >
+                      <ExternalLink size={16} />
+                      {t('calendar.joinClass', 'Unirse a la clase')}
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center space-y-4">
+                  <div 
+                    className="inline-flex items-center justify-center w-20 h-20 rounded-full"
+                    style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f3f4f6' }}
+                  >
+                    <Video size={32} style={{ color: pageColors.textMuted }} />
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: pageColors.text }}>
+                      {t('dashboard.noLiveClasses', 'Sin clases programadas')}
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: pageColors.textMuted }}>
+                      {t('dashboard.noLiveClassesDescription', 'No hay clases en directo próximas')}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

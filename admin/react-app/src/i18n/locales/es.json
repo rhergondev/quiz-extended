@@ -119,6 +119,9 @@
     "title": "Panel del LMS",
     "recentResults": "Resultados Recientes",
     "noAttempts": "Aún no has completado ningún cuestionario.",
+    "nextLiveClass": "Próxima Clase en Directo",
+    "noLiveClasses": "Sin clases programadas",
+    "noLiveClassesDescription": "No hay clases en directo próximas",
     "stats": {
       "totalAttempts": "Intentos Totales",
       "passed": "Aprobados",
@@ -718,7 +721,9 @@
       "currentQuestion": "Pregunta actual",
       "timeRemaining": "Tiempo restante",
       "continueQuiz": "Continuar",
-      "startOver": "Empezar de nuevo"
+      "startOver": "Empezar de nuevo",
+      "showTimer": "Mostrar temporizador",
+      "hideTimer": "Ocultar temporizador"
     },
     "exitModal": {
       "title": "Salir del cuestionario",
@@ -1233,5 +1238,43 @@
       "new_text": "Nuevo Contenido",
       "lesson_updated": "Tema Actualizada"
     }
+  },
+  "calendar": {
+    "description": "Visualiza el calendario de temas del curso",
+    "legend": "Leyenda",
+    "legendVideo": "Video",
+    "legendTest": "Test",
+    "legendPdf": "PDF",
+    "legendLesson": "Tema",
+    "legendNote": "Nota",
+    "legendLiveClass": "Clase en directo",
+    "noDate": "Sin fecha",
+    "noLessons": "No hay temas",
+    "noLessonsDescription": "Este curso aún no tiene temas programados.",
+    "date": "Fecha",
+    "note": "Nota",
+    "liveClass": "Clase en directo",
+    "addNote": "Añadir nota",
+    "addLiveClass": "Añadir clase",
+    "newNote": "Nueva nota",
+    "editNote": "Editar nota",
+    "newLiveClass": "Nueva clase en directo",
+    "editLiveClass": "Editar clase",
+    "noteTitle": "Título",
+    "noteTitlePlaceholder": "Ej: Examen parcial",
+    "noteDescription": "Descripción",
+    "noteDescriptionPlaceholder": "Añade una descripción opcional...",
+    "noteDate": "Fecha",
+    "noteColor": "Color",
+    "confirmDeleteNote": "¿Eliminar esta nota?",
+    "liveClassTitle": "Título",
+    "liveClassTitlePlaceholder": "Ej: Clase de repaso tema 5",
+    "liveClassLink": "Enlace de la reunión",
+    "liveClassDescription": "Descripción",
+    "liveClassDescriptionPlaceholder": "Añade una descripción opcional...",
+    "liveClassDate": "Fecha",
+    "liveClassTime": "Hora",
+    "liveClassColor": "Color",
+    "joinClass": "Unirse a la clase"
   }
 }
