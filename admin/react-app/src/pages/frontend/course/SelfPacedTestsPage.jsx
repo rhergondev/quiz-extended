@@ -18,16 +18,28 @@ import { getCourseLessons } from '../../../api/services/courseLessonService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import SelfPacedQuestion from '../../../components/frontend/SelfPacedQuestion';
 
-// Simple MultiSelect Component
-const MultiSelect = ({ label, options, selected, onChange, placeholder = "Seleccionar...", pageColors, isDarkMode }) => {
+// Simple MultiSelect Component with Select All
+const MultiSelect = ({ label, options, selected, onChange, placeholder = "Seleccionar...", pageColors, isDarkMode, selectAllLabel }) => {
+  const { t } = useTranslation();
   const { getColor } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+
+  const allValues = options.map(o => o.value);
+  const isAllSelected = allValues.length > 0 && allValues.every(v => selected.includes(v));
 
   const handleToggle = (value) => {
     const newSelected = selected.includes(value)
       ? selected.filter(item => item !== value)
       : [...selected, value];
     onChange(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      onChange([]);
+    } else {
+      onChange(allValues);
+    }
   };
 
   const selectedLabels = options
@@ -52,7 +64,9 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
         <span className="block truncate">
           {selected.length === 0 
             ? <span style={{ color: pageColors.textMuted }}>{placeholder}</span>
-            : `${selected.length} seleccionados`
+            : isAllSelected 
+              ? <span>{selectAllLabel || t('common.allSelected')}</span>
+              : `${selected.length} seleccionados`
           }
         </span>
         <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} style={{ color: pageColors.textMuted }} />
@@ -62,12 +76,35 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
         <>
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
           <div 
-            className="absolute z-20 w-full mt-1 max-h-48 overflow-auto rounded-lg shadow-lg"
+            className="absolute z-20 w-full mt-1 max-h-48 overflow-auto rounded-lg shadow-lg border-2"
             style={{ 
-              border: `2px solid ${isDarkMode ? pageColors.accent : pageColors.inputBorder}`,
-              backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff'
+              backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+              borderColor: isDarkMode ? pageColors.accent : pageColors.inputBorder
             }}
           >
+            {/* Select All Option */}
+            <div 
+              onClick={handleSelectAll}
+              className="px-3 py-2 cursor-pointer flex items-center gap-2 transition-colors border-b"
+              style={{ backgroundColor: 'transparent', borderColor: pageColors.inputBorder }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <div 
+                className="w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0"
+                style={{ 
+                  backgroundColor: isAllSelected ? pageColors.accent : 'transparent',
+                  borderColor: isAllSelected ? pageColors.accent : pageColors.inputBorder
+                }}
+              >
+                {isAllSelected && <Check size={10} className="text-white" />}
+              </div>
+              <span className="text-sm font-medium" style={{ color: pageColors.text }}>{selectAllLabel || t('common.selectAll')}</span>
+            </div>
             {options.map(option => (
               <div 
                 key={option.value}
@@ -75,17 +112,17 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
                 className="px-3 py-2 cursor-pointer flex items-center gap-2 transition-colors"
                 style={{ backgroundColor: 'transparent' }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}05`;
+                  e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
                 <div 
-                  className="w-4 h-4 rounded border flex items-center justify-center transition-colors flex-shrink-0"
+                  className="w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0"
                   style={{ 
                     backgroundColor: selected.includes(option.value) ? pageColors.accent : 'transparent',
-                    borderColor: selected.includes(option.value) ? pageColors.accent : (isDarkMode ? 'rgba(255,255,255,0.3)' : getColor('borderColor', '#d1d5db'))
+                    borderColor: selected.includes(option.value) ? pageColors.accent : pageColors.inputBorder
                   }}
                 >
                   {selected.includes(option.value) && <Check size={10} className="text-white" />}
@@ -98,15 +135,15 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
       )}
       
       {/* Selected Tags */}
-      {selected.length > 0 && (
+      {selected.length > 0 && !isAllSelected && (
         <div className="flex flex-wrap gap-1.5 mt-2">
           {selectedLabels.map((label, idx) => (
             <span 
               key={idx}
               className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
               style={{ 
-                backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.text}10`,
-                color: isDarkMode ? pageColors.accent : pageColors.text
+                backgroundColor: isDarkMode ? `${pageColors.accent}30` : `${pageColors.text}15`,
+                color: isDarkMode ? '#ffffff' : pageColors.text
               }}
             >
               {label}
@@ -139,6 +176,7 @@ const SelfPacedTestsPage = () => {
     text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
     textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : `${getColor('primary', '#1a202c')}60`,
     accent: getColor('accent', '#f59e0b'),
+    primary: getColor('primary', '#1a202c'),
     hoverBg: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#1a202c'),
     // Colores para inputs y cards - bordes más visibles
     inputBg: isDarkMode ? 'rgba(0,0,0,0.2)' : '#ffffff',
@@ -260,7 +298,7 @@ const SelfPacedTestsPage = () => {
           }`}
         >
           <div className="h-full overflow-y-auto">
-            <div className="max-w-3xl mx-auto px-4 pt-8 pb-24">
+            <div className="mx-auto pt-8 pb-24" style={{ paddingLeft: '3rem', paddingRight: '3rem' }}>
               {isLoading ? (
                 <div 
                   className="rounded-lg border overflow-hidden"
@@ -290,159 +328,145 @@ const SelfPacedTestsPage = () => {
                 >
                   {/* Header */}
                   <div 
-                    className="px-4 py-3 flex items-center gap-3"
-                    style={{ backgroundColor: isDarkMode ? pageColors.accent : getColor('primary', '#1a202c') }}
+                    className="px-4 py-3"
+                    style={{ backgroundColor: pageColors.primary }}
                   >
-                    <Sparkles size={20} className="text-white flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-bold text-white truncate">
-                        {t('courses.selfPacedTests')}
-                      </h3>
-                      <p className="text-xs text-white/70 truncate">
-                        {t('tests.practiceAtYourPace')}
-                      </p>
-                    </div>
+                    <h3 className="text-base font-bold text-white">
+                      {t('courses.selfPacedTests')}
+                    </h3>
                   </div>
 
                   {/* Configuration Content */}
-                  <div className="p-4 space-y-5">
-                    {/* Filters Section */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Sliders size={14} style={{ color: pageColors.accent }} />
-                        <h4 className="text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>
-                          {t('tests.configuration')}
-                        </h4>
+                  <div className="p-4 space-y-4">
+                    {/* Row 1: Lessons Multi-Select (full width) */}
+                    <div 
+                      className="rounded-lg p-3"
+                      style={{ border: `1px solid ${pageColors.inputBorder}` }}
+                    >
+                      <MultiSelect
+                        label={t('lessons.title')}
+                        options={lessonOptions}
+                        selected={config.lessons}
+                        onChange={(selected) => handleConfigChange('lessons', selected)}
+                        placeholder={t('common.all')}
+                        pageColors={pageColors}
+                        isDarkMode={isDarkMode}
+                        selectAllLabel={t('common.allLessons')}
+                      />
+                    </div>
+
+                    {/* Row 2: Difficulty | Filters */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Difficulty */}
+                      <div 
+                        className="rounded-lg p-3"
+                        style={{ border: `1px solid ${pageColors.inputBorder}` }}
+                      >
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
+                          {t('courses.difficulty.label')}
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={config.difficulty}
+                            onChange={(e) => handleConfigChange('difficulty', e.target.value)}
+                            className="w-full px-3 py-2 text-sm rounded-lg appearance-none transition-all"
+                            style={{ 
+                              border: `2px solid ${pageColors.inputBorder}`,
+                              backgroundColor: pageColors.inputBg,
+                              color: pageColors.text
+                            }}
+                          >
+                            {difficultyOptions.map(opt => (
+                              <option key={opt.value} value={opt.value} style={{ backgroundColor: pageColors.inputBg, color: pageColors.text }}>{opt.label}</option>
+                            ))}
+                          </select>
+                          <ChevronDown 
+                            className="absolute right-2.5 top-2.5 pointer-events-none" 
+                            size={14} 
+                            style={{ color: pageColors.textMuted }}
+                          />
+                        </div>
                       </div>
 
-                      <div className="space-y-4">
-                        {/* Lessons Multi-Select */}
-                        <MultiSelect
-                          label={t('lessons.title')}
-                          options={lessonOptions}
-                          selected={config.lessons}
-                          onChange={(selected) => handleConfigChange('lessons', selected)}
-                          placeholder={t('common.all')}
-                          pageColors={pageColors}
-                          isDarkMode={isDarkMode}
-                        />
-
-                        {/* Difficulty & Questions */}
-                        <div className="grid grid-cols-2 gap-3">
-                          {/* Difficulty */}
-                          <div>
-                            <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
-                              {t('courses.difficulty.label')}
-                            </label>
-                            <div className="relative">
-                              <select
-                                value={config.difficulty}
-                                onChange={(e) => handleConfigChange('difficulty', e.target.value)}
-                                className="w-full px-3 py-2 text-sm rounded-lg appearance-none transition-all"
-                                style={{ 
-                                  border: `2px solid ${pageColors.inputBorder}`,
-                                  backgroundColor: pageColors.inputBg,
-                                  color: pageColors.text
-                                }}
+                      {/* Filters - 2x2 Checkboxes */}
+                      <div 
+                        className="rounded-lg p-3"
+                        style={{ border: `1px solid ${pageColors.inputBorder}` }}
+                      >
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
+                          {t('courses.questionTypes')}
+                        </label>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                          {[
+                            { id: 'favorites', label: t('courses.favorites') },
+                            { id: 'failed', label: t('courses.failed') },
+                            { id: 'risked', label: t('courses.atRisk') },
+                            { id: 'unanswered', label: t('courses.notAnswered') }
+                          ].map(status => {
+                            const isSelected = config.statusFilters.includes(status.id);
+                            return (
+                              <label
+                                key={status.id}
+                                className="flex items-center gap-2 cursor-pointer py-1"
                               >
-                                {difficultyOptions.map(opt => (
-                                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                ))}
-                              </select>
-                              <ChevronDown 
-                                className="absolute right-2.5 top-2.5 pointer-events-none" 
-                                size={14} 
-                                style={{ color: pageColors.textMuted }}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Number of Questions */}
-                          <div>
-                            <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
-                              {t('common.questions')}
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="100"
-                              value={config.numQuestions}
-                              onChange={(e) => handleConfigChange('numQuestions', parseInt(e.target.value) || 10)}
-                              className="w-full px-3 py-2 text-sm rounded-lg transition-all"
-                              style={{ 
-                                border: `2px solid ${pageColors.inputBorder}`,
-                                backgroundColor: pageColors.inputBg,
-                                color: pageColors.text
-                              }}
-                            />
-                          </div>
+                                <div 
+                                  className="w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0"
+                                  style={{ 
+                                    backgroundColor: isSelected ? pageColors.accent : 'transparent',
+                                    borderColor: isSelected ? pageColors.accent : pageColors.inputBorder
+                                  }}
+                                  onClick={() => toggleStatusFilter(status.id)}
+                                >
+                                  {isSelected && <Check size={10} className="text-white" />}
+                                </div>
+                                <span 
+                                  className="text-xs"
+                                  style={{ color: pageColors.text }}
+                                  onClick={() => toggleStatusFilter(status.id)}
+                                >
+                                  {status.label}
+                                </span>
+                              </label>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
 
-                    {/* Separador */}
-                    <div style={{ height: '1px', backgroundColor: pageColors.inputBorder }} />
-
-                    {/* Status Filters */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Filter size={14} style={{ color: pageColors.accent }} />
-                        <h4 className="text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>
-                          {t('courses.questionTypes')}
-                        </h4>
+                    {/* Row 3: Number of Questions (Self-paced doesn't have time limit) */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Number of Questions */}
+                      <div 
+                        className="rounded-lg p-3"
+                        style={{ border: `1px solid ${pageColors.inputBorder}` }}
+                      >
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
+                          {t('common.questions')}
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={config.numQuestions}
+                            onChange={(e) => handleConfigChange('numQuestions', parseInt(e.target.value))}
+                            className="w-full px-3 py-2 text-sm rounded-lg appearance-none transition-all"
+                            style={{ 
+                              border: `2px solid ${pageColors.inputBorder}`,
+                              backgroundColor: pageColors.inputBg,
+                              color: pageColors.text
+                            }}
+                          >
+                            {Array.from({ length: 20 }, (_, i) => (i + 1) * 5).map(num => (
+                              <option key={num} value={num} style={{ backgroundColor: pageColors.inputBg, color: pageColors.text }}>{num}</option>
+                            ))}
+                          </select>
+                          <ChevronDown 
+                            className="absolute right-2.5 top-2.5 pointer-events-none" 
+                            size={14} 
+                            style={{ color: pageColors.textMuted }}
+                          />
+                        </div>
                       </div>
-                      
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {[
-                          { id: 'favorites', label: t('courses.favorites'), icon: Star, colorHex: '#fbbf24' },
-                          { id: 'failed', label: t('courses.failed'), icon: XCircle, colorHex: '#ef4444' },
-                          { id: 'risked', label: t('courses.atRisk'), icon: AlertTriangle, colorHex: '#f97316' },
-                          { id: 'unanswered', label: t('courses.notAnswered'), icon: HelpCircle, colorHex: '#3b82f6' }
-                        ].map(status => {
-                          const isSelected = config.statusFilters.includes(status.id);
-                          return (
-                            <button
-                              key={status.id}
-                              onClick={() => toggleStatusFilter(status.id)}
-                              className="relative px-2 py-3 rounded-lg transition-all flex flex-col items-center gap-1.5"
-                              style={{ 
-                                border: `2px solid ${isSelected ? status.colorHex : pageColors.inputBorder}`,
-                                backgroundColor: isSelected ? `${status.colorHex}15` : pageColors.inputBg
-                              }}
-                              onMouseEnter={(e) => {
-                                if (!isSelected) {
-                                  e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
-                                }
-                              }}
-                              onMouseLeave={(e) => {
-                                if (!isSelected) {
-                                  e.currentTarget.style.backgroundColor = pageColors.inputBg;
-                                }
-                              }}
-                            >
-                              <status.icon size={16} style={{ color: status.colorHex }} />
-                              <span 
-                                className="text-xs font-medium text-center leading-tight"
-                                style={{ color: pageColors.text }}
-                              >
-                                {status.label}
-                              </span>
-                              {isSelected && (
-                                <div 
-                                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
-                                  style={{ backgroundColor: status.colorHex }}
-                                >
-                                  <Check size={10} className="text-white" />
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <div>{/* Empty column for alignment */}</div>
                     </div>
-
-                    {/* Separador */}
-                    <div style={{ height: '1px', backgroundColor: pageColors.inputBorder }} />
 
                     {/* Start Button */}
                     <button

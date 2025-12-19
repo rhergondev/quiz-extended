@@ -76,10 +76,9 @@ const Question = ({
         return getColor('accent', '#f59e0b');
       case 'answered':
       default:
-        // En dark mode, aplicar filter brightness 1.1 equivalente
+        // En dark mode, usar un azul más suave
         if (isDarkMode) {
-          // Extraer el color y hacerlo más brillante
-          return getColor('primary', '#5a9cfc'); // Versión más brillante del primary
+          return '#4a8ae8'; // Azul más suave para dark mode
         }
         return getColor('primary', '#3b82f6');
     }

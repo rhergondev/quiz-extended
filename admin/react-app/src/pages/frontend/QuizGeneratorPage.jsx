@@ -20,16 +20,28 @@ import { getCourseLessons } from '../../api/services/courseLessonService';
 import Quiz from '../../components/frontend/Quiz';
 import CoursePageTemplate from '../../components/course/CoursePageTemplate';
 
-// Simple MultiSelect Component
-const MultiSelect = ({ label, options, selected, onChange, placeholder = "Seleccionar...", pageColors, isDarkMode }) => {
+// Simple MultiSelect Component with Select All
+const MultiSelect = ({ label, options, selected, onChange, placeholder = "Seleccionar...", pageColors, isDarkMode, selectAllLabel }) => {
+  const { t } = useTranslation();
   const { getColor } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+
+  const allValues = options.map(o => o.value);
+  const isAllSelected = allValues.length > 0 && allValues.every(v => selected.includes(v));
 
   const handleToggle = (value) => {
     const newSelected = selected.includes(value)
       ? selected.filter(item => item !== value)
       : [...selected, value];
     onChange(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      onChange([]);
+    } else {
+      onChange(allValues);
+    }
   };
 
   const selectedLabels = options
@@ -54,7 +66,9 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
         <span className="block truncate">
           {selected.length === 0 
             ? <span style={{ color: pageColors.textMuted }}>{placeholder}</span>
-            : `${selected.length} seleccionados`
+            : isAllSelected 
+              ? <span>{selectAllLabel || t('common.allSelected')}</span>
+              : `${selected.length} seleccionados`
           }
         </span>
         <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} style={{ color: pageColors.textMuted }} />
@@ -70,6 +84,29 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
               borderColor: isDarkMode ? pageColors.accent : pageColors.inputBorder
             }}
           >
+            {/* Select All Option */}
+            <div 
+              onClick={handleSelectAll}
+              className="px-3 py-2 cursor-pointer flex items-center gap-2 transition-colors border-b"
+              style={{ backgroundColor: 'transparent', borderColor: pageColors.inputBorder }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <div 
+                className="w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0"
+                style={{ 
+                  backgroundColor: isAllSelected ? pageColors.accent : 'transparent',
+                  borderColor: isAllSelected ? pageColors.accent : pageColors.inputBorder
+                }}
+              >
+                {isAllSelected && <Check size={10} className="text-white" />}
+              </div>
+              <span className="text-sm font-medium" style={{ color: pageColors.text }}>{selectAllLabel || t('common.selectAll')}</span>
+            </div>
             {options.map(option => (
               <div 
                 key={option.value}
@@ -100,7 +137,7 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder = "Selecc
       )}
       
       {/* Selected Tags */}
-      {selected.length > 0 && (
+      {selected.length > 0 && !isAllSelected && (
         <div className="flex flex-wrap gap-1.5 mt-2">
           {selectedLabels.map((label, idx) => (
             <span 
@@ -263,7 +300,7 @@ const QuizGeneratorPage = () => {
           }`}
         >
           <div className="h-full overflow-y-auto">
-            <div className="max-w-3xl mx-auto px-4 pt-8 pb-24">
+            <div className="mx-auto pt-8 pb-24" style={{ paddingLeft: '3rem', paddingRight: '3rem' }}>
               {isLoading ? (
                 <div 
                   className="rounded-xl border-2 overflow-hidden"
@@ -293,179 +330,176 @@ const QuizGeneratorPage = () => {
                 >
                   {/* Header */}
                   <div 
-                    className="px-4 py-3 flex items-center gap-3"
+                    className="px-4 py-3"
                     style={{ backgroundColor: pageColors.primary }}
                   >
-                    <Sparkles size={20} className="text-white flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-bold text-white truncate">
-                        {t('courses.testGenerator')}
-                      </h3>
-                      <p className="text-xs text-white/70 truncate">
-                        {t('tests.customTestDescription')}
-                      </p>
-                    </div>
+                    <h3 className="text-base font-bold text-white">
+                      {t('courses.testGenerator')}
+                    </h3>
                   </div>
 
                   {/* Configuration Content */}
-                  <div className="p-4 space-y-5">
-                    {/* Filters Section */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Sliders size={14} style={{ color: pageColors.accent }} />
-                        <h4 className="text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>
-                          {t('tests.configuration')}
-                        </h4>
+                  <div className="p-4 space-y-4">
+                    {/* Row 1: Lessons Multi-Select (full width) */}
+                    <div 
+                      className="rounded-lg p-3"
+                      style={{ border: `1px solid ${pageColors.inputBorder}` }}
+                    >
+                      <MultiSelect
+                      label={t('lessons.title')}
+                      options={lessonOptions}
+                      selected={config.lessons}
+                      onChange={(selected) => handleConfigChange('lessons', selected)}
+                      placeholder={t('common.all')}
+                      pageColors={pageColors}
+                      isDarkMode={isDarkMode}
+                      selectAllLabel={t('common.allLessons')}
+                    />
+                    </div>
+
+                    {/* Row 2: Difficulty | Filters */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Difficulty */}
+                      <div 
+                        className="rounded-lg p-3"
+                        style={{ border: `1px solid ${pageColors.inputBorder}` }}
+                      >
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
+                          {t('courses.difficulty.label')}
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={config.difficulty}
+                            onChange={(e) => handleConfigChange('difficulty', e.target.value)}
+                            className="w-full px-3 py-2 text-sm rounded-lg appearance-none transition-all"
+                            style={{ 
+                              border: `2px solid ${pageColors.inputBorder}`,
+                              backgroundColor: pageColors.inputBg,
+                              color: pageColors.text
+                            }}
+                          >
+                            {difficultyOptions.map(opt => (
+                              <option key={opt.value} value={opt.value} style={{ backgroundColor: pageColors.inputBg, color: pageColors.text }}>{opt.label}</option>
+                            ))}
+                          </select>
+                          <ChevronDown 
+                            className="absolute right-2.5 top-2.5 pointer-events-none" 
+                            size={14} 
+                            style={{ color: pageColors.textMuted }}
+                          />
+                        </div>
                       </div>
 
-                      <div className="space-y-4">
-                        {/* Row 1: Lessons Multi-Select */}
-                        <MultiSelect
-                          label={t('lessons.title')}
-                          options={lessonOptions}
-                          selected={config.lessons}
-                          onChange={(selected) => handleConfigChange('lessons', selected)}
-                          placeholder={t('common.all')}
-                          pageColors={pageColors}
-                          isDarkMode={isDarkMode}
-                        />
-
-                        {/* Row 2: Difficulty, Questions & Time */}
-                        <div className="grid grid-cols-3 gap-3">
-                          {/* Difficulty */}
-                          <div>
-                            <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
-                              {t('courses.difficulty.label')}
-                            </label>
-                            <div className="relative">
-                              <select
-                                value={config.difficulty}
-                                onChange={(e) => handleConfigChange('difficulty', e.target.value)}
-                                className="w-full px-3 py-2 text-sm rounded-lg appearance-none transition-all"
-                                style={{ 
-                                  border: `2px solid ${pageColors.inputBorder}`,
-                                  backgroundColor: pageColors.inputBg,
-                                  color: pageColors.text
-                                }}
+                      {/* Filters - 2x2 Checkboxes */}
+                      <div 
+                        className="rounded-lg p-3"
+                        style={{ border: `1px solid ${pageColors.inputBorder}` }}
+                      >
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
+                          {t('courses.questionTypes')}
+                        </label>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                          {[
+                            { id: 'favorites', label: t('courses.favorites') },
+                            { id: 'failed', label: t('courses.failed') },
+                            { id: 'risked', label: t('courses.atRisk') },
+                            { id: 'unanswered', label: t('courses.notAnswered') }
+                          ].map(status => {
+                            const isSelected = config.statusFilters.includes(status.id);
+                            return (
+                              <label
+                                key={status.id}
+                                className="flex items-center gap-2 cursor-pointer py-1"
                               >
-                                {difficultyOptions.map(opt => (
-                                  <option key={opt.value} value={opt.value} style={{ backgroundColor: pageColors.inputBg, color: pageColors.text }}>{opt.label}</option>
-                                ))}
-                              </select>
-                              <ChevronDown 
-                                className="absolute right-2.5 top-2.5 pointer-events-none" 
-                                size={14} 
-                                style={{ color: pageColors.textMuted }}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Number of Questions */}
-                          <div>
-                            <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
-                              {t('common.questions')}
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="100"
-                              value={config.numQuestions}
-                              onChange={(e) => handleConfigChange('numQuestions', parseInt(e.target.value) || 10)}
-                              className="w-full px-3 py-2 text-sm rounded-lg transition-all"
-                              style={{ 
-                                border: `2px solid ${pageColors.inputBorder}`,
-                                backgroundColor: pageColors.inputBg,
-                                color: pageColors.text
-                              }}
-                            />
-                          </div>
-
-                          {/* Time Limit */}
-                          <div>
-                            <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
-                              {t('tests.timeLimit')}
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              placeholder="0"
-                              value={config.timeLimit}
-                              onChange={(e) => handleConfigChange('timeLimit', parseInt(e.target.value) || 0)}
-                              className="w-full px-3 py-2 text-sm rounded-lg transition-all"
-                              style={{ 
-                                border: `2px solid ${pageColors.inputBorder}`,
-                                backgroundColor: pageColors.inputBg,
-                                color: pageColors.text
-                              }}
-                            />
-                          </div>
+                                <div 
+                                  className="w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0"
+                                  style={{ 
+                                    backgroundColor: isSelected ? pageColors.accent : 'transparent',
+                                    borderColor: isSelected ? pageColors.accent : pageColors.inputBorder
+                                  }}
+                                  onClick={() => toggleStatusFilter(status.id)}
+                                >
+                                  {isSelected && <Check size={10} className="text-white" />}
+                                </div>
+                                <span 
+                                  className="text-xs"
+                                  style={{ color: pageColors.text }}
+                                  onClick={() => toggleStatusFilter(status.id)}
+                                >
+                                  {status.label}
+                                </span>
+                              </label>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
 
-                    {/* Separador */}
-                    <div style={{ height: '1px', backgroundColor: pageColors.inputBorder }} />
-
-                    {/* Status Filters */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Filter size={14} style={{ color: pageColors.accent }} />
-                        <h4 className="text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>
-                          {t('courses.questionTypes')}
-                        </h4>
+                    {/* Row 3: Number of Questions | Time Limit */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Number of Questions */}
+                      <div 
+                        className="rounded-lg p-3"
+                        style={{ border: `1px solid ${pageColors.inputBorder}` }}
+                      >
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
+                          {t('common.questions')}
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={config.numQuestions}
+                            onChange={(e) => handleConfigChange('numQuestions', parseInt(e.target.value))}
+                            className="w-full px-3 py-2 text-sm rounded-lg appearance-none transition-all"
+                            style={{ 
+                              border: `2px solid ${pageColors.inputBorder}`,
+                              backgroundColor: pageColors.inputBg,
+                              color: pageColors.text
+                            }}
+                          >
+                            {Array.from({ length: 20 }, (_, i) => (i + 1) * 5).map(num => (
+                              <option key={num} value={num} style={{ backgroundColor: pageColors.inputBg, color: pageColors.text }}>{num}</option>
+                            ))}
+                          </select>
+                          <ChevronDown 
+                            className="absolute right-2.5 top-2.5 pointer-events-none" 
+                            size={14} 
+                            style={{ color: pageColors.textMuted }}
+                          />
+                        </div>
                       </div>
-                      
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {[
-                          { id: 'favorites', label: t('courses.favorites'), icon: Star, colorHex: '#fbbf24' },
-                          { id: 'failed', label: t('courses.failed'), icon: XCircle, colorHex: '#ef4444' },
-                          { id: 'risked', label: t('courses.atRisk'), icon: AlertTriangle, colorHex: '#f97316' },
-                          { id: 'unanswered', label: t('courses.notAnswered'), icon: HelpCircle, colorHex: '#3b82f6' }
-                        ].map(status => {
-                          const isSelected = config.statusFilters.includes(status.id);
-                          return (
-                            <button
-                              key={status.id}
-                              onClick={() => toggleStatusFilter(status.id)}
-                              className="relative px-2 py-3 rounded-lg transition-all flex flex-col items-center gap-1.5"
-                              style={{ 
-                                border: `2px solid ${isSelected ? status.colorHex : pageColors.inputBorder}`,
-                                backgroundColor: isSelected ? `${status.colorHex}15` : pageColors.inputBg
-                              }}
-                              onMouseEnter={(e) => {
-                                if (!isSelected) {
-                                  e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
-                                }
-                              }}
-                              onMouseLeave={(e) => {
-                                if (!isSelected) {
-                                  e.currentTarget.style.backgroundColor = pageColors.inputBg;
-                                }
-                              }}
-                            >
-                              <status.icon size={16} style={{ color: status.colorHex }} />
-                              <span 
-                                className="text-xs font-medium text-center leading-tight"
-                                style={{ color: pageColors.text }}
-                              >
-                                {status.label}
-                              </span>
-                              {isSelected && (
-                                <div 
-                                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
-                                  style={{ backgroundColor: status.colorHex }}
-                                >
-                                  <Check size={10} className="text-white" />
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
+
+                      {/* Time Limit */}
+                      <div 
+                        className="rounded-lg p-3"
+                        style={{ border: `1px solid ${pageColors.inputBorder}` }}
+                      >
+                        <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
+                          {t('tests.timeLimit')}
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={config.timeLimit}
+                            onChange={(e) => handleConfigChange('timeLimit', parseInt(e.target.value))}
+                            className="w-full px-3 py-2 text-sm rounded-lg appearance-none transition-all"
+                            style={{ 
+                              border: `2px solid ${pageColors.inputBorder}`,
+                              backgroundColor: pageColors.inputBg,
+                              color: pageColors.text
+                            }}
+                          >
+                            <option value={0} style={{ backgroundColor: pageColors.inputBg, color: pageColors.text }}>{t('common.noLimit')}</option>
+                            {Array.from({ length: 12 }, (_, i) => (i + 1) * 5).map(num => (
+                              <option key={num} value={num} style={{ backgroundColor: pageColors.inputBg, color: pageColors.text }}>{num} {t('common.minutes')}</option>
+                            ))}
+                          </select>
+                          <ChevronDown 
+                            className="absolute right-2.5 top-2.5 pointer-events-none" 
+                            size={14} 
+                            style={{ color: pageColors.textMuted }}
+                          />
+                        </div>
                       </div>
                     </div>
-
-                    {/* Separador */}
-                    <div style={{ height: '1px', backgroundColor: pageColors.inputBorder }} />
 
                     {/* Generate Button */}
                     <button

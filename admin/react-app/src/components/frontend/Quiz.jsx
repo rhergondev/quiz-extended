@@ -489,7 +489,7 @@ const Quiz = ({
             <div className="flex gap-3 px-6 pb-6">
               <button
                 onClick={() => setShowExitModal(false)}
-                className="flex-1 px-4 py-3 rounded-lg font-medium transition-colors"
+                className="flex-1 px-4 py-3 rounded-lg font-medium transition-colors text-center"
                 style={{ 
                   backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6',
                   color: isDarkMode ? '#f9fafb' : '#374151'
@@ -502,7 +502,7 @@ const Quiz = ({
                   setShowExitModal(false);
                   if (onExit) onExit();
                 }}
-                className="flex-1 px-4 py-3 rounded-lg font-medium text-white transition-colors"
+                className="flex-1 px-4 py-3 rounded-lg font-medium text-white transition-colors text-center"
                 style={{ backgroundColor: isDarkMode ? getColor('accent') : getColor('primary') }}
               >
                 {t('quizzes.exitModal.confirm')}

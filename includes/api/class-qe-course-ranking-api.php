@@ -177,6 +177,8 @@ class QE_Course_Ranking_API extends QE_API_Base
             'avg_score_with_risk' => $total_valid_users > 0 ? round($sum_scores_with_risk / $total_valid_users, 2) : 0,
             'top_10_cutoff_without_risk' => 0,
             'top_10_cutoff_with_risk' => 0,
+            'top_20_cutoff_without_risk' => 0,
+            'top_20_cutoff_with_risk' => 0,
         ];
 
         // Sort users by score
@@ -223,12 +225,20 @@ class QE_Course_Ranking_API extends QE_API_Base
         $users_for_top10 = count($users_sorted_without_risk);
         if ($users_for_top10 > 0) {
             $top_10_index = max(0, (int) ceil($users_for_top10 * 0.1) - 1);
+            $top_20_index = max(0, (int) ceil($users_for_top10 * 0.2) - 1);
 
             if (isset($users_sorted_without_risk[$top_10_index])) {
                 $statistics['top_10_cutoff_without_risk'] = round((float) $users_sorted_without_risk[$top_10_index]->average_score_without_risk, 2);
             }
             if (isset($users_sorted_with_risk[$top_10_index])) {
                 $statistics['top_10_cutoff_with_risk'] = round((float) $users_sorted_with_risk[$top_10_index]->average_score_with_risk, 2);
+            }
+            // Top 20% cutoff (nota de corte)
+            if (isset($users_sorted_without_risk[$top_20_index])) {
+                $statistics['top_20_cutoff_without_risk'] = round((float) $users_sorted_without_risk[$top_20_index]->average_score_without_risk, 2);
+            }
+            if (isset($users_sorted_with_risk[$top_20_index])) {
+                $statistics['top_20_cutoff_with_risk'] = round((float) $users_sorted_with_risk[$top_20_index]->average_score_with_risk, 2);
             }
         }
 

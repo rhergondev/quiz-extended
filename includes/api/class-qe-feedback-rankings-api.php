@@ -214,8 +214,35 @@ class QE_Feedback_Rankings_API extends QE_API_Base
         $statistics = [
             'avg_score_without_risk' => $stats ? (float) $stats->avg_score_without_risk : 0,
             'avg_score_with_risk' => $stats ? (float) $stats->avg_score_with_risk : 0,
-            'total_users' => count($all_rankings)
+            'total_users' => count($all_rankings),
+            'top_20_cutoff_without_risk' => 0,
+            'top_20_cutoff_with_risk' => 0,
         ];
+
+        // Calculate top 20% cutoff scores (nota de corte)
+        $total_users = count($all_rankings);
+        if ($total_users > 0) {
+            $top_20_index = max(0, (int) ceil($total_users * 0.2) - 1);
+
+            // Sort by score without risk for cutoff calculation
+            $sorted_without_risk = $all_rankings;
+            usort($sorted_without_risk, function ($a, $b) {
+                return $b->score - $a->score;
+            });
+
+            // Sort by score with risk for cutoff calculation
+            $sorted_with_risk = $all_rankings;
+            usort($sorted_with_risk, function ($a, $b) {
+                return $b->score_with_risk - $a->score_with_risk;
+            });
+
+            if (isset($sorted_without_risk[$top_20_index])) {
+                $statistics['top_20_cutoff_without_risk'] = round((float) $sorted_without_risk[$top_20_index]->score, 2);
+            }
+            if (isset($sorted_with_risk[$top_20_index])) {
+                $statistics['top_20_cutoff_with_risk'] = round((float) $sorted_with_risk[$top_20_index]->score_with_risk, 2);
+            }
+        }
 
         if (empty($all_rankings)) {
             return $this->success_response([

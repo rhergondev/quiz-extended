@@ -1198,17 +1198,19 @@ const TestsPage = () => {
                               borderColor: pageColors.borderSubtle
                             }}
                           >
-                            {/* Header de columnas - 7 columnas: Intento, Fecha | Nota, Percentil | Arriesgando, Percentil | Ver */}
+                            {/* Header de columnas - 9 columnas: Intento, Fecha | Nota, Percentil, Nota Corte | Arriesgando, Percentil, Nota Corte | Ver */}
                             <div 
-                              className="grid grid-cols-7 text-[9px] uppercase tracking-wide font-semibold py-2 px-3 border-b"
-                              style={{ color: pageColors.textMuted, borderColor: pageColors.borderSubtle, backgroundColor: pageColors.bgSubtle }}
+                              className="grid grid-cols-9 text-[9px] uppercase tracking-wide font-semibold py-2 px-3 border-b"
+                              style={{ color: isDarkMode ? '#ffffff' : pageColors.textMuted, borderColor: pageColors.borderSubtle, backgroundColor: pageColors.bgSubtle }}
                             >
                               <div>{t('tests.attempt')}</div>
                               <div>{t('tests.date')}</div>
                               <div className="text-center border-l pl-2" style={{ borderColor: pageColors.borderSubtle }}>{t('tests.score')}</div>
                               <div className="text-center">{t('tests.percentile')}</div>
-                              <div className="text-center border-l pl-2" style={{ borderColor: pageColors.borderSubtle }}>{t('tests.withRisk')}</div>
+                              <div className="text-center">{t('tests.cutoffScore')}</div>
+                              <div className="text-center border-l pl-2" style={{ borderColor: pageColors.borderSubtle, color: getColor('accent', '#f59e0b') }}>{t('tests.withRisk')}</div>
                               <div className="text-center">{t('tests.percentile')}</div>
+                              <div className="text-center">{t('tests.cutoffScore')}</div>
                               <div className="text-center border-l pl-2" style={{ borderColor: pageColors.borderSubtle }}>{t('tests.viewCorrection')}</div>
                             </div>
                             
@@ -1217,10 +1219,12 @@ const TestsPage = () => {
                               {quizAttempts.slice(0, 5).map((attempt, index) => {
                                 const percentileWithoutRisk = calculatePercentile(attempt.score || 0, false);
                                 const percentileWithRisk = calculatePercentile(attempt.score_with_risk || 0, true);
+                                const cutoffWithoutRisk = ranking?.statistics?.top_20_cutoff_without_risk || 0;
+                                const cutoffWithRisk = ranking?.statistics?.top_20_cutoff_with_risk || 0;
                                 return (
                                   <div 
                                     key={attempt.attempt_id || attempt.id || index}
-                                    className="grid grid-cols-7 items-center px-3 py-2 border-b transition-colors"
+                                    className="grid grid-cols-9 items-center px-3 py-2 border-b transition-colors"
                                     style={{ 
                                       borderColor: pageColors.borderSubtle,
                                       backgroundColor: index % 2 === 0 ? 'transparent' : pageColors.bgSubtle
@@ -1250,6 +1254,13 @@ const TestsPage = () => {
                                       </span>
                                     </div>
                                     
+                                    {/* Nota Corte (Sin riesgo) */}
+                                    <div className="text-center">
+                                      <span className="text-xs font-medium" style={{ color: pageColors.text }}>
+                                        {formatScore(cutoffWithoutRisk)}
+                                      </span>
+                                    </div>
+                                    
                                     {/* Arriesgando */}
                                     <div className="text-center border-l pl-2" style={{ borderColor: pageColors.borderSubtle }}>
                                       <span className="text-sm font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
@@ -1261,6 +1272,13 @@ const TestsPage = () => {
                                     <div className="text-center">
                                       <span className="text-xs font-medium" style={{ color: percentileWithRisk >= 0 ? '#10b981' : '#ef4444' }}>
                                         {percentileWithRisk >= 0 ? '+' : ''}{percentileWithRisk.toFixed(1)}
+                                      </span>
+                                    </div>
+                                    
+                                    {/* Nota Corte (Con riesgo) */}
+                                    <div className="text-center">
+                                      <span className="text-xs font-medium" style={{ color: pageColors.text }}>
+                                        {formatScore(cutoffWithRisk)}
                                       </span>
                                     </div>
                                     

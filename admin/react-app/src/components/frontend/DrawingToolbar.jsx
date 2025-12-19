@@ -13,7 +13,7 @@ const DrawingToolbar = ({
   onClear,
   onClose
 }) => {
-  const { getColor } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
 
   if (!isActive) return null;
 
@@ -40,12 +40,19 @@ const DrawingToolbar = ({
     { value: 4, label: 'Grueso' }
   ];
 
+  // Dark mode colors
+  const bgColor = isDarkMode ? getColor('secondaryBackground', '#1f2937') : getColor('background', '#ffffff');
+  const textColor = isDarkMode ? '#f9fafb' : getColor('textPrimary', '#1f2937');
+  const textMuted = isDarkMode ? '#9ca3af' : getColor('textSecondary', '#6b7280');
+  const borderColor = isDarkMode ? 'rgba(255,255,255,0.2)' : getColor('borderColor', '#e5e7eb');
+  const accentColor = isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6');
+
   return (
     <div 
       className="fixed top-20 right-4 z-50 rounded-xl shadow-2xl border-2 overflow-hidden"
       style={{
-        backgroundColor: getColor('background', '#ffffff'),
-        borderColor: getColor('primary', '#3b82f6'),
+        backgroundColor: bgColor,
+        borderColor: accentColor,
         maxWidth: '280px'
       }}
     >
@@ -53,7 +60,7 @@ const DrawingToolbar = ({
       <div 
         className="px-4 py-2 flex items-center justify-between"
         style={{ 
-          backgroundColor: getColor('primary', '#3b82f6'),
+          backgroundColor: accentColor,
           color: '#ffffff'
         }}
       >
@@ -70,7 +77,7 @@ const DrawingToolbar = ({
       <div className="p-3 space-y-3">
         {/* Tool Selection */}
         <div>
-          <label className="text-xs font-semibold mb-2 block" style={{ color: getColor('textSecondary', '#6b7280') }}>
+          <label className="text-xs font-semibold mb-2 block" style={{ color: textMuted }}>
             Herramienta
           </label>
           <div className="flex gap-2">
@@ -80,9 +87,9 @@ const DrawingToolbar = ({
                 onClick={() => onToolChange(id)}
                 className="flex-1 p-2 rounded-lg border-2 transition-all flex flex-col items-center gap-1"
                 style={{
-                  borderColor: tool === id ? getColor('primary', '#3b82f6') : getColor('borderColor', '#e5e7eb'),
-                  backgroundColor: tool === id ? `${getColor('primary', '#3b82f6')}10` : 'transparent',
-                  color: tool === id ? getColor('primary', '#3b82f6') : getColor('textPrimary', '#1f2937')
+                  borderColor: tool === id ? accentColor : borderColor,
+                  backgroundColor: tool === id ? `${accentColor}20` : 'transparent',
+                  color: tool === id ? accentColor : textColor
                 }}
                 title={label}
               >
@@ -96,7 +103,7 @@ const DrawingToolbar = ({
         {/* Color Selection (only for pen and highlighter) */}
         {(tool === 'pen' || tool === 'highlighter') && (
           <div>
-            <label className="text-xs font-semibold mb-2 block" style={{ color: getColor('textSecondary', '#6b7280') }}>
+            <label className="text-xs font-semibold mb-2 block" style={{ color: textMuted }}>
               Color
             </label>
             <div className="flex flex-wrap gap-2">
@@ -107,7 +114,7 @@ const DrawingToolbar = ({
                   className="w-8 h-8 rounded-lg border-2 transition-all"
                   style={{
                     backgroundColor: c,
-                    borderColor: color === c ? getColor('primary', '#3b82f6') : getColor('borderColor', '#e5e7eb'),
+                    borderColor: color === c ? accentColor : borderColor,
                     transform: color === c ? 'scale(1.1)' : 'scale(1)'
                   }}
                   title={c}
@@ -119,7 +126,7 @@ const DrawingToolbar = ({
 
         {/* Line Width */}
         <div>
-          <label className="text-xs font-semibold mb-2 block" style={{ color: getColor('textSecondary', '#6b7280') }}>
+          <label className="text-xs font-semibold mb-2 block" style={{ color: textMuted }}>
             Grosor
           </label>
           <div className="flex gap-2">
@@ -129,9 +136,9 @@ const DrawingToolbar = ({
                 onClick={() => onLineWidthChange(value)}
                 className="flex-1 py-2 px-3 rounded-lg border-2 transition-all text-xs font-medium"
                 style={{
-                  borderColor: lineWidth === value ? getColor('primary', '#3b82f6') : getColor('borderColor', '#e5e7eb'),
-                  backgroundColor: lineWidth === value ? `${getColor('primary', '#3b82f6')}10` : 'transparent',
-                  color: lineWidth === value ? getColor('primary', '#3b82f6') : getColor('textPrimary', '#1f2937')
+                  borderColor: lineWidth === value ? accentColor : borderColor,
+                  backgroundColor: lineWidth === value ? `${accentColor}20` : 'transparent',
+                  color: lineWidth === value ? accentColor : textColor
                 }}
               >
                 {label}
