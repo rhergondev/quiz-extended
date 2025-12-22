@@ -1142,7 +1142,21 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             $is_correct = false;
             $correct_answer_id = null;
             $number_of_options = is_array($options) ? count($options) : 1;
-            $penalty = ($number_of_options > 0) ? (1 / $number_of_options) : 0;
+
+            // Penalización según número de opciones:
+            // 2 opciones = 1, 3 opciones = 0.5, 4 opciones = 0.25
+            switch ($number_of_options) {
+                case 2:
+                    $penalty = 1;
+                    break;
+                case 3:
+                    $penalty = 0.5;
+                    break;
+                case 4:
+                default:
+                    $penalty = 0.25;
+                    break;
+            }
 
             if (is_array($options)) {
                 foreach ($options as $option) {
@@ -1503,7 +1517,21 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             $is_correct = false;
             $correct_answer_id = null;
             $number_of_options = is_array($options) ? count($options) : 1;
-            $penalty = ($number_of_options > 0) ? (1 / $number_of_options) : 0;
+
+            // Penalización según número de opciones:
+            // 2 opciones = 1, 3 opciones = 0.5, 4 opciones = 0.25
+            switch ($number_of_options) {
+                case 2:
+                    $penalty = 1;
+                    break;
+                case 3:
+                    $penalty = 0.5;
+                    break;
+                case 4:
+                default:
+                    $penalty = 0.25;
+                    break;
+            }
 
             if (is_array($options)) {
                 foreach ($options as $option) {
