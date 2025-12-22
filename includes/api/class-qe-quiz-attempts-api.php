@@ -1159,19 +1159,28 @@ class QE_Quiz_Attempts_API extends QE_API_Base
 
             if ($is_correct) {
                 $correct_answers++;
+                // score_with_risk: Las correctas siempre suman (con o sin riesgo)
                 $earned_points_actual += 1;
-                $earned_points_hypothetical += 1;
+                // score (sin riesgo): Las correctas CON riesgo NO suman (se tratan como sin contestar)
+                if (!$is_risked) {
+                    $earned_points_hypothetical += 1;
+                }
+                // Si is_risked y is_correct, no sumamos nada a earned_points_hypothetical (como sin contestar)
             } elseif ($answer_given !== null) {
                 // Solo penalizar si la pregunta fue contestada INCORRECTAMENTE
                 // Las preguntas sin contestar (answer_given === null) NO se penalizan
 
-                // Penalización siempre para el score hipotético
-                $earned_points_hypothetical -= $penalty;
-
-                // Penalización para el score real solo si NO tiene riesgo
+                // score_with_risk: Penalización solo si NO tiene riesgo
                 if (!$is_risked) {
                     $earned_points_actual -= $penalty;
                 }
+
+                // score (sin riesgo): Las incorrectas CON riesgo NO penalizan (se tratan como sin contestar)
+                // Las incorrectas SIN riesgo sí penalizan
+                if (!$is_risked) {
+                    $earned_points_hypothetical -= $penalty;
+                }
+                // Si is_risked e incorrecto, no restamos nada a earned_points_hypothetical (como sin contestar)
             }
             // Si answer_given === null (sin contestar), no se suma ni se resta nada
 
@@ -1511,13 +1520,21 @@ class QE_Quiz_Attempts_API extends QE_API_Base
 
             if ($is_correct) {
                 $correct_answers++;
+                // score_with_risk: Las correctas siempre suman (con o sin riesgo)
                 $earned_points_actual += 1;
-                $earned_points_hypothetical += 1;
+                // score (sin riesgo): Las correctas CON riesgo NO suman (se tratan como sin contestar)
+                if (!$is_risked) {
+                    $earned_points_hypothetical += 1;
+                }
             } elseif ($answer_given !== null) {
                 // Solo penalizar si la pregunta fue contestada INCORRECTAMENTE
-                $earned_points_hypothetical -= $penalty;
+                // score_with_risk: Penalización solo si NO tiene riesgo
                 if (!$is_risked) {
                     $earned_points_actual -= $penalty;
+                }
+                // score (sin riesgo): Las incorrectas CON riesgo NO penalizan (se tratan como sin contestar)
+                if (!$is_risked) {
+                    $earned_points_hypothetical -= $penalty;
                 }
             }
 

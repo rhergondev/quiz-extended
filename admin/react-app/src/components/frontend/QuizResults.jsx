@@ -53,27 +53,29 @@ const QuizResults = ({
 
   const { detailed_results, score, score_with_risk, average_score, average_score_with_risk } = result;
 
-  const correctAnswers = detailed_results?.filter(r => r.is_correct).length || 0;
-  const incorrectAnswers = detailed_results?.filter(r => !r.is_correct && r.answer_given !== null).length || 0;
-  const unanswered = detailed_results?.filter(r => r.answer_given === null).length || 0;
-  // is_risked indica si la pregunta fue contestada con riesgo activado
-  const answeredWithRisk = detailed_results?.filter(r => r.is_risked && r.answer_given !== null).length || 0;
-  const totalQuestions = detailed_results?.length || 0;
+  // === ESTADÍSTICAS PARA "CON RIESGO" (score_with_risk) ===
+  // En esta vista, las preguntas contestadas con riesgo se evalúan normalmente
+  const correctAnswersWithRisk = detailed_results?.filter(r => r.is_correct).length || 0;
+  const incorrectAnswersWithRisk = detailed_results?.filter(r => !r.is_correct && r.answer_given !== null).length || 0;
+  const unansweredWithRisk = detailed_results?.filter(r => r.answer_given === null).length || 0;
 
-  // Estadísticas SIN RIESGO (todas las preguntas contestadas sin riesgo)
-  const withoutRiskAnswers = detailed_results?.filter(r => !r.is_risked && r.answer_given !== null) || [];
-  const withoutRiskCorrect = withoutRiskAnswers.filter(r => r.is_correct).length;
-  const withoutRiskIncorrect = withoutRiskAnswers.filter(r => !r.is_correct).length;
+  // === ESTADÍSTICAS PARA "SIN RIESGO" (score) ===
+  // En esta vista, las preguntas contestadas con riesgo se tratan como "sin contestar"
+  const correctAnswersWithoutRisk = detailed_results?.filter(r => r.is_correct && !r.is_risked).length || 0;
+  const incorrectAnswersWithoutRisk = detailed_results?.filter(r => !r.is_correct && r.answer_given !== null && !r.is_risked).length || 0;
+  // Sin contestar = realmente sin contestar + contestadas con riesgo (correctas o incorrectas)
+  const reallyUnanswered = detailed_results?.filter(r => r.answer_given === null).length || 0;
+  const answeredWithRiskCount = detailed_results?.filter(r => r.is_risked && r.answer_given !== null).length || 0;
+  const unansweredWithoutRisk = reallyUnanswered + answeredWithRiskCount;
   
-  // Estadísticas CON RIESGO (todas las preguntas contestadas con riesgo)
-  const withRiskAnswers = detailed_results?.filter(r => r.is_risked && r.answer_given !== null) || [];
-  const withRiskCorrect = withRiskAnswers.filter(r => r.is_correct).length;
-  const withRiskIncorrect = withRiskAnswers.filter(r => !r.is_correct).length;
+  // Total de preguntas
+  const totalQuestions = detailed_results?.length || 0;
 
   // Debug log para verificar datos de riesgo
   console.log('QuizResults - detailed_results:', detailed_results);
-  console.log('QuizResults - answeredWithRisk:', answeredWithRisk);
-  console.log('QuizResults - is_risked values:', detailed_results?.map(r => ({ question_id: r.question_id, is_risked: r.is_risked, answer_given: r.answer_given })));
+  console.log('QuizResults - stats sin riesgo:', { correctAnswersWithoutRisk, incorrectAnswersWithoutRisk, unansweredWithoutRisk });
+  console.log('QuizResults - stats con riesgo:', { correctAnswersWithRisk, incorrectAnswersWithRisk, unansweredWithRisk });
+  console.log('QuizResults - is_risked values:', detailed_results?.map(r => ({ question_id: r.question_id, is_risked: r.is_risked, answer_given: r.answer_given, is_correct: r.is_correct })));
 
   const averageScore = average_score ?? null;
   const averageScoreWithRisk = average_score_with_risk ?? null;
@@ -253,28 +255,28 @@ const QuizResults = ({
                 </span>
               </div>
               
-              {/* Estadísticas */}
+              {/* Estadísticas - Sin Riesgo: las preguntas con riesgo cuentan como sin contestar */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <CheckCircle size={12} style={{ color: SUCCESS_COLOR }} />
                     <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('quizzes.results.correct')}</span>
                   </div>
-                  <span className="text-xs font-medium" style={{ color: SUCCESS_COLOR }}>{correctAnswers}</span>
+                  <span className="text-xs font-medium" style={{ color: SUCCESS_COLOR }}>{correctAnswersWithoutRisk}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <MinusCircle size={12} style={{ color: GRAY_COLOR }} />
                     <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('quizzes.results.unanswered')}</span>
                   </div>
-                  <span className="text-xs font-medium" style={{ color: GRAY_COLOR }}>{unanswered}</span>
+                  <span className="text-xs font-medium" style={{ color: GRAY_COLOR }}>{unansweredWithoutRisk}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <XCircle size={12} style={{ color: ERROR_COLOR }} />
                     <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('quizzes.results.incorrect')}</span>
                   </div>
-                  <span className="text-xs font-medium" style={{ color: ERROR_COLOR }}>{incorrectAnswers}</span>
+                  <span className="text-xs font-medium" style={{ color: ERROR_COLOR }}>{incorrectAnswersWithoutRisk}</span>
                 </div>
               </div>
             </div>
@@ -298,28 +300,28 @@ const QuizResults = ({
                 </span>
               </div>
               
-              {/* Estadísticas */}
+              {/* Estadísticas - Con Riesgo: las preguntas con riesgo se evalúan normalmente */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <CheckCircle size={12} style={{ color: SUCCESS_COLOR }} />
                     <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('quizzes.results.correct')}</span>
                   </div>
-                  <span className="text-xs font-medium" style={{ color: SUCCESS_COLOR }}>{correctAnswers}</span>
+                  <span className="text-xs font-medium" style={{ color: SUCCESS_COLOR }}>{correctAnswersWithRisk}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <MinusCircle size={12} style={{ color: GRAY_COLOR }} />
                     <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('quizzes.results.unanswered')}</span>
                   </div>
-                  <span className="text-xs font-medium" style={{ color: GRAY_COLOR }}>{unanswered}</span>
+                  <span className="text-xs font-medium" style={{ color: GRAY_COLOR }}>{unansweredWithRisk}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <XCircle size={12} style={{ color: ERROR_COLOR }} />
                     <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('quizzes.results.incorrect')}</span>
                   </div>
-                  <span className="text-xs font-medium" style={{ color: ERROR_COLOR }}>{incorrectAnswers}</span>
+                  <span className="text-xs font-medium" style={{ color: ERROR_COLOR }}>{incorrectAnswersWithRisk}</span>
                 </div>
               </div>
             </div>
