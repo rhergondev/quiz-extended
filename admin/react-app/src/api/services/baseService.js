@@ -244,6 +244,14 @@ export const createResourceService = (resourceName, endpointKey, customOptions =
         
         const response = await makeApiRequest(url);
         
+        // 🔍 DEBUG: Ver datos ANTES del sanitizer
+        console.log(`🔍 RAW API response for ${resourceName}:`, {
+          id: response.data?.id,
+          hasContent: !!response.data?.content,
+          contentRendered: response.data?.content?.rendered,
+          contentRaw: response.data?.content?.raw
+        });
+        
         return sanitizer(response.data);
         
       } catch (error) {

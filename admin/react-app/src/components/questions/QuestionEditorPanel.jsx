@@ -6,6 +6,7 @@ import 'react-quill/dist/quill.snow.css';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
+import { useTheme } from '../../contexts/ThemeContext';
 
 import { getOne as getQuestion } from '../../api/services/questionService';
 import { createTaxonomyTerm } from '../../api/services/taxonomyService';
@@ -30,6 +31,24 @@ const QuestionEditorPanel = ({
   availableCourses
 }) => {
   const { t } = useTranslation();
+  const { getColor, isDarkMode } = useTheme();
+  
+  // pageColors pattern - diseño unificado con frontend
+  const pageColors = {
+    text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
+    textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : '#6b7280',
+    accent: getColor('accent', '#f59e0b'),
+    primary: getColor('primary', '#3b82f6'),
+    bgCard: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    border: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+    inputBg: isDarkMode ? 'rgba(255,255,255,0.05)' : '#ffffff',
+    shadow: isDarkMode ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.08)',
+    shadowSm: isDarkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.05)',
+    cardBorder: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+    hoverBg: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)',
+    accentGlow: isDarkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)',
+  };
+
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -69,20 +88,21 @@ const QuestionEditorPanel = ({
       if (questionId && mode === 'edit') {
         setIsLoading(true);
         try {
-          const data = await getQuestion(questionId);
+          // 🔥 FIX: Usar context=view para obtener content.rendered (context=edit lo devuelve vacío)
+          const data = await getQuestion(questionId, { context: 'view' });
           
-          // Extraer HTML del contenido (prioridad: content.rendered > meta._explanation)
+          // Extraer HTML del contenido (prioridad: content.rendered)
           let contentHTML = '';
           if (data.content?.rendered) {
             contentHTML = data.content.rendered.trim();
-          } else if (data.meta?._explanation) {
-            contentHTML = data.meta._explanation.trim();
+          } else if (typeof data.content === 'string') {
+            contentHTML = data.content.trim();
           }
           
           console.log('📝 Question Data:', {
             id: data.id,
             contentRendered: data.content?.rendered,
-            metaExplanation: data.meta?._explanation,
+            contentType: typeof data.content,
             finalContentHTML: contentHTML,
             htmlLength: contentHTML.length
           });
@@ -121,13 +141,24 @@ const QuestionEditorPanel = ({
     fetchQuestionData();
   }, [questionId, mode, resetForm]);
   
-  // Debug: Verificar cuando formData.explanation cambia
+  // 🔥 FIX: Sincronizar ReactQuill cuando cambia formData.explanation solo si hay contenido real
   useEffect(() => {
-    console.log('✅ formData.explanation changed:', {
-      value: formData.explanation,
-      length: formData.explanation?.length || 0,
-      hasContent: !!formData.explanation
-    });
+    // Solo actualizar si hay contenido Y el editor está listo
+    if (!quillRef.current || !formData.explanation || formData.explanation.length === 0) {
+      return;
+    }
+    
+    const editor = quillRef.current.getEditor();
+    const currentContent = editor.root.innerHTML;
+    
+    // Solo actualizar si el contenido es realmente diferente y hay algo que poner
+    if (currentContent !== formData.explanation && formData.explanation.trim() !== '') {
+      console.log('🔄 Updating Quill content:', {
+        from: currentContent.substring(0, 50),
+        to: formData.explanation.substring(0, 50)
+      });
+      editor.clipboard.dangerouslyPasteHTML(formData.explanation);
+    }
   }, [formData.explanation]);
   
   const handleFieldChange = (field, value) => {
@@ -320,24 +351,41 @@ const QuestionEditorPanel = ({
   const panelTitle = mode === 'create' ? t('questions.createQuestion') : t('questions.editQuestion');
   
   return (
-    <div className="bg-white rounded-lg border border-gray-200 flex flex-col h-full">
-      <header className="p-4 border-b flex items-center justify-between flex-shrink-0">
+    <div 
+      className="rounded-2xl flex flex-col h-full overflow-hidden"
+      style={{
+        backgroundColor: pageColors.bgCard,
+        border: `1px solid ${pageColors.cardBorder}`,
+        boxShadow: pageColors.shadow,
+      }}
+    >
+      <header 
+        className="p-5 flex items-center justify-between flex-shrink-0"
+        style={{ borderBottom: `1px solid ${pageColors.cardBorder}` }}
+      >
         <div>
-            <h3 className="text-lg font-bold text-gray-800">{panelTitle}</h3>
-             {mode === 'edit' && <p className="text-xs font-normal text-gray-500">{getQuestionTitle(formData)}</p>}
+            <h3 className="text-lg font-bold tracking-tight" style={{ color: pageColors.text }}>{panelTitle}</h3>
+             {mode === 'edit' && <p className="text-sm font-normal mt-0.5" style={{ color: pageColors.textMuted }}>{getQuestionTitle(formData)}</p>}
         </div>
         <div className="flex items-center gap-4">
-            <QEButton onClick={handleSave} disabled={isSaving} variant="primary" className="font-semibold py-2 px-4 rounded-lg text-sm">
+            <QEButton onClick={handleSave} disabled={isSaving} variant="primary" className="font-semibold py-2.5 px-5 rounded-xl text-sm">
               {isSaving ? t('common.saving') : t('common.save')}
             </QEButton>
-            <button onClick={onCancel} className="text-gray-500 hover:text-gray-800">
+            <button 
+              onClick={onCancel} 
+              className="p-2 rounded-xl transition-all duration-200"
+              style={{ 
+                color: pageColors.textMuted,
+                backgroundColor: pageColors.hoverBg
+              }}
+            >
               <X className="h-5 w-5" />
             </button>
         </div>
       </header>
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md flex items-center justify-between">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center justify-between">
             <span>{error}</span>
             <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">
               <X className="h-4 w-4" />
@@ -350,51 +398,56 @@ const QuestionEditorPanel = ({
           value={formData.title || ''} 
           onChange={(e) => handleFieldChange('title', e.target.value)} 
           placeholder={t('questions.fields.title')}
-          className="w-full text-xl font-bold focus:outline-none bg-transparent border-b pb-2"
+          className="w-full text-xl font-bold focus:outline-none border-b pb-3"
+          style={{
+            backgroundColor: 'transparent',
+            borderColor: pageColors.cardBorder,
+            color: pageColors.text
+          }}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-gray-700">{t('questions.fields.category')}</label>
-                {!showNewCategoryForm && ( <button onClick={() => setShowNewCategoryForm(true)} type="button" className="text-sm text-blue-600 hover:text-blue-700"><Plus className="h-4 w-4 inline-block"/></button> )}
+                <label className="block text-sm font-medium" style={{ color: pageColors.text }}>{t('questions.fields.category')}</label>
+                {!showNewCategoryForm && ( <button onClick={() => setShowNewCategoryForm(true)} type="button" className="text-sm" style={{ color: pageColors.accent }}><Plus className="h-4 w-4 inline-block"/></button> )}
               </div>
               {showNewCategoryForm && (
-                <div className="mb-2 p-2 bg-gray-50 border rounded-md">
+                <div className="mb-2 p-2 border rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border }}>
                   <div className="flex items-center gap-2">
-                    <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="Nueva..." className="flex-1 w-full px-2 py-1 border-gray-300 rounded-md text-sm"/>
+                    <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="Nueva..." className="flex-1 w-full px-2 py-1 rounded-md text-sm" style={{ backgroundColor: pageColors.bgCard, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}/>
                     <Button size="xs" onClick={() => createNewTaxonomy('qe_category', newCategoryName, onCategoryCreated, setCreatingCategory, setNewCategoryName, setShowNewCategoryForm, (val) => handleFieldChange('category', val))} isLoading={creatingCategory}>OK</Button>
                     <Button size="xs" variant="secondary" onClick={() => setShowNewCategoryForm(false)}>X</Button>
                   </div>
                 </div>
               )}
-              <select value={formData.category || ''} onChange={(e) => handleFieldChange('category', e.target.value)} className="w-full input border-gray-300 rounded-md">
+              <select value={formData.category || ''} onChange={(e) => handleFieldChange('category', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
                   <option value="">{t('common.select')}</option>
                   {(categoryOptions || []).map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
             </div>
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-gray-700">{t('questions.fields.provider')}</label>
-                {!showNewProviderForm && ( <button onClick={() => setShowNewProviderForm(true)} type="button" className="text-sm text-blue-600 hover:text-blue-700"><Plus className="h-4 w-4 inline-block"/></button> )}
+                <label className="block text-sm font-medium" style={{ color: pageColors.text }}>{t('questions.fields.provider')}</label>
+                {!showNewProviderForm && ( <button onClick={() => setShowNewProviderForm(true)} type="button" className="text-sm" style={{ color: pageColors.accent }}><Plus className="h-4 w-4 inline-block"/></button> )}
               </div>
               {showNewProviderForm && (
-                <div className="mb-2 p-2 bg-gray-50 border rounded-md">
+                <div className="mb-2 p-2 border rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border }}>
                   <div className="flex items-center gap-2">
-                    <input type="text" value={newProviderName} onChange={(e) => setNewProviderName(e.target.value)} placeholder="Nuevo..." className="flex-1 w-full px-2 py-1 border-gray-300 rounded-md text-sm"/>
+                    <input type="text" value={newProviderName} onChange={(e) => setNewProviderName(e.target.value)} placeholder="Nuevo..." className="flex-1 w-full px-2 py-1 rounded-md text-sm" style={{ backgroundColor: pageColors.bgCard, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}/>
                     <Button size="xs" onClick={() => createNewTaxonomy('qe_provider', newProviderName, onProviderCreated, setCreatingProvider, setNewProviderName, setShowNewProviderForm, (val) => handleFieldChange('provider', val))} isLoading={creatingProvider}>OK</Button>
                     <Button size="xs" variant="secondary" onClick={() => setShowNewProviderForm(false)}>X</Button>
                   </div>
                 </div>
               )}
-              <select value={formData.provider || ''} onChange={(e) => handleFieldChange('provider', e.target.value)} className="w-full input border-gray-300 rounded-md">
+              <select value={formData.provider || ''} onChange={(e) => handleFieldChange('provider', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
                   <option value="">{t('common.select')}</option>
                   {(providerOptions || []).map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
             </div>
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('questions.fields.difficulty')}</label>
-                <select value={formData.difficulty || 'medium'} onChange={(e) => handleFieldChange('difficulty', e.target.value)} className="w-full input border-gray-300 rounded-md">
+                <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>{t('questions.fields.difficulty')}</label>
+                <select value={formData.difficulty || 'medium'} onChange={(e) => handleFieldChange('difficulty', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
                     {difficultyLevels.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
             </div>
@@ -402,15 +455,15 @@ const QuestionEditorPanel = ({
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Asignar a Curso</label>
-                <select value={formData.courseId || ''} onChange={(e) => handleFieldChange('courseId', e.target.value)} className="w-full input border-gray-300 rounded-md">
+                <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>Asignar a Curso</label>
+                <select value={formData.courseId || ''} onChange={(e) => handleFieldChange('courseId', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
                     <option value="">Sin curso asignado</option>
                     {(availableCourses || []).map(course => ( <option key={course.id} value={course.id}>{course.title?.rendered || course.title}</option> ))}
                 </select>
             </div>
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Asignar a Lección</label>
-                <select value={formData.lessonId || ''} onChange={(e) => handleFieldChange('lessonId', e.target.value)} className="w-full input border-gray-300 rounded-md">
+                <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>Asignar a Lección</label>
+                <select value={formData.lessonId || ''} onChange={(e) => handleFieldChange('lessonId', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
                     <option value="">Pregunta General</option>
                     {(availableLessons || []).map(lesson => ( <option key={lesson.id} value={lesson.id}>{lesson.title?.rendered || lesson.title}</option> ))}
                 </select>
@@ -419,7 +472,7 @@ const QuestionEditorPanel = ({
         
         {['multiple_choice', 'true_false'].includes(formData.type) && (
              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Respuestas *</label>
+                <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>Respuestas *</label>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <SortableContext items={formData.options?.map((_, i) => i) || []} strategy={verticalListSortingStrategy}>
                         <div className="space-y-3">
@@ -450,15 +503,16 @@ const QuestionEditorPanel = ({
             onChange={(ids) => handleFieldChange('quizIds', ids)}
         />
        
-        <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('questions.fields.explanation')}</label>
+        <div className="qe-quill-wrapper">
+            <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>{t('questions.fields.explanation')}</label>
             <ReactQuill 
               key={`quill-${questionId || 'new'}-${mode}`} 
               ref={quillRef} 
               theme="snow" 
               value={formData.explanation || ''} 
               onChange={(val) => handleFieldChange('explanation', val)} 
-              modules={quillModules} 
+              modules={quillModules}
+              style={{ minHeight: '200px' }}
             />
         </div>
       </main>

@@ -49,38 +49,46 @@
   --qe-background: #111827;
 }
 
-/* Clases de utilidad usando variables del tema */
+/* Clases de utilidad usando variables del tema - Estilo Frontend Unificado */
 .qe-btn-primary,
 button.qe-btn-primary {
-  background-color: var(--qe-primary) !important;
+  background: linear-gradient(135deg, var(--qe-accent), var(--qe-accent-hover)) !important;
   color: white !important;
   border: none !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15) !important;
+  transition: all 0.2s ease !important;
 }
 
 .qe-btn-primary:hover,
 button.qe-btn-primary:hover {
-  background-color: var(--qe-primary-hover) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.25) !important;
 }
 
 .qe-btn-primary:disabled,
 button.qe-btn-primary:disabled {
-  background-color: #9ca3af !important;
+  background: #9ca3af !important;
   cursor: not-allowed !important;
   opacity: 0.6 !important;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .qe-btn-secondary,
 button.qe-btn-secondary {
   background-color: transparent !important;
   color: var(--qe-primary) !important;
-  border: 2px solid var(--qe-primary) !important;
+  border: 1px solid rgba(0,0,0,0.1) !important;
+  border-radius: 0.75rem !important;
+  transition: all 0.2s ease !important;
 }
 
 .qe-btn-secondary:hover,
 button.qe-btn-secondary:hover {
-  background-color: var(--qe-primary-light) !important;
-  border-color: var(--qe-primary-hover) !important;
-  color: var(--qe-primary-hover) !important;
+  background-color: rgba(0,0,0,0.03) !important;
+  border-color: rgba(0,0,0,0.15) !important;
+  transform: translateY(-1px) !important;
 }
 
 .qe-btn-secondary:disabled,
@@ -94,9 +102,12 @@ button.qe-btn-secondary:disabled {
 
 .qe-btn-accent,
 button.qe-btn-accent {
-  background-color: var(--qe-accent) !important;
+  background: linear-gradient(135deg, var(--qe-accent), var(--qe-accent-hover)) !important;
   color: white !important;
   border: none !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15) !important;
+  transition: all 0.2s ease !important;
 }
 
 .qe-btn-accent:hover,
@@ -684,4 +695,73 @@ button.qe-btn-lg {
 .qe-lms-app .qe-sidebar-wrapper,
 #qe-app .qe-sidebar-wrapper {
   background-color: var(--qe-background) !important;
+}
+
+/* ========================================
+   📝 REACT QUILL - DARK MODE SUPPORT
+   ======================================== */
+
+/* Dark mode para ReactQuill toolbar */
+.qe-dark-mode .ql-toolbar.ql-snow {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.qe-dark-mode .ql-toolbar.ql-snow .ql-stroke {
+  stroke: rgba(255, 255, 255, 0.7) !important;
+}
+
+.qe-dark-mode .ql-toolbar.ql-snow .ql-fill {
+  fill: rgba(255, 255, 255, 0.7) !important;
+}
+
+.qe-dark-mode .ql-toolbar.ql-snow .ql-picker-label {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.qe-dark-mode .ql-toolbar.ql-snow .ql-picker-options {
+  background-color: #1f2937 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.qe-dark-mode .ql-toolbar.ql-snow .ql-picker-item {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.qe-dark-mode .ql-toolbar.ql-snow .ql-picker-item:hover {
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.qe-dark-mode .ql-toolbar.ql-snow button:hover .ql-stroke,
+.qe-dark-mode .ql-toolbar.ql-snow button:focus .ql-stroke {
+  stroke: #ffffff !important;
+}
+
+.qe-dark-mode .ql-toolbar.ql-snow button:hover .ql-fill,
+.qe-dark-mode .ql-toolbar.ql-snow button:focus .ql-fill {
+  fill: #ffffff !important;
+}
+
+/* Dark mode para ReactQuill editor container */
+.qe-dark-mode .ql-container.ql-snow {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.qe-dark-mode .ql-editor {
+  color: #f9fafb !important;
+}
+
+.qe-dark-mode .ql-editor.ql-blank::before {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Altura mínima para el editor Quill */
+.qe-quill-wrapper .ql-container {
+  min-height: 180px !important;
+}
+
+.qe-quill-wrapper .ql-editor {
+  min-height: 180px !important;
 }

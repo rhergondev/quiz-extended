@@ -857,6 +857,37 @@
       "human": "Human",
       "ai": "AI",
       "imported": "Imported"
+    },
+    "details": {
+      "viewTitle": "Question View",
+      "questionType": "Question Type",
+      "difficulty": "Difficulty",
+      "points": "Points",
+      "category": "Category",
+      "question": "Question",
+      "answerOptions": "Answer Options",
+      "explanation": "Explanation",
+      "additionalInfo": "Additional Information",
+      "lessonId": "Lesson ID",
+      "courseId": "Course ID",
+      "provider": "Provider",
+      "noCategory": "No category",
+      "optionLabel": "Option {{number}}",
+      "correctPoints": "{{points}} correct",
+      "incorrectPoints": "{{points}} incorrect",
+      "emptyStateTitle": "Select a question to view details",
+      "emptyStateDescription": "Click on a question from the list or create a new one"
+    },
+    "batch": {
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
+      "deleteSelected": "Delete selected",
+      "duplicateSelected": "Duplicate selected",
+      "exportSelected": "Export selected",
+      "selectedCount": "{{count}} selected",
+      "selectedCount_plural": "{{count}} selected",
+      "deleteConfirm": "Delete {{count}} question?",
+      "deleteConfirm_plural": "Delete {{count}} questions?"
     }
   },
   "students": {

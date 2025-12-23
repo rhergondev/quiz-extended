@@ -115,6 +115,16 @@ export const transformQuestionDataForApi = (questionData) => {
 
 export const sanitizeQuestionData = (questionData) => {
     if (!questionData) return null;
+    
+    // 🔍 DEBUG: Ver datos crudos de la API
+    console.log('🔍 sanitizeQuestionData - Raw data:', {
+        id: questionData.id,
+        hasContent: !!questionData.content,
+        contentType: typeof questionData.content,
+        contentRendered: questionData.content?.rendered,
+        contentValue: questionData.content
+    });
+    
     return {
         id: questionData.id || 0,
         title: sanitizeRenderedContent(questionData.title),

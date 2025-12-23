@@ -3,9 +3,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { 
   MessageSquare, 
-  AlertCircle, 
   Mail,
-  MailOpen,
   Flag,
   MessageCircle,
   Send,
@@ -13,90 +11,88 @@ import {
   RefreshCw,
   X,
   User,
-  Clock,
   FileQuestion,
   CheckCircle,
   Archive,
   Inbox,
-  ChevronDown,
-  ExternalLink,
   Users,
   Eye,
-  EyeOff,
-  Megaphone,
-  Bell,
-  AlertTriangle,
-  Trash2,
   CheckSquare,
   Square,
-  Minus
+  Edit3,
+  ChevronLeft,
+  Sun,
+  Moon,
+  Plus
 } from 'lucide-react';
 
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import useMessages from '../../hooks/useMessages';
 import { useSearchInput, useFilterDebounce } from '../../api/utils/debounceUtils';
 import { makeApiRequest } from '../../api/services/baseService';
 import { getApiConfig } from '../../api/config/apiConfig';
 import SendMessageModal from './SendMessageModal';
+import QuestionEditorPanel from '../questions/QuestionEditorPanel';
+import { useTaxonomyOptions } from '../../hooks/useTaxonomyOptions.js';
+import useQuizzes from '../../hooks/useQuizzes';
+import useLessons from '../../hooks/useLessons';
+import useCourses from '../../hooks/useCourses';
+import { toast } from 'react-toastify';
 
 const MessagesManager = () => {
-  const { getColor, isDarkMode } = useTheme();
+  const { t } = useTranslation();
+  const { getColor, isDarkMode, toggleDarkMode } = useTheme();
 
-  // Theme-aware colors
-  const colors = useMemo(() => ({
-    primary: getColor('primary', '#1e3a5f'),
+  // pageColors pattern - diseño unificado con frontend
+  const pageColors = useMemo(() => ({
+    text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
+    textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : '#6b7280',
     accent: getColor('accent', '#f59e0b'),
-    accentLight: isDarkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)',
+    primary: getColor('primary', '#3b82f6'),
+    bgCard: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    bgPage: isDarkMode ? getColor('secondaryBackground', '#111827') : '#f5f7fa',
+    border: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+    inputBg: isDarkMode ? 'rgba(255,255,255,0.05)' : '#ffffff',
+    hoverBg: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)',
     success: '#10b981',
     error: '#ef4444',
-    textPrimary: isDarkMode ? getColor('textPrimary', '#f9fafb') : '#1f2937',
-    textSecondary: isDarkMode ? getColor('textSecondary', '#9ca3af') : '#6b7280',
-    textMuted: isDarkMode ? '#6b7280' : '#9ca3af',
-    background: isDarkMode ? getColor('background', '#111827') : '#ffffff',
-    backgroundSecondary: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#f9fafb',
-    border: isDarkMode ? 'rgba(255,255,255,0.1)' : '#e5e7eb',
-    cardBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
-    headerBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : getColor('primary', '#1e3a5f'),
+    info: '#3b82f6',
+    // New unified design tokens
+    shadow: isDarkMode ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.08)',
+    shadowSm: isDarkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.05)',
+    cardBorder: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+    accentGlow: isDarkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)',
   }), [getColor, isDarkMode]);
 
-  // --- VIEW STATE ---
-  const [activeView, setActiveView] = useState('inbox'); // 'inbox' | 'sent'
-  
-  // --- LOCAL STATE ---
+  const [activeView, setActiveView] = useState('inbox');
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
-  
-  // --- BATCH SELECTION STATE ---
+  const [showQuestionEditor, setShowQuestionEditor] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [batchLoading, setBatchLoading] = useState(false);
-  
-  // --- SENT MESSAGES STATE ---
   const [sentMessages, setSentMessages] = useState([]);
   const [sentLoading, setSentLoading] = useState(false);
-  const [sentError, setSentError] = useState(null);
   const [selectedSentMessage, setSelectedSentMessage] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const [replies, setReplies] = useState([]);
+  const [loadingReplies, setLoadingReplies] = useState(false);
 
-  // --- DEBOUNCED SEARCH INPUT ---
-  const { searchValue, isSearching, handleSearchChange, clearSearch } = useSearchInput('', () => {}, 500);
-  
-  // --- FILTERS ---
-  const { filters, isFiltering, updateFilter, resetFilters } = useFilterDebounce(
-    { status: 'all', type: 'all' },
-    () => {}, 300
-  );
+  const { searchValue, handleSearchChange, clearSearch } = useSearchInput('', () => {}, 500);
+  const { filters, updateFilter } = useFilterDebounce({ status: 'all', type: 'all' }, () => {}, 300);
 
-  // --- HOOKS ---
+  // Taxonomy options (like QuestionsManager)
+  const { options: taxonomyOptions, refetch: refetchTaxonomies } = useTaxonomyOptions(['qe_category', 'qe_provider']);
+  const categoryOptions = useMemo(() => (taxonomyOptions.qe_category || []).filter(opt => opt.value !== 'all'), [taxonomyOptions.qe_category]);
+  const providerOptions = useMemo(() => (taxonomyOptions.qe_provider || []).filter(opt => opt.value !== 'all'), [taxonomyOptions.qe_provider]);
+
+  const { quizzes: availableQuizzes } = useQuizzes({ autoFetch: true, perPage: 100 });
+  const { lessons: availableLessons } = useLessons({ autoFetch: true, perPage: 100 });
+  const { courses: availableCourses } = useCourses({ autoFetch: true, perPage: 100 });
+
   const { 
-    messages, 
-    loading, 
-    error, 
-    pagination,
-    computed,
-    updating,
-    hasNewMessages,
-    updateMessageStatus,
-    fetchMessages,
-    requestNotificationPermission
+    messages, loading, computed, updateMessageStatus, fetchMessages, requestNotificationPermission
   } = useMessages({
     search: searchValue,
     status: filters.status !== 'all' ? filters.status : null,
@@ -106,1369 +102,784 @@ const MessagesManager = () => {
     pollingInterval: 30000
   });
 
-  // Request notification permission on mount
-  useEffect(() => {
-    requestNotificationPermission();
-  }, [requestNotificationPermission]);
+  useEffect(() => { requestNotificationPermission(); }, [requestNotificationPermission]);
+  useEffect(() => { if (activeView === 'sent') fetchSentMessages(); }, [activeView]);
+  useEffect(() => { if (selectedMessage && !messages.find(m => m.id === selectedMessage.id)) setSelectedMessage(null); }, [messages, selectedMessage]);
 
-  // Fetch sent messages when view changes to 'sent'
-  useEffect(() => {
-    if (activeView === 'sent') {
-      fetchSentMessages();
-    }
-  }, [activeView]);
-
-  // Reset selected message when messages change
-  useEffect(() => {
-    if (selectedMessage && !messages.find(m => m.id === selectedMessage.id)) {
-      setSelectedMessage(null);
-    }
-  }, [messages, selectedMessage]);
-
-  // --- FETCH SENT MESSAGES ---
   const fetchSentMessages = useCallback(async () => {
     setSentLoading(true);
-    setSentError(null);
     try {
       const config = getApiConfig();
-      const url = `${config.endpoints.custom_api}/messages/sent?per_page=50`;
-      
-      const response = await makeApiRequest(url);
-      
-      // The response structure is: { data: { success: true, data: [...] }, headers: {...} }
-      // We need response.data.data to get the actual messages array
-      const messagesArray = response?.data?.data || response?.data || [];
-      
-      setSentMessages(Array.isArray(messagesArray) ? messagesArray : []);
-    } catch (err) {
-      console.error('Error fetching sent messages:', err);
-      setSentError(err.message || 'Error al cargar mensajes enviados');
-    } finally {
-      setSentLoading(false);
-    }
+      const response = await makeApiRequest(`${config.endpoints.custom_api}/messages/sent?per_page=50`);
+      setSentMessages(Array.isArray(response?.data?.data || response?.data) ? (response?.data?.data || response?.data) : []);
+    } catch (err) { console.error('Error fetching sent messages:', err); }
+    finally { setSentLoading(false); }
   }, []);
 
-  // --- EVENT HANDLERS ---
-  const handleRefresh = useCallback(() => {
-    if (activeView === 'inbox') {
-      fetchMessages(true);
-      setSelectedIds(new Set()); // Clear selection on refresh
-    } else {
-      fetchSentMessages();
+  // Fetch replies for a message
+  const fetchReplies = useCallback(async (messageId) => {
+    setLoadingReplies(true);
+    try {
+      const config = getApiConfig();
+      const response = await makeApiRequest(`${config.endpoints.custom_api}/messages/${messageId}/replies`);
+      const data = response?.data?.data || response?.data || {};
+      setReplies(data.replies || []);
+      console.log('📩 Replies loaded:', data.replies?.length || 0);
+    } catch (err) { 
+      console.error('Error fetching replies:', err);
+      setReplies([]); 
     }
-  }, [fetchMessages, fetchSentMessages, activeView]);
+    finally { setLoadingReplies(false); }
+  }, []);
 
-  // --- BATCH SELECTION HANDLERS ---
+  const handleRefresh = useCallback(() => {
+    if (activeView === 'inbox') { 
+      fetchMessages(true); 
+      setSelectedIds(new Set()); 
+      if (selectedMessage) fetchReplies(selectedMessage.id);
+    }
+    else { fetchSentMessages(); }
+  }, [fetchMessages, fetchSentMessages, activeView, selectedMessage, fetchReplies]);
+
   const handleToggleSelect = useCallback((messageId, event) => {
     event.stopPropagation();
     setSelectedIds(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(messageId)) {
-        newSet.delete(messageId);
-      } else {
-        newSet.add(messageId);
-      }
+      newSet.has(messageId) ? newSet.delete(messageId) : newSet.add(messageId);
       return newSet;
     });
   }, []);
 
-  const handleSelectAll = useCallback(() => {
-    if (selectedIds.size === messages.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(messages.map(m => m.id)));
-    }
-  }, [messages, selectedIds.size]);
-
   const handleBatchAction = useCallback(async (action) => {
     if (selectedIds.size === 0) return;
-    
     setBatchLoading(true);
     try {
       const config = getApiConfig();
-      const url = `${config.endpoints.custom_api}/messages/batch`;
-      
-      await makeApiRequest(url, {
-        method: 'POST',
-        body: JSON.stringify({
-          ids: Array.from(selectedIds),
-          action: action
-        })
+      await makeApiRequest(`${config.endpoints.custom_api}/messages/batch`, {
+        method: 'POST', body: JSON.stringify({ ids: Array.from(selectedIds), action })
       });
-      
-      // Clear selection and refresh
-      setSelectedIds(new Set());
-      setSelectedMessage(null);
-      fetchMessages(true);
-    } catch (err) {
-      console.error('Error in batch action:', err);
-    } finally {
-      setBatchLoading(false);
-    }
+      setSelectedIds(new Set()); setSelectedMessage(null); fetchMessages(true);
+    } catch (err) { console.error('Error in batch action:', err); }
+    finally { setBatchLoading(false); }
   }, [selectedIds, fetchMessages]);
 
   const handleMessageClick = useCallback((message) => {
-    setSelectedMessage(message);
-    setSelectedSentMessage(null);
-    if (message.status === 'unread') {
-      updateMessageStatus(message.id, 'read');
-    }
-  }, [updateMessageStatus]);
+    setSelectedMessage(message); 
+    setSelectedSentMessage(null); 
+    setShowQuestionEditor(false); 
+    setReplyText('');
+    setReplies([]); // Clear previous replies
+    fetchReplies(message.id); // Load replies for this message
+    if (message.status === 'unread') updateMessageStatus(message.id, 'read');
+  }, [updateMessageStatus, fetchReplies]);
 
-  const handleSentMessageClick = useCallback((message) => {
-    setSelectedSentMessage(message);
-    setSelectedMessage(null);
-  }, []);
+  const handleSentMessageClick = useCallback((message) => { setSelectedSentMessage(message); setSelectedMessage(null); setReplies([]); }, []);
 
   const handleStatusChange = useCallback(async (messageId, newStatus) => {
     try {
       await updateMessageStatus(messageId, newStatus);
-      // Update local selected message status
-      if (selectedMessage?.id === messageId) {
-        setSelectedMessage(prev => prev ? { ...prev, status: newStatus } : null);
-      }
-    } catch (error) {
-      console.error('Error updating message status:', error);
-    }
+      if (selectedMessage?.id === messageId) setSelectedMessage(prev => prev ? { ...prev, status: newStatus } : null);
+    } catch (error) { console.error('Error updating message status:', error); }
   }, [updateMessageStatus, selectedMessage]);
 
-  // --- HELPERS ---
+  const handleSendReply = useCallback(async () => {
+    if (!replyText.trim() || !selectedMessage) {
+      console.log('🚫 Reply blocked: no text or no selected message');
+      return;
+    }
+    
+    console.log('📤 Starting reply send...', {
+      messageId: selectedMessage.id,
+      senderId: selectedMessage.sender_id,
+      replyLength: replyText.length
+    });
+    
+    setSendingReply(true);
+    try {
+      const config = getApiConfig();
+      const endpoint = `${config.endpoints.custom_api}/messages/reply`;
+      const payload = {
+        original_message_id: selectedMessage.id,
+        recipient_id: selectedMessage.sender_id,
+        subject: `Re: ${selectedMessage.subject}`,
+        message: replyText,
+        type: 'reply'
+      };
+      
+      console.log('📤 Sending to:', endpoint);
+      console.log('📤 Payload:', payload);
+      
+      const response = await makeApiRequest(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      
+      console.log('✅ Reply response:', response);
+      
+      setReplyText('');
+      await handleStatusChange(selectedMessage.id, 'resolved');
+      // Reload replies to show the new message in chat
+      await fetchReplies(selectedMessage.id);
+      fetchSentMessages();
+      toast.success('Respuesta enviada correctamente');
+    } catch (err) {
+      console.error('❌ Error sending reply:', err);
+      toast.error(`Error al enviar: ${err.message || 'Error desconocido'}`);
+    } finally {
+      setSendingReply(false);
+    }
+  }, [replyText, selectedMessage, handleStatusChange, fetchSentMessages, fetchReplies]);
+
+  const handleQuestionSave = useCallback(async () => { setShowQuestionEditor(false); }, []);
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) {
-      return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-    } else if (diffDays === 1) {
-      return 'Ayer';
-    } else if (diffDays < 7) {
-      return date.toLocaleDateString('es-ES', { weekday: 'short' });
-    } else {
-      return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-    }
+    const diffDays = Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    if (diffDays === 1) return 'Ayer';
+    if (diffDays < 7) return date.toLocaleDateString('es-ES', { weekday: 'short' });
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
   };
 
-  const formatFullDate = (dateString) => {
-    return new Date(dateString).toLocaleString('es-ES', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  const formatFullDate = (dateString) => new Date(dateString).toLocaleString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   const getTypeInfo = (type) => {
-    switch (type) {
-      case 'question_feedback':
-        return { 
-          icon: MessageCircle, 
-          label: 'Duda', 
-          color: '#3b82f6', 
-          bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' 
-        };
-      case 'question_challenge':
-        return { 
-          icon: Flag, 
-          label: 'Impugnación', 
-          color: '#ef4444', 
-          bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2' 
-        };
-      default:
-        return { 
-          icon: Mail, 
-          label: 'Mensaje', 
-          color: colors.textSecondary, 
-          bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6' 
-        };
-    }
+    if (type === 'question_feedback') return { icon: MessageCircle, label: 'Duda', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' };
+    if (type === 'question_challenge') return { icon: Flag, label: 'Impugnación', color: pageColors.error, bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2' };
+    return { icon: Mail, label: 'Mensaje', color: pageColors.textMuted, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6' };
   };
 
   const getStatusInfo = (status) => {
-    switch (status) {
-      case 'unread':
-        return { label: 'Sin leer', color: '#ef4444', bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2' };
-      case 'read':
-        return { label: 'Leído', color: '#3b82f6', bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' };
-      case 'resolved':
-        return { label: 'Resuelto', color: '#10b981', bgColor: isDarkMode ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5' };
-      case 'archived':
-        return { label: 'Archivado', color: colors.textSecondary, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6' };
-      default:
-        return { label: status, color: colors.textSecondary, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6' };
-    }
+    if (status === 'unread') return { label: 'Sin leer', color: pageColors.error, bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2' };
+    if (status === 'read') return { label: 'Leído', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' };
+    if (status === 'resolved') return { label: 'Resuelto', color: pageColors.success, bgColor: isDarkMode ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5' };
+    return { label: status || 'Archivado', color: pageColors.textMuted, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6' };
   };
 
-  const getSentTypeInfo = (type) => {
-    switch (type) {
-      case 'announcement':
-        return { 
-          icon: Megaphone, 
-          label: 'Anuncio', 
-          color: '#3b82f6', 
-          bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' 
-        };
-      case 'notification':
-        return { 
-          icon: Bell, 
-          label: 'Notificación', 
-          color: '#f59e0b', 
-          bgColor: isDarkMode ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7' 
-        };
-      case 'alert':
-        return { 
-          icon: AlertTriangle, 
-          label: 'Alerta', 
-          color: '#ef4444', 
-          bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2' 
-        };
-      default:
-        return { 
-          icon: Send, 
-          label: 'Mensaje', 
-          color: colors.textSecondary, 
-          bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6' 
-        };
-    }
-  };
-
-  // --- RENDER ---
   return (
-    <div 
-      className="h-[calc(100vh-120px)] min-h-[350px] flex flex-col rounded-xl overflow-hidden"
-      style={{ 
-        backgroundColor: colors.background,
-        border: `2px solid ${isDarkMode ? colors.accent : colors.primary}`
-      }}
-    >
-      {/* Header with Stats */}
+    <div className="flex flex-col h-[calc(100vh-60px)]" style={{ backgroundColor: pageColors.bgPage }}>
+      {/* TOP BAR - Frontend-style design */}
       <div 
-        className="flex-shrink-0 overflow-hidden"
-        style={{ backgroundColor: colors.headerBg }}
+        className="flex items-center justify-between px-6 py-4" 
+        style={{ 
+          backgroundColor: pageColors.bgCard, 
+          borderBottom: `1px solid ${pageColors.cardBorder}`,
+          boxShadow: pageColors.shadowSm
+        }}
       >
-        <div className="px-3 py-2 sm:px-4 sm:py-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div 
-                className="p-1.5 rounded-lg flex-shrink-0"
-                style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.2)' }}
-              >
-                <MessageSquare size={16} className="text-white" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-sm sm:text-base font-bold text-white truncate">Mensajería</h1>
-                <p className="text-[10px] sm:text-xs text-white/70 truncate hidden sm:block">
-                  Gestiona dudas e impugnaciones
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsSendModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium text-xs transition-all flex-shrink-0"
-              style={{ 
-                backgroundColor: colors.accent,
-                color: '#ffffff'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
-              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-            >
-              <Send size={12} />
-              <span className="hidden sm:inline">Enviar Mensaje</span>
-              <span className="sm:hidden">Enviar</span>
-            </button>
+        <div className="flex items-center gap-4">
+          <div 
+            className="p-2.5 rounded-xl"
+            style={{ 
+              background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
+              boxShadow: `0 4px 12px ${pageColors.accentGlow}`
+            }}
+          >
+            <MessageSquare size={22} className="text-white" />
           </div>
-
-          {/* Stats Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 mt-2">
-            <div 
-              className="rounded px-2 py-1.5"
-              style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)' }}
-            >
-              <div className="flex items-center gap-1">
-                <MessageSquare size={12} className="text-white/70" />
-                <span className="text-white/70 text-[10px]">Total</span>
-              </div>
-              <p className="text-base font-bold text-white">
-                {computed?.totalMessages || 0}
+          <div>
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: pageColors.text }}>Mensajes</h1>
+            {computed?.unreadMessages > 0 && (
+              <p className="text-xs mt-0.5" style={{ color: pageColors.textMuted }}>
+                <span className="font-semibold" style={{ color: pageColors.error }}>{computed.unreadMessages}</span> sin leer
               </p>
-            </div>
-            <div 
-              className="rounded px-2 py-1.5"
-              style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)' }}
-            >
-              <div className="flex items-center gap-1">
-                <Mail size={12} className="text-red-300" />
-                <span className="text-white/70 text-[10px]">Sin Leer</span>
-              </div>
-              <p className="text-base font-bold text-white">
-                {computed?.unreadMessages || 0}
-              </p>
-            </div>
-            <div 
-              className="rounded px-2 py-1.5"
-              style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)' }}
-            >
-              <div className="flex items-center gap-1">
-                <MessageCircle size={12} className="text-blue-300" />
-                <span className="text-white/70 text-[10px]">Dudas</span>
-              </div>
-              <p className="text-base font-bold text-white">
-                {computed?.feedbackMessages || 0}
-              </p>
-            </div>
-            <div 
-              className="rounded px-2 py-1.5"
-              style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)' }}
-            >
-              <div className="flex items-center gap-1">
-                <Flag size={12} className="text-orange-300" />
-                <span className="text-white/70 text-[10px]">Impugn.</span>
-              </div>
-              <p className="text-base font-bold text-white">
-                {computed?.challengeMessages || 0}
-              </p>
-            </div>
+            )}
           </div>
-
-          {/* View Tabs */}
-          <div className="flex gap-1.5 mt-2">
-            <button
-              onClick={() => {
-                setActiveView('inbox');
-                setSelectedSentMessage(null);
-              }}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all ${activeView === 'inbox' 
-                  ? 'bg-white text-gray-900' 
-                  : 'bg-white/10 text-white hover:bg-white/20'
-              }`}
-            >
-              <Inbox size={12} />
-              Recibidos
-              {computed?.unreadMessages > 0 && (
-                <span className="px-1 rounded-full text-[9px] bg-red-500 text-white">
-                  {computed.unreadMessages}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => {
-                setActiveView('sent');
-                setSelectedMessage(null);
-              }}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all ${activeView === 'sent' 
-                  ? 'bg-white text-gray-900' 
-                  : 'bg-white/10 text-white hover:bg-white/20'
-              }`}
-            >
-              <Send size={12} />
-              Enviados
-              {sentMessages.length > 0 && (
-                <span className="px-1 rounded-full text-[9px] bg-white/30 text-white">
-                  {sentMessages.length}
-                </span>
-              )}
-            </button>
-          </div>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          {/* Main Send Button - Frontend style */}
+          <button 
+            onClick={() => setIsSendModalOpen(true)} 
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200"
+            style={{ 
+              background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
+              color: '#fff',
+              boxShadow: `0 4px 12px ${pageColors.accentGlow}`
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = `0 6px 20px ${pageColors.accentGlow}`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = `0 4px 12px ${pageColors.accentGlow}`;
+            }}
+          >
+            <Plus size={18} />
+            <span>Nuevo mensaje</span>
+          </button>
+          
+          {/* Refresh Button */}
+          <button 
+            onClick={handleRefresh} 
+            disabled={loading || sentLoading}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200"
+            style={{ 
+              backgroundColor: pageColors.inputBg, 
+              border: `1px solid ${pageColors.cardBorder}`,
+              color: pageColors.text,
+              boxShadow: pageColors.shadowSm
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = pageColors.hoverBg;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = pageColors.inputBg;
+            }}
+          >
+            <RefreshCw size={16} className={loading || sentLoading ? 'animate-spin' : ''} />
+            <span className="hidden sm:inline text-sm">Actualizar</span>
+          </button>
+          
+          {/* Dark Mode Toggle */}
+          <button 
+            onClick={toggleDarkMode}
+            className="p-2.5 rounded-xl transition-all duration-200"
+            style={{ 
+              backgroundColor: pageColors.inputBg, 
+              border: `1px solid ${pageColors.cardBorder}`,
+              color: pageColors.text,
+              boxShadow: pageColors.shadowSm
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = pageColors.hoverBg;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = pageColors.inputBg;
+            }}
+            title={isDarkMode ? 'Modo claro' : 'Modo oscuro'}
+          >
+            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
         </div>
       </div>
 
-      {/* Filter Bar - Only for Inbox */}
-      {activeView === 'inbox' && (
+      {/* MAIN CONTENT */}
+      <div className="flex-1 flex overflow-hidden p-4 gap-4">
+        {/* LEFT PANEL - Message List */}
         <div 
-          className="flex-shrink-0 px-2 sm:px-3 py-2 border-b flex flex-wrap items-center gap-1.5 sm:gap-2"
+          className="w-80 flex-shrink-0 flex flex-col rounded-2xl overflow-hidden" 
           style={{ 
-            backgroundColor: colors.backgroundSecondary,
-            borderColor: colors.border
+            backgroundColor: pageColors.bgCard, 
+            boxShadow: pageColors.shadow,
+            border: `1px solid ${pageColors.cardBorder}`
           }}
         >
-          {/* Search */}
-          <div className="w-full sm:flex-1 relative order-1">
-            <Search 
-              size={14} 
-              className="absolute left-2.5 top-1/2 -translate-y-1/2"
-              style={{ color: colors.textMuted }}
-            />
-            <input
-              type="text"
-              value={searchValue}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Buscar mensajes..."
-              className="w-full pl-8 pr-6 py-1.5 text-xs rounded border focus:outline-none focus:ring-1"
-              style={{ 
-                backgroundColor: colors.background,
-                borderColor: colors.border,
-                color: colors.textPrimary
-              }}
-            />
-            {searchValue && (
-              <button
-                onClick={clearSearch}
-                className="absolute right-2 top-1/2 -translate-y-1/2"
-                style={{ color: colors.textMuted }}
-              >
-              <X size={12} />
-            </button>
-          )}
-        </div>
-
-        {/* Status Filter */}
-        <div className="relative flex-1 sm:flex-none order-2 min-w-[120px]">
-          <select
-            value={filters.status}
-            onChange={(e) => updateFilter('status', e.target.value)}
-            className="w-full appearance-none pl-2 pr-6 py-1.5 text-xs rounded border focus:outline-none focus:ring-1"
-            style={{ 
-              backgroundColor: colors.background,
-              borderColor: colors.border,
-              color: colors.textPrimary
-            }}
-          >
-            <option value="all">Todos estados</option>
-            <option value="unread">Sin leer</option>
-            <option value="read">Leídos</option>
-            <option value="resolved">Resueltos</option>
-            <option value="archived">Archivados</option>
-          </select>
-          <ChevronDown 
-            size={12} 
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: colors.textMuted }}
-          />
-        </div>
-
-        {/* Type Filter */}
-        <div className="relative flex-1 sm:flex-none order-3 min-w-[120px]">
-          <select
-            value={filters.type}
-            onChange={(e) => updateFilter('type', e.target.value)}
-            className="w-full appearance-none pl-2 pr-6 py-1.5 text-xs rounded border focus:outline-none focus:ring-1"
-            style={{ 
-              backgroundColor: colors.background,
-              borderColor: colors.border,
-              color: colors.textPrimary
-            }}
-          >
-            <option value="all">Todos tipos</option>
-            <option value="question_feedback">Dudas</option>
-            <option value="question_challenge">Impugnaciones</option>
-          </select>
-          <ChevronDown 
-            size={12} 
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: colors.textMuted }}
-          />
-        </div>
-
-        {/* Refresh Button */}
-        <button
-          onClick={handleRefresh}
-          disabled={loading}
-          className="p-1.5 rounded border transition-all disabled:opacity-50 order-4"
-          style={{ 
-            backgroundColor: colors.background,
-            borderColor: colors.border,
-            color: colors.textSecondary
-          }}
-          title="Actualizar"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-        </button>
-        </div>
-      )}
-
-      {/* Batch Actions Bar - Only when messages are selected */}
-      {activeView === 'inbox' && messages.length > 0 && (
-        <div 
-          className="flex-shrink-0 px-2 sm:px-3 py-1.5 border-b flex flex-wrap items-center gap-1.5 sm:gap-2"
-          style={{ 
-            backgroundColor: selectedIds.size > 0 
-              ? (isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe') 
-              : colors.backgroundSecondary,
-            borderColor: colors.border
-          }}
-        >
-          {/* Select All Checkbox */}
-          <button
-            onClick={handleSelectAll}
-            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded transition-colors"
-            disabled={batchLoading}
-            style={{ color: colors.textPrimary }}
-          >
-            {selectedIds.size === 0 ? (
-              <Square size={14} style={{ color: colors.textSecondary }} />
-            ) : selectedIds.size === messages.length ? (
-              <CheckSquare size={14} style={{ color: colors.accent }} />
-            ) : (
-              <Minus size={14} style={{ color: colors.accent }} />
-            )}
-            <span className="text-xs font-medium">
-              {selectedIds.size === 0 
-                ? 'Seleccionar' 
-                : `${selectedIds.size} sel.`}
-            </span>
-          </button>
-
-          {/* Batch Action Buttons - Only visible when items selected */}
-          {selectedIds.size > 0 && (
-            <>
-              <div className="h-3 w-px" style={{ backgroundColor: colors.border }} />
-              
-              <button
-                onClick={() => handleBatchAction('mark_read')}
-                disabled={batchLoading}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all disabled:opacity-50"
+          <div className="p-4" style={{ borderBottom: `1px solid ${pageColors.cardBorder}` }}>
+            <div className="flex gap-2 mb-3">
+              <button 
+                onClick={() => { setActiveView('inbox'); setSelectedSentMessage(null); }} 
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200" 
                 style={{ 
-                  backgroundColor: colors.primary,
-                  color: '#ffffff'
+                  backgroundColor: activeView === 'inbox' ? pageColors.accent : pageColors.inputBg, 
+                  color: activeView === 'inbox' ? '#fff' : pageColors.textMuted, 
+                  boxShadow: activeView === 'inbox' ? `0 2px 8px ${pageColors.accentGlow}` : 'none'
                 }}
-                title="Marcar como leídos"
               >
-                <MailOpen size={12} />
-                Leídos
+                <Inbox size={14} />Recibidos
               </button>
-              
-              <button
-                onClick={() => handleBatchAction('archive')}
-                disabled={batchLoading}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all disabled:opacity-50 border"
+              <button 
+                onClick={() => { setActiveView('sent'); setSelectedMessage(null); }} 
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200" 
                 style={{ 
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                  color: colors.textSecondary
+                  backgroundColor: activeView === 'sent' ? pageColors.accent : pageColors.inputBg, 
+                  color: activeView === 'sent' ? '#fff' : pageColors.textMuted,
+                  boxShadow: activeView === 'sent' ? `0 2px 8px ${pageColors.accentGlow}` : 'none'
                 }}
-                title="Archivar"
               >
-                <Archive size={12} />
-                Archivar
-              </button>
-              
-              <button
-                onClick={() => {
-                  if (window.confirm(`¿Estás seguro de eliminar ${selectedIds.size} mensaje(s)?`)) {
-                    handleBatchAction('delete');
-                  }
-                }}
-                disabled={batchLoading}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all disabled:opacity-50"
-                style={{ 
-                  backgroundColor: colors.error,
-                  color: '#ffffff'
-                }}
-                title="Eliminar"
-              >
-                <Trash2 size={12} />
-                Eliminar
-              </button>
-
-              {batchLoading && (
-                <div 
-                  className="w-3 h-3 border-2 rounded-full animate-spin"
-                  style={{ 
-                    borderColor: `${colors.primary}20`,
-                    borderTopColor: colors.primary
-                  }}
-                />
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Sent Messages Filter Bar */}
-      {activeView === 'sent' && (
-        <div 
-          className="flex-shrink-0 px-2 sm:px-3 py-2 border-b flex flex-wrap items-center justify-between gap-1.5"
-          style={{ 
-            backgroundColor: colors.backgroundSecondary,
-            borderColor: colors.border
-          }}
-        >
-          <div className="flex items-center gap-1.5">
-            <Send size={12} style={{ color: colors.textSecondary }} />
-            <span className="text-xs" style={{ color: colors.textSecondary }}>
-              Mensajes enviados
-            </span>
-          </div>
-          <button
-            onClick={fetchSentMessages}
-            disabled={sentLoading}
-            className="p-1.5 rounded border transition-all disabled:opacity-50"
-            style={{ 
-              backgroundColor: colors.background,
-              borderColor: colors.border,
-              color: colors.textSecondary
-            }}
-            title="Actualizar"
-          >
-            <RefreshCw size={12} className={sentLoading ? 'animate-spin' : ''} />
-          </button>
-        </div>
-      )}
-
-      {/* New Messages Banner */}
-      {hasNewMessages && activeView === 'inbox' && (
-        <div 
-          className="flex-shrink-0 px-3 py-1.5 flex items-center justify-between"
-          style={{ backgroundColor: colors.accentLight }}
-        >
-          <div className="flex items-center gap-1.5">
-            <div 
-              className="w-1.5 h-1.5 rounded-full animate-pulse"
-              style={{ backgroundColor: colors.accent }}
-            />
-            <span className="text-xs font-medium" style={{ color: colors.accent }}>
-              Nuevos mensajes
-            </span>
-          </div>
-          <button
-            onClick={handleRefresh}
-            className="text-xs font-medium px-2 py-0.5 rounded"
-            style={{ 
-              backgroundColor: colors.accent,
-              color: '#ffffff'
-            }}
-          >
-            Actualizar
-          </button>
-        </div>
-      )}
-
-      {/* Main Content */}
-      <div 
-        className="flex-1 flex flex-col md:flex-row overflow-hidden rounded-b-xl border-x border-b min-h-0"
-        style={{ borderColor: colors.border }}
-      >
-        {/* ==================== INBOX VIEW ==================== */}
-        {activeView === 'inbox' && (
-          <>
-            {/* Error State */}
-            {error && (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center px-3">
-                  <AlertCircle size={32} className="mx-auto mb-2" style={{ color: colors.error }} />
-              <p className="text-sm font-medium" style={{ color: colors.error }}>Error al cargar</p>
-              <p className="text-xs mt-1" style={{ color: colors.textSecondary }}>{error}</p>
-              <button
-                onClick={handleRefresh}
-                className="mt-2 px-3 py-1.5 rounded text-xs font-medium"
-                style={{ backgroundColor: colors.primary, color: '#ffffff' }}
-              >
-                Reintentar
+                <Send size={14} />Enviados
               </button>
             </div>
-          </div>
-        )}
 
-        {/* Loading State */}
-        {loading && messages.length === 0 && !error && (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div 
-                className="w-6 h-6 border-2 rounded-full animate-spin mx-auto mb-2"
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: pageColors.textMuted }} />
+              <input 
+                type="text" 
+                value={searchValue} 
+                onChange={(e) => handleSearchChange(e.target.value)} 
+                placeholder="Buscar mensajes..." 
+                className="w-full pl-10 pr-10 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-2 transition-all" 
                 style={{ 
-                  borderColor: `${colors.primary}20`,
-                  borderTopColor: colors.primary
-                }}
+                  backgroundColor: pageColors.inputBg, 
+                  border: `1px solid ${pageColors.cardBorder}`,
+                  color: pageColors.text,
+                  '--tw-ring-color': pageColors.accent
+                }} 
               />
-              <p className="text-xs" style={{ color: colors.textSecondary }}>Cargando...</p>
-            </div>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!loading && !error && messages.length === 0 && (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center px-3">
-              <Inbox size={32} className="mx-auto mb-2" style={{ color: colors.textMuted }} />
-              <h4 className="text-sm font-semibold mb-0.5" style={{ color: colors.textPrimary }}>
-                No hay mensajes
-              </h4>
-              <p className="text-xs" style={{ color: colors.textSecondary }}>
-                Sin resultados para los filtros
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Messages Content */}
-        {!error && messages.length > 0 && (
-          <>
-            {/* Message List - Left Panel */}
-            <div 
-              className="w-full md:w-2/5 border-b md:border-b-0 md:border-r overflow-y-auto flex-shrink-0 max-h-[40vh] md:max-h-none"
-              style={{ 
-                borderColor: colors.border,
-                backgroundColor: colors.backgroundSecondary
-              }}
-            >
-              {messages.map((message) => {
-                const isSelected = selectedMessage?.id === message.id;
-                const isChecked = selectedIds.has(message.id);
-                const isUnread = message.status === 'unread';
-                const typeInfo = getTypeInfo(message.type);
-                const TypeIcon = typeInfo.icon;
-                
-                return (
-                  <div
-                    key={message.id}
-                    onClick={() => handleMessageClick(message)}
-                    className="px-2.5 py-2 cursor-pointer border-b transition-all duration-150"
-                    style={{ 
-                      borderColor: colors.border,
-                      backgroundColor: isSelected 
-                        ? colors.background
-                        : isChecked 
-                          ? (isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe')
-                          : 'transparent',
-                      borderLeftWidth: isSelected ? '2px' : '0',
-                      borderLeftColor: isSelected ? colors.accent : 'transparent'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSelected && !isChecked) {
-                        e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.05)' : colors.background;
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSelected && !isChecked) {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <div className="flex items-start gap-2">
-                      {/* Checkbox */}
-                      <button
-                        onClick={(e) => handleToggleSelect(message.id, e)}
-                        className="flex-shrink-0 mt-0.5 rounded transition-colors"
-                      >
-                        {isChecked ? (
-                          <CheckSquare size={14} style={{ color: colors.accent }} />
-                        ) : (
-                          <Square size={14} style={{ color: colors.textMuted }} />
-                        )}
-                      </button>
-                      
-                      {/* Type Icon */}
-                      <div 
-                        className="flex-shrink-0 p-1.5 rounded"
-                        style={{ backgroundColor: typeInfo.bgColor }}
-                      >
-                        <TypeIcon size={12} style={{ color: typeInfo.color }} />
-                      </div>
-                      
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <span 
-                            className={`text-[10px] truncate ${isUnread ? 'font-bold' : 'font-medium'}`}
-                            style={{ color: isUnread ? colors.accent : colors.textSecondary }}
-                          >
-                            {message.sender_name || `Usuario #${message.sender_id}`}
-                          </span>
-                          <span 
-                            className="text-[10px] flex-shrink-0"
-                            style={{ color: colors.textMuted }}
-                          >
-                            {formatDate(message.created_at)}
-                          </span>
-                        </div>
-                        <p 
-                          className={`text-xs truncate ${isUnread ? 'font-semibold' : ''}`}
-                          style={{ color: colors.textPrimary }}
-                        >
-                          {message.subject}
-                        </p>
-                        <p 
-                          className="text-[10px] truncate mt-0.5"
-                          style={{ color: colors.textSecondary }}
-                        >
-                          {message.message.replace(/<[^>]*>/g, '').substring(0, 50)}...
-                        </p>
-                        
-                        {/* Badges */}
-                        <div className="flex items-center gap-1 mt-1">
-                          <span 
-                            className="text-[9px] px-1 py-0.5 rounded font-medium"
-                            style={{ 
-                              backgroundColor: typeInfo.bgColor,
-                              color: typeInfo.color
-                            }}
-                          >
-                            {typeInfo.label}
-                          </span>
-                          {isUnread && (
-                            <span 
-                              className="text-[9px] px-1 py-0.5 rounded font-medium"
-                              style={{ 
-                                backgroundColor: '#fee2e2',
-                                color: '#ef4444'
-                              }}
-                            >
-                              Nuevo
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              
-              {/* Load More */}
-              {pagination.hasMore && (
-                <button
-                  onClick={() => fetchMessages(false)}
-                  className="w-full py-2 text-xs font-medium transition-colors"
-                  style={{ 
-                    color: colors.accent,
-                    backgroundColor: 'transparent'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = colors.background;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
-                >
-                  Cargar más
+              {searchValue && (
+                <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-black/5" style={{ color: pageColors.textMuted }}>
+                  <X size={14} />
                 </button>
               )}
             </div>
 
-            {/* Message Detail - Right Panel */}
-            <div 
-              className="flex-1 flex flex-col overflow-hidden min-h-[150px]"
-              style={{ backgroundColor: colors.background }}
-            >
-              {selectedMessage ? (
-                <>
-                  {/* Message Header */}
-                  <div 
-                    className="px-3 sm:px-4 py-2 sm:py-3 border-b flex-shrink-0"
-                    style={{ borderColor: colors.border }}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 sm:gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          {(() => {
-                            const typeInfo = getTypeInfo(selectedMessage.type);
-                            const TypeIcon = typeInfo.icon;
-                            return (
-                              <span 
-                                className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded font-medium"
-                                style={{ 
-                                  backgroundColor: typeInfo.bgColor,
-                                  color: typeInfo.color
-                                }}
-                              >
-                                <TypeIcon size={10} />
-                                {typeInfo.label}
-                              </span>
-                            );
-                          })()}
-                          {(() => {
-                            const statusInfo = getStatusInfo(selectedMessage.status);
-                            return (
-                              <span 
-                                className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                                style={{ 
-                                  backgroundColor: statusInfo.bgColor,
-                                  color: statusInfo.color
-                                }}
-                              >
-                                {statusInfo.label}
-                              </span>
-                            );
-                          })()}
-                        </div>
-                        <h2 
-                          className="text-sm sm:text-base font-bold"
-                          style={{ color: colors.textPrimary }}
-                        >
-                          {selectedMessage.subject}
-                        </h2>
-                        <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] sm:text-xs">
-                          <span 
-                            className="flex items-center gap-0.5"
-                            style={{ color: colors.accent }}
-                          >
-                            <User size={11} />
-                            {selectedMessage.sender_name || `Usuario #${selectedMessage.sender_id}`}
-                          </span>
-                          <span 
-                            className="flex items-center gap-0.5"
-                            style={{ color: colors.textSecondary }}
-                          >
-                            <Clock size={11} />
-                            {formatFullDate(selectedMessage.created_at)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Related Question Link */}
-                  {selectedMessage.related_object_id && (
-                    <div 
-                      className="px-3 sm:px-4 py-1.5 sm:py-2 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1"
-                      style={{ 
-                        backgroundColor: colors.backgroundSecondary,
-                        borderColor: colors.border
-                      }}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <FileQuestion size={12} style={{ color: colors.textSecondary }} />
-                        <span className="text-xs" style={{ color: colors.textSecondary }}>
-                          Pregunta:
-                        </span>
-                        <span className="text-xs font-medium" style={{ color: colors.textPrimary }}>
-                          #{selectedMessage.related_object_id}
-                        </span>
-                      </div>
-                      <a
-                        href={`/wp-admin/post.php?post=${selectedMessage.related_object_id}&action=edit`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-0.5 text-xs font-medium transition-colors"
-                        style={{ color: colors.accent }}
-                        onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                        onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
-                      >
-                        Ver
-                        <ExternalLink size={10} />
-                      </a>
-                    </div>
-                  )}
-
-                  {/* Message Body */}
-                  <div 
-                    className="flex-1 overflow-y-auto px-3 sm:px-4 py-2 sm:py-3"
-                    style={{ backgroundColor: colors.backgroundSecondary }}
-                  >
-                    <div 
-                      className="prose prose-sm max-w-none rounded p-2 sm:p-3 border text-xs"
-                      style={{ 
-                        backgroundColor: colors.background,
-                        borderColor: colors.border,
-                        color: colors.textPrimary
-                      }}
-                      dangerouslySetInnerHTML={{ __html: selectedMessage.message }}
-                    />
-                  </div>
-
-                  {/* Actions Footer */}
-                  <div 
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 flex-shrink-0"
-                    style={{ 
-                      borderColor: colors.border,
-                      backgroundColor: colors.backgroundSecondary
-                    }}
-                  >
-                    <span className="text-[10px]" style={{ color: colors.textMuted }}>
-                      ID: {selectedMessage.id}
-                    </span>
-                    <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
-                      {selectedMessage.status === 'unread' && (
-                        <button
-                          onClick={() => handleStatusChange(selectedMessage.id, 'read')}
-                          disabled={updating}
-                          className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all disabled:opacity-50"
-                          style={{ 
-                            backgroundColor: '#3b82f6',
-                            color: '#ffffff'
-                          }}
-                        >
-                          <MailOpen size={11} />
-                          Leído
-                        </button>
-                      )}
-                      {selectedMessage.status === 'read' && (
-                        <button
-                          onClick={() => handleStatusChange(selectedMessage.id, 'resolved')}
-                          disabled={updating}
-                          className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all disabled:opacity-50"
-                          style={{ 
-                            backgroundColor: colors.success,
-                            color: '#ffffff'
-                          }}
-                        >
-                          <CheckCircle size={11} />
-                          Resolver
-                        </button>
-                      )}
-                      {(selectedMessage.status === 'read' || selectedMessage.status === 'resolved') && (
-                        <button
-                          onClick={() => handleStatusChange(selectedMessage.id, 'archived')}
-                          disabled={updating}
-                          className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border transition-all disabled:opacity-50"
-                          style={{ 
-                            backgroundColor: 'transparent',
-                            borderColor: colors.border,
-                            color: colors.textSecondary
-                          }}
-                        >
-                          <Archive size={11} />
-                          Archivar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center px-3">
-                    <Mail size={32} className="mx-auto mb-2" style={{ color: colors.textMuted, opacity: 0.5 }} />
-                    <p className="text-xs" style={{ color: colors.textSecondary }}>
-                      Selecciona un mensaje
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-          </>
-        )}
-
-        {/* ==================== SENT VIEW ==================== */}
-        {activeView === 'sent' && (
-          <>
-            {/* Sent Error State */}
-            {sentError && (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center px-4">
-                  <AlertCircle size={48} className="mx-auto mb-3" style={{ color: colors.error }} />
-                  <p className="font-medium" style={{ color: colors.error }}>Error al cargar mensajes enviados</p>
-                  <p className="text-sm mt-1" style={{ color: colors.textSecondary }}>{sentError}</p>
-                  <button
-                    onClick={fetchSentMessages}
-                    className="mt-4 px-4 py-2 rounded-lg text-sm font-medium"
-                    style={{ backgroundColor: colors.primary, color: '#ffffff' }}
-                  >
-                    Reintentar
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Sent Loading State */}
-            {sentLoading && sentMessages.length === 0 && !sentError && (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center">
-                  <div 
-                    className="w-10 h-10 border-3 rounded-full animate-spin mx-auto mb-3"
-                    style={{ 
-                      borderColor: `${colors.primary}20`,
-                      borderTopColor: colors.primary
-                    }}
-                  />
-                  <p style={{ color: colors.textSecondary }}>Cargando mensajes enviados...</p>
-                </div>
-              </div>
-            )}
-
-            {/* Sent Empty State */}
-            {!sentLoading && !sentError && sentMessages.length === 0 && (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center px-4">
-                  <Send size={48} className="mx-auto mb-3" style={{ color: colors.textMuted }} />
-                  <h4 className="text-base font-semibold mb-1" style={{ color: colors.textPrimary }}>
-                    No hay mensajes enviados
-                  </h4>
-                  <p className="text-sm mb-4" style={{ color: colors.textSecondary }}>
-                    Aún no has enviado mensajes a los estudiantes
-                  </p>
-                  <button
-                    onClick={() => setIsSendModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm mx-auto"
-                    style={{ 
-                      backgroundColor: colors.accent,
-                      color: '#ffffff'
-                    }}
-                  >
-                    <Send size={16} />
-                    Enviar primer mensaje
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Sent Messages Content */}
-            {!sentError && sentMessages.length > 0 && (
-              <>
-                {/* Sent Message List - Left Panel */}
-                <div 
-                  className="w-full md:w-2/5 border-b md:border-b-0 md:border-r overflow-y-auto flex-shrink-0 max-h-[40vh] md:max-h-none"
+            {activeView === 'inbox' && (
+              <div className="flex gap-2 mt-3">
+                <select 
+                  value={filters.status} 
+                  onChange={(e) => updateFilter('status', e.target.value)} 
+                  className="flex-1 text-sm px-3 py-2 rounded-xl focus:outline-none focus:ring-2 transition-all" 
                   style={{ 
-                    borderColor: colors.border,
-                    backgroundColor: colors.backgroundSecondary
+                    backgroundColor: pageColors.inputBg, 
+                    border: `1px solid ${pageColors.cardBorder}`,
+                    color: pageColors.text,
+                    '--tw-ring-color': pageColors.accent
                   }}
                 >
-                  {sentMessages.map((msg) => {
-                    const isSelected = selectedSentMessage?.id === msg.id;
-                    const typeInfo = getSentTypeInfo(msg.type_display);
-                    const TypeIcon = typeInfo.icon;
-                    
-                    return (
-                      <div
-                        key={msg.id}
-                        onClick={() => handleSentMessageClick(msg)}
-                        className="px-4 py-3 cursor-pointer border-b transition-all duration-150"
-                        style={{ 
-                          borderColor: colors.border,
-                          backgroundColor: isSelected 
-                            ? colors.background
-                            : 'transparent',
-                          borderLeftWidth: isSelected ? '3px' : '0',
-                          borderLeftColor: isSelected ? colors.accent : 'transparent'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isSelected) {
-                            e.currentTarget.style.backgroundColor = colors.background;
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isSelected) {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                          }
-                        }}
-                      >
-                        <div className="flex items-start gap-3">
-                          {/* Type Icon */}
-                          <div 
-                            className="flex-shrink-0 p-2 rounded-lg mt-0.5"
-                            style={{ backgroundColor: typeInfo.bgColor }}
-                          >
-                            <TypeIcon size={16} style={{ color: typeInfo.color }} />
-                          </div>
-                          
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1">
-                                <Users size={12} style={{ color: colors.accent }} />
-                                <span 
-                                  className="text-xs font-medium"
-                                  style={{ color: colors.accent }}
-                                >
-                                  {msg.recipient_count} destinatarios
-                                </span>
-                              </div>
-                              <span 
-                                className="text-xs flex-shrink-0"
-                                style={{ color: colors.textMuted }}
-                              >
-                                {formatDate(msg.created_at)}
-                              </span>
-                            </div>
-                            <p 
-                              className="text-sm font-semibold truncate mt-0.5"
-                              style={{ color: colors.textPrimary }}
-                            >
-                              {msg.subject}
-                            </p>
-                            <p 
-                              className="text-xs truncate mt-1"
-                              style={{ color: colors.textSecondary }}
-                            >
-                              {msg.message.replace(/<[^>]*>/g, '').substring(0, 60)}...
-                            </p>
-                            
-                            {/* Stats Badges */}
-                            <div className="flex items-center gap-2 mt-2">
-                              <span 
-                                className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                                style={{ 
-                                  backgroundColor: typeInfo.bgColor,
-                                  color: typeInfo.color
-                                }}
-                              >
-                                {typeInfo.label}
-                              </span>
-                              <span 
-                                className="text-[10px] px-1.5 py-0.5 rounded font-medium flex items-center gap-1"
-                                style={{ 
-                                  backgroundColor: isDarkMode ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5',
-                                  color: '#059669'
-                                }}
-                              >
-                                <Eye size={10} />
-                                {msg.read_count} leídos
-                              </span>
-                              {msg.unread_count > 0 && (
-                                <span 
-                                  className="text-[10px] px-1.5 py-0.5 rounded font-medium flex items-center gap-1"
-                                  style={{ 
-                                    backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2',
-                                    color: '#dc2626'
-                                  }}
-                                >
-                                  <EyeOff size={10} />
-                                  {msg.unread_count} sin leer
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Sent Message Detail - Right Panel */}
-                <div 
-                  className="flex-1 flex flex-col overflow-hidden min-h-[200px]"
-                  style={{ backgroundColor: colors.background }}
+                  <option value="all">Todos</option>
+                  <option value="unread">Sin leer</option>
+                  <option value="read">Leídos</option>
+                  <option value="resolved">Resueltos</option>
+                </select>
+                <select 
+                  value={filters.type} 
+                  onChange={(e) => updateFilter('type', e.target.value)} 
+                  className="flex-1 text-sm px-3 py-2 rounded-xl focus:outline-none focus:ring-2 transition-all" 
+                  style={{ 
+                    backgroundColor: pageColors.inputBg, 
+                    border: `1px solid ${pageColors.cardBorder}`,
+                    color: pageColors.text,
+                    '--tw-ring-color': pageColors.accent
+                  }}
                 >
-                  {selectedSentMessage ? (
-                    <>
-                      {/* Sent Message Header */}
-                      <div 
-                        className="px-4 sm:px-6 py-3 sm:py-4 border-b flex-shrink-0"
-                        style={{ borderColor: colors.border }}
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              {(() => {
-                                const typeInfo = getSentTypeInfo(selectedSentMessage.type_display);
-                                const TypeIcon = typeInfo.icon;
-                                return (
-                                  <span 
-                                    className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded font-medium"
-                                    style={{ 
-                                      backgroundColor: typeInfo.bgColor,
-                                      color: typeInfo.color
-                                    }}
-                                  >
-                                    <TypeIcon size={12} />
-                                    {typeInfo.label}
-                                  </span>
-                                );
-                              })()}
-                            </div>
-                            <h2 
-                              className="text-base sm:text-lg font-bold"
-                              style={{ color: colors.textPrimary }}
-                            >
-                              {selectedSentMessage.subject}
-                            </h2>
-                            <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2 text-xs sm:text-sm">
-                              <span 
-                                className="flex items-center gap-1"
-                                style={{ color: colors.accent }}
-                              >
-                                <Users size={14} />
-                                {selectedSentMessage.recipient_count} destinatarios
-                              </span>
-                              <span 
-                                className="flex items-center gap-1"
-                                style={{ color: colors.textSecondary }}
-                              >
-                                <Clock size={14} />
-                                {formatFullDate(selectedSentMessage.created_at)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                  <option value="all">Tipo</option>
+                  <option value="question_feedback">Dudas</option>
+                  <option value="question_challenge">Impugn.</option>
+                </select>
+              </div>
+            )}
+          </div>
 
-                      {/* Recipients Info */}
-                      <div 
-                        className="px-4 sm:px-6 py-2 sm:py-3 border-b"
-                        style={{ 
-                          backgroundColor: colors.backgroundSecondary,
-                          borderColor: colors.border
-                        }}
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-medium mb-1" style={{ color: colors.textSecondary }}>
-                              Destinatarios
-                            </p>
-                            <p className="text-sm" style={{ color: colors.textPrimary }}>
-                              {selectedSentMessage.recipient_names || 'Múltiples usuarios'}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-center">
-                              <p className="text-lg font-bold" style={{ color: colors.success }}>
-                                {selectedSentMessage.read_count}
-                              </p>
-                              <p className="text-xs" style={{ color: colors.textSecondary }}>Leídos</p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-lg font-bold" style={{ color: colors.error }}>
-                                {selectedSentMessage.unread_count}
-                              </p>
-                              <p className="text-xs" style={{ color: colors.textSecondary }}>Sin leer</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+          {activeView === 'inbox' && selectedIds.size > 0 && (
+            <div className="px-4 py-2.5 flex items-center gap-2" style={{ backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe', borderBottom: `1px solid ${pageColors.cardBorder}` }}>
+              <span className="text-sm font-medium" style={{ color: pageColors.info }}>{selectedIds.size} seleccionados</span>
+              <button onClick={() => handleBatchAction('mark_read')} className="text-xs px-3 py-1.5 rounded-lg font-medium" style={{ backgroundColor: pageColors.info, color: '#fff' }}>Marcar leídos</button>
+              <button onClick={() => handleBatchAction('archive')} className="text-xs px-3 py-1.5 rounded-lg" style={{ backgroundColor: pageColors.hoverBg, color: pageColors.textMuted }}>Archivar</button>
+            </div>
+          )}
 
-                      {/* Sent Message Body */}
-                      <div 
-                        className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4"
-                        style={{ backgroundColor: colors.backgroundSecondary }}
-                      >
-                        <div 
-                          className="prose prose-sm max-w-none rounded-lg p-3 sm:p-4 border"
-                          style={{ 
-                            backgroundColor: colors.background,
-                            borderColor: colors.border,
-                            color: colors.textPrimary
-                          }}
-                          dangerouslySetInnerHTML={{ __html: selectedSentMessage.message }}
-                        />
-                      </div>
-
-                      {/* Sent Message Footer */}
-                      <div 
-                        className="px-4 sm:px-6 py-2 sm:py-3 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 flex-shrink-0"
-                        style={{ 
-                          borderColor: colors.border,
-                          backgroundColor: colors.backgroundSecondary
-                        }}
-                      >
-                        <span className="text-xs" style={{ color: colors.textMuted }}>
-                          ID: {selectedSentMessage.id}
-                        </span>
-                        <div className="text-xs" style={{ color: colors.textSecondary }}>
-                          {Math.round((selectedSentMessage.read_count / selectedSentMessage.recipient_count) * 100)}% tasa de apertura
+          <div className="flex-1 overflow-y-auto">
+            {activeView === 'inbox' ? (
+              <>
+                {loading && messages.length === 0 && <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: `${pageColors.accent}30`, borderTopColor: pageColors.accent }} /></div>}
+                {!loading && messages.length === 0 && <div className="flex flex-col items-center justify-center h-32 text-center px-4"><Inbox size={28} style={{ color: pageColors.textMuted, opacity: 0.5 }} /><p className="text-sm mt-3" style={{ color: pageColors.textMuted }}>No hay mensajes</p></div>}
+                {messages.map((message) => {
+                  const isSelected = selectedMessage?.id === message.id;
+                  const isChecked = selectedIds.has(message.id);
+                  const isUnread = message.status === 'unread';
+                  const typeInfo = getTypeInfo(message.type);
+                  const TypeIcon = typeInfo.icon;
+                  return (
+                    <div 
+                      key={message.id} 
+                      onClick={() => handleMessageClick(message)} 
+                      className="px-4 py-3.5 cursor-pointer transition-all duration-200" 
+                      style={{ 
+                        borderBottom: `1px solid ${pageColors.cardBorder}`,
+                        backgroundColor: isSelected ? pageColors.hoverBg : 'transparent', 
+                        borderLeft: isSelected ? `3px solid ${pageColors.accent}` : '3px solid transparent',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) e.currentTarget.style.backgroundColor = pageColors.hoverBg;
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <button onClick={(e) => handleToggleSelect(message.id, e)} className="mt-1 flex-shrink-0 transition-transform hover:scale-110">
+                          {isChecked ? <CheckSquare size={16} style={{ color: pageColors.accent }} /> : <Square size={16} style={{ color: pageColors.textMuted }} />}
+                        </button>
+                        <div className="p-2 rounded-lg flex-shrink-0" style={{ backgroundColor: typeInfo.bgColor }}>
+                          <TypeIcon size={14} style={{ color: typeInfo.color }} />
                         </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="text-center px-4">
-                        <Send size={48} className="mx-auto mb-3" style={{ color: colors.textMuted, opacity: 0.5 }} />
-                        <p className="text-sm" style={{ color: colors.textSecondary }}>
-                          Selecciona un mensaje para ver los detalles
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className={`text-sm truncate ${isUnread ? 'font-bold' : 'font-medium'}`} style={{ color: isUnread ? pageColors.text : pageColors.textMuted }}>
+                              {message.sender_name || `Usuario #${message.sender_id}`}
+                            </span>
+                            <span className="text-xs flex-shrink-0" style={{ color: pageColors.textMuted }}>{formatDate(message.created_at)}</span>
+                          </div>
+                          {/* Subject - 2 lines */}
+                          <p 
+                            className={`text-sm leading-relaxed ${isUnread ? 'font-medium' : ''}`} 
+                            style={{ 
+                              color: pageColors.text,
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            {message.subject}
+                          </p>
+                          {isUnread && <span className="inline-block mt-2 w-2 h-2 rounded-full" style={{ backgroundColor: pageColors.error }} />}
+                        </div>
                       </div>
                     </div>
-                  )}
-                </div>
+                  );
+                })}
+              </>
+            ) : (
+              <>
+                {sentLoading && sentMessages.length === 0 && <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: `${pageColors.accent}30`, borderTopColor: pageColors.accent }} /></div>}
+                {!sentLoading && sentMessages.length === 0 && <div className="flex flex-col items-center justify-center h-32 text-center px-4"><Send size={28} style={{ color: pageColors.textMuted, opacity: 0.5 }} /><p className="text-sm mt-3" style={{ color: pageColors.textMuted }}>No hay mensajes enviados</p></div>}
+                {sentMessages.map((msg) => {
+                  const isSelected = selectedSentMessage?.id === msg.id;
+                  return (
+                    <div 
+                      key={msg.id} 
+                      onClick={() => handleSentMessageClick(msg)} 
+                      className="px-4 py-3.5 cursor-pointer transition-all duration-200" 
+                      style={{ 
+                        borderBottom: `1px solid ${pageColors.cardBorder}`,
+                        backgroundColor: isSelected ? pageColors.hoverBg : 'transparent', 
+                        borderLeft: isSelected ? `3px solid ${pageColors.accent}` : '3px solid transparent',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) e.currentTarget.style.backgroundColor = pageColors.hoverBg;
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-lg" style={{ backgroundColor: pageColors.accentGlow }}>
+                          <Users size={14} style={{ color: pageColors.accent }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium" style={{ color: pageColors.accent }}>{msg.recipient_count} destinatarios</span>
+                            <span className="text-xs" style={{ color: pageColors.textMuted }}>{formatDate(msg.created_at)}</span>
+                          </div>
+                          <p 
+                            className="text-sm font-medium leading-relaxed" 
+                            style={{ 
+                              color: pageColors.text,
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            {msg.subject}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </>
             )}
-          </>
-        )}
+          </div>
+        </div>
+
+        {/* RIGHT PANEL - CHAT VIEW */}
+        <div 
+          className="flex-1 flex flex-col rounded-2xl overflow-hidden" 
+          style={{ 
+            backgroundColor: pageColors.bgCard,
+            boxShadow: pageColors.shadow,
+            border: `1px solid ${pageColors.cardBorder}`
+          }}
+        >
+          {activeView === 'inbox' && selectedMessage ? (
+            <>
+              <div 
+                className="p-5 flex items-center justify-between" 
+                style={{ 
+                  backgroundColor: pageColors.bgCard, 
+                  borderBottom: `1px solid ${pageColors.cardBorder}`
+                }}
+              >
+                <div className="flex items-center gap-4">
+                  <div 
+                    className="w-12 h-12 rounded-xl flex items-center justify-center" 
+                    style={{ 
+                      background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
+                      boxShadow: `0 4px 12px ${pageColors.accentGlow}`
+                    }}
+                  >
+                    <User size={22} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg" style={{ color: pageColors.text }}>{selectedMessage.sender_name || `Usuario #${selectedMessage.sender_id}`}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      {(() => { const typeInfo = getTypeInfo(selectedMessage.type); const TypeIcon = typeInfo.icon; return <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-medium" style={{ backgroundColor: typeInfo.bgColor, color: typeInfo.color }}><TypeIcon size={12} />{typeInfo.label}</span>; })()}
+                      {(() => { const statusInfo = getStatusInfo(selectedMessage.status); return <span className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ backgroundColor: statusInfo.bgColor, color: statusInfo.color }}>{statusInfo.label}</span>; })()}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {selectedMessage.status !== 'resolved' && (
+                    <button 
+                      onClick={() => handleStatusChange(selectedMessage.id, 'resolved')} 
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200"
+                      style={{ 
+                        backgroundColor: pageColors.success, 
+                        color: '#fff',
+                        boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      <CheckCircle size={14} />Resolver
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => handleStatusChange(selectedMessage.id, 'archived')} 
+                    className="p-2.5 rounded-xl transition-all duration-200" 
+                    style={{ 
+                      backgroundColor: pageColors.inputBg,
+                      border: `1px solid ${pageColors.cardBorder}`,
+                      color: pageColors.textMuted 
+                    }} 
+                    title="Archivar"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = pageColors.hoverBg;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = pageColors.inputBg;
+                    }}
+                  >
+                    <Archive size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-6" style={{ backgroundColor: pageColors.bgPage }}>
+                {/* Original message from user - LEFT SIDE */}
+                <div className="flex gap-4">
+                  <div 
+                    className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center" 
+                    style={{ 
+                      background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
+                    }}
+                  >
+                    <User size={16} className="text-white" />
+                  </div>
+                  <div className="flex-1 max-w-[80%]">
+                    <div 
+                      className="rounded-2xl rounded-tl-md p-4" 
+                      style={{ 
+                        backgroundColor: pageColors.bgCard, 
+                        border: `1px solid ${pageColors.cardBorder}`,
+                        boxShadow: pageColors.shadowSm
+                      }}
+                    >
+                      <p className="text-sm font-semibold mb-3" style={{ color: pageColors.text }}>{selectedMessage.subject}</p>
+                      <div className="text-sm prose prose-sm max-w-none leading-relaxed" style={{ color: pageColors.text }} dangerouslySetInnerHTML={{ __html: selectedMessage.message }} />
+                    </div>
+                    <p className="text-xs mt-2 ml-3" style={{ color: pageColors.textMuted }}>{formatFullDate(selectedMessage.created_at)}</p>
+                  </div>
+                </div>
+
+                {/* Related question card */}
+                {selectedMessage.related_object_id && (
+                  <div 
+                    className="ml-14 p-4 rounded-xl" 
+                    style={{ 
+                      backgroundColor: pageColors.inputBg, 
+                      border: `1px solid ${pageColors.cardBorder}`,
+                      boxShadow: pageColors.shadowSm
+                    }}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <FileQuestion size={16} style={{ color: pageColors.accent }} />
+                      <span className="text-sm font-medium" style={{ color: pageColors.text }}>Pregunta #{selectedMessage.related_object_id}</span>
+                    </div>
+                    {!showQuestionEditor ? (
+                      <button 
+                        onClick={() => setShowQuestionEditor(true)} 
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium w-full justify-center transition-all duration-200"
+                        style={{ 
+                          background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`,
+                          color: '#fff',
+                          boxShadow: '0 2px 8px rgba(59, 130, 246, 0.25)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        <Edit3 size={14} />Editar pregunta
+                      </button>
+                    ) : (
+                      <div className="mt-3">
+                        <button onClick={() => setShowQuestionEditor(false)} className="flex items-center gap-1 text-sm mb-3 transition-colors hover:opacity-80" style={{ color: pageColors.textMuted }}><ChevronLeft size={16} />Cerrar editor</button>
+                        <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${pageColors.cardBorder}`, maxHeight: '500px', overflowY: 'auto' }}>
+                          <QuestionEditorPanel questionId={selectedMessage.related_object_id} mode="edit" onSave={handleQuestionSave} onCancel={() => setShowQuestionEditor(false)} categoryOptions={categoryOptions} providerOptions={providerOptions} onCategoryCreated={refetchTaxonomies} onProviderCreated={refetchTaxonomies} availableQuizzes={availableQuizzes} availableLessons={availableLessons} availableCourses={availableCourses} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Loading replies indicator */}
+                {loadingReplies && (
+                  <div className="flex justify-center py-4">
+                    <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: `${pageColors.accent}30`, borderTopColor: pageColors.accent }} />
+                  </div>
+                )}
+
+                {/* Replies - RIGHT SIDE (admin messages) */}
+                {replies.map((reply) => (
+                  <div key={reply.id} className="flex gap-4 justify-end">
+                    <div className="max-w-[80%]">
+                      <div 
+                        className="rounded-2xl rounded-tr-md p-4" 
+                        style={{ 
+                          background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`,
+                          color: '#fff',
+                          boxShadow: '0 2px 12px rgba(59, 130, 246, 0.2)'
+                        }}
+                      >
+                        <div className="text-sm prose prose-sm prose-invert max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: reply.message }} />
+                      </div>
+                      <p className="text-xs mt-2 mr-3 text-right" style={{ color: pageColors.textMuted }}>
+                        {formatFullDate(reply.created_at)}
+                        {reply.sender_name && <span className="ml-1">• {reply.sender_name}</span>}
+                      </p>
+                    </div>
+                    <div 
+                      className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center" 
+                      style={{ 
+                        background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`
+                      }}
+                    >
+                      <Send size={14} className="text-white" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Reply Section */}
+              <div 
+                className="p-5" 
+                style={{ 
+                  backgroundColor: pageColors.bgCard, 
+                  borderTop: `1px solid ${pageColors.cardBorder}`
+                }}
+              >
+                <div className="flex gap-4">
+                  <textarea 
+                    value={replyText} 
+                    onChange={(e) => setReplyText(e.target.value)} 
+                    placeholder="Escribe tu respuesta..." 
+                    rows={3} 
+                    className="flex-1 px-4 py-3 text-sm rounded-xl resize-none focus:outline-none focus:ring-2 transition-all" 
+                    style={{ 
+                      backgroundColor: pageColors.inputBg, 
+                      border: `1px solid ${pageColors.cardBorder}`,
+                      color: pageColors.text,
+                      '--tw-ring-color': pageColors.accent 
+                    }} 
+                  />
+                  <button 
+                    onClick={handleSendReply} 
+                    disabled={!replyText.trim() || sendingReply} 
+                    className="px-6 py-3 rounded-xl flex flex-col items-center justify-center gap-1.5 font-medium text-sm disabled:opacity-50 transition-all duration-200 self-stretch"
+                    style={{ 
+                      background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
+                      color: '#fff', 
+                      minWidth: '100px',
+                      boxShadow: `0 4px 12px ${pageColors.accentGlow}`
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!e.currentTarget.disabled) {
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = `0 6px 20px ${pageColors.accentGlow}`;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = `0 4px 12px ${pageColors.accentGlow}`;
+                    }}
+                  >
+                    {sendingReply ? (
+                      <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }} />
+                    ) : (
+                      <>
+                        <Send size={20} />
+                        <span>Enviar</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : activeView === 'sent' && selectedSentMessage ? (
+            <>
+              <div 
+                className="p-5" 
+                style={{ 
+                  backgroundColor: pageColors.bgCard, 
+                  borderBottom: `1px solid ${pageColors.cardBorder}`
+                }}
+              >
+                <div className="flex items-center gap-4">
+                  <div 
+                    className="w-12 h-12 rounded-xl flex items-center justify-center" 
+                    style={{ 
+                      background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`,
+                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)'
+                    }}
+                  >
+                    <Send size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg" style={{ color: pageColors.text }}>{selectedSentMessage.subject}</h3>
+                    <div className="flex items-center gap-3 text-sm mt-1" style={{ color: pageColors.textMuted }}>
+                      <span className="flex items-center gap-1"><Users size={14} />{selectedSentMessage.recipient_count} destinatarios</span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1"><Eye size={14} />{selectedSentMessage.read_count} leídos</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6" style={{ backgroundColor: pageColors.bgPage }}>
+                <div className="flex gap-4 justify-end">
+                  <div className="max-w-[80%]">
+                    <div 
+                      className="rounded-2xl rounded-tr-md p-4" 
+                      style={{ 
+                        background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`,
+                        color: '#fff',
+                        boxShadow: '0 2px 12px rgba(59, 130, 246, 0.2)'
+                      }}
+                    >
+                      <div className="text-sm prose prose-sm prose-invert max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: selectedSentMessage.message }} />
+                    </div>
+                    <p className="text-xs mt-2 mr-3 text-right" style={{ color: pageColors.textMuted }}>{formatFullDate(selectedSentMessage.created_at)}</p>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: pageColors.bgPage }}>
+              <div className="text-center">
+                <div 
+                  className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-4"
+                  style={{ backgroundColor: pageColors.hoverBg }}
+                >
+                  <Mail size={36} style={{ color: pageColors.textMuted, opacity: 0.5 }} />
+                </div>
+                <p className="text-base font-medium" style={{ color: pageColors.textMuted }}>Selecciona una conversación</p>
+                <p className="text-sm mt-1" style={{ color: pageColors.textMuted, opacity: 0.7 }}>Elige un mensaje de la lista para ver su contenido</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Send Message Modal */}
-      <SendMessageModal
-        isOpen={isSendModalOpen}
-        onClose={() => setIsSendModalOpen(false)}
-        onMessageSent={() => {
-          handleRefresh();
-          // Refetch sent messages too
-          if (sentMessages.length > 0) {
-            fetchSentMessages();
-          }
-        }}
-      />
+      <SendMessageModal isOpen={isSendModalOpen} onClose={() => setIsSendModalOpen(false)} onMessageSent={() => { handleRefresh(); if (sentMessages.length > 0) fetchSentMessages(); }} />
     </div>
   );
 };

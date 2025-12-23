@@ -863,6 +863,37 @@
       "human": "Humano",
       "ai": "IA",
       "imported": "Importado"
+    },
+    "details": {
+      "viewTitle": "Vista de Pregunta",
+      "questionType": "Tipo de Pregunta",
+      "difficulty": "Dificultad",
+      "points": "Puntos",
+      "category": "Categoría",
+      "question": "Pregunta",
+      "answerOptions": "Opciones de Respuesta",
+      "explanation": "Explicación",
+      "additionalInfo": "Información Adicional",
+      "lessonId": "Lección ID",
+      "courseId": "Curso ID",
+      "provider": "Proveedor",
+      "noCategory": "Sin categoría",
+      "optionLabel": "Opción {{number}}",
+      "correctPoints": "{{points}} correcta",
+      "incorrectPoints": "{{points}} incorrecta",
+      "emptyStateTitle": "Selecciona una pregunta para ver sus detalles",
+      "emptyStateDescription": "Haz clic en una pregunta de la lista o crea una nueva"
+    },
+    "batch": {
+      "selectAll": "Seleccionar todas",
+      "deselectAll": "Deseleccionar todas",
+      "deleteSelected": "Eliminar seleccionadas",
+      "duplicateSelected": "Duplicar seleccionadas",
+      "exportSelected": "Exportar seleccionadas",
+      "selectedCount": "{{count}} seleccionada",
+      "selectedCount_plural": "{{count}} seleccionadas",
+      "deleteConfirm": "¿Eliminar {{count}} pregunta?",
+      "deleteConfirm_plural": "¿Eliminar {{count}} preguntas?"
     }
   },
   "students": {

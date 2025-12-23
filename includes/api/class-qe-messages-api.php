@@ -57,6 +57,26 @@ class QE_Messages_API extends QE_API_Base
         );
 
         // ============================================================
+        // ADMIN REPLY TO MESSAGE - Reply to a specific user message
+        // ============================================================
+
+        $this->register_secure_route(
+            '/messages/reply',
+            WP_REST_Server::CREATABLE,
+            'reply_to_message',
+            [
+                'permission_callback' => [$this, 'check_admin_permission'],
+                'validation_schema' => [
+                    'original_message_id' => ['required' => true, 'type' => 'integer'],
+                    'recipient_id' => ['required' => true, 'type' => 'integer'],
+                    'subject' => ['required' => true, 'type' => 'string', 'maxLength' => 200],
+                    'message' => ['required' => true, 'type' => 'string', 'maxLength' => 5000],
+                    'type' => ['required' => false, 'type' => 'string', 'enum' => ['reply', 'response']]
+                ]
+            ]
+        );
+
+        // ============================================================
         // STUDENT INBOX - Get user's messages
         // ============================================================
 
@@ -178,6 +198,24 @@ class QE_Messages_API extends QE_API_Base
                 ]
             ]
         );
+
+        // ============================================================
+        // GET REPLIES - Get all replies for a message thread
+        // ============================================================
+
+        register_rest_route($this->namespace, '/messages/(?P<id>\d+)/replies', [
+            'methods' => WP_REST_Server::READABLE,
+            'callback' => [$this, 'get_message_replies'],
+            'permission_callback' => [$this, 'check_admin_permission'],
+            'args' => [
+                'id' => [
+                    'required' => true,
+                    'validate_callback' => function ($param) {
+                        return is_numeric($param);
+                    }
+                ]
+            ]
+        ]);
     }
 
     /**
@@ -561,6 +599,152 @@ class QE_Messages_API extends QE_API_Base
                 'trace' => $e->getTraceAsString()
             ]);
             return $this->error_response('internal_error', 'Error al enviar los mensajes: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // ============================================================
+    // REPLY TO MESSAGE (ADMIN TO SINGLE USER)
+    // ============================================================
+
+    /**
+     * Reply to a specific user message
+     */
+    public function reply_to_message($request)
+    {
+        try {
+            global $wpdb;
+            $table_name = $this->get_table('messages');
+
+            $sender_id = get_current_user_id();
+            $original_message_id = absint($request->get_param('original_message_id'));
+            $recipient_id = absint($request->get_param('recipient_id'));
+            $subject = $request->get_param('subject');
+            $message = $request->get_param('message');
+            $type = $request->get_param('type') ?: 'reply';
+
+            $this->log_info('Reply to message - START', [
+                'sender_id' => $sender_id,
+                'original_message_id' => $original_message_id,
+                'recipient_id' => $recipient_id,
+                'subject' => $subject
+            ]);
+
+            // Validate original message exists
+            $original_message = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$table_name} WHERE id = %d",
+                $original_message_id
+            ));
+
+            if (!$original_message) {
+                return $this->error_response('not_found', 'El mensaje original no existe.', 404);
+            }
+
+            // Validate recipient exists
+            $recipient = get_user_by('ID', $recipient_id);
+            if (!$recipient) {
+                return $this->error_response('invalid_recipient', 'El destinatario no existe.', 400);
+            }
+
+            // Insert reply message
+            $data = [
+                'sender_id' => $sender_id,
+                'recipient_id' => $recipient_id,
+                'parent_id' => $original_message_id,
+                'related_object_id' => $original_message->related_object_id ?: 0,
+                'type' => 'admin_' . $type,
+                'subject' => $subject,
+                'message' => $message,
+                'status' => 'unread',
+                'created_at' => current_time('mysql'),
+            ];
+
+            $format = ['%d', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s'];
+
+            $message_id = $this->db_insert('messages', $data, $format);
+
+            if (!$message_id) {
+                $db_error = $wpdb->last_error ?: 'Unknown database error';
+                $this->log_error('Failed to insert reply', ['db_error' => $db_error]);
+                return $this->error_response('send_failed', 'No se pudo enviar la respuesta.', 500);
+            }
+
+            $this->log_info('Reply sent successfully', [
+                'message_id' => $message_id,
+                'recipient_id' => $recipient_id,
+                'original_message_id' => $original_message_id
+            ]);
+
+            // Clear caches
+            delete_transient('qe_unread_messages_count');
+
+            return $this->success_response([
+                'message_id' => $message_id,
+                'recipient_id' => $recipient_id,
+                'message' => 'Respuesta enviada correctamente.'
+            ]);
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in reply_to_message', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return $this->error_response('internal_error', 'Error al enviar la respuesta: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // ============================================================
+    // GET MESSAGE REPLIES (ADMIN)
+    // ============================================================
+
+    /**
+     * Get all replies for a message thread
+     */
+    public function get_message_replies($request)
+    {
+        try {
+            global $wpdb;
+            $table_name = $this->get_table('messages');
+            $message_id = absint($request->get_param('id'));
+
+            // Get all replies where parent_id = this message id
+            $replies = $wpdb->get_results($wpdb->prepare(
+                "SELECT m.*, u.display_name as sender_name 
+                 FROM {$table_name} m
+                 LEFT JOIN {$wpdb->users} u ON m.sender_id = u.ID
+                 WHERE m.parent_id = %d
+                 ORDER BY m.created_at ASC",
+                $message_id
+            ), ARRAY_A);
+
+            if ($replies === null) {
+                $this->log_error('Database error fetching replies', ['error' => $wpdb->last_error]);
+                return $this->error_response('db_error', 'Error al obtener respuestas', 500);
+            }
+
+            // Format replies
+            foreach ($replies as &$reply) {
+                $reply['id'] = (int) $reply['id'];
+                $reply['sender_id'] = (int) $reply['sender_id'];
+                $reply['recipient_id'] = (int) $reply['recipient_id'];
+                $reply['parent_id'] = (int) $reply['parent_id'];
+                $reply['related_object_id'] = (int) $reply['related_object_id'];
+            }
+
+            $this->log_info('Fetched replies', [
+                'message_id' => $message_id,
+                'count' => count($replies)
+            ]);
+
+            return $this->success_response([
+                'replies' => $replies,
+                'count' => count($replies)
+            ]);
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in get_message_replies', [
+                'message' => $e->getMessage()
+            ]);
+            return $this->error_response('internal_error', 'Error al obtener respuestas', 500);
         }
     }
 
