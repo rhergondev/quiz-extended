@@ -1,12 +1,11 @@
-// src/components/questions/QuestionCard.jsx (Refactorizado y Finalizado)
+// src/components/questions/QuestionCard.jsx (Rediseñado con botones directos)
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
-  Edit, Trash2, Copy, ChevronDown, ChevronUp, HelpCircle,
-  Star, CheckCircle, Type, BarChart, FileText // 🔥 Iconos actualizados
+  Edit2, Trash2, Copy, HelpCircle, Tag
 } from 'lucide-react';
-import BaseCard from '../common/BaseCard';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const QuestionCard = ({
   question,
@@ -18,138 +17,205 @@ const QuestionCard = ({
   onDelete
 }) => {
   const { t } = useTranslation();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const { getColor, isDarkMode } = useTheme();
+
+  // Colores del tema
+  const pageColors = useMemo(() => ({
+    text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
+    textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : '#6b7280',
+    accent: getColor('accent', '#f59e0b'),
+    primary: getColor('primary', '#3b82f6'),
+    bgCard: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    border: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+    hoverBg: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+    shadow: isDarkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.06)',
+    shadowHover: isDarkMode ? '0 8px 24px rgba(0,0,0,0.4)' : '0 8px 24px rgba(0,0,0,0.12)',
+  }), [getColor, isDarkMode]);
 
   // --- Extracción de datos ---
   const questionData = useMemo(() => ({
-    // El título ahora viene correctamente desde el `sanitize`
-    title: question.title || t('questions.untitled'),
-    questionType: question.question_type || 'multiple_choice',
-    points: question.points || 0,
-    difficulty: question.difficulty || 'medium',
+    title: question.title?.rendered || question.title || t('questions.untitled'),
+    questionType: question.meta?._question_type || question.question_type || 'multiple_choice',
+    difficulty: question.meta?._difficulty_level || question.difficulty || 'medium',
   }), [question, t]);
 
-  // --- Lógica para extraer datos embebidos (como el Proveedor) ---
-  const questionProvider = useMemo(() => {
+  // --- Categoría ---
+  const categoryName = useMemo(() => {
     const terms = question._embedded?.['wp:term'] || [];
-    const providerTerm = terms.flat().find(term => term.taxonomy === 'qe_provider');
-    return providerTerm ? providerTerm.name : t('questions.card.manualProvider', 'Manual');
-  }, [question._embedded, t]);
+    const categoryTerm = terms.flat().find(term => term.taxonomy === 'qe_category');
+    return categoryTerm ? categoryTerm.name : null;
+  }, [question._embedded]);
 
-  const associatedQuizzes = useMemo(() => {
-    if (!question.quiz_ids || quizzes.length === 0) return [];
-    return question.quiz_ids.map(id => 
-      quizzes.find(q => q.id === id)
-    ).filter(Boolean);
-  }, [question.quiz_ids, quizzes]);
-
-  // --- Función para colores de badges ---
-  const getBadgeColor = (difficulty) => {
-    const colors = {
-      easy: 'bg-green-100 text-green-700',
-      medium: 'bg-yellow-100 text-yellow-700',
-      hard: 'bg-red-100 text-red-700'
-    };
-    return colors[difficulty] || 'bg-gray-100 text-gray-700';
+  // --- Configuración de tipos de pregunta ---
+  const typeConfig = {
+    multiple_choice: { label: 'Opción Múltiple', color: pageColors.primary },
+    true_false: { label: 'V/F', color: '#8b5cf6' },
+    fill_in_the_blanks: { label: 'Completar', color: '#10b981' },
+    short_answer: { label: 'Respuesta Corta', color: '#ec4899' },
+    essay: { label: 'Ensayo', color: '#6366f1' },
   };
 
-  // --- Definición de los "Slots" para BaseCard ---
+  // --- Configuración de dificultades ---
+  const difficultyConfig = {
+    easy: { label: 'Fácil', bg: isDarkMode ? 'rgba(34, 197, 94, 0.2)' : '#dcfce7', text: isDarkMode ? '#4ade80' : '#16a34a' },
+    medium: { label: 'Media', bg: isDarkMode ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7', text: isDarkMode ? '#fbbf24' : '#d97706' },
+    hard: { label: 'Difícil', bg: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2', text: isDarkMode ? '#f87171' : '#dc2626' }
+  };
 
-  const headerContent = (
-    <>
-      <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 pr-10 mb-3" dangerouslySetInnerHTML={{ __html: questionData.title }}></h3>
-      <div className="flex flex-wrap gap-2">
-        <span className={`px-3 py-1 text-xs font-medium rounded-full ${getBadgeColor(questionData.difficulty)} capitalize flex items-center gap-2`}>
-          <BarChart className="h-4 w-4" />
-          {t(`questions.card.difficulties.${questionData.difficulty}`, questionData.difficulty)}
-        </span>
-        <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700 flex items-center gap-2">
-          <FileText className="h-4 w-4" />
-          {questionProvider}
-        </span>
-      </div>
-    </>
-  );
+  const typeInfo = typeConfig[questionData.questionType] || typeConfig.multiple_choice;
+  const difficultyInfo = difficultyConfig[questionData.difficulty] || difficultyConfig.medium;
 
-  const statsContent = (
-    <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-      <div className="flex items-center gap-2 text-gray-600" title={t('questions.card.points', { count: questionData.points })}>
-        <Star className="w-4 h-4" />
-        <span>{t('questions.card.points', { count: questionData.points })}</span>
-      </div>
-      <div className="flex items-center gap-2 text-gray-600" title={t('questions.card.type')}>
-        <Type className="w-4 h-4" />
-        <span>{t(`questions.card.types.${questionData.questionType}`, questionData.questionType)}</span>
-      </div>
-    </div>
-  );
+  const handleAction = (action, e) => {
+    e.stopPropagation();
+    action(question);
+  };
 
-  const footerContent = (
-    associatedQuizzes.length > 0 && (
-      <div className="border-t border-gray-100">
-        <button
-          onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
-          className="flex items-center justify-between w-full text-sm text-gray-600 hover:text-indigo-600 p-4 transition-colors"
+  return (
+    <div
+      onClick={() => onClick(question)}
+      className="group relative rounded-xl cursor-pointer transition-all duration-200 flex flex-col"
+      style={{
+        backgroundColor: pageColors.bgCard,
+        border: `1px solid ${pageColors.border}`,
+        boxShadow: pageColors.shadow,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = pageColors.shadowHover;
+        e.currentTarget.style.transform = 'translateY(-2px)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = pageColors.shadow;
+        e.currentTarget.style.transform = 'translateY(0)';
+      }}
+    >
+      {/* Header con tipo */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2">
+        <span 
+          className="text-xs font-medium px-2 py-0.5 rounded-full"
+          style={{ 
+            backgroundColor: `${typeInfo.color}20`,
+            color: typeInfo.color
+          }}
         >
-          <span className="font-medium">{t('questions.card.viewQuizzes', { count: associatedQuizzes.length })}</span>
-          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </button>
-        {isExpanded && (
-          <div className="px-4 pb-4 space-y-2 max-h-48 overflow-y-auto">
-            {associatedQuizzes.map((q) => (
-              <div key={q.id} className="flex items-center gap-3 text-sm p-2 bg-white rounded">
-                <div className="flex-shrink-0 text-gray-400">
-                  <CheckCircle className="w-4 h-4" />
-                </div>
-                <div className="flex-1 truncate" title={q.title?.rendered || q.title}>{q.title?.rendered || q.title}</div>
-              </div>
-            ))}
+          {typeInfo.label}
+        </span>
+        <span
+          className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+          style={{
+            backgroundColor: difficultyInfo.bg,
+            color: difficultyInfo.text,
+          }}
+        >
+          {difficultyInfo.label}
+        </span>
+      </div>
+
+      {/* Título de la pregunta */}
+      <div className="px-4 pb-3 flex-1">
+        <h3 
+          className="font-medium text-sm line-clamp-2 leading-tight"
+          style={{ color: pageColors.text }}
+          title={questionData.title}
+          dangerouslySetInnerHTML={{ __html: questionData.title }}
+        />
+        {categoryName && (
+          <div 
+            className="flex items-center gap-1 text-xs mt-2"
+            style={{ color: pageColors.textMuted }}
+          >
+            <Tag size={10} />
+            <span className="truncate">{categoryName}</span>
           </div>
         )}
       </div>
-    )
-  );
-  
-  const listContent = (
-     <div className="flex items-center w-full gap-4">
-      <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-        <HelpCircle className="w-5 h-5 text-blue-600" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-gray-900 truncate" dangerouslySetInnerHTML={{ __html: questionData.title }}></p>
-        <p className="text-sm text-gray-500 truncate mt-1">
-          {t(`questions.card.types.${questionData.questionType}`, questionData.questionType)} • {t('questions.card.points', { count: questionData.points })}
-        </p>
-      </div>
-      <div className="hidden md:flex items-center gap-3 text-sm flex-shrink-0">
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getBadgeColor(questionData.difficulty)} capitalize`}>
-          {t(`questions.card.difficulties.${questionData.difficulty}`, questionData.difficulty)}
-        </span>
-        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-          {questionProvider}
-        </span>
+
+      {/* Footer con botones de acción */}
+      <div 
+        className="px-3 py-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ 
+          borderTop: `1px solid ${pageColors.border}`,
+        }}
+      >
+        <button
+          type="button"
+          onClick={(e) => handleAction(onEdit, e)}
+          style={{ 
+            padding: '6px',
+            borderRadius: '8px',
+            backgroundColor: 'transparent',
+            color: pageColors.textMuted,
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = pageColors.hoverBg;
+            e.currentTarget.style.color = pageColors.primary;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = pageColors.textMuted;
+          }}
+          title={t('common.edit')}
+        >
+          <Edit2 size={15} />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => handleAction(onDuplicate, e)}
+          style={{ 
+            padding: '6px',
+            borderRadius: '8px',
+            backgroundColor: 'transparent',
+            color: pageColors.textMuted,
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = pageColors.hoverBg;
+            e.currentTarget.style.color = pageColors.accent;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = pageColors.textMuted;
+          }}
+          title={t('common.duplicate')}
+        >
+          <Copy size={15} />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => handleAction(onDelete, e)}
+          style={{ 
+            padding: '6px',
+            borderRadius: '8px',
+            backgroundColor: 'transparent',
+            color: pageColors.textMuted,
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2';
+            e.currentTarget.style.color = '#ef4444';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = pageColors.textMuted;
+          }}
+          title={t('common.delete')}
+        >
+          <Trash2 size={15} />
+        </button>
       </div>
     </div>
-  );
-  
-  // 🔥 CORRECCIÓN: Se definen las acciones para el menú de 3 puntos
-  const cardActions = [
-    { label: t('common.edit'), icon: Edit, onClick: () => onEdit(question) },
-    { label: t('common.duplicate'), icon: Copy, onClick: () => onDuplicate(question) },
-    { label: t('common.delete'), icon: Trash2, onClick: () => onDelete(question), color: 'text-red-500' },
-  ];
-
-  return (
-    <BaseCard
-      viewMode={viewMode}
-      actions={cardActions} // Se pasan las acciones al BaseCard
-      onClick={() => onClick(question)}
-      header={headerContent}
-      stats={statsContent}
-      footer={footerContent}
-      listContent={listContent}
-    >
-    </BaseCard>
   );
 };
 

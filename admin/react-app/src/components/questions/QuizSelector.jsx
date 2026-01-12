@@ -36,7 +36,7 @@ const QuizSelector = ({ availableQuizzes, selectedQuizIds, onChange, disabled })
 
     return (
         <div>
-            <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>Asignar a Cuestionarios</label>
+            <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>{t('admin.questionModal.assignToTests')}</label>
             <div className="relative mb-2">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Search className="h-4 w-4" style={{ color: pageColors.textMuted }} />
@@ -45,7 +45,7 @@ const QuizSelector = ({ availableQuizzes, selectedQuizIds, onChange, disabled })
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Buscar cuestionarios..."
+                    placeholder={t('admin.questionModal.searchTests')}
                     className="w-full pl-10 pr-3 py-2 text-sm border rounded-md"
                     style={{
                         backgroundColor: pageColors.inputBg,
@@ -62,7 +62,7 @@ const QuizSelector = ({ availableQuizzes, selectedQuizIds, onChange, disabled })
                     borderColor: pageColors.border
                 }}
             >
-                {loading && <p className="text-xs text-center py-2" style={{ color: pageColors.textMuted }}>Buscando...</p>}
+                {loading && <p className="text-xs text-center py-2" style={{ color: pageColors.textMuted }}>{t('common.searching')}</p>}
                 {!loading && (quizzesToList || []).map(quiz => {
                     const isSelected = selectedQuizIds.includes(quiz.id);
                     return (
@@ -90,7 +90,7 @@ const QuizSelector = ({ availableQuizzes, selectedQuizIds, onChange, disabled })
                     );
                 })}
                  {!loading && (quizzesToList || []).length === 0 && (
-                    <p className="text-xs text-center py-4" style={{ color: pageColors.textMuted }}>No se encontraron cuestionarios.</p>
+                    <p className="text-xs text-center py-4" style={{ color: pageColors.textMuted }}>{t('admin.questionModal.noTestsFound')}</p>
                  )}
             </div>
         </div>

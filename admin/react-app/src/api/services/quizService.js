@@ -32,7 +32,9 @@ const buildQuizQueryParams = (options = {}) => {
     category = null,
     orderBy = 'date',
     order = 'desc',
-    embed = true
+    embed = true,
+    include = null,
+    status = null
   } = options;
 
   const params = new URLSearchParams({
@@ -44,6 +46,16 @@ const buildQuizQueryParams = (options = {}) => {
 
   if (embed) {
     params.append('_embed', 'true');
+  }
+
+  // Include specific IDs (for fetching assigned quizzes)
+  if (include) {
+    params.append('include', include);
+  }
+
+  // Status filter
+  if (status) {
+    params.append('status', status);
   }
 
   if (search && search.trim()) {

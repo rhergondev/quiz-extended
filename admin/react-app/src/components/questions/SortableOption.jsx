@@ -23,7 +23,20 @@ export const SortableOption = ({ id, option, index, isReadOnly, isMultipleChoice
     return (
         <div ref={setNodeRef} style={style} className="flex items-center gap-2">
             {!isReadOnly && (
-                <button type="button" {...attributes} {...listeners} className="cursor-move p-1" style={{ color: pageColors.textMuted }}>
+                <button 
+                    type="button" 
+                    {...attributes} 
+                    {...listeners} 
+                    style={{ 
+                        cursor: 'move', 
+                        padding: '4px',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        color: pageColors.textMuted,
+                        display: 'flex',
+                        alignItems: 'center'
+                    }}
+                >
                     <GripVertical className="h-5 w-5" />
                 </button>
             )}
@@ -33,7 +46,11 @@ export const SortableOption = ({ id, option, index, isReadOnly, isMultipleChoice
                 checked={option.isCorrect || false}
                 onChange={() => setCorrectAnswer(index)}
                 disabled={isReadOnly}
-                className="h-4 w-4 rounded"
+                style={{
+                    width: '16px',
+                    height: '16px',
+                    accentColor: isDarkMode ? '#f59e0b' : '#3b82f6'
+                }}
             />
             <input
                 type="text"
@@ -41,16 +58,38 @@ export const SortableOption = ({ id, option, index, isReadOnly, isMultipleChoice
                 onChange={(e) => handleOptionChange(index, 'text', e.target.value)}
                 placeholder={`Opción ${index + 1}`}
                 disabled={isReadOnly}
-                className="flex-1 input rounded-md"
                 style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
                     backgroundColor: pageColors.inputBg,
-                    borderColor: pageColors.border,
                     border: `1px solid ${pageColors.border}`,
-                    color: pageColors.text
+                    color: pageColors.text,
+                    fontSize: '14px',
+                    outline: 'none'
                 }}
             />
             {!isReadOnly && (
-                <button type="button" onClick={() => removeOption(index)} className="text-red-500 hover:text-red-700 p-1">
+                <button 
+                    type="button" 
+                    onClick={() => removeOption(index)} 
+                    style={{
+                        padding: '6px',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        borderRadius: '6px'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                >
                     <Trash2 className="w-4 h-4" />
                 </button>
             )}

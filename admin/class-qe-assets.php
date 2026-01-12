@@ -44,6 +44,54 @@ class QE_Assets
             $script_asset['version']
         );
 
+        // Hide WordPress admin notices on our plugin pages
+        wp_add_inline_style('quiz-extended-react-app', '
+            /* Hide WordPress admin notices on Quiz Extended pages */
+            .toplevel_page_quiz-extended-lms .notice,
+            .toplevel_page_quiz-extended-lms .update-nag,
+            .toplevel_page_quiz-extended-lms .updated,
+            .toplevel_page_quiz-extended-lms .error,
+            .toplevel_page_quiz-extended-lms #wpbody-content > .wrap > .notice,
+            .toplevel_page_quiz-extended-lms #wpbody-content > .notice {
+                display: none !important;
+            }
+            
+            /* Hide WordPress admin footer */
+            .toplevel_page_quiz-extended-lms #wpfooter {
+                display: none !important;
+            }
+            
+            /* Fix height for the entire chain */
+            .toplevel_page_quiz-extended-lms #wpbody {
+                height: calc(100vh - 32px) !important;
+                overflow: hidden !important;
+            }
+            
+            .toplevel_page_quiz-extended-lms #wpbody-content {
+                height: 100% !important;
+                padding-bottom: 0 !important;
+                overflow: hidden !important;
+            }
+            
+            .toplevel_page_quiz-extended-lms #wpbody-content > .wrap {
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+            }
+            
+            .toplevel_page_quiz-extended-lms .qe-lms-admin-app {
+                height: 100% !important;
+                overflow: hidden !important;
+            }
+            
+            @media screen and (max-width: 782px) {
+                .toplevel_page_quiz-extended-lms #wpbody {
+                    height: calc(100vh - 46px) !important;
+                }
+            }
+        ');
+
         // Enhanced API configuration
         $api_url_base = rtrim(home_url('/wp-json'), '/');
         $current_user = wp_get_current_user();

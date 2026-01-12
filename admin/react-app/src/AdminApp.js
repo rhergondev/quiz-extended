@@ -4,6 +4,9 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ThemeProvider } from './contexts/ThemeContext';
 
+// Layout
+import AdminLayout from './components/layout/AdminLayout';
+
 // Importa tus componentes de página de admin
 import DashboardPage from './pages/DashboardPage';
 import CoursesManager from './components/courses/CoursesManager';
@@ -20,28 +23,31 @@ import ThemeSettingsPage from './pages/ThemeSettingsPage';
 /**
  * Root component for the admin panel.
  * Contains the router and routes for the wp-admin panel.
+ * Uses AdminLayout with Topbar for unified navigation.
  */
 function AdminApp() {
   return (
     <ThemeProvider>
       <Router>
-        {/* CORRECCIÓN: Añadido 'h-screen' para que la app ocupe toda la altura de la ventana */}
-        <div className="qe-lms-admin-app h-screen flex flex-col">
+        <div className="qe-lms-admin-app h-full flex flex-col overflow-hidden">
           <Routes>
-            {/* Admin specific routes */}
-            <Route path="/courses" element={<CoursesManager />} />
-            <Route path="/lessons" element={<LessonsManager />} />
-            <Route path="/quizzes" element={<QuizzesManager />} />
-            <Route path="/questions" element={<QuestionsManager />} />
-            <Route path="/students" element={<UsersManager />} />
-            <Route path="/messages" element={<MessagesManager />} />
-            <Route path="/books" element={<BooksManager />} />
-            <Route path="/migrations" element={<MigrationPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/theme" element={<ThemeSettingsPage />} />
+            {/* All routes wrapped in AdminLayout with Topbar */}
+            <Route element={<AdminLayout />}>
+              <Route index element={<DashboardPage />} />
+              <Route path="/courses" element={<CoursesManager />} />
+              <Route path="/lessons" element={<LessonsManager />} />
+              <Route path="/quizzes" element={<QuizzesManager />} />
+              <Route path="/questions" element={<QuestionsManager />} />
+              <Route path="/students" element={<UsersManager />} />
+              <Route path="/messages" element={<MessagesManager />} />
+              <Route path="/books" element={<BooksManager />} />
+              <Route path="/migrations" element={<MigrationPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/theme" element={<ThemeSettingsPage />} />
+            </Route>
 
-            {/* Default redirect for admin */}
-            <Route path="*" element={<DashboardPage />} />
+            {/* Fallback redirect */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <ToastContainer
             position="top-right"

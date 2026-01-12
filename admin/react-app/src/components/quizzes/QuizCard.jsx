@@ -1,16 +1,11 @@
-// src/components/lessons/LessonCard.jsx (Redesigned with inline styles and dark mode)
-
 import React, { useMemo } from 'react';
-import { 
-  Edit2, Trash2, Copy, BookOpen, Video, FileText, Download, 
-  HelpCircle, FileImage, Volume2, Layers
-} from 'lucide-react';
+import { HelpCircle, Users, Clock, Calendar, Edit2, Trash2, Copy, Eye, BarChart2 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 /**
- * Tarjeta de lección para el grid
+ * Tarjeta de cuestionario para el grid
  */
-const LessonCard = ({ lesson, courses = [], onEdit, onDelete, onDuplicate }) => {
+const QuizCard = ({ quiz, onEdit, onDelete, onDuplicate, onView, onStats }) => {
   const { getColor, isDarkMode } = useTheme();
 
   const pageColors = useMemo(() => ({
@@ -26,28 +21,21 @@ const LessonCard = ({ lesson, courses = [], onEdit, onDelete, onDuplicate }) => 
     danger: '#ef4444',
   }), [getColor, isDarkMode]);
 
-  // --- Extracción de datos ---
-  const displayTitle = typeof lesson.title === 'string'
-    ? lesson.title
-    : (lesson.title?.rendered || 'Sin título');
+  // Título del quiz
+  const displayTitle = typeof quiz.title === 'string'
+    ? quiz.title
+    : (quiz.title?.rendered || 'Sin título');
 
-  const meta = lesson.meta || {};
-  const courseId = meta._course_id;
-  const steps = meta._lesson_steps || [];
-  const stepsCount = Array.isArray(steps) ? steps.length : 0;
-  const description = meta._lesson_description || '';
-  const lessonOrder = meta._lesson_order || '-';
+  // Meta datos
+  const questionCount = quiz.question_count || 0;
+  const totalAttempts = quiz.total_attempts || 0;
+  const timeLimit = quiz.meta?._time_limit || 0;
+  const passingScore = quiz.meta?._passing_score || '7.0';
+  const startDate = quiz.meta?._start_date;
 
-  // Nombre del curso
-  const courseName = useMemo(() => {
-    if (!courseId || courses.length === 0) return 'Sin curso';
-    const course = courses.find(c => c.id?.toString() === courseId?.toString());
-    return course?.title?.rendered || course?.title || `Curso #${courseId}`;
-  }, [courseId, courses]);
-
-  // Estado del lesson
+  // Estado del quiz
   const getStatusInfo = () => {
-    switch (lesson.status) {
+    switch (quiz.status) {
       case 'publish':
         return { label: 'Publicado', color: pageColors.success };
       case 'draft':
@@ -55,39 +43,31 @@ const LessonCard = ({ lesson, courses = [], onEdit, onDelete, onDuplicate }) => 
       case 'private':
         return { label: 'Privado', color: pageColors.textMuted };
       default:
-        return { label: lesson.status, color: pageColors.textMuted };
+        return { label: quiz.status, color: pageColors.textMuted };
     }
   };
 
   const statusInfo = getStatusInfo();
 
-  // Contar tipos de pasos
-  const stepsSummary = useMemo(() => {
-    if (!Array.isArray(steps) || steps.length === 0) return [];
-    
-    const counts = steps.reduce((acc, step) => {
-      acc[step.type] = (acc[step.type] || 0) + 1;
-      return acc;
-    }, {});
-    
-    const icons = {
-      video: Video,
-      text: FileText,
-      pdf: Download,
-      quiz: HelpCircle,
-      image: FileImage,
-      audio: Volume2,
-    };
-    
-    return Object.entries(counts).map(([type, count]) => ({
-      type,
-      count,
-      Icon: icons[type] || Layers,
-    }));
-  }, [steps]);
+  // Dificultad
+  const getDifficultyInfo = () => {
+    const level = quiz.meta?._difficulty_level || 'medium';
+    switch (level) {
+      case 'easy':
+        return { label: 'Fácil', color: '#10b981' };
+      case 'medium':
+        return { label: 'Media', color: '#f59e0b' };
+      case 'hard':
+        return { label: 'Difícil', color: '#ef4444' };
+      default:
+        return { label: level, color: pageColors.textMuted };
+    }
+  };
+
+  const difficultyInfo = getDifficultyInfo();
 
   const handleCardClick = () => {
-    onEdit(lesson);
+    onEdit(quiz);
   };
 
   return (
@@ -113,7 +93,7 @@ const LessonCard = ({ lesson, courses = [], onEdit, onDelete, onDuplicate }) => 
         e.currentTarget.style.boxShadow = pageColors.shadow;
       }}
     >
-      {/* Header: Estado y Orden */}
+      {/* Header: Estado y Dificultad */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
         <span
           style={{
@@ -133,10 +113,10 @@ const LessonCard = ({ lesson, courses = [], onEdit, onDelete, onDuplicate }) => 
             padding: '2px 8px',
             borderRadius: '9999px',
             backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-            color: pageColors.textMuted,
+            color: difficultyInfo.color,
           }}
         >
-          Orden: {lessonOrder}
+          {difficultyInfo.label}
         </span>
       </div>
 
@@ -146,7 +126,7 @@ const LessonCard = ({ lesson, courses = [], onEdit, onDelete, onDuplicate }) => 
           fontSize: '16px',
           fontWeight: '600',
           color: pageColors.text,
-          marginBottom: '8px',
+          marginBottom: '12px',
           lineHeight: '1.4',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
@@ -158,78 +138,57 @@ const LessonCard = ({ lesson, courses = [], onEdit, onDelete, onDuplicate }) => 
         {displayTitle}
       </h3>
 
-      {/* Curso */}
+      {/* Estadísticas */}
       <div 
         style={{ 
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '4px 10px',
-          borderRadius: '8px',
-          backgroundColor: isDarkMode ? 'rgba(99, 102, 241, 0.15)' : 'rgba(99, 102, 241, 0.1)',
-          marginBottom: '12px',
-        }}
-      >
-        <BookOpen size={12} style={{ color: '#6366f1' }} />
-        <span style={{ fontSize: '12px', fontWeight: '500', color: '#6366f1' }}>
-          {courseName}
-        </span>
-      </div>
-
-      {/* Descripción */}
-      {description && (
-        <p
-          style={{
-            fontSize: '13px',
-            color: pageColors.textMuted,
-            marginBottom: '12px',
-            lineHeight: '1.5',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-          }}
-        >
-          {description}
-        </p>
-      )}
-
-      {/* Estadísticas de pasos */}
-      <div 
-        style={{ 
-          padding: '12px',
-          borderRadius: '10px',
-          backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+          display: 'grid', 
+          gridTemplateColumns: '1fr 1fr', 
+          gap: '8px',
           marginBottom: '16px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <span style={{ fontSize: '13px', fontWeight: '500', color: pageColors.text }}>
-            {stepsCount} {stepsCount === 1 ? 'paso' : 'pasos'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <HelpCircle size={14} style={{ color: pageColors.textMuted }} />
+          <span style={{ fontSize: '13px', color: pageColors.textMuted }}>
+            {questionCount} {questionCount === 1 ? 'pregunta' : 'preguntas'}
           </span>
-          <Layers size={14} style={{ color: pageColors.textMuted }} />
         </div>
-        
-        {stepsSummary.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {stepsSummary.map(({ type, count, Icon }) => (
-              <div 
-                key={type}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '4px',
-                  fontSize: '12px',
-                  color: pageColors.textMuted,
-                }}
-              >
-                <Icon size={12} />
-                <span>{count}</span>
-              </div>
-            ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Users size={14} style={{ color: pageColors.textMuted }} />
+          <span style={{ fontSize: '13px', color: pageColors.textMuted }}>
+            {totalAttempts} {totalAttempts === 1 ? 'intento' : 'intentos'}
+          </span>
+        </div>
+        {timeLimit > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Clock size={14} style={{ color: pageColors.textMuted }} />
+            <span style={{ fontSize: '13px', color: pageColors.textMuted }}>
+              {timeLimit} min
+            </span>
           </div>
         )}
+        {startDate && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Calendar size={14} style={{ color: pageColors.textMuted }} />
+            <span style={{ fontSize: '13px', color: pageColors.textMuted }}>
+              {new Date(startDate).toLocaleDateString()}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Nota de aprobación */}
+      <div 
+        style={{ 
+          padding: '8px 12px',
+          borderRadius: '8px',
+          backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.1)',
+          marginBottom: '16px',
+        }}
+      >
+        <span style={{ fontSize: '12px', fontWeight: '500', color: '#3b82f6' }}>
+          Nota mínima: {passingScore}/10
+        </span>
       </div>
 
       {/* Acciones */}
@@ -245,7 +204,7 @@ const LessonCard = ({ lesson, courses = [], onEdit, onDelete, onDuplicate }) => 
       >
         <button
           type="button"
-          onClick={() => onEdit(lesson)}
+          onClick={() => onEdit(quiz)}
           title="Editar"
           style={{
             display: 'flex',
@@ -274,7 +233,36 @@ const LessonCard = ({ lesson, courses = [], onEdit, onDelete, onDuplicate }) => 
 
         <button
           type="button"
-          onClick={() => onDuplicate && onDuplicate(lesson)}
+          onClick={() => onStats && onStats(quiz)}
+          title="Estadísticas"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            border: 'none',
+            backgroundColor: isDarkMode ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
+            color: '#10b981',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#10b981';
+            e.currentTarget.style.color = '#ffffff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)';
+            e.currentTarget.style.color = '#10b981';
+          }}
+        >
+          <BarChart2 size={14} />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onDuplicate && onDuplicate(quiz)}
           title="Duplicar"
           style={{
             display: 'flex',
@@ -305,7 +293,7 @@ const LessonCard = ({ lesson, courses = [], onEdit, onDelete, onDuplicate }) => 
 
         <button
           type="button"
-          onClick={() => onDelete(lesson)}
+          onClick={() => onDelete(quiz)}
           title="Eliminar"
           style={{
             display: 'flex',
@@ -336,4 +324,4 @@ const LessonCard = ({ lesson, courses = [], onEdit, onDelete, onDuplicate }) => 
   );
 };
 
-export default LessonCard;
+export default QuizCard;

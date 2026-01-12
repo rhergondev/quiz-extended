@@ -1,6 +1,6 @@
 // admin/react-app/src/components/modals/QuestionModal.jsx
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { X, Plus, Trash2, Save, Eye, AlertCircle } from 'lucide-react';
+import { X, Plus, Trash2, Save, Eye, AlertCircle, ChevronDown } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -13,8 +13,7 @@ import {
 } from '@dnd-kit/sortable';
 import { SortableOption } from './SortableOption';
 import QuizSelector from '../questions/QuizSelector';
-import Button from '../common/Button';
-import FilterDropdown from '../common/FilterDropdown';
+import { useTheme } from '../../contexts/ThemeContext';
 import { getTaxonomyTerms, createTaxonomyTerm } from '../../api/services/taxonomyService';
 
 const QuestionModal = ({ 
@@ -25,8 +24,27 @@ const QuestionModal = ({
   mode = 'create',
   availableQuizzes = [],
   availableLessons = [],
-  isLoading = false 
+  availableCourses = [],
+  isLoading = false,
+  parentQuizId = null // ID del quiz desde el que se crea/edita (para ocultar QuizSelector y asociar automáticamente)
 }) => {
+  const { getColor, isDarkMode } = useTheme();
+  
+  // Colores adaptativos según el modo (como en QuizGeneratorPage)
+  const pageColors = useMemo(() => ({
+    text: isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c'),
+    textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : '#6b7280',
+    accent: getColor('accent', '#f59e0b'),
+    primary: getColor('primary', '#3b82f6'),
+    inputBg: isDarkMode ? 'rgba(0,0,0,0.2)' : '#ffffff',
+    inputBorder: isDarkMode ? 'rgba(255,255,255,0.2)' : '#d1d5db',
+    cardBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    headerBg: isDarkMode ? getColor('primary', '#1a202c') : '#f9fafb',
+    footerBg: isDarkMode ? 'rgba(0,0,0,0.2)' : '#f9fafb',
+    border: isDarkMode ? 'rgba(255,255,255,0.1)' : '#e5e7eb',
+    overlay: isDarkMode ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)',
+  }), [getColor, isDarkMode]);
+
   const [formData, setFormData] = useState({
     title: '',
     type: 'multiple_choice',
@@ -64,17 +82,17 @@ const QuestionModal = ({
   const quillRef = useRef(null);
 
   const questionTypes = [
-    { value: 'multiple_choice', label: 'Multiple Choice' },
-    { value: 'true_false', label: 'True/False' },
-    { value: 'short_answer', label: 'Short Answer' },
-    { value: 'essay', label: 'Essay' },
-    { value: 'fill_blank', label: 'Fill in Blank' }
+    { value: 'multiple_choice', label: 'Opción Múltiple' },
+    { value: 'true_false', label: 'Verdadero/Falso' },
+    { value: 'short_answer', label: 'Respuesta Corta' },
+    { value: 'essay', label: 'Ensayo' },
+    { value: 'fill_blank', label: 'Completar Espacios' }
   ];
 
   const difficultyLevels = [
-    { value: 'easy', label: 'Easy' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'hard', label: 'Hard' }
+    { value: 'easy', label: 'Fácil' },
+    { value: 'medium', label: 'Media' },
+    { value: 'hard', label: 'Difícil' }
   ];
 
   const sensors = useSensors(
@@ -182,6 +200,13 @@ const QuestionModal = ({
 
   useEffect(() => {
     if (question && mode !== 'create') {
+        // Modo edición: cargar datos de la pregunta existente
+        const existingQuizIds = question.meta?._quiz_ids || [];
+        // Si viene de un quiz padre, asegurar que esté incluido
+        const quizIds = parentQuizId && !existingQuizIds.includes(parentQuizId) 
+          ? [...existingQuizIds, parentQuizId] 
+          : existingQuizIds;
+
         setFormData({
             title: question.title || '',
             type: question.meta?._question_type || 'multiple_choice',
@@ -190,14 +215,14 @@ const QuestionModal = ({
             points: question.meta?._points?.toString() || '1',
             pointsIncorrect: question.meta?._points_incorrect?.toString() || '0',
             explanation: question.content || question.meta?._explanation || '',
-            quizIds: question.meta?._quiz_ids || [],
+            quizIds: quizIds,
             lessonId: question.meta?._question_lesson?.toString() || '',
             courseId: question.meta?._course_id?.toString() || '',
             provider: question.qe_provider?.[0] || '', // Usar ID de taxonomía
             options: question.meta?._question_options || [{ text: '', isCorrect: false }, { text: '', isCorrect: false }],
         });
     } else {
-      // Reset for create mode
+      // Reset for create mode - incluir parentQuizId si existe
       setFormData({
         title: '',
         type: 'multiple_choice',
@@ -206,7 +231,7 @@ const QuestionModal = ({
         points: '1',
         pointsIncorrect: '0',
         explanation: '',
-        quizIds: [],
+        quizIds: parentQuizId ? [parentQuizId] : [],
         lessonId: '',
         courseId: '',
         provider: '',
@@ -217,7 +242,7 @@ const QuestionModal = ({
       });
     }
     setErrors({});
-  }, [question, mode, isOpen]);
+  }, [question, mode, isOpen, parentQuizId]);
 
 
   const handleFieldChange = (field, value) => {
@@ -321,13 +346,13 @@ const QuestionModal = ({
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.title.trim()) newErrors.title = 'Question title is required';
+    if (!formData.title.trim()) newErrors.title = 'El título de la pregunta es obligatorio';
     if (formData.type === 'multiple_choice' || formData.type === 'true_false') {
       if (!formData.options.some(opt => opt.isCorrect)) {
-        newErrors.options = 'Please select a correct answer';
+        newErrors.options = 'Selecciona al menos una respuesta correcta';
       }
       if (formData.options.some(opt => !opt.text.trim())) {
-        newErrors.options = 'All options must have text';
+        newErrors.options = 'Todas las opciones deben tener texto';
       }
     }
     setErrors(newErrors);
@@ -338,8 +363,8 @@ const QuestionModal = ({
     let newOptions = [...formData.options];
     if (newType === 'true_false') {
       newOptions = [
-        { text: 'True', isCorrect: formData.options.some(o => o.isCorrect && o.text.toLowerCase() === 'true') },
-        { text: 'False', isCorrect: formData.options.some(o => o.isCorrect && o.text.toLowerCase() === 'false') }
+        { text: 'Verdadero', isCorrect: formData.options.some(o => o.isCorrect && o.text.toLowerCase() === 'verdadero') },
+        { text: 'Falso', isCorrect: formData.options.some(o => o.isCorrect && o.text.toLowerCase() === 'falso') }
       ];
     }
     setFormData(prev => ({
@@ -387,82 +412,500 @@ const QuestionModal = ({
   if (!isOpen) return null;
 
   const isReadOnly = mode === 'view';
-  const modalTitle = mode === 'create' ? 'Create New Question' : mode === 'edit' ? 'Edit Question' : 'View Question';
+  const modalTitle = mode === 'create' ? 'Nueva Pregunta' : mode === 'edit' ? 'Editar Pregunta' : 'Ver Pregunta';
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+    <div 
+      className="fixed inset-0 flex items-center justify-center z-[10000] p-4 pt-24"
+      style={{ backgroundColor: pageColors.overlay }}
+    >
+      <div 
+        className="rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+        style={{ backgroundColor: pageColors.cardBg }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">{modalTitle}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="h-6 w-6" />
+        <div 
+          className="flex items-center justify-between p-5 flex-shrink-0"
+          style={{ 
+            backgroundColor: pageColors.headerBg,
+            borderBottom: `1px solid ${pageColors.border}`
+          }}
+        >
+          <h2 className="text-lg font-bold" style={{ color: pageColors.text }}>{modalTitle}</h2>
+          <button 
+            type="button"
+            onClick={onClose} 
+            style={{
+              padding: '8px',
+              borderRadius: '8px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              color: pageColors.textMuted,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
+              e.currentTarget.style.color = pageColors.text;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = pageColors.textMuted;
+            }}
+          >
+            <X size={22} />
           </button>
         </div>
 
         {/* Form Content */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
-           {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Question Title */}
-              <div className="md:col-span-3">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Question Title *
-                </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => handleFieldChange('title', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                    errors.title ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter question title"
-                  disabled={isReadOnly}
-                />
-                {errors.title && (
-                  <p className="mt-1 text-sm text-red-600">{errors.title}</p>
+          
+          {/* Título de la Pregunta */}
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>
+              Título de la Pregunta *
+            </label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => handleFieldChange('title', e.target.value)}
+              placeholder="Escribe el enunciado de la pregunta..."
+              disabled={isReadOnly}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: `2px solid ${errors.title ? '#ef4444' : pageColors.inputBorder}`,
+                backgroundColor: pageColors.inputBg,
+                color: pageColors.text,
+                fontSize: '14px',
+                outline: 'none'
+              }}
+            />
+            {errors.title && (
+              <p style={{ marginTop: '4px', fontSize: '13px', color: '#ef4444' }}>{errors.title}</p>
+            )}
+          </div>
+
+          {/* Fila 1: Categoría, Proveedor, Dificultad */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Categoría */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium" style={{ color: pageColors.text }}>Categoría</label>
+                {!isReadOnly && !showNewCategoryForm && (
+                  <button
+                    type="button"
+                    onClick={() => setShowNewCategoryForm(true)}
+                    style={{
+                      padding: '4px',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      color: pageColors.accent,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                  >
+                    <Plus size={16} />
+                  </button>
                 )}
               </div>
-
-              {/* Question Type */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Question Type *
-                </label>
+              {showNewCategoryForm && (
+                <div style={{ marginBottom: '8px', padding: '8px', backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : '#f9fafb', border: `1px solid ${pageColors.border}`, borderRadius: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="Nueva categoría..."
+                      style={{ flex: 1, padding: '6px 10px', border: `1px solid ${pageColors.inputBorder}`, borderRadius: '4px', fontSize: '13px', backgroundColor: pageColors.inputBg, color: pageColors.text }}
+                    />
+                    <button
+                      type="button"
+                      onClick={createNewCategory}
+                      disabled={creatingCategory}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: pageColors.accent,
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        cursor: creatingCategory ? 'not-allowed' : 'pointer',
+                        opacity: creatingCategory ? 0.7 : 1
+                      }}
+                    >
+                      {creatingCategory ? '...' : 'OK'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewCategoryForm(false)}
+                      style={{
+                        padding: '6px 10px',
+                        backgroundColor: pageColors.inputBg,
+                        color: pageColors.text,
+                        border: `1px solid ${pageColors.inputBorder}`,
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                    >
+                      X
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div style={{ position: 'relative' }}>
                 <select
-                  value={formData.type}
-                  onChange={(e) => handleTypeChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  disabled={isReadOnly}
+                  value={formData.category}
+                  onChange={(e) => handleFieldChange('category', e.target.value)}
+                  disabled={isReadOnly || loadingCategories}
+                  style={{
+                    width: '100%',
+                    padding: '10px 32px 10px 12px',
+                    borderRadius: '8px',
+                    border: `2px solid ${pageColors.inputBorder}`,
+                    backgroundColor: pageColors.inputBg,
+                    color: pageColors.text,
+                    fontSize: '14px',
+                    appearance: 'none',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
                 >
-                  {questionTypes.map(type => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
+                  <option value="" style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>
+                    {loadingCategories ? 'Cargando...' : 'Seleccionar categoría'}
+                  </option>
+                  {categories.map(cat => (
+                    <option key={cat.value} value={cat.value} style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>
+                      {cat.label}
                     </option>
                   ))}
                 </select>
+                <ChevronDown 
+                  size={16} 
+                  style={{ 
+                    position: 'absolute', 
+                    right: '12px', 
+                    top: '50%', 
+                    transform: 'translateY(-50%)', 
+                    pointerEvents: 'none',
+                    color: pageColors.textMuted 
+                  }} 
+                />
               </div>
+            </div>
 
-              {/* Difficulty */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Difficulty Level
-                </label>
+            {/* Proveedor */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium" style={{ color: pageColors.text }}>Proveedor</label>
+                {!isReadOnly && !showNewProviderForm && (
+                  <button
+                    type="button"
+                    onClick={() => setShowNewProviderForm(true)}
+                    style={{
+                      padding: '4px',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      color: pageColors.accent,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                  >
+                    <Plus size={16} />
+                  </button>
+                )}
+              </div>
+              {showNewProviderForm && (
+                <div style={{ marginBottom: '8px', padding: '8px', backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : '#f9fafb', border: `1px solid ${pageColors.border}`, borderRadius: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={newProviderName}
+                      onChange={(e) => setNewProviderName(e.target.value)}
+                      placeholder="Nuevo proveedor..."
+                      style={{ flex: 1, padding: '6px 10px', border: `1px solid ${pageColors.inputBorder}`, borderRadius: '4px', fontSize: '13px', backgroundColor: pageColors.inputBg, color: pageColors.text }}
+                    />
+                    <button
+                      type="button"
+                      onClick={createNewProvider}
+                      disabled={creatingProvider}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: pageColors.accent,
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        cursor: creatingProvider ? 'not-allowed' : 'pointer',
+                        opacity: creatingProvider ? 0.7 : 1
+                      }}
+                    >
+                      {creatingProvider ? '...' : 'OK'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewProviderForm(false)}
+                      style={{
+                        padding: '6px 10px',
+                        backgroundColor: pageColors.inputBg,
+                        color: pageColors.text,
+                        border: `1px solid ${pageColors.inputBorder}`,
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                    >
+                      X
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={formData.provider}
+                  onChange={(e) => handleFieldChange('provider', e.target.value)}
+                  disabled={isReadOnly || loadingProviders}
+                  style={{
+                    width: '100%',
+                    padding: '10px 32px 10px 12px',
+                    borderRadius: '8px',
+                    border: `2px solid ${pageColors.inputBorder}`,
+                    backgroundColor: pageColors.inputBg,
+                    color: pageColors.text,
+                    fontSize: '14px',
+                    appearance: 'none',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="" style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>
+                    {loadingProviders ? 'Cargando...' : 'Seleccionar proveedor'}
+                  </option>
+                  {providers.map(prov => (
+                    <option key={prov.value} value={prov.value} style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>
+                      {prov.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown 
+                  size={16} 
+                  style={{ 
+                    position: 'absolute', 
+                    right: '12px', 
+                    top: '50%', 
+                    transform: 'translateY(-50%)', 
+                    pointerEvents: 'none',
+                    color: pageColors.textMuted 
+                  }} 
+                />
+              </div>
+            </div>
+
+            {/* Dificultad */}
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>Dificultad</label>
+              <div style={{ position: 'relative' }}>
                 <select
                   value={formData.difficulty}
                   onChange={(e) => handleFieldChange('difficulty', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   disabled={isReadOnly}
+                  style={{
+                    width: '100%',
+                    padding: '10px 32px 10px 12px',
+                    borderRadius: '8px',
+                    border: `2px solid ${pageColors.inputBorder}`,
+                    backgroundColor: pageColors.inputBg,
+                    color: pageColors.text,
+                    fontSize: '14px',
+                    appearance: 'none',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
                 >
                   {difficultyLevels.map(level => (
-                    <option key={level.value} value={level.value}>
+                    <option key={level.value} value={level.value} style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>
                       {level.label}
                     </option>
                   ))}
                 </select>
+                <ChevronDown 
+                  size={16} 
+                  style={{ 
+                    position: 'absolute', 
+                    right: '12px', 
+                    top: '50%', 
+                    transform: 'translateY(-50%)', 
+                    pointerEvents: 'none',
+                    color: pageColors.textMuted 
+                  }} 
+                />
               </div>
+            </div>
+          </div>
 
-            {/* Quiz Assignment - Multiple Select */}
+          {/* Fila 2: Asignar a Curso, Asignar a Tema */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Asignar a Curso */}
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>Asignar a Curso</label>
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={formData.courseId}
+                  onChange={(e) => handleFieldChange('courseId', e.target.value)}
+                  disabled={isReadOnly}
+                  style={{
+                    width: '100%',
+                    padding: '10px 32px 10px 12px',
+                    borderRadius: '8px',
+                    border: `2px solid ${pageColors.inputBorder}`,
+                    backgroundColor: pageColors.inputBg,
+                    color: pageColors.text,
+                    fontSize: '14px',
+                    appearance: 'none',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="" style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>Sin curso asignado</option>
+                  {availableCourses.map(course => (
+                    <option key={course.id} value={course.id} style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>
+                      {course.title?.rendered || course.title}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown 
+                  size={16} 
+                  style={{ 
+                    position: 'absolute', 
+                    right: '12px', 
+                    top: '50%', 
+                    transform: 'translateY(-50%)', 
+                    pointerEvents: 'none',
+                    color: pageColors.textMuted 
+                  }} 
+                />
+              </div>
+            </div>
+
+            {/* Asignar a Tema */}
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>Asignar a Tema</label>
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={formData.lessonId}
+                  onChange={(e) => handleFieldChange('lessonId', e.target.value)}
+                  disabled={isReadOnly}
+                  style={{
+                    width: '100%',
+                    padding: '10px 32px 10px 12px',
+                    borderRadius: '8px',
+                    border: `2px solid ${pageColors.inputBorder}`,
+                    backgroundColor: pageColors.inputBg,
+                    color: pageColors.text,
+                    fontSize: '14px',
+                    appearance: 'none',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="" style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>Sin tema (Pregunta General)</option>
+                  {availableLessons.map(lesson => (
+                    <option key={lesson.id} value={lesson.id} style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>
+                      {lesson.title?.rendered || lesson.title}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown 
+                  size={16} 
+                  style={{ 
+                    position: 'absolute', 
+                    right: '12px', 
+                    top: '50%', 
+                    transform: 'translateY(-50%)', 
+                    pointerEvents: 'none',
+                    color: pageColors.textMuted 
+                  }} 
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Opciones de Respuesta */}
+          {(formData.type === 'multiple_choice' || formData.type === 'true_false') && (
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>Opciones de Respuesta *</label>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={formData.options.map((_, i) => i)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-3">
+                    {formData.options.map((option, index) => (
+                      <SortableOption
+                        key={index}
+                        id={index}
+                        option={option}
+                        index={index}
+                        isReadOnly={isReadOnly}
+                        isMultipleChoice={formData.type === 'multiple_choice'}
+                        handleOptionChange={handleOptionChange}
+                        setCorrectAnswer={setCorrectAnswer}
+                        removeOption={removeOption}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+              {!isReadOnly && formData.type === 'multiple_choice' && (
+                <button 
+                  type="button"
+                  onClick={addOption} 
+                  style={{
+                    marginTop: '12px',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: `1px solid ${pageColors.inputBorder}`,
+                    backgroundColor: pageColors.inputBg,
+                    color: pageColors.text,
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = '0.8';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = '1';
+                  }}
+                >
+                  <Plus size={14} />
+                  Añadir Opción
+                </button>
+              )}
+              {errors.options && <p style={{ marginTop: '4px', fontSize: '14px', color: '#dc2626' }}>{errors.options}</p>}
+            </div>
+          )}
+
+          {/* Asignar a Tests - Oculto si viene de un test específico */}
+          {!parentQuizId && (
             <div>
               <QuizSelector
                 availableQuizzes={availableQuizzes}
@@ -471,169 +914,106 @@ const QuestionModal = ({
                 disabled={isReadOnly}
               />
             </div>
-
-            {/* Lesson Assignment */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Assign to Lesson
-              </label>
-              <select
-                value={formData.lessonId}
-                onChange={(e) => handleFieldChange('lessonId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                disabled={isReadOnly}
-              >
-                <option value="">No Lesson (General Question)</option>
-                {availableLessons.map(lesson => (
-                  <option key={lesson.id} value={lesson.id}>
-                    {lesson.title?.rendered || lesson.title}
-                  </option>
-                ))}
-              </select>
-            </div>
+          )}
             
-            {/* Provider */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Question Provider
-                </label>
-                {!isReadOnly && !showNewProviderForm && (
-                  <button
-                    type="button"
-                    onClick={() => setShowNewProviderForm(true)}
-                    className="text-sm text-indigo-600 hover:text-indigo-700"
-                  >
-                    <Plus className="h-4 w-4 inline-block mr-1" />
-                    Add New
-                  </button>
-                )}
-              </div>
-              {showNewProviderForm && (
-                <div className="mb-2 p-2 bg-gray-50 border rounded-md">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={newProviderName}
-                      onChange={(e) => setNewProviderName(e.target.value)}
-                      placeholder="New provider name..."
-                      className="flex-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                    />
-                    <Button size="sm" onClick={createNewProvider} isLoading={creatingProvider}>Save</Button>
-                    <Button size="sm" variant="secondary" onClick={() => setShowNewProviderForm(false)}>Cancel</Button>
-                  </div>
-                </div>
-              )}
-              <FilterDropdown
-                label=""
-                value={formData.provider}
-                onChange={(value) => handleFieldChange('provider', value)}
-                options={providers}
-                placeholder="Select a provider"
-                isLoading={loadingProviders}
-                showSearch
-              />
-            </div>
-
-              {/* Category */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700">Category</label>
-                {!isReadOnly && !showNewCategoryForm && (
-                  <button
-                    type="button"
-                    onClick={() => setShowNewCategoryForm(true)}
-                    className="text-sm text-indigo-600 hover:text-indigo-700"
-                  >
-                    <Plus className="h-4 w-4 inline-block mr-1" /> Add New
-                  </button>
-                )}
-              </div>
-              {showNewCategoryForm && (
-                <div className="mb-2 p-2 bg-gray-50 border rounded-md">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      placeholder="New category name..."
-                      className="flex-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                    />
-                    <Button size="sm" onClick={createNewCategory} isLoading={creatingCategory}>Save</Button>
-                    <Button size="sm" variant="secondary" onClick={() => setShowNewCategoryForm(false)}>Cancel</Button>
-                  </div>
-                </div>
-              )}
-              <FilterDropdown
-                label=""
-                value={formData.category}
-                onChange={(value) => handleFieldChange('category', value)}
-                options={categories}
-                placeholder="Select a category"
-                isLoading={loadingCategories}
-                showSearch
-              />
-            </div>
-            </div>
-
-            {/* Answer Options */}
-            {(formData.type === 'multiple_choice' || formData.type === 'true_false') && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Answer Options *</label>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={formData.options.map((_, i) => i)} strategy={verticalListSortingStrategy}>
-                        <div className="space-y-3">
-                        {formData.options.map((option, index) => (
-                            <SortableOption
-                            key={index}
-                            id={index}
-                            option={option}
-                            index={index}
-                            isReadOnly={isReadOnly}
-                            isMultipleChoice={formData.type === 'multiple_choice'}
-                            handleOptionChange={handleOptionChange}
-                            setCorrectAnswer={setCorrectAnswer}
-                            removeOption={removeOption}
-                            />
-                        ))}
-                        </div>
-                    </SortableContext>
-                </DndContext>
-                {!isReadOnly && formData.type === 'multiple_choice' && (
-                  <Button variant="secondary" size="sm" onClick={addOption} className="mt-3">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Option
-                  </Button>
-                )}
-                {errors.options && <p className="mt-1 text-sm text-red-600">{errors.options}</p>}
-              </div>
-            )}
-            
-            {/* Explanation */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Explanation (Optional)</label>
-              <ReactQuill
-                ref={quillRef}
-                theme="snow"
-                value={formData.explanation}
-                onChange={(value) => handleFieldChange('explanation', value)}
-                modules={quillModules}
-              />
-            </div>
+          {/* Explicación */}
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>Explicación (Opcional)</label>
+            <ReactQuill
+              ref={quillRef}
+              theme="snow"
+              value={formData.explanation}
+              onChange={(value) => handleFieldChange('explanation', value)}
+              modules={quillModules}
+            />
+          </div>
             
         </form>
 
         {/* Footer */}
         {!isReadOnly && (
-          <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
-            {errors.submit && <p className="text-red-600 text-sm">{errors.submit}</p>}
-            <Button variant="secondary" onClick={onClose} disabled={isLoading}>Cancel</Button>
+          <div 
+            className="flex items-center justify-end gap-3 p-6"
+            style={{ 
+              borderTop: `1px solid ${pageColors.inputBorder}`,
+              backgroundColor: pageColors.cardBg
+            }}
+          >
+            {errors.submit && <p style={{ color: '#dc2626', fontSize: '14px' }}>{errors.submit}</p>}
+            <button 
+              type="button"
+              onClick={onClose} 
+              disabled={isLoading}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: `1px solid ${pageColors.inputBorder}`,
+                backgroundColor: pageColors.inputBg,
+                color: pageColors.text,
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                opacity: isLoading ? 0.7 : 1
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading) e.currentTarget.style.opacity = '0.8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = isLoading ? '0.7' : '1';
+              }}
+            >
+              Cancelar
+            </button>
             {mode === 'create' && (
-              <Button onClick={handleSaveAndNew} disabled={isLoading} isLoading={isLoading}>Save & Add New</Button>
+              <button 
+                type="button"
+                onClick={handleSaveAndNew} 
+                disabled={isLoading}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: '#6b7280',
+                  color: '#ffffff',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  opacity: isLoading ? 0.7 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (!isLoading) e.currentTarget.style.backgroundColor = '#4b5563';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#6b7280';
+                }}
+              >
+                {isLoading ? 'Guardando...' : 'Guardar y Crear Otra'}
+              </button>
             )}
-            <Button type="submit" onClick={handleSubmit} disabled={isLoading} isLoading={isLoading}>
-              {mode === 'create' ? 'Create Question' : 'Save Changes'}
-            </Button>
+            <button 
+              type="submit"
+              onClick={handleSubmit} 
+              disabled={isLoading}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: '#3b82f6',
+                color: '#ffffff',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                opacity: isLoading ? 0.7 : 1
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading) e.currentTarget.style.backgroundColor = '#2563eb';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#3b82f6';
+              }}
+            >
+              {isLoading ? 'Guardando...' : (mode === 'create' ? 'Crear Pregunta' : 'Guardar Cambios')}
+            </button>
           </div>
         )}
       </div>

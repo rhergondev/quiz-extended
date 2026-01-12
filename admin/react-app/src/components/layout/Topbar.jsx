@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { BookOpen, FileText, User, LogOut, Home, Sun, Moon, Menu, Bell, MessageSquare, BarChart3, Building2, ChevronDown, CreditCard, Book } from 'lucide-react';
+import { BookOpen, FileText, User, LogOut, Home, Sun, Moon, Menu, Bell, MessageSquare, BarChart3, Building2, ChevronDown, CreditCard, Book, Settings } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useMessagesContextSafe } from '../../contexts/MessagesContext';
 import { getUnreadNotificationCount } from '../../api/services/notificationsService';
@@ -18,6 +18,10 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
   
   // Unread notifications count
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  // Check if user is admin
+  const isAdmin = window.qe_data?.user?.capabilities?.manage_options === true || 
+                  window.qe_data?.user?.is_admin === true;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -365,7 +369,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
           })}
         </nav>
 
-        {/* Right Section: Dark Mode Toggle, User Icon, Logout - Hidden on mobile */}
+        {/* Right Section: Dark Mode Toggle, Admin, User Icon, Logout - Hidden on mobile */}
         <div className="hidden md:flex items-center gap-3 relative z-10">
           {/* Dark Mode Toggle */}
           <button
@@ -385,6 +389,31 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
           >
             {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
+
+          {/* Admin Button - Only visible for admins */}
+          {isAdmin && (
+            <NavLink
+              to="/admin"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 outline-none focus:outline-none"
+              style={({ isActive }) => ({ 
+                backgroundColor: isActive ? `${topbarColors.accent}20` : 'transparent',
+                color: isActive ? topbarColors.accent : topbarColors.text
+              })}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = `${topbarColors.accent}20`;
+                e.currentTarget.style.color = topbarColors.accent;
+              }}
+              onMouseLeave={(e) => {
+                const isActive = location.pathname.startsWith('/admin');
+                e.currentTarget.style.backgroundColor = isActive ? `${topbarColors.accent}20` : 'transparent';
+                e.currentTarget.style.color = isActive ? topbarColors.accent : topbarColors.text;
+              }}
+              title={t('sidebar.administration', 'Administración')}
+            >
+              <Settings className="w-5 h-5" />
+              <span className="font-medium text-sm">{t('sidebar.administration', 'Admin')}</span>
+            </NavLink>
+          )}
 
           {/* User Icon - Clickable to Account (no name/email) */}
           <a

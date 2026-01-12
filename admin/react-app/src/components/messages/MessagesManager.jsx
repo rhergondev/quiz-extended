@@ -257,7 +257,7 @@ const MessagesManager = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)]" style={{ backgroundColor: pageColors.bgPage }}>
+    <div className="flex flex-col h-[calc(100vh-100px)]" style={{ backgroundColor: pageColors.bgPage }}>
       {/* TOP BAR - Frontend-style design */}
       <div 
         className="flex items-center justify-between px-6 py-4" 
@@ -291,7 +291,7 @@ const MessagesManager = () => {
           {/* Main Send Button - Frontend style */}
           <button 
             onClick={() => setIsSendModalOpen(true)} 
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 focus:outline-none"
             style={{ 
               background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
               color: '#fff',
@@ -314,7 +314,7 @@ const MessagesManager = () => {
           <button 
             onClick={handleRefresh} 
             disabled={loading || sentLoading}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200 focus:outline-none"
             style={{ 
               backgroundColor: pageColors.inputBg, 
               border: `1px solid ${pageColors.cardBorder}`,
@@ -335,7 +335,7 @@ const MessagesManager = () => {
           {/* Dark Mode Toggle */}
           <button 
             onClick={toggleDarkMode}
-            className="p-2.5 rounded-xl transition-all duration-200"
+            className="p-2.5 rounded-xl transition-all duration-200 focus:outline-none"
             style={{ 
               backgroundColor: pageColors.inputBg, 
               border: `1px solid ${pageColors.cardBorder}`,

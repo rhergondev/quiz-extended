@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -32,6 +32,24 @@ import SelfPacedTestsPage from './pages/frontend/course/SelfPacedTestsPage';
 import MessagesPage from './pages/frontend/course/MessagesPage';
 import NotificationsPage from './pages/frontend/NotificationsPage';
 
+// Admin Pages - Lazy loaded (only loaded when admin navigates to /admin)
+const AdminDashboardPage = lazy(() => import('./pages/DashboardPage'));
+const CoursesManager = lazy(() => import('./components/courses/CoursesManager'));
+const LessonsManager = lazy(() => import('./components/lessons/LessonsManager'));
+const QuizzesManager = lazy(() => import('./components/quizzes/QuizzesManager'));
+const UsersManager = lazy(() => import('./components/users/UsersManager'));
+const QuestionsManager = lazy(() => import('./components/questions/QuestionsManager'));
+const AdminMessagesManager = lazy(() => import('./components/messages/MessagesManager'));
+const AdminBooksManager = lazy(() => import('./components/books/BooksManager'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+
+// Loading Spinner for lazy components
+const LazyLoadSpinner = () => (
+  <div className="flex items-center justify-center h-full min-h-[400px]">
+    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-500"></div>
+  </div>
+);
+
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const isLoggedIn = window.qe_data?.user?.id > 0;
@@ -43,6 +61,26 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// Admin Route Component - Only allows admins
+const AdminRoute = ({ children }) => {
+  const isLoggedIn = window.qe_data?.user?.id > 0;
+  const isAdmin = window.qe_data?.user?.capabilities?.manage_options === true || 
+                  window.qe_data?.user?.is_admin === true;
+  
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+};
+
+// Lazy load admin layout
+const FrontendAdminLayout = lazy(() => import('./components/layout/FrontendAdminLayout'));
+
 function FrontendApp() {
   const isLoggedIn = window.qe_data?.user?.id > 0;
 
@@ -51,43 +89,60 @@ function FrontendApp() {
       <ScoreFormatProvider>
         <MessagesProvider enablePolling={true} pollingInterval={30000}>
           <Router>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/login" element={isLoggedIn ? <Navigate to="/" replace /> : <LoginPage />} />
-              
-              {/* Protected Routes */}
-              <Route path="/" element={<ProtectedRoute><FrontendLayout /></ProtectedRoute>}>
-                <Route index element={<CoursesPage />} />
-                <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="/dashboard/attempts/:attemptId" element={<QuizAttemptDetailsPage />} />
-                <Route path="courses" element={<CoursesPage />} />
-                <Route path="books" element={<BooksPage />} />
+            <Suspense fallback={<LazyLoadSpinner />}>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/login" element={isLoggedIn ? <Navigate to="/" replace /> : <LoginPage />} />
                 
-                {/* Course Dashboard Routes */}
-                <Route path="courses/:courseId/dashboard" element={<CourseDashboardPage />} />
-                <Route path="courses/:courseId/study-planner" element={<StudyPlannerPage />} />
-                <Route path="courses/:courseId/lessons" element={<CourseLessonsPage />} />
-                <Route path="courses/:courseId/material" element={<SupportMaterialPage />} />
-                <Route path="courses/:courseId/videos" element={<VideosPage />} />
-                <Route path="courses/:courseId/statistics" element={<CourseStatisticsPage />} />
-                <Route path="courses/:courseId/messages" element={<MessagesPage />} />
-                <Route path="courses/:courseId/notifications" element={<NotificationsPage />} />
+                {/* Admin Routes - Only for admins, lazy loaded */}
+                <Route path="/admin" element={<AdminRoute><FrontendLayout /></AdminRoute>}>
+                  <Route element={<FrontendAdminLayout />}>
+                    <Route index element={<AdminDashboardPage />} />
+                    <Route path="courses" element={<CoursesManager />} />
+                    <Route path="lessons" element={<LessonsManager />} />
+                    <Route path="quizzes" element={<QuizzesManager />} />
+                    <Route path="questions" element={<QuestionsManager />} />
+                    <Route path="students" element={<UsersManager />} />
+                    <Route path="messages" element={<AdminMessagesManager />} />
+                    <Route path="books" element={<AdminBooksManager />} />
+                    <Route path="settings" element={<SettingsPage />} />
+                  </Route>
+                </Route>
                 
-                {/* Course Test Routes */}
-                <Route path="courses/:courseId/test-generator" element={<QuizGeneratorPage />} />
-                <Route path="courses/:courseId/self-paced-tests" element={<SelfPacedTestsPage />} />
-                <Route path="courses/:courseId/tests" element={<TestsPage />} />
-                <Route path="courses/:courseId/test-history" element={<TestHistoryPage />} />
-                
-                {/* Global Routes */}
-                <Route path="test/practice" element={<PracticeModePage />} />
-                <Route path="test/library" element={<QuizLibraryPage />} />
-                <Route path="test/history" element={<TestHistoryPage />} />
-                <Route path="statistics" element={<StatisticsPage />} />
-                <Route path="quiz/:quizId" element={<QuizDetailPage />} />
-                <Route path="quiz-generator" element={<QuizGeneratorPage />} />
-              </Route>
-            </Routes>
+                {/* Protected Routes */}
+                <Route path="/" element={<ProtectedRoute><FrontendLayout /></ProtectedRoute>}>
+                  <Route index element={<CoursesPage />} />
+                  <Route path="dashboard" element={<DashboardPage />} />
+                  <Route path="/dashboard/attempts/:attemptId" element={<QuizAttemptDetailsPage />} />
+                  <Route path="courses" element={<CoursesPage />} />
+                  <Route path="books" element={<BooksPage />} />
+                  
+                  {/* Course Dashboard Routes */}
+                  <Route path="courses/:courseId/dashboard" element={<CourseDashboardPage />} />
+                  <Route path="courses/:courseId/study-planner" element={<StudyPlannerPage />} />
+                  <Route path="courses/:courseId/lessons" element={<CourseLessonsPage />} />
+                  <Route path="courses/:courseId/material" element={<SupportMaterialPage />} />
+                  <Route path="courses/:courseId/videos" element={<VideosPage />} />
+                  <Route path="courses/:courseId/statistics" element={<CourseStatisticsPage />} />
+                  <Route path="courses/:courseId/messages" element={<MessagesPage />} />
+                  <Route path="courses/:courseId/notifications" element={<NotificationsPage />} />
+                  
+                  {/* Course Test Routes */}
+                  <Route path="courses/:courseId/test-generator" element={<QuizGeneratorPage />} />
+                  <Route path="courses/:courseId/self-paced-tests" element={<SelfPacedTestsPage />} />
+                  <Route path="courses/:courseId/tests" element={<TestsPage />} />
+                  <Route path="courses/:courseId/test-history" element={<TestHistoryPage />} />
+                  
+                  {/* Global Routes */}
+                  <Route path="test/practice" element={<PracticeModePage />} />
+                  <Route path="test/library" element={<QuizLibraryPage />} />
+                  <Route path="test/history" element={<TestHistoryPage />} />
+                  <Route path="statistics" element={<StatisticsPage />} />
+                  <Route path="quiz/:quizId" element={<QuizDetailPage />} />
+                  <Route path="quiz-generator" element={<QuizGeneratorPage />} />
+                </Route>
+              </Routes>
+            </Suspense>
             <ToastContainer position="bottom-right" autoClose={5000} hideProgressBar />
           </Router>
         </MessagesProvider>
