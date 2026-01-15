@@ -623,7 +623,7 @@ class QE_Question_Type extends QE_Post_Types_Base
 
         foreach ($quiz_ids as $quiz_id) {
             $quiz_question_ids = get_post_meta($quiz_id, '_quiz_question_ids', true);
-            
+
             if (!empty($quiz_question_ids) && is_array($quiz_question_ids)) {
                 foreach ($quiz_question_ids as $qid) {
                     $question_ids[] = absint($qid);
