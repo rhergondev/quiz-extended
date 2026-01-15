@@ -254,11 +254,9 @@ class QE_Messages_API extends QE_API_Base
                 return $this->error_response('not_found', 'La pregunta no existe.', 404);
             }
 
-            // Determine type and subject
+            // Determine type - subject is now just the user's message
             $type = 'question_' . $feedback_type;
-            $subject = ('challenge' === $feedback_type)
-                ? sprintf('Impugnación de la pregunta #%d: %s', $question_id, esc_html($question->post_title))
-                : sprintf('Comentario sobre la pregunta #%d: %s', $question_id, esc_html($question->post_title));
+            $subject = $message; // Simple: just show the user's message as subject
 
             // Insert message
             $message_id = $this->db_insert('messages', [

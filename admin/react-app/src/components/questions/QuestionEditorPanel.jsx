@@ -28,7 +28,8 @@ const QuestionEditorPanel = ({
   onProviderCreated,
   availableQuizzes,
   availableLessons,
-  availableCourses
+  availableCourses,
+  simpleMode = false // When true, only shows title, answers and explanation
 }) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
@@ -406,69 +407,75 @@ const QuestionEditorPanel = ({
           }}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium" style={{ color: pageColors.text }}>{t('questions.fields.category')}</label>
-                {!showNewCategoryForm && ( <button onClick={() => setShowNewCategoryForm(true)} type="button" className="text-sm" style={{ color: pageColors.accent }}><Plus className="h-4 w-4 inline-block"/></button> )}
-              </div>
-              {showNewCategoryForm && (
-                <div className="mb-2 p-2 border rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border }}>
-                  <div className="flex items-center gap-2">
-                    <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="Nueva..." className="flex-1 w-full px-2 py-1 rounded-md text-sm" style={{ backgroundColor: pageColors.bgCard, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}/>
-                    <Button size="xs" onClick={() => createNewTaxonomy('qe_category', newCategoryName, onCategoryCreated, setCreatingCategory, setNewCategoryName, setShowNewCategoryForm, (val) => handleFieldChange('category', val))} isLoading={creatingCategory}>OK</Button>
-                    <Button size="xs" variant="secondary" onClick={() => setShowNewCategoryForm(false)}>X</Button>
-                  </div>
+        {/* Category, Provider and Difficulty selectors - hidden in simpleMode */}
+        {!simpleMode && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium" style={{ color: pageColors.text }}>{t('questions.fields.category')}</label>
+                  {!showNewCategoryForm && ( <button onClick={() => setShowNewCategoryForm(true)} type="button" className="text-sm" style={{ color: pageColors.accent }}><Plus className="h-4 w-4 inline-block"/></button> )}
                 </div>
-              )}
-              <select value={formData.category || ''} onChange={(e) => handleFieldChange('category', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
-                  <option value="">{t('common.select')}</option>
-                  {(categoryOptions || []).map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium" style={{ color: pageColors.text }}>{t('questions.fields.provider')}</label>
-                {!showNewProviderForm && ( <button onClick={() => setShowNewProviderForm(true)} type="button" className="text-sm" style={{ color: pageColors.accent }}><Plus className="h-4 w-4 inline-block"/></button> )}
-              </div>
-              {showNewProviderForm && (
-                <div className="mb-2 p-2 border rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border }}>
-                  <div className="flex items-center gap-2">
-                    <input type="text" value={newProviderName} onChange={(e) => setNewProviderName(e.target.value)} placeholder="Nuevo..." className="flex-1 w-full px-2 py-1 rounded-md text-sm" style={{ backgroundColor: pageColors.bgCard, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}/>
-                    <Button size="xs" onClick={() => createNewTaxonomy('qe_provider', newProviderName, onProviderCreated, setCreatingProvider, setNewProviderName, setShowNewProviderForm, (val) => handleFieldChange('provider', val))} isLoading={creatingProvider}>OK</Button>
-                    <Button size="xs" variant="secondary" onClick={() => setShowNewProviderForm(false)}>X</Button>
+                {showNewCategoryForm && (
+                  <div className="mb-2 p-2 border rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border }}>
+                    <div className="flex items-center gap-2">
+                      <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="Nueva..." className="flex-1 w-full px-2 py-1 rounded-md text-sm" style={{ backgroundColor: pageColors.bgCard, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}/>
+                      <Button size="xs" onClick={() => createNewTaxonomy('qe_category', newCategoryName, onCategoryCreated, setCreatingCategory, setNewCategoryName, setShowNewCategoryForm, (val) => handleFieldChange('category', val))} isLoading={creatingCategory}>OK</Button>
+                      <Button size="xs" variant="secondary" onClick={() => setShowNewCategoryForm(false)}>X</Button>
+                    </div>
                   </div>
-                </div>
-              )}
-              <select value={formData.provider || ''} onChange={(e) => handleFieldChange('provider', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
-                  <option value="">{t('common.select')}</option>
-                  {(providerOptions || []).map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-              </select>
-            </div>
-            <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>{t('questions.fields.difficulty')}</label>
-                <select value={formData.difficulty || 'medium'} onChange={(e) => handleFieldChange('difficulty', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
-                    {difficultyLevels.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                )}
+                <select value={formData.category || ''} onChange={(e) => handleFieldChange('category', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
+                    <option value="">{t('common.select')}</option>
+                    {(categoryOptions || []).map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
-            </div>
-        </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium" style={{ color: pageColors.text }}>{t('questions.fields.provider')}</label>
+                  {!showNewProviderForm && ( <button onClick={() => setShowNewProviderForm(true)} type="button" className="text-sm" style={{ color: pageColors.accent }}><Plus className="h-4 w-4 inline-block"/></button> )}
+                </div>
+                {showNewProviderForm && (
+                  <div className="mb-2 p-2 border rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border }}>
+                    <div className="flex items-center gap-2">
+                      <input type="text" value={newProviderName} onChange={(e) => setNewProviderName(e.target.value)} placeholder="Nuevo..." className="flex-1 w-full px-2 py-1 rounded-md text-sm" style={{ backgroundColor: pageColors.bgCard, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}/>
+                      <Button size="xs" onClick={() => createNewTaxonomy('qe_provider', newProviderName, onProviderCreated, setCreatingProvider, setNewProviderName, setShowNewProviderForm, (val) => handleFieldChange('provider', val))} isLoading={creatingProvider}>OK</Button>
+                      <Button size="xs" variant="secondary" onClick={() => setShowNewProviderForm(false)}>X</Button>
+                    </div>
+                  </div>
+                )}
+                <select value={formData.provider || ''} onChange={(e) => handleFieldChange('provider', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
+                    <option value="">{t('common.select')}</option>
+                    {(providerOptions || []).map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+              </div>
+              <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>{t('questions.fields.difficulty')}</label>
+                  <select value={formData.difficulty || 'medium'} onChange={(e) => handleFieldChange('difficulty', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
+                      {difficultyLevels.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                  </select>
+              </div>
+          </div>
+        )}
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>Asignar a Curso</label>
-                <select value={formData.courseId || ''} onChange={(e) => handleFieldChange('courseId', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
-                    <option value="">Sin curso asignado</option>
-                    {(availableCourses || []).map(course => ( <option key={course.id} value={course.id}>{course.title?.rendered || course.title}</option> ))}
-                </select>
-            </div>
-            <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>Asignar a Lección</label>
-                <select value={formData.lessonId || ''} onChange={(e) => handleFieldChange('lessonId', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
-                    <option value="">Pregunta General</option>
-                    {(availableLessons || []).map(lesson => ( <option key={lesson.id} value={lesson.id}>{lesson.title?.rendered || lesson.title}</option> ))}
-                </select>
-            </div>
-        </div>
+        {/* Course and Lesson assignment - hidden in simpleMode */}
+        {!simpleMode && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>Asignar a Curso</label>
+                  <select value={formData.courseId || ''} onChange={(e) => handleFieldChange('courseId', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
+                      <option value="">Sin curso asignado</option>
+                      {(availableCourses || []).map(course => ( <option key={course.id} value={course.id}>{course.title?.rendered || course.title}</option> ))}
+                  </select>
+              </div>
+              <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>Asignar a Lección</label>
+                  <select value={formData.lessonId || ''} onChange={(e) => handleFieldChange('lessonId', e.target.value)} className="w-full input rounded-md" style={{ backgroundColor: pageColors.inputBg, borderColor: pageColors.border, border: `1px solid ${pageColors.border}`, color: pageColors.text }}>
+                      <option value="">Pregunta General</option>
+                      {(availableLessons || []).map(lesson => ( <option key={lesson.id} value={lesson.id}>{lesson.title?.rendered || lesson.title}</option> ))}
+                  </select>
+              </div>
+          </div>
+        )}
         
         {['multiple_choice', 'true_false'].includes(formData.type) && (
              <div>
@@ -497,11 +504,14 @@ const QuestionEditorPanel = ({
             </div>
         )}
         
-        <QuizSelector
-            availableQuizzes={availableQuizzes}
-            selectedQuizIds={formData.quizIds || []}
-            onChange={(ids) => handleFieldChange('quizIds', ids)}
-        />
+        {/* Quiz selector - hidden in simpleMode */}
+        {!simpleMode && (
+          <QuizSelector
+              availableQuizzes={availableQuizzes}
+              selectedQuizIds={formData.quizIds || []}
+              onChange={(ids) => handleFieldChange('quizIds', ids)}
+          />
+        )}
        
         <div className="qe-quill-wrapper">
             <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>{t('questions.fields.explanation')}</label>

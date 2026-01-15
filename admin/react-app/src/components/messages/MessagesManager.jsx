@@ -715,7 +715,7 @@ const MessagesManager = () => {
                       <div className="mt-3">
                         <button onClick={() => setShowQuestionEditor(false)} className="flex items-center gap-1 text-sm mb-3 transition-colors hover:opacity-80" style={{ color: pageColors.textMuted }}><ChevronLeft size={16} />Cerrar editor</button>
                         <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${pageColors.cardBorder}`, maxHeight: '500px', overflowY: 'auto' }}>
-                          <QuestionEditorPanel questionId={selectedMessage.related_object_id} mode="edit" onSave={handleQuestionSave} onCancel={() => setShowQuestionEditor(false)} categoryOptions={categoryOptions} providerOptions={providerOptions} onCategoryCreated={refetchTaxonomies} onProviderCreated={refetchTaxonomies} availableQuizzes={availableQuizzes} availableLessons={availableLessons} availableCourses={availableCourses} />
+                          <QuestionEditorPanel questionId={selectedMessage.related_object_id} mode="edit" onSave={handleQuestionSave} onCancel={() => setShowQuestionEditor(false)} simpleMode={true} />
                         </div>
                       </div>
                     )}
