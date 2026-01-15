@@ -70,7 +70,7 @@ class QE_Question_Type extends QE_Post_Types_Base
 
         // 2. Handle course_id filter - INDIRECT SEARCH through quizzes
         // Questions don't reliably store course_ids directly, so we find quizzes for that course,
-        // then find questions that belong to those quizzes
+        // then get the question IDs directly from the quiz's _quiz_question_ids
         if ($request->get_param('course_id')) {
             $course_id = absint($request->get_param('course_id'));
 
@@ -79,29 +79,16 @@ class QE_Question_Type extends QE_Post_Types_Base
                 $quiz_ids = $this->get_quiz_ids_for_course($course_id);
 
                 if (!empty($quiz_ids)) {
-                    if (!isset($args['meta_query'])) {
-                        $args['meta_query'] = [];
+                    // Get question IDs directly from quizzes' _quiz_question_ids
+                    $question_ids = $this->get_question_ids_from_quizzes($quiz_ids);
+
+                    if (!empty($question_ids)) {
+                        // Use post__in to filter by these question IDs
+                        $args['post__in'] = $question_ids;
+                    } else {
+                        // No questions found in these quizzes
+                        $args['post__in'] = [0];
                     }
-
-                    // Find questions that have any of these quiz_ids in _quiz_ids
-                    $quiz_query = ['relation' => 'OR'];
-
-                    foreach ($quiz_ids as $quiz_id) {
-                        // Check array field (integer format i:123;)
-                        $quiz_query[] = [
-                            'key' => '_quiz_ids',
-                            'value' => 'i:' . $quiz_id . ';',
-                            'compare' => 'LIKE'
-                        ];
-                        // Check array field (string format s:3:"123";)
-                        $quiz_query[] = [
-                            'key' => '_quiz_ids',
-                            'value' => 's:' . strlen((string) $quiz_id) . ':"' . $quiz_id . '";',
-                            'compare' => 'LIKE'
-                        ];
-                    }
-
-                    $args['meta_query'][] = $quiz_query;
                 } else {
                     // No quizzes found for this course, return no results
                     $args['post__in'] = [0];
@@ -111,7 +98,7 @@ class QE_Question_Type extends QE_Post_Types_Base
 
         // 3. Handle lessons filter - INDIRECT SEARCH through quizzes
         // Questions don't store lesson_ids directly, so we find quizzes for those lessons,
-        // then find questions that belong to those quizzes
+        // then get the question IDs directly from the quiz's _quiz_question_ids
         if ($request->get_param('lessons')) {
             $lessons = $request->get_param('lessons');
             if (is_string($lessons)) {
@@ -125,29 +112,24 @@ class QE_Question_Type extends QE_Post_Types_Base
                 $quiz_ids = $this->get_quiz_ids_for_lessons($lessons);
 
                 if (!empty($quiz_ids)) {
-                    if (!isset($args['meta_query'])) {
-                        $args['meta_query'] = [];
+                    // Step 2: Get question IDs directly from quizzes' _quiz_question_ids
+                    $question_ids = $this->get_question_ids_from_quizzes($quiz_ids);
+
+                    if (!empty($question_ids)) {
+                        // Use post__in to filter by these question IDs
+                        // If there's already a post__in, intersect them
+                        if (isset($args['post__in']) && !empty($args['post__in']) && $args['post__in'] !== [0]) {
+                            $args['post__in'] = array_intersect($args['post__in'], $question_ids);
+                            if (empty($args['post__in'])) {
+                                $args['post__in'] = [0]; // No intersection, return no results
+                            }
+                        } else {
+                            $args['post__in'] = $question_ids;
+                        }
+                    } else {
+                        // No questions found in these quizzes
+                        $args['post__in'] = [0];
                     }
-
-                    // Step 2: Find questions that have any of these quiz_ids in _quiz_ids
-                    $quiz_query = ['relation' => 'OR'];
-
-                    foreach ($quiz_ids as $quiz_id) {
-                        // Check array field (integer format i:123;)
-                        $quiz_query[] = [
-                            'key' => '_quiz_ids',
-                            'value' => 'i:' . $quiz_id . ';',
-                            'compare' => 'LIKE'
-                        ];
-                        // Check array field (string format s:3:"123";)
-                        $quiz_query[] = [
-                            'key' => '_quiz_ids',
-                            'value' => 's:' . strlen((string) $quiz_id) . ':"' . $quiz_id . '";',
-                            'compare' => 'LIKE'
-                        ];
-                    }
-
-                    $args['meta_query'][] = $quiz_query;
                 } else {
                     // No quizzes found for these lessons, return no results
                     $args['post__in'] = [0];
@@ -551,7 +533,7 @@ class QE_Question_Type extends QE_Post_Types_Base
 
         // For each lesson, get the _lesson_steps meta and extract quiz_ids
         $placeholders = implode(',', array_fill(0, count($lesson_ids), '%d'));
-        
+
         $query = $wpdb->prepare(
             "SELECT pm.meta_value 
              FROM {$wpdb->postmeta} pm
@@ -566,7 +548,7 @@ class QE_Question_Type extends QE_Post_Types_Base
 
         foreach ($results as $meta_value) {
             $steps = maybe_unserialize($meta_value);
-            
+
             if (!is_array($steps)) {
                 continue;
             }
@@ -619,5 +601,36 @@ class QE_Question_Type extends QE_Post_Types_Base
 
         // Step 2: Reuse get_quiz_ids_for_lessons to extract quiz IDs from lesson steps
         return $this->get_quiz_ids_for_lessons($lesson_ids);
+    }
+
+    /**
+     * Get question IDs from quiz's _quiz_question_ids meta
+     * This is the SOURCE OF TRUTH - quizzes store their question IDs, not the reverse
+     * 
+     * In production, questions have empty _quiz_ids, so we must read question IDs
+     * directly from the quiz's _quiz_question_ids meta field
+     *
+     * @param array $quiz_ids Array of quiz IDs
+     * @return array Array of question IDs
+     */
+    private function get_question_ids_from_quizzes($quiz_ids)
+    {
+        if (empty($quiz_ids)) {
+            return [];
+        }
+
+        $question_ids = [];
+
+        foreach ($quiz_ids as $quiz_id) {
+            $quiz_question_ids = get_post_meta($quiz_id, '_quiz_question_ids', true);
+            
+            if (!empty($quiz_question_ids) && is_array($quiz_question_ids)) {
+                foreach ($quiz_question_ids as $qid) {
+                    $question_ids[] = absint($qid);
+                }
+            }
+        }
+
+        return array_unique($question_ids);
     }
 }
