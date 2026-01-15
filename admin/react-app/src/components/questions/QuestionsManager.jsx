@@ -208,11 +208,12 @@ const QuestionsManager = () => {
   }
   
   const totalQuestions = questionsHook.pagination?.total || 0;
+  // course_id no cuenta como filtro activo porque solo filtra lecciones en el UI
   const activeFiltersCount = [
     questionsHook.filters?.category && questionsHook.filters.category !== 'all',
     questionsHook.filters?.provider && questionsHook.filters.provider !== 'all',
     questionsHook.filters?.difficulty && questionsHook.filters.difficulty !== 'all',
-    questionsHook.filters?.course_id && questionsHook.filters.course_id !== 'all',
+    // course_id NO cuenta - es solo para filtrar el dropdown de lecciones
     questionsHook.filters?.lessons && questionsHook.filters.lessons !== 'all',
   ].filter(Boolean).length;
 
@@ -308,10 +309,11 @@ const QuestionsManager = () => {
             className="mt-4 pt-4 grid grid-cols-1 md:grid-cols-5 gap-4"
             style={{ borderTop: `1px solid ${pageColors.border}` }}
           >
-            {/* Curso */}
+            {/* Curso - solo filtra las lecciones del dropdown */}
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.textMuted }}>
                 {t('admin.tests.course')}
+                <span className="ml-1 opacity-60">(filtra lecciones)</span>
               </label>
               <select
                 value={questionsHook.filters?.course_id || 'all'}
@@ -330,7 +332,7 @@ const QuestionsManager = () => {
               </select>
             </div>
 
-            {/* Lección - filtrada por curso */}
+            {/* Lección - filtrada por curso - ESTE ES EL FILTRO REAL */}
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.textMuted }}>
                 {t('admin.questionModal.lesson')}
@@ -345,7 +347,7 @@ const QuestionsManager = () => {
                 disabled={lessonsLoading}
                 style={{
                   backgroundColor: pageColors.inputBg,
-                  border: `1px solid ${pageColors.border}`,
+                  border: `1px solid ${questionsHook.filters?.lessons ? pageColors.accent : pageColors.border}`,
                   color: pageColors.text,
                   opacity: lessonsLoading ? 0.7 : 1,
                 }}

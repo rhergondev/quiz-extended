@@ -18,12 +18,6 @@ if (!defined('ABSPATH')) {
 class QE_Question_Type extends QE_Post_Types_Base
 {
     /**
-     * Debug info for REST response headers
-     * @var array
-     */
-    private static $debug_info = [];
-
-    /**
      * Constructor
      */
     public function __construct()
@@ -36,23 +30,6 @@ class QE_Question_Type extends QE_Post_Types_Base
 
         // 🔥 Add custom query filters for REST API
         add_filter('rest_qe_question_query', [$this, 'add_custom_query_filters'], 10, 2);
-
-        // 🔥 Add debug headers to REST response
-        add_filter('rest_post_dispatch', [$this, 'add_debug_headers'], 10, 3);
-    }
-
-    /**
-     * Add debug info to REST response headers
-     */
-    public function add_debug_headers($result, $server, $request)
-    {
-        if (!empty(self::$debug_info) && $request->get_route() === '/wp/v2/qe_question') {
-            foreach (self::$debug_info as $key => $value) {
-                $header_value = is_array($value) ? json_encode($value) : $value;
-                $result->header('X-QE-Debug-' . $key, $header_value);
-            }
-        }
-        return $result;
     }
 
     /**
@@ -96,32 +73,25 @@ class QE_Question_Type extends QE_Post_Types_Base
         // then get the question IDs directly from the quiz's _quiz_question_ids
         if ($request->get_param('course_id')) {
             $course_id = absint($request->get_param('course_id'));
-            self::$debug_info['course_id'] = $course_id;
 
             if ($course_id > 0) {
                 // Get all quiz IDs that belong to this course
                 $quiz_ids = $this->get_quiz_ids_for_course($course_id);
-                self::$debug_info['quiz_ids_count'] = count($quiz_ids);
-                self::$debug_info['quiz_ids'] = array_slice($quiz_ids, 0, 10); // First 10
 
                 if (!empty($quiz_ids)) {
                     // Get question IDs directly from quizzes' _quiz_question_ids
                     $question_ids = $this->get_question_ids_from_quizzes($quiz_ids);
-                    self::$debug_info['question_ids_count'] = count($question_ids);
 
                     if (!empty($question_ids)) {
                         // Use post__in to filter by these question IDs
                         $args['post__in'] = $question_ids;
-                        self::$debug_info['result'] = 'post__in set with ' . count($question_ids) . ' questions';
                     } else {
                         // No questions found in these quizzes
                         $args['post__in'] = [0];
-                        self::$debug_info['result'] = 'No questions found in quizzes';
                     }
                 } else {
                     // No quizzes found for this course, return no results
                     $args['post__in'] = [0];
-                    self::$debug_info['result'] = 'No quizzes found for course';
                 }
             }
         }
@@ -600,9 +570,7 @@ class QE_Question_Type extends QE_Post_Types_Base
      * Get quiz IDs that belong to the specified course
      * Used for indirect course filtering of questions
      * 
-     * The relationship can be:
-     * - OPTION A: Course._lesson_ids → Lessons → _lesson_steps[].quiz_id → Quiz
-     * - OPTION B: Lesson._course_id → Course (fallback)
+     * The relationship is: Course → Lessons._course_id → Lesson._lesson_steps[].quiz_id → Quiz
      *
      * @param int $course_id Course ID
      * @return array Array of quiz IDs
@@ -612,51 +580,27 @@ class QE_Question_Type extends QE_Post_Types_Base
         global $wpdb;
 
         if (empty($course_id)) {
-            self::$debug_info['get_quiz_ids_for_course'] = 'course_id is empty';
             return [];
         }
 
-        $lesson_ids = [];
-
-        // OPTION A: Try to get lessons from Course._lesson_ids (primary method)
-        $course_lesson_ids = get_post_meta($course_id, '_lesson_ids', true);
-
-        self::$debug_info['course_lesson_ids_raw'] = $course_lesson_ids;
-        self::$debug_info['course_lesson_ids_type'] = gettype($course_lesson_ids);
-
-        if (!empty($course_lesson_ids) && is_array($course_lesson_ids)) {
-            $lesson_ids = array_map('absint', $course_lesson_ids);
-            self::$debug_info['method'] = 'OPTION_A';
-            self::$debug_info['lesson_ids_count'] = count($lesson_ids);
-        }
-
-        // OPTION B: Fallback - get lessons that have _course_id pointing to this course
-        if (empty($lesson_ids)) {
-            self::$debug_info['method'] = 'OPTION_B';
-            $lesson_ids = $wpdb->get_col($wpdb->prepare(
-                "SELECT p.ID 
-                 FROM {$wpdb->posts} p
-                 INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-                 WHERE p.post_type = 'qe_lesson'
-                 AND p.post_status IN ('publish', 'draft', 'private')
-                 AND pm.meta_key = '_course_id'
-                 AND pm.meta_value = %d",
-                $course_id
-            ));
-            self::$debug_info['lesson_ids_count'] = count($lesson_ids);
-        }
+        // Step 1: Get all lessons for this course
+        $lesson_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT p.ID 
+             FROM {$wpdb->posts} p
+             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+             WHERE p.post_type = 'qe_lesson'
+             AND p.post_status IN ('publish', 'draft', 'private')
+             AND pm.meta_key = '_course_id'
+             AND pm.meta_value = %d",
+            $course_id
+        ));
 
         if (empty($lesson_ids)) {
-            self::$debug_info['lesson_ids'] = 'EMPTY - No lessons found';
             return [];
         }
-
-        self::$debug_info['lesson_ids'] = array_slice($lesson_ids, 0, 10); // First 10
 
         // Step 2: Reuse get_quiz_ids_for_lessons to extract quiz IDs from lesson steps
-        $quiz_ids = $this->get_quiz_ids_for_lessons($lesson_ids);
-
-        return $quiz_ids;
+        return $this->get_quiz_ids_for_lessons($lesson_ids);
     }
 
     /**

@@ -84,22 +84,20 @@ export const useQuestionsAdmin = (options = {}) => {
 
       const page = reset ? 1 : pagination.currentPage;
 
-      // 🔥 Si hay lección seleccionada, no pasamos course_id
-      // (la lección ya implica el curso y evitamos conflictos de meta_query AND)
-      const effectiveCourseId = filters.lessons ? null : filters.course_id;
+      // 🔥 course_id NUNCA se envía al API - solo sirve para filtrar lecciones en el UI
+      // El filtro real de preguntas se hace solo por lessons
 
       console.log('🔍 useQuestionsAdmin fetchQuestions:', { 
         page, 
         filters,
-        effectiveCourseId,
-        note: filters.lessons ? 'Skipping course_id because lesson is selected' : ''
+        note: 'course_id is UI-only (filters lessons dropdown), only lessons filter goes to API'
       });
 
       const result = await getQuestionsForAdmin({
         page,
         perPage: pagination.perPage,
         search: filters.search,
-        course_id: effectiveCourseId,
+        // course_id: NO SE ENVÍA - es solo para filtrar lecciones en el UI
         lessons: filters.lessons,
         category: filters.category,
         provider: filters.provider,
@@ -145,8 +143,7 @@ export const useQuestionsAdmin = (options = {}) => {
 
     const nextPage = pagination.currentPage + 1;
 
-    // 🔥 Si hay lección seleccionada, no pasamos course_id
-    const effectiveCourseId = filters.lessons ? null : filters.course_id;
+    // 🔥 course_id NUNCA se envía al API
 
     try {
       setLoading(true);
@@ -155,7 +152,7 @@ export const useQuestionsAdmin = (options = {}) => {
         page: nextPage,
         perPage: pagination.perPage,
         search: filters.search,
-        course_id: effectiveCourseId,
+        // course_id: NO SE ENVÍA - es solo para filtrar lecciones en el UI
         lessons: filters.lessons,
         category: filters.category,
         provider: filters.provider,
