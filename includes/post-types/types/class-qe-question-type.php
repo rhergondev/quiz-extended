@@ -68,42 +68,50 @@ class QE_Question_Type extends QE_Post_Types_Base
             }
         }
 
-        // 2. Handle course_id filter (supports both legacy _course_id and array _course_ids)
+        // 2. Handle course_id filter - INDIRECT SEARCH through quizzes
+        // Questions don't reliably store course_ids directly, so we find quizzes for that course,
+        // then find questions that belong to those quizzes
         if ($request->get_param('course_id')) {
             $course_id = absint($request->get_param('course_id'));
 
             if ($course_id > 0) {
-                if (!isset($args['meta_query'])) {
-                    $args['meta_query'] = [];
-                }
+                // Get all quiz IDs that belong to this course
+                $quiz_ids = $this->get_quiz_ids_for_course($course_id);
 
-                // OR relation to check both fields
-                $args['meta_query'][] = [
-                    'relation' => 'OR',
-                    // Check legacy single field
-                    [
-                        'key' => '_course_id',
-                        'value' => $course_id,
-                        'compare' => '=',
-                        'type' => 'NUMERIC'
-                    ],
-                    // Check array field (integer format i:123;)
-                    [
-                        'key' => '_course_ids',
-                        'value' => 'i:' . $course_id . ';',
-                        'compare' => 'LIKE'
-                    ],
-                    // Check array field (string format s:3:"123";)
-                    [
-                        'key' => '_course_ids',
-                        'value' => 's:' . strlen((string) $course_id) . ':"' . $course_id . '";',
-                        'compare' => 'LIKE'
-                    ]
-                ];
+                if (!empty($quiz_ids)) {
+                    if (!isset($args['meta_query'])) {
+                        $args['meta_query'] = [];
+                    }
+
+                    // Find questions that have any of these quiz_ids in _quiz_ids
+                    $quiz_query = ['relation' => 'OR'];
+
+                    foreach ($quiz_ids as $quiz_id) {
+                        // Check array field (integer format i:123;)
+                        $quiz_query[] = [
+                            'key' => '_quiz_ids',
+                            'value' => 'i:' . $quiz_id . ';',
+                            'compare' => 'LIKE'
+                        ];
+                        // Check array field (string format s:3:"123";)
+                        $quiz_query[] = [
+                            'key' => '_quiz_ids',
+                            'value' => 's:' . strlen((string) $quiz_id) . ':"' . $quiz_id . '";',
+                            'compare' => 'LIKE'
+                        ];
+                    }
+
+                    $args['meta_query'][] = $quiz_query;
+                } else {
+                    // No quizzes found for this course, return no results
+                    $args['post__in'] = [0];
+                }
             }
         }
 
-        // 3. Handle lessons filter (supports both legacy _question_lesson and array _lesson_ids)
+        // 3. Handle lessons filter - INDIRECT SEARCH through quizzes
+        // Questions don't store lesson_ids directly, so we find quizzes for those lessons,
+        // then find questions that belong to those quizzes
         if ($request->get_param('lessons')) {
             $lessons = $request->get_param('lessons');
             if (is_string($lessons)) {
@@ -113,36 +121,37 @@ class QE_Question_Type extends QE_Post_Types_Base
             if (!empty($lessons) && is_array($lessons)) {
                 $lessons = array_map('absint', $lessons);
 
-                if (!isset($args['meta_query'])) {
-                    $args['meta_query'] = [];
+                // Step 1: Find all quiz IDs that belong to these lessons
+                $quiz_ids = $this->get_quiz_ids_for_lessons($lessons);
+
+                if (!empty($quiz_ids)) {
+                    if (!isset($args['meta_query'])) {
+                        $args['meta_query'] = [];
+                    }
+
+                    // Step 2: Find questions that have any of these quiz_ids in _quiz_ids
+                    $quiz_query = ['relation' => 'OR'];
+
+                    foreach ($quiz_ids as $quiz_id) {
+                        // Check array field (integer format i:123;)
+                        $quiz_query[] = [
+                            'key' => '_quiz_ids',
+                            'value' => 'i:' . $quiz_id . ';',
+                            'compare' => 'LIKE'
+                        ];
+                        // Check array field (string format s:3:"123";)
+                        $quiz_query[] = [
+                            'key' => '_quiz_ids',
+                            'value' => 's:' . strlen((string) $quiz_id) . ':"' . $quiz_id . '";',
+                            'compare' => 'LIKE'
+                        ];
+                    }
+
+                    $args['meta_query'][] = $quiz_query;
+                } else {
+                    // No quizzes found for these lessons, return no results
+                    $args['post__in'] = [0];
                 }
-
-                // Build OR query for each lesson across both fields
-                $lesson_query = ['relation' => 'OR'];
-
-                // Legacy field - can use IN operator
-                $lesson_query[] = [
-                    'key' => '_question_lesson',
-                    'value' => $lessons,
-                    'compare' => 'IN',
-                    'type' => 'NUMERIC'
-                ];
-
-                // Array field - need LIKE for each ID
-                foreach ($lessons as $lesson_id) {
-                    $lesson_query[] = [
-                        'key' => '_lesson_ids',
-                        'value' => 'i:' . $lesson_id . ';',
-                        'compare' => 'LIKE'
-                    ];
-                    $lesson_query[] = [
-                        'key' => '_lesson_ids',
-                        'value' => 's:' . strlen((string) $lesson_id) . ':"' . $lesson_id . '";',
-                        'compare' => 'LIKE'
-                    ];
-                }
-
-                $args['meta_query'][] = $lesson_query;
             }
         }
 
@@ -519,5 +528,96 @@ class QE_Question_Type extends QE_Post_Types_Base
             $this->get_default_rest_args(),
             $this->get_default_capability_args()
         );
+    }
+
+    /**
+     * Get quiz IDs that belong to the specified lessons
+     * Used for indirect lesson filtering of questions
+     * 
+     * The relationship is: Lesson._lesson_steps[].data.quiz_id → Quiz
+     *
+     * @param array $lesson_ids Array of lesson IDs
+     * @return array Array of quiz IDs
+     */
+    private function get_quiz_ids_for_lessons($lesson_ids)
+    {
+        global $wpdb;
+
+        if (empty($lesson_ids)) {
+            return [];
+        }
+
+        $quiz_ids = [];
+
+        // For each lesson, get the _lesson_steps meta and extract quiz_ids
+        $placeholders = implode(',', array_fill(0, count($lesson_ids), '%d'));
+        
+        $query = $wpdb->prepare(
+            "SELECT pm.meta_value 
+             FROM {$wpdb->postmeta} pm
+             INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
+             WHERE p.ID IN ({$placeholders})
+             AND p.post_type = 'qe_lesson'
+             AND pm.meta_key = '_lesson_steps'",
+            ...$lesson_ids
+        );
+
+        $results = $wpdb->get_col($query);
+
+        foreach ($results as $meta_value) {
+            $steps = maybe_unserialize($meta_value);
+            
+            if (!is_array($steps)) {
+                continue;
+            }
+
+            foreach ($steps as $step) {
+                // Only process quiz type steps
+                if (isset($step['type']) && $step['type'] === 'quiz') {
+                    if (isset($step['data']['quiz_id']) && !empty($step['data']['quiz_id'])) {
+                        $quiz_ids[] = absint($step['data']['quiz_id']);
+                    }
+                }
+            }
+        }
+
+        return array_unique($quiz_ids);
+    }
+
+    /**
+     * Get quiz IDs that belong to the specified course
+     * Used for indirect course filtering of questions
+     * 
+     * The relationship is: Course → Lessons._course_id → Lesson._lesson_steps[].quiz_id → Quiz
+     *
+     * @param int $course_id Course ID
+     * @return array Array of quiz IDs
+     */
+    private function get_quiz_ids_for_course($course_id)
+    {
+        global $wpdb;
+
+        if (empty($course_id)) {
+            return [];
+        }
+
+        // Step 1: Get all lessons for this course
+        $lesson_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT p.ID 
+             FROM {$wpdb->posts} p
+             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+             WHERE p.post_type = 'qe_lesson'
+             AND p.post_status IN ('publish', 'draft', 'private')
+             AND pm.meta_key = '_course_id'
+             AND pm.meta_value = %d",
+            $course_id
+        ));
+
+        if (empty($lesson_ids)) {
+            return [];
+        }
+
+        // Step 2: Reuse get_quiz_ids_for_lessons to extract quiz IDs from lesson steps
+        return $this->get_quiz_ids_for_lessons($lesson_ids);
     }
 }

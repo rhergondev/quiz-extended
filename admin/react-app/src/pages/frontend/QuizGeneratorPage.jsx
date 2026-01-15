@@ -244,9 +244,13 @@ const QuizGeneratorPage = () => {
 
   const handleGenerate = async () => {
     // Fetch questions with all filters
+    // If lessons are selected, don't pass course_id (lessons already belong to this course)
+    // This avoids redundant AND conditions in the meta_query
+    const hasLessons = config.lessons.length > 0;
+    
     await fetchQuestions(true, {
-      course_id: courseId, // 🔥 Filtrar por el curso actual
-      lessons: config.lessons.length > 0 ? config.lessons : null,
+      course_id: hasLessons ? null : courseId, // Only use course_id if no specific lessons selected
+      lessons: hasLessons ? config.lessons : null,
       difficulty: config.difficulty !== 'all' ? config.difficulty : null,
       perPage: config.numQuestions,
       status_filters: config.statusFilters.length > 0 ? config.statusFilters : null

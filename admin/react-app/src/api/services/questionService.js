@@ -8,7 +8,7 @@
  * @version 2.0.0
  */
 
-import { createResourceService, buildQueryParams } from './baseService.js';
+import { createResourceService, buildQueryParams, makeApiRequest } from './baseService.js';
 import { 
   sanitizeQuestionData,           // ← IMPORTADO desde questionDataUtils
   validateQuestionData,           // ← IMPORTADO desde questionDataUtils
@@ -26,6 +26,21 @@ const buildQuestionQueryParams = (options = {}) => {
   // Añade el filtro específico de quiz si existe
   if (options.quizId) {
     params.append('quiz_id', options.quizId.toString());
+  }
+
+  // 🔥 Filtro por curso (búsqueda indirecta a través de quizzes en el backend)
+  if (options.course_id) {
+    params.append('course_id', options.course_id.toString());
+  }
+
+  // 🔥 Filtro por lecciones (búsqueda indirecta a través de quizzes en el backend)
+  if (options.lessons) {
+    const lessonsValue = Array.isArray(options.lessons) 
+      ? options.lessons.join(',') 
+      : options.lessons;
+    if (lessonsValue) {
+      params.append('lessons', lessonsValue);
+    }
   }
 
   // Añade filtros de taxonomía si existen y no son 'all'
@@ -196,6 +211,130 @@ export const questionExists = async (questionId) => {
   } catch (error) {
     return false;
   }
+};
+
+// ============================================================
+// 🔥 ADMIN QUESTIONS MANAGER - Filtros extendidos
+// ============================================================
+
+/**
+ * Get questions with extended filters for Admin QuestionsManager
+ * Supports course_id and lessons filters that the base getAll doesn't handle
+ * 
+ * @param {Object} options - Filter options
+ * @param {number} options.page - Page number
+ * @param {number} options.perPage - Items per page
+ * @param {string} options.search - Search term
+ * @param {string|number} options.course_id - Course ID filter
+ * @param {string|number|Array} options.lessons - Lesson ID(s) filter
+ * @param {string} options.category - Category filter
+ * @param {string} options.provider - Provider filter
+ * @param {string} options.difficulty - Difficulty filter
+ * @param {string} options.status - Status filter
+ * @returns {Promise<Object>} Questions and pagination
+ */
+export const getQuestionsForAdmin = async (options = {}) => {
+  const config = window.qe_data || {};
+  
+  if (!config.endpoints?.questions) {
+    throw new Error('Questions endpoint not configured');
+  }
+
+  const {
+    page = 1,
+    perPage = 24,
+    search = '',
+    course_id = null,
+    lessons = null,
+    category = null,
+    provider = null,
+    difficulty = null,
+    status = 'publish,draft,private',
+    quizId = null,
+    type = null
+  } = options;
+
+  // Build query params
+  const params = new URLSearchParams({
+    page: page.toString(),
+    per_page: perPage.toString(),
+    orderby: 'date',
+    order: 'desc'
+  });
+
+  // Status
+  if (status) {
+    params.append('status', status);
+  }
+
+  // Search
+  if (search && search.trim()) {
+    params.append('search', search.trim());
+  }
+
+  // 🔥 Course ID filter
+  if (course_id && course_id !== 'all') {
+    params.append('course_id', course_id.toString());
+  }
+
+  // 🔥 Lessons filter - supports single value or array
+  if (lessons && lessons !== 'all') {
+    const lessonsValue = Array.isArray(lessons) 
+      ? lessons.join(',') 
+      : lessons.toString();
+    if (lessonsValue) {
+      params.append('lessons', lessonsValue);
+    }
+  }
+
+  // Category
+  if (category && category !== 'all') {
+    const categoryValue = Array.isArray(category) 
+      ? category.join(',') 
+      : category;
+    params.append('qe_category', categoryValue);
+  }
+
+  // Provider
+  if (provider && provider !== 'all') {
+    params.append('qe_provider', provider);
+  }
+
+  // Difficulty
+  if (difficulty && difficulty !== 'all') {
+    params.append('difficulty', difficulty);
+  }
+
+  // Quiz ID
+  if (quizId) {
+    params.append('quiz_id', quizId.toString());
+  }
+
+  // Type
+  if (type && type !== 'all') {
+    params.append('type', type);
+  }
+
+  const url = `${config.endpoints.questions}?${params.toString()}`;
+  
+  console.log('🔍 getQuestionsForAdmin:', { url, options });
+
+  const response = await makeApiRequest(url);
+  
+  // Sanitize data
+  const sanitizedData = Array.isArray(response.data)
+    ? response.data.map(sanitizeQuestionData)
+    : [];
+
+  return {
+    data: sanitizedData,
+    pagination: {
+      currentPage: page,
+      totalPages: parseInt(response.headers['X-WP-TotalPages'] || '1', 10),
+      total: parseInt(response.headers['X-WP-Total'] || '0', 10),
+      perPage
+    }
+  };
 };
 
 /**

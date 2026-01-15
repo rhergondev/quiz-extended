@@ -4,12 +4,15 @@ import { Search, Plus, Filter, HelpCircle, ChevronDown, X, Loader2 } from 'lucid
 import { toast } from 'react-toastify';
 
 // Hooks
-import useQuestions from '../../hooks/useQuestions.js';
+import useQuestionsAdmin from '../../hooks/useQuestionsAdmin.js';
 import useLessons from '../../hooks/useLessons.js';
 import useQuizzes from '../../hooks/useQuizzes.js';
 import useCourses from '../../hooks/useCourses.js';
 import { useTaxonomyOptions } from '../../hooks/useTaxonomyOptions.js';
 import { useTheme } from '../../contexts/ThemeContext';
+
+// Services
+import { getCourseLessons } from '../../api/services/courseLessonService';
 
 // Componentes
 import QuestionCard from './QuestionCard';
@@ -22,9 +25,14 @@ const QuestionsManager = () => {
   // --- ESTADOS PRINCIPALES ---
   const [modalState, setModalState] = useState({ isOpen: false, mode: 'create', questionId: null });
   const [showFilters, setShowFilters] = useState(false);
+  
+  // 🔥 Estado para lecciones filtradas por curso
+  const [filteredLessons, setFilteredLessons] = useState([]);
+  const [lessonsLoading, setLessonsLoading] = useState(false);
 
   // --- HOOKS DE DATOS ---
-  const questionsHook = useQuestions({ 
+  // 🔥 Usamos el nuevo hook específico para admin con filtros extendidos
+  const questionsHook = useQuestionsAdmin({ 
     autoFetch: true, 
     perPage: 24,
     debounceMs: 300 
@@ -50,6 +58,35 @@ const QuestionsManager = () => {
     }
   }, []);
 
+  // 🔥 Cargar lecciones filtradas cuando se seleccione un curso
+  const selectedCourseId = questionsHook.filters?.course_id;
+  
+  useEffect(() => {
+    const loadLessonsForCourse = async () => {
+      if (!selectedCourseId || selectedCourseId === 'all') {
+        // Si no hay curso seleccionado, mostrar todas las lecciones
+        setFilteredLessons(lessonsHook.lessons || []);
+        return;
+      }
+      
+      setLessonsLoading(true);
+      try {
+        const courseIdInt = parseInt(selectedCourseId, 10);
+        if (!isNaN(courseIdInt)) {
+          const result = await getCourseLessons(courseIdInt, { perPage: 100 });
+          setFilteredLessons(result.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching lessons for course:', error);
+        setFilteredLessons([]);
+      } finally {
+        setLessonsLoading(false);
+      }
+    };
+    
+    loadLessonsForCourse();
+  }, [selectedCourseId, lessonsHook.lessons]);
+
   // --- OPCIONES DE TAXONOMÍAS ---
   const categoryOptions = useMemo(() => taxonomyOptions.qe_category || [], [taxonomyOptions.qe_category]);
   const providerOptions = useMemo(() => taxonomyOptions.qe_provider || [], [taxonomyOptions.qe_provider]);
@@ -62,12 +99,20 @@ const QuestionsManager = () => {
     }))
   , [coursesHook.courses]);
 
+  // 🔥 Opciones de lecciones - usa las filtradas por curso
   const lessonOptions = useMemo(() => 
-    (lessonsHook.lessons || []).map(l => ({ 
+    filteredLessons.map(l => ({ 
       value: l.id.toString(), 
       label: l.title?.rendered || l.title 
     }))
-  , [lessonsHook.lessons]);
+  , [filteredLessons]);
+
+  // 🔥 Handler para cambio de curso - limpia el filtro de lección
+  const handleCourseChange = useCallback((courseId) => {
+    // Limpiar lección si se cambia el curso
+    questionsHook.updateFilter('lessons', null);
+    questionsHook.updateFilter('course_id', courseId === 'all' ? null : courseId);
+  }, [questionsHook]);
 
   // --- MANEJADORES DE MODAL ---
   const openCreateModal = () => {
@@ -270,7 +315,7 @@ const QuestionsManager = () => {
               </label>
               <select
                 value={questionsHook.filters?.course_id || 'all'}
-                onChange={(e) => questionsHook.updateFilter('course_id', e.target.value === 'all' ? null : e.target.value)}
+                onChange={(e) => handleCourseChange(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg text-sm"
                 style={{
                   backgroundColor: pageColors.inputBg,
@@ -285,19 +330,24 @@ const QuestionsManager = () => {
               </select>
             </div>
 
-            {/* Tema */}
+            {/* Lección - filtrada por curso */}
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.textMuted }}>
                 {t('admin.questionModal.lesson')}
+                {lessonsLoading && (
+                  <Loader2 size={12} className="inline-block ml-1 animate-spin" />
+                )}
               </label>
               <select
                 value={questionsHook.filters?.lessons || 'all'}
                 onChange={(e) => questionsHook.updateFilter('lessons', e.target.value === 'all' ? null : e.target.value)}
                 className="w-full px-3 py-2 rounded-lg text-sm"
+                disabled={lessonsLoading}
                 style={{
                   backgroundColor: pageColors.inputBg,
                   border: `1px solid ${pageColors.border}`,
                   color: pageColors.text,
+                  opacity: lessonsLoading ? 0.7 : 1,
                 }}
               >
                 <option value="all">{t('common.allLessons')}</option>

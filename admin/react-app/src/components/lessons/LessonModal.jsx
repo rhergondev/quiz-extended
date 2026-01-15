@@ -99,7 +99,11 @@ const LessonModal = ({
         description: lesson.meta?._lesson_description || '',
         lessonOrder: lesson.meta?._lesson_order?.toString() || '1',
         completionCriteria: lesson.meta?._completion_criteria || 'view_all',
-        steps: lesson.meta?._lesson_steps || []
+        // Ensure each step has a unique ID for proper deletion/editing
+        steps: (lesson.meta?._lesson_steps || []).map((step, index) => ({
+          ...step,
+          id: step.id || `step_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`
+        }))
       });
       // Load assigned quiz IDs
       const quizIds = lesson.meta?._assigned_quiz_ids || [];
