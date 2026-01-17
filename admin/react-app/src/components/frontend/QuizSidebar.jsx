@@ -174,93 +174,35 @@ const QuizSidebar = ({
     }
     
     if (element) {
-      console.log('✅ Element found, scrolling...');
+      console.log('✅ Element found, scrolling to question', absoluteIndex + 1);
       
-      // 🔥 FIX: Use setTimeout instead of RAF to ensure we're outside React's render cycle
-      // This prevents the scroll from being reset by React re-renders
+      // 🔥 FIX: Usar scrollIntoView directamente - es más confiable
+      // y funciona correctamente tanto hacia arriba como hacia abajo
       setTimeout(() => {
-        // Verificar que el elemento sigue existiendo
         const verifiedElement = document.getElementById(`quiz-question-${questionId}`);
         if (!verifiedElement) {
-          console.warn('⚠️ Element disappeared after timeout');
+          console.warn('⚠️ Element disappeared');
           return;
         }
         
-        console.log('🔍 Element verified, proceeding with scroll...');
+        // Usar scrollIntoView con behavior smooth para animación
+        // y block 'start' para posicionar al inicio del viewport con un pequeño offset
+        verifiedElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start'
+        });
         
-        // 🔥 FIX: Use the passed scrollContainerRef directly if available
-        let scrollContainer = scrollContainerRef?.current;
-        
-        // Fallback: search for container if ref not provided
-        if (!scrollContainer) {
-          scrollContainer = verifiedElement.parentElement;
-          while (scrollContainer && scrollContainer !== document.body) {
-            const overflowY = window.getComputedStyle(scrollContainer).overflowY;
-            if (overflowY === 'auto' || overflowY === 'scroll') {
-              break;
-            }
-            scrollContainer = scrollContainer.parentElement;
-          }
-        }
-        
+        // Ajustar un poco hacia arriba para dar espacio visual (después de que termine el scroll)
+        const scrollContainer = scrollContainerRef?.current;
         if (scrollContainer) {
-          console.log('📦 Using scroll container:', scrollContainer.tagName, scrollContainer.className);
+          setTimeout(() => {
+            // Restar 20px para dar un poco de margen superior
+            scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - 20);
+          }, 300); // Esperar a que termine el scroll smooth
         }
         
-        // Calcular posición del elemento y hacer scroll manual
-        if (scrollContainer && scrollContainer !== document.body) {
-          const containerRect = scrollContainer.getBoundingClientRect();
-          const elementRect = verifiedElement.getBoundingClientRect();
-          const relativeTop = elementRect.top - containerRect.top + scrollContainer.scrollTop;
-          const offset = containerRect.height / 2 - elementRect.height / 2; // Centrar
-          const finalPosition = Math.max(0, relativeTop - offset);
-          
-          console.log('📍 About to scroll container:', {
-            containerTag: scrollContainer.tagName,
-            relativeTop,
-            offset,
-            finalPosition,
-            currentScroll: scrollContainer.scrollTop
-          });
-          
-          // 🔥 FIX: Use direct scrollTop assignment first, then smooth scroll
-          // This ensures the scroll happens even if smooth scrolling is interrupted
-          try {
-            // First, set scroll position directly to ensure it takes effect
-            scrollContainer.scrollTop = finalPosition;
-            console.log('✅ Direct scrollTop set to:', finalPosition);
-            
-            // Verify the scroll actually happened
-            setTimeout(() => {
-              console.log('📊 Scroll verification - current scrollTop:', scrollContainer.scrollTop);
-            }, 100);
-          } catch (error) {
-            console.error('❌ Error during scroll:', error);
-            // Fallback to scrollIntoView
-            try {
-              verifiedElement.scrollIntoView({ 
-                behavior: 'auto', 
-                block: 'center'
-              });
-              console.log('✅ scrollIntoView fallback executed');
-            } catch (e) {
-              console.error('❌ scrollIntoView also failed:', e);
-            }
-          }
-        } else {
-          // Fallback: usar scrollIntoView si no encontramos contenedor
-          console.log('⚠️ No scroll container found, using scrollIntoView');
-          try {
-            verifiedElement.scrollIntoView({ 
-              behavior: 'auto', 
-              block: 'center'
-            });
-            console.log('✅ scrollIntoView executed');
-          } catch (error) {
-            console.error('❌ Error during scrollIntoView:', error);
-          }
-        }
-      }, 50); // 🔥 FIX: Small delay to escape React's render cycle
+        console.log('✅ scrollIntoView executed for question', absoluteIndex + 1);
+      }, 50);
       
       // Feedback visual: resaltar temporalmente con borde más ancho
       const originalBorderWidth = element.style.borderLeftWidth || '4px';
