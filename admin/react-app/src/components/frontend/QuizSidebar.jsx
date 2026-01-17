@@ -44,18 +44,19 @@ const QuizSidebar = ({
   onQuestionSelect, 
   onSubmit,
   loadedCount = 0,
-  onLoadMore = null // Callback para cargar más preguntas si es necesario
+  onLoadMore = null, // Callback para cargar más preguntas si es necesario
+  scrollContainerRef = null // 🔥 FIX: Direct ref to the questions container
 }) => {
   const { getColor, isDarkMode } = useTheme();
   const { t } = useTranslation();
   
   // 🔥 FIX: Forzar re-render cuando las preguntas se monten en el DOM
-  const [, forceUpdate] = useState({});
+  const [domReady, setDomReady] = useState(false);
   const checkIntervalRef = useRef(null);
   
   useEffect(() => {
     // Esperar a que las preguntas se rendericen completamente en el DOM
-    if (questions && questions.length > 0) {
+    if (questions && questions.length > 0 && !domReady) {
       console.log('🔄 Questions arrived in sidebar, starting DOM check...');
       
       let checksCount = 0;
@@ -75,15 +76,15 @@ const QuizSidebar = ({
           const element = document.getElementById(`quiz-question-${firstQuestionId}`);
           
           if (element) {
-            console.log(`✅ Questions found in DOM after ${checksCount * 200}ms, forcing update`);
-            forceUpdate({});
+            console.log(`✅ Questions found in DOM after ${checksCount * 200}ms, marking DOM ready`);
             clearInterval(checkIntervalRef.current);
             checkIntervalRef.current = null;
+            setDomReady(true); // 🔥 FIX: Use state instead of forceUpdate to avoid re-running
           } else if (checksCount >= maxChecks) {
-            console.warn('⚠️ Questions still not in DOM after 2 seconds, forcing update anyway');
-            forceUpdate({});
+            console.warn('⚠️ Questions still not in DOM after 2 seconds, marking ready anyway');
             clearInterval(checkIntervalRef.current);
             checkIntervalRef.current = null;
+            setDomReady(true);
           }
         }
       }, 200);
@@ -94,6 +95,19 @@ const QuizSidebar = ({
           checkIntervalRef.current = null;
         }
       };
+    }
+  }, [questions, domReady]);
+  
+  // 🔥 FIX: Reset domReady when questions change significantly (new quiz)
+  useEffect(() => {
+    if (questions && questions.length > 0) {
+      const firstId = questions[0]?.id;
+      // Store the first question ID to detect quiz changes
+      if (checkIntervalRef.firstQuestionId && checkIntervalRef.firstQuestionId !== firstId) {
+        console.log('🔄 Quiz changed, resetting domReady');
+        setDomReady(false);
+      }
+      checkIntervalRef.firstQuestionId = firstId;
     }
   }, [questions]);
   
@@ -162,73 +176,91 @@ const QuizSidebar = ({
     if (element) {
       console.log('✅ Element found, scrolling...');
       
-      // 🔥 FIX: Esperar a que el elemento esté completamente renderizado
-      // Usar requestAnimationFrame para asegurar que el layout esté completo
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // Verificar que el elemento sigue existiendo después del doble RAF
-          const verifiedElement = document.getElementById(`quiz-question-${questionId}`);
-          if (!verifiedElement) {
-            console.warn('⚠️ Element disappeared after RAF');
-            return;
-          }
-          
-          console.log('🔍 Element verified after RAF, proceeding with scroll...');
-          
-          // 🔥 FIX: Encontrar el contenedor de scroll correcto
-          // Buscar el contenedor padre con overflow-y-auto (el main con las preguntas)
-          let scrollContainer = verifiedElement.parentElement;
+      // 🔥 FIX: Use setTimeout instead of RAF to ensure we're outside React's render cycle
+      // This prevents the scroll from being reset by React re-renders
+      setTimeout(() => {
+        // Verificar que el elemento sigue existiendo
+        const verifiedElement = document.getElementById(`quiz-question-${questionId}`);
+        if (!verifiedElement) {
+          console.warn('⚠️ Element disappeared after timeout');
+          return;
+        }
+        
+        console.log('🔍 Element verified, proceeding with scroll...');
+        
+        // 🔥 FIX: Use the passed scrollContainerRef directly if available
+        let scrollContainer = scrollContainerRef?.current;
+        
+        // Fallback: search for container if ref not provided
+        if (!scrollContainer) {
+          scrollContainer = verifiedElement.parentElement;
           while (scrollContainer && scrollContainer !== document.body) {
             const overflowY = window.getComputedStyle(scrollContainer).overflowY;
             if (overflowY === 'auto' || overflowY === 'scroll') {
-              console.log('📦 Found scroll container:', scrollContainer.tagName, scrollContainer.className);
               break;
             }
             scrollContainer = scrollContainer.parentElement;
           }
+        }
+        
+        if (scrollContainer) {
+          console.log('📦 Using scroll container:', scrollContainer.tagName, scrollContainer.className);
+        }
+        
+        // Calcular posición del elemento y hacer scroll manual
+        if (scrollContainer && scrollContainer !== document.body) {
+          const containerRect = scrollContainer.getBoundingClientRect();
+          const elementRect = verifiedElement.getBoundingClientRect();
+          const relativeTop = elementRect.top - containerRect.top + scrollContainer.scrollTop;
+          const offset = containerRect.height / 2 - elementRect.height / 2; // Centrar
+          const finalPosition = Math.max(0, relativeTop - offset);
           
-          // Calcular posición del elemento y hacer scroll manual
-          if (scrollContainer && scrollContainer !== document.body) {
-            const containerRect = scrollContainer.getBoundingClientRect();
-            const elementRect = verifiedElement.getBoundingClientRect();
-            const relativeTop = elementRect.top - containerRect.top + scrollContainer.scrollTop;
-            const offset = containerRect.height / 2 - elementRect.height / 2; // Centrar
-            const finalPosition = relativeTop - offset;
+          console.log('📍 About to scroll container:', {
+            containerTag: scrollContainer.tagName,
+            relativeTop,
+            offset,
+            finalPosition,
+            currentScroll: scrollContainer.scrollTop
+          });
+          
+          // 🔥 FIX: Use direct scrollTop assignment first, then smooth scroll
+          // This ensures the scroll happens even if smooth scrolling is interrupted
+          try {
+            // First, set scroll position directly to ensure it takes effect
+            scrollContainer.scrollTop = finalPosition;
+            console.log('✅ Direct scrollTop set to:', finalPosition);
             
-            console.log('📍 About to scroll container:', {
-              containerTag: scrollContainer.tagName,
-              relativeTop,
-              offset,
-              finalPosition,
-              currentScroll: scrollContainer.scrollTop,
-              willScroll: Math.abs(scrollContainer.scrollTop - finalPosition) > 5
-            });
-            
-            // Scroll suave usando scrollTo
-            try {
-              scrollContainer.scrollTo({
-                top: finalPosition,
-                behavior: 'smooth'
-              });
-              console.log('✅ scrollTo executed successfully');
-            } catch (error) {
-              console.error('❌ Error during scrollTo:', error);
-            }
-          } else {
-            // Fallback: usar scrollIntoView si no encontramos contenedor
-            console.log('⚠️ Using scrollIntoView fallback');
+            // Verify the scroll actually happened
+            setTimeout(() => {
+              console.log('📊 Scroll verification - current scrollTop:', scrollContainer.scrollTop);
+            }, 100);
+          } catch (error) {
+            console.error('❌ Error during scroll:', error);
+            // Fallback to scrollIntoView
             try {
               verifiedElement.scrollIntoView({ 
-                behavior: 'smooth', 
+                behavior: 'auto', 
                 block: 'center'
               });
-              console.log('✅ scrollIntoView executed');
-            } catch (error) {
-              console.error('❌ Error during scrollIntoView:', error);
+              console.log('✅ scrollIntoView fallback executed');
+            } catch (e) {
+              console.error('❌ scrollIntoView also failed:', e);
             }
           }
-        });
-      });
+        } else {
+          // Fallback: usar scrollIntoView si no encontramos contenedor
+          console.log('⚠️ No scroll container found, using scrollIntoView');
+          try {
+            verifiedElement.scrollIntoView({ 
+              behavior: 'auto', 
+              block: 'center'
+            });
+            console.log('✅ scrollIntoView executed');
+          } catch (error) {
+            console.error('❌ Error during scrollIntoView:', error);
+          }
+        }
+      }, 50); // 🔥 FIX: Small delay to escape React's render cycle
       
       // Feedback visual: resaltar temporalmente con borde más ancho
       const originalBorderWidth = element.style.borderLeftWidth || '4px';
@@ -335,8 +367,9 @@ const QuizSidebar = ({
               // Verificar si la pregunta está cargada buscándola en el array de questions
               const isLoaded = questions && questions.some(q => q.id === qId);
               
-              // 🔥 FIX: Verificar también que el elemento exista en el DOM antes de habilitar
-              const elementExists = isLoaded && document.getElementById(`quiz-question-${qId}`) !== null;
+              // 🔥 FIX: Use domReady state instead of checking DOM on every render
+              // This avoids the timing issue where DOM check passes but scroll fails
+              const elementExists = isLoaded && domReady;
               
               const isAnswered = userAnswers.hasOwnProperty(qId);
               const isRisked = riskedAnswers.includes(qId);
@@ -371,20 +404,13 @@ const QuizSidebar = ({
                 <button
                   key={qId}
                   onClick={() => {
-                    console.log('🖱️ Button clicked for question:', index + 1, 'isLoaded:', isLoaded, 'elementExists:', elementExists);
+                    console.log('🖱️ Button clicked for question:', index + 1, 'isLoaded:', isLoaded, 'domReady:', domReady);
                     if (elementExists) {
                       scrollToQuestion(index);
                     } else if (!isLoaded) {
                       console.log('⚠️ Question not loaded yet');
                     } else {
-                      console.log('⚠️ Question loaded but element not in DOM yet, retrying in 100ms...');
-                      setTimeout(() => {
-                        const retryExists = document.getElementById(`quiz-question-${qId}`) !== null;
-                        console.log('🔄 Retry check:', retryExists);
-                        if (retryExists) {
-                          scrollToQuestion(index);
-                        }
-                      }, 100);
+                      console.log('⚠️ DOM not ready yet, please wait...');
                     }
                   }}
                   disabled={!elementExists}

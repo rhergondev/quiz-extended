@@ -809,6 +809,7 @@ const Quiz = ({
               onSubmit={handleSubmit}
               loadedCount={loadedCount}
               onLoadMore={hasMoreQuestions && !questionsLoading ? loadMore : null}
+              scrollContainerRef={questionsContainerRef}
             />
         </div>
       </aside>
