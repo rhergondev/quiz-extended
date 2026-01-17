@@ -18,6 +18,10 @@ export const useMessagesContextSafe = () => {
 };
 
 export const MessagesProvider = ({ children, enablePolling = true, pollingInterval = 30000 }) => {
+  const isAdmin = useMemo(() => {
+    return window.qe_data?.user?.roles?.includes('administrator') || false;
+  }, []);
+
   // --- STATE ---
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -90,7 +94,8 @@ export const MessagesProvider = ({ children, enablePolling = true, pollingInterv
         order: 'desc'
       });
 
-      const url = `${config.endpoints.custom_api}/messages?${queryParams}`;
+      const endpoint = isAdmin ? 'messages' : 'messages/inbox';
+      const url = `${config.endpoints.custom_api}/${endpoint}?${queryParams}`;
 
       // Prevent duplicate requests
       const currentRequestParams = `${url}-${page}-${reset}`;
@@ -144,16 +149,20 @@ export const MessagesProvider = ({ children, enablePolling = true, pollingInterv
     setUpdating(true);
     try {
       const config = getApiConfig();
-      const url = `${config.endpoints.custom_api}/messages/${messageId}`;
+      const url = isAdmin
+        ? `${config.endpoints.custom_api}/messages/${messageId}`
+        : `${config.endpoints.custom_api}/messages/${messageId}/read`;
 
-      const response = await makeApiRequest(url, {
+      const response = await makeApiRequest(url, isAdmin ? {
         method: 'PUT',
         body: JSON.stringify({ status })
+      } : {
+        method: 'POST'
       });
 
       if (!mountedRef.current) return;
 
-      const updatedMessage = response.data;
+      const updatedMessage = response.data || { status };
 
       // Update with server response
       setMessages(prev => prev.map(msg => 
@@ -177,11 +186,15 @@ export const MessagesProvider = ({ children, enablePolling = true, pollingInterv
         setUpdating(false);
       }
     }
-  }, [fetchMessages]);
+  }, [fetchMessages, isAdmin]);
 
   // --- DELETE MESSAGE ---
   const deleteMessage = useCallback(async (messageId) => {
     if (!mountedRef.current) return;
+
+    if (!isAdmin) {
+      throw new Error('No tienes permisos para eliminar mensajes.');
+    }
 
     // Optimistic update
     const previousMessages = messages;
@@ -208,7 +221,7 @@ export const MessagesProvider = ({ children, enablePolling = true, pollingInterv
         setUpdating(false);
       }
     }
-  }, [messages]);
+  }, [messages, isAdmin]);
 
   // --- POLLING ---
   useEffect(() => {
