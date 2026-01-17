@@ -113,11 +113,41 @@ const QuizSidebar = ({
     
     if (element) {
       console.log('✅ Element found, scrolling...');
-      // Scroll suave al elemento
-      element.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'center'
-      });
+      
+      // 🔥 FIX: Encontrar el contenedor de scroll correcto
+      // Buscar el contenedor padre con overflow-y-auto (el main con las preguntas)
+      let scrollContainer = element.parentElement;
+      while (scrollContainer && scrollContainer !== document.body) {
+        const overflowY = window.getComputedStyle(scrollContainer).overflowY;
+        if (overflowY === 'auto' || overflowY === 'scroll') {
+          console.log('📦 Found scroll container:', scrollContainer);
+          break;
+        }
+        scrollContainer = scrollContainer.parentElement;
+      }
+      
+      // Calcular posición del elemento y hacer scroll manual
+      if (scrollContainer && scrollContainer !== document.body) {
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+        const relativeTop = elementRect.top - containerRect.top + scrollContainer.scrollTop;
+        const offset = containerRect.height / 2 - elementRect.height / 2; // Centrar
+        
+        console.log('📍 Scrolling to position:', relativeTop - offset);
+        
+        // Scroll suave usando scrollTo
+        scrollContainer.scrollTo({
+          top: relativeTop - offset,
+          behavior: 'smooth'
+        });
+      } else {
+        // Fallback: usar scrollIntoView si no encontramos contenedor
+        console.log('⚠️ Using scrollIntoView fallback');
+        element.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center'
+        });
+      }
       
       // Feedback visual: resaltar temporalmente con borde más ancho
       const originalBorderWidth = element.style.borderLeftWidth || '4px';
