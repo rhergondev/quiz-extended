@@ -193,26 +193,39 @@ const QuizSidebar = ({
             const elementRect = verifiedElement.getBoundingClientRect();
             const relativeTop = elementRect.top - containerRect.top + scrollContainer.scrollTop;
             const offset = containerRect.height / 2 - elementRect.height / 2; // Centrar
+            const finalPosition = relativeTop - offset;
             
-            console.log('📍 Scrolling to position:', {
+            console.log('📍 About to scroll container:', {
+              containerTag: scrollContainer.tagName,
               relativeTop,
               offset,
-              finalPosition: relativeTop - offset,
-              currentScroll: scrollContainer.scrollTop
+              finalPosition,
+              currentScroll: scrollContainer.scrollTop,
+              willScroll: Math.abs(scrollContainer.scrollTop - finalPosition) > 5
             });
             
             // Scroll suave usando scrollTo
-            scrollContainer.scrollTo({
-              top: relativeTop - offset,
-              behavior: 'smooth'
-            });
+            try {
+              scrollContainer.scrollTo({
+                top: finalPosition,
+                behavior: 'smooth'
+              });
+              console.log('✅ scrollTo executed successfully');
+            } catch (error) {
+              console.error('❌ Error during scrollTo:', error);
+            }
           } else {
             // Fallback: usar scrollIntoView si no encontramos contenedor
             console.log('⚠️ Using scrollIntoView fallback');
-            verifiedElement.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'center'
-            });
+            try {
+              verifiedElement.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center'
+              });
+              console.log('✅ scrollIntoView executed');
+            } catch (error) {
+              console.error('❌ Error during scrollIntoView:', error);
+            }
           }
         });
       });
