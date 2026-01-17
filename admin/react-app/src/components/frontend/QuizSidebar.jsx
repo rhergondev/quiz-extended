@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
 
@@ -50,66 +50,6 @@ const QuizSidebar = ({
   const { getColor, isDarkMode } = useTheme();
   const { t } = useTranslation();
   
-  // 🔥 FIX: Forzar re-render cuando las preguntas se monten en el DOM
-  const [domReady, setDomReady] = useState(false);
-  const checkIntervalRef = useRef(null);
-  
-  useEffect(() => {
-    // Esperar a que las preguntas se rendericen completamente en el DOM
-    if (questions && questions.length > 0 && !domReady) {
-      console.log('🔄 Questions arrived in sidebar, starting DOM check...');
-      
-      let checksCount = 0;
-      const maxChecks = 10; // Máximo 10 checks (2 segundos)
-      
-      // Limpiar intervalo anterior si existe
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current);
-      }
-      
-      checkIntervalRef.current = setInterval(() => {
-        checksCount++;
-        
-        // Verificar si al menos la primera pregunta existe en el DOM
-        const firstQuestionId = questions[0]?.id;
-        if (firstQuestionId) {
-          const element = document.getElementById(`quiz-question-${firstQuestionId}`);
-          
-          if (element) {
-            console.log(`✅ Questions found in DOM after ${checksCount * 200}ms, marking DOM ready`);
-            clearInterval(checkIntervalRef.current);
-            checkIntervalRef.current = null;
-            setDomReady(true); // 🔥 FIX: Use state instead of forceUpdate to avoid re-running
-          } else if (checksCount >= maxChecks) {
-            console.warn('⚠️ Questions still not in DOM after 2 seconds, marking ready anyway');
-            clearInterval(checkIntervalRef.current);
-            checkIntervalRef.current = null;
-            setDomReady(true);
-          }
-        }
-      }, 200);
-      
-      return () => {
-        if (checkIntervalRef.current) {
-          clearInterval(checkIntervalRef.current);
-          checkIntervalRef.current = null;
-        }
-      };
-    }
-  }, [questions, domReady]);
-  
-  // 🔥 FIX: Reset domReady when questions change significantly (new quiz)
-  useEffect(() => {
-    if (questions && questions.length > 0) {
-      const firstId = questions[0]?.id;
-      // Store the first question ID to detect quiz changes
-      if (checkIntervalRef.firstQuestionId && checkIntervalRef.firstQuestionId !== firstId) {
-        console.log('🔄 Quiz changed, resetting domReady');
-        setDomReady(false);
-      }
-      checkIntervalRef.firstQuestionId = firstId;
-    }
-  }, [questions]);
   
   const answeredCount = Object.keys(userAnswers).length;
   const riskedCount = riskedAnswers.length;
@@ -139,92 +79,71 @@ const QuizSidebar = ({
 
   const scrollToQuestion = async (absoluteIndex) => {
     console.log('🎯 scrollToQuestion called with absoluteIndex:', absoluteIndex);
-    
-    // Obtener el ID real de la pregunta desde questionIds
+
     const questionId = questionIds[absoluteIndex];
     if (!questionId) {
       console.warn('⚠️ Question ID not found for index:', absoluteIndex);
       return;
     }
-    
-    console.log('🔍 Looking for question with ID:', questionId);
-    
-    // Buscar el elemento usando el ID real de la pregunta
-    let element = document.getElementById(`quiz-question-${questionId}`);
-    
-    // Si no se encuentra, la pregunta podría no estar cargada aún
+
+    const scrollContainer = scrollContainerRef?.current;
+    if (!scrollContainer) {
+      console.warn('⚠️ Scroll container not ready');
+      return;
+    }
+
+    const findElement = () => scrollContainer.querySelector(`#quiz-question-${questionId}`);
+
+    let element = findElement();
     if (!element) {
       console.log('⏳ Question not loaded yet, checking if we can load more...');
-      
-      // Verificar si la pregunta está en la lista de cargadas
+
       const loadedQuestion = questions?.find(q => q.id === questionId);
-      
       if (!loadedQuestion && onLoadMore && typeof onLoadMore === 'function') {
-        console.log('📥 Attempting to load more questions...');
         try {
           await onLoadMore();
-          // Esperar un momento para que el DOM se actualice
-          await new Promise(resolve => setTimeout(resolve, 300));
-          // Intentar encontrar el elemento nuevamente
-          element = document.getElementById(`quiz-question-${questionId}`);
+          await new Promise(resolve => setTimeout(resolve, 200));
+          element = findElement();
         } catch (error) {
           console.error('❌ Error loading more questions:', error);
         }
       }
     }
-    
-    if (element) {
-      console.log('✅ Element found, scrolling to question', absoluteIndex + 1);
-      
-      // 🔥 FIX: Usar scrollIntoView directamente - es más confiable
-      // y funciona correctamente tanto hacia arriba como hacia abajo
-      setTimeout(() => {
-        const verifiedElement = document.getElementById(`quiz-question-${questionId}`);
-        if (!verifiedElement) {
-          console.warn('⚠️ Element disappeared');
-          return;
-        }
-        
-        // Usar scrollIntoView con behavior smooth para animación
-        // y block 'start' para posicionar al inicio del viewport con un pequeño offset
-        verifiedElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start'
-        });
-        
-        // Ajustar un poco hacia arriba para dar espacio visual (después de que termine el scroll)
-        const scrollContainer = scrollContainerRef?.current;
-        if (scrollContainer) {
-          setTimeout(() => {
-            // Restar 20px para dar un poco de margen superior
-            scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - 20);
-          }, 300); // Esperar a que termine el scroll smooth
-        }
-        
-        console.log('✅ scrollIntoView executed for question', absoluteIndex + 1);
-      }, 50);
-      
-      // Feedback visual: resaltar temporalmente con borde más ancho
-      const originalBorderWidth = element.style.borderLeftWidth || '4px';
-      
-      element.style.borderLeftWidth = '12px';
-      element.style.transition = 'border-left-width 0.3s ease';
-      
-      setTimeout(() => {
-        element.style.borderLeftWidth = originalBorderWidth;
-      }, 2000);
-      
-      // Notificar al componente padre si hay callback
-      if (onQuestionSelect) {
-        // Encontrar el índice relativo de la pregunta en el array cargado
-        const relativeIndex = questions?.findIndex(q => q.id === questionId) ?? absoluteIndex;
-        console.log('📞 Calling onQuestionSelect with relativeIndex:', relativeIndex);
-        onQuestionSelect(relativeIndex);
-      }
-    } else {
+
+    if (!element) {
       console.warn('❌ Question element not found even after attempting to load');
-      // Mostrar mensaje al usuario (opcional)
-      // alert(t('quizzes.sidebar.questionNotLoaded'));
+      return;
+    }
+
+    const doScroll = () => {
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      const relativeTop = elementRect.top - containerRect.top + scrollContainer.scrollTop;
+      const targetTop = Math.max(0, relativeTop - 16);
+
+      scrollContainer.scrollTo({
+        top: targetTop,
+        behavior: 'smooth'
+      });
+    };
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(doScroll);
+    });
+
+    // Feedback visual: resaltar temporalmente con borde más ancho
+    const originalBorderWidth = element.style.borderLeftWidth || '4px';
+    element.style.borderLeftWidth = '12px';
+    element.style.transition = 'border-left-width 0.3s ease';
+
+    setTimeout(() => {
+      element.style.borderLeftWidth = originalBorderWidth;
+    }, 2000);
+
+    if (onQuestionSelect) {
+      const relativeIndex = questions?.findIndex(q => q.id === questionId) ?? absoluteIndex;
+      console.log('📞 Calling onQuestionSelect with relativeIndex:', relativeIndex);
+      onQuestionSelect(relativeIndex);
     }
   };
 
@@ -309,9 +228,7 @@ const QuizSidebar = ({
               // Verificar si la pregunta está cargada buscándola en el array de questions
               const isLoaded = questions && questions.some(q => q.id === qId);
               
-              // 🔥 FIX: Use domReady state instead of checking DOM on every render
-              // This avoids the timing issue where DOM check passes but scroll fails
-              const elementExists = isLoaded && domReady;
+              const elementExists = isLoaded;
               
               const isAnswered = userAnswers.hasOwnProperty(qId);
               const isRisked = riskedAnswers.includes(qId);
@@ -346,13 +263,13 @@ const QuizSidebar = ({
                 <button
                   key={qId}
                   onClick={() => {
-                    console.log('🖱️ Button clicked for question:', index + 1, 'isLoaded:', isLoaded, 'domReady:', domReady);
+                    console.log('🖱️ Button clicked for question:', index + 1, 'isLoaded:', isLoaded);
                     if (elementExists) {
                       scrollToQuestion(index);
                     } else if (!isLoaded) {
                       console.log('⚠️ Question not loaded yet');
                     } else {
-                      console.log('⚠️ DOM not ready yet, please wait...');
+                      console.log('⚠️ Element not ready yet, please wait...');
                     }
                   }}
                   disabled={!elementExists}
