@@ -114,40 +114,60 @@ const QuizSidebar = ({
     if (element) {
       console.log('✅ Element found, scrolling...');
       
-      // 🔥 FIX: Encontrar el contenedor de scroll correcto
-      // Buscar el contenedor padre con overflow-y-auto (el main con las preguntas)
-      let scrollContainer = element.parentElement;
-      while (scrollContainer && scrollContainer !== document.body) {
-        const overflowY = window.getComputedStyle(scrollContainer).overflowY;
-        if (overflowY === 'auto' || overflowY === 'scroll') {
-          console.log('📦 Found scroll container:', scrollContainer);
-          break;
-        }
-        scrollContainer = scrollContainer.parentElement;
-      }
-      
-      // Calcular posición del elemento y hacer scroll manual
-      if (scrollContainer && scrollContainer !== document.body) {
-        const containerRect = scrollContainer.getBoundingClientRect();
-        const elementRect = element.getBoundingClientRect();
-        const relativeTop = elementRect.top - containerRect.top + scrollContainer.scrollTop;
-        const offset = containerRect.height / 2 - elementRect.height / 2; // Centrar
-        
-        console.log('📍 Scrolling to position:', relativeTop - offset);
-        
-        // Scroll suave usando scrollTo
-        scrollContainer.scrollTo({
-          top: relativeTop - offset,
-          behavior: 'smooth'
+      // 🔥 FIX: Esperar a que el elemento esté completamente renderizado
+      // Usar requestAnimationFrame para asegurar que el layout esté completo
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Verificar que el elemento sigue existiendo después del doble RAF
+          const verifiedElement = document.getElementById(`quiz-question-${questionId}`);
+          if (!verifiedElement) {
+            console.warn('⚠️ Element disappeared after RAF');
+            return;
+          }
+          
+          console.log('🔍 Element verified after RAF, proceeding with scroll...');
+          
+          // 🔥 FIX: Encontrar el contenedor de scroll correcto
+          // Buscar el contenedor padre con overflow-y-auto (el main con las preguntas)
+          let scrollContainer = verifiedElement.parentElement;
+          while (scrollContainer && scrollContainer !== document.body) {
+            const overflowY = window.getComputedStyle(scrollContainer).overflowY;
+            if (overflowY === 'auto' || overflowY === 'scroll') {
+              console.log('📦 Found scroll container:', scrollContainer.tagName, scrollContainer.className);
+              break;
+            }
+            scrollContainer = scrollContainer.parentElement;
+          }
+          
+          // Calcular posición del elemento y hacer scroll manual
+          if (scrollContainer && scrollContainer !== document.body) {
+            const containerRect = scrollContainer.getBoundingClientRect();
+            const elementRect = verifiedElement.getBoundingClientRect();
+            const relativeTop = elementRect.top - containerRect.top + scrollContainer.scrollTop;
+            const offset = containerRect.height / 2 - elementRect.height / 2; // Centrar
+            
+            console.log('📍 Scrolling to position:', {
+              relativeTop,
+              offset,
+              finalPosition: relativeTop - offset,
+              currentScroll: scrollContainer.scrollTop
+            });
+            
+            // Scroll suave usando scrollTo
+            scrollContainer.scrollTo({
+              top: relativeTop - offset,
+              behavior: 'smooth'
+            });
+          } else {
+            // Fallback: usar scrollIntoView si no encontramos contenedor
+            console.log('⚠️ Using scrollIntoView fallback');
+            verifiedElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center'
+            });
+          }
         });
-      } else {
-        // Fallback: usar scrollIntoView si no encontramos contenedor
-        console.log('⚠️ Using scrollIntoView fallback');
-        element.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center'
-        });
-      }
+      });
       
       // Feedback visual: resaltar temporalmente con borde más ancho
       const originalBorderWidth = element.style.borderLeftWidth || '4px';
