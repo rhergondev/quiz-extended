@@ -73,6 +73,7 @@ export const CourseRankingProvider = ({ courseId, courseName, isOpen, onOpen, on
     const value = {
         t,
         isDarkMode,
+        getColor,
         formatScore,
         primaryColor,
         pageColors,
@@ -172,6 +173,7 @@ export const CourseRankingSlidePanel = () => {
     const {
         t,
         isDarkMode,
+        getColor,
         formatScore,
         primaryColor,
         pageColors,
@@ -218,7 +220,7 @@ export const CourseRankingSlidePanel = () => {
                     style={{
                         backgroundColor: isActive ? primaryColor : pageColors.bg,
                         borderColor: isActive ? primaryColor : pageColors.border,
-                        color: isActive ? '#ffffff' : pageColors.text
+                        color: isActive ? '#ffffff' : (isDarkMode ? '#ffffff' : primaryColor)
                     }}
                 >
                     {i}
@@ -228,30 +230,7 @@ export const CourseRankingSlidePanel = () => {
         return pages;
     };
 
-    // Componente para mostrar progreso del usuario
-    const UserProgressInfo = () => {
-        if (completedQuizzes === totalQuizzes || completedQuizzes === 0) return null;
-        
-        return (
-            <div 
-                className="p-4 rounded-lg flex items-start gap-3"
-                style={{ 
-                    backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.1)' : '#eff6ff',
-                    border: `1px solid ${isDarkMode ? 'rgba(59, 130, 246, 0.3)' : '#93c5fd'}`
-                }}
-            >
-                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#3b82f6' }} />
-                <div>
-                    <p className="font-medium text-sm" style={{ color: isDarkMode ? '#93c5fd' : '#1d4ed8' }}>
-                        {t('ranking.progressInfo', 'Progreso en el curso')}
-                    </p>
-                    <p className="text-xs mt-1" style={{ color: isDarkMode ? '#60a5fa' : '#2563eb' }}>
-                        Has completado {completedQuizzes} de {totalQuizzes} tests. Tu nota media actual es {formatScore(userScore)}.
-                    </p>
-                </div>
-            </div>
-        );
-    };
+
 
     return (
         <div 
@@ -284,12 +263,9 @@ export const CourseRankingSlidePanel = () => {
                             <ChevronLeft className="w-5 h-5" style={{ color: pageColors.text }} />
                         </button>
                         <Trophy className="w-5 h-5" style={{ color: isDarkMode ? pageColors.accent : primaryColor }} />
-                        <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-bold truncate" style={{ color: pageColors.text }}>
-                                {t('ranking.courseRanking', 'Ranking del Curso')}
-                            </h3>
-                            <p className="text-xs truncate" style={{ color: pageColors.textMuted }}>{courseName}</p>
-                        </div>
+                        <h3 className="text-sm font-bold flex items-center" style={{ color: pageColors.text }}>
+                            {t('ranking.courseRanking', 'Ranking del Curso')}
+                        </h3>
                     </div>
                     
                     {/* Remove toggle button from header - now showing both modes */}
@@ -297,7 +273,7 @@ export const CourseRankingSlidePanel = () => {
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto">
-                    <div className="max-w-4xl mx-auto px-4 pt-6 pb-12">
+                    <div className="max-w-6xl mx-auto px-4 pt-6 pb-12">
                         <div className="space-y-4">
                             {loading && !ranking.length ? (
                                 <div className="flex items-center justify-center py-12">
@@ -322,127 +298,123 @@ export const CourseRankingSlidePanel = () => {
                                 </div>
                             ) : (
                                 <>
-                                    {/* Progress Info (if not all quizzes completed) */}
-                                    {completedQuizzes > 0 && completedQuizzes < totalQuizzes && (
-                                        <UserProgressInfo />
-                                    )}
-
-                                    {/* Estadísticas del Curso */}
+                                    {/* Contenedor principal con fondo de color */}
                                     <div 
-                                        className="rounded-xl overflow-hidden border-2"
+                                        className="rounded-2xl overflow-hidden p-4"
                                         style={{ 
-                                            backgroundColor: pageColors.bg,
-                                            borderColor: pageColors.containerBorder
+                                            backgroundColor: getColor('background', '#ffffff'),
+                                            border: isDarkMode ? '1px solid #ffffff' : 'none'
                                         }}
                                     >
-                                        {/* Header */}
+                                    {/* Grid de Estadísticas: Curso y Mis Estadísticas lado a lado */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                                        {/* Estadísticas del Curso */}
                                         <div 
-                                            className="px-4 py-2 flex items-center gap-2"
-                                            style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : `${primaryColor}08` }}
-                                        >
-                                            <Users size={14} style={{ color: pageColors.iconColor }} />
-                                            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>
-                                                Estadísticas del Curso
-                                            </span>
-                                        </div>
-                                        
-                                        {/* Stats Grid */}
-                                        <div 
-                                            className="grid grid-cols-3"
+                                            className="rounded-xl overflow-hidden p-4"
                                             style={{ 
-                                                '--tw-divide-x-reverse': 0,
+                                                backgroundColor: getColor('background', '#ffffff')
                                             }}
                                         >
-                                            <div 
-                                                className="p-3 text-center"
-                                                style={{ borderRight: `1px solid ${pageColors.border}` }}
-                                            >
-                                                <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: pageColors.textMuted }}>
-                                                    Usuarios
-                                                </p>
-                                                <p className="text-xl font-bold" style={{ color: pageColors.text }}>
-                                                    {statistics?.total_users || 0}
-                                                </p>
+                                        <div className="mb-3">
+                                        {/* Título Principal */}
+                                        <h3 className="text-sm font-bold uppercase tracking-wide mb-4 text-center" style={{ color: isDarkMode ? '#ffffff' : primaryColor }}>
+                                            Medias del curso
+                                        </h3>
+                                        
+                                        {/* Espaciador para alinear con "Sin Arriesgar" */}
+                                        <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'transparent' }}>
+                                            &nbsp;
+                                        </p>
+                                        
+                                        {/* Stats en un solo cajón */}
+                                        <div
+                                            className="mx-3"
+                                            style={{
+                                                backgroundColor: primaryColor,
+                                                border: isDarkMode ? '1px solid #ffffff' : 'none',
+                                                borderRadius: '0.75rem',
+                                                overflow: 'hidden'
+                                            }}
+                                        >
+                                            <div className="grid grid-cols-3 px-4 py-2">
+                                                <div className="text-center">
+                                                    <p className="text-[10px] uppercase tracking-wide mb-0.5 font-bold" style={{ color: isDarkMode ? pageColors.accent : '#ffffff' }}>
+                                                        Usuarios
+                                                    </p>
+                                                    <p className="text-lg font-bold" style={{ color: '#ffffff' }}>
+                                                        {statistics?.total_users || 0}
+                                                    </p>
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-[10px] uppercase tracking-wide mb-0.5 font-bold" style={{ color: isDarkMode ? pageColors.accent : '#ffffff' }}>
+                                                        Sin Arriesgar
+                                                    </p>
+                                                    <p className="text-lg font-bold" style={{ color: '#ffffff' }}>
+                                                        {formatScore(statistics?.avg_score_without_risk || 0)}
+                                                    </p>
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-[10px] uppercase tracking-wide mb-0.5 font-bold" style={{ color: isDarkMode ? pageColors.accent : '#ffffff' }}>
+                                                        Arriesgando
+                                                    </p>
+                                                    <p className="text-lg font-bold" style={{ color: '#ffffff' }}>
+                                                        {formatScore(statistics?.avg_score_with_risk || 0)}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div 
-                                                className="p-3 text-center"
-                                                style={{ borderRight: `1px solid ${pageColors.border}` }}
-                                            >
-                                                <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: pageColors.textMuted }}>
-                                                    Media Sin Riesgo
-                                                </p>
-                                                <p className="text-xl font-bold" style={{ color: isDarkMode ? pageColors.text : primaryColor }}>
-                                                    {formatScore(statistics?.avg_score_without_risk || 0)}
-                                                </p>
-                                            </div>
-                                            <div className="p-3 text-center">
-                                                <p className="text-[10px] uppercase tracking-wide mb-1" style={{ color: pageColors.textMuted }}>
-                                                    Media Con Riesgo
-                                                </p>
-                                                <p className="text-xl font-bold" style={{ color: pageColors.accent }}>
-                                                    {formatScore(statistics?.avg_score_with_risk || 0)}
-                                                </p>
-                                            </div>
+                                        </div>
                                         </div>
                                     </div>
 
-                                    {/* Mis Estadísticas - Unificado */}
-                                    {completedQuizzes > 0 && (
-                                        <div 
-                                            className="rounded-xl overflow-hidden border-2"
-                                            style={{ 
-                                                backgroundColor: pageColors.bg,
-                                                borderColor: pageColors.containerBorder
-                                            }}
-                                        >
-                                            {/* Header */}
+                                        {/* Mis Estadísticas - Unificado */}
+                                        {completedQuizzes > 0 && (
                                             <div 
-                                                className="px-4 py-2 flex items-center gap-2"
-                                                style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : `${primaryColor}08` }}
+                                                className="rounded-xl overflow-hidden p-4"
+                                                style={{ 
+                                                    backgroundColor: getColor('background', '#ffffff')
+                                                }}
                                             >
-                                                <Trophy size={14} style={{ color: isDarkMode ? pageColors.accent : primaryColor }} />
-                                                <span className="text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>
-                                                    Mis Estadísticas
-                                                </span>
-                                            </div>
+                                            {/* Título Principal */}
+                                            <h3 className="text-sm font-bold uppercase tracking-wide mb-4 text-center" style={{ color: isDarkMode ? '#ffffff' : primaryColor }}>
+                                                Tus medias - Uniforme Azul
+                                            </h3>
                                             
-                                            {/* Sin Riesgo Row */}
-                                            <div>
-                                                {/* Header Sin Riesgo */}
-                                                <div 
-                                                    className="px-4 py-2"
-                                                    style={{ backgroundColor: primaryColor }}
+                                            {/* Sin Arriesgar Row */}
+                                            <div className="mb-3">
+                                                {/* Header fuera del fondo de color */}
+                                                <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: isDarkMode ? '#ffffff' : primaryColor }}>
+                                                    Sin Arriesgar
+                                                </p>
+                                                {/* Tabla con fondo de color y margen */}
+                                                <div
+                                                    className="mx-3"
+                                                    style={{
+                                                        backgroundColor: primaryColor,
+                                                        border: isDarkMode ? '1px solid #ffffff' : 'none',
+                                                        borderRadius: '0.75rem',
+                                                        overflow: 'hidden'
+                                                    }}
                                                 >
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>
-                                                            Sin Riesgo
-                                                        </span>
-                                                        <div 
-                                                            className="w-2 h-2 rounded-full"
-                                                            style={{ backgroundColor: '#ffffff' }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                {/* Contenido Sin Riesgo */}
-                                                <div className="grid grid-cols-3 gap-4 px-4 py-3">
+                                                {/* Contenido Sin Arriesgar */}
+                                                <div className="grid grid-cols-3 px-4 py-2">
                                                     <div className="text-center">
-                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5 font-bold" style={{ color: isDarkMode ? pageColors.accent : '#ffffff' }}>
                                                             Posición
                                                         </p>
-                                                        <p className="text-lg font-bold" style={{ color: pageColors.text }}>
+                                                        <p className="text-lg font-bold" style={{ color: '#ffffff' }}>
                                                             #{myStats?.position_without_risk || userPosition || '-'}
                                                         </p>
                                                     </div>
                                                     <div className="text-center">
-                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5 font-bold" style={{ color: isDarkMode ? pageColors.accent : '#ffffff' }}>
                                                             Mi Media
                                                         </p>
-                                                        <p className="text-lg font-bold" style={{ color: pageColors.text }}>
+                                                        <p className="text-lg font-bold" style={{ color: '#ffffff' }}>
                                                             {formatScore(myStats?.score_without_risk || userScore || 0)}
                                                         </p>
                                                     </div>
                                                     <div className="text-center">
-                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5 font-bold" style={{ color: isDarkMode ? pageColors.accent : '#ffffff' }}>
                                                             Percentil
                                                         </p>
                                                         {(() => {
@@ -450,7 +422,7 @@ export const CourseRankingSlidePanel = () => {
                                                             return (
                                                                 <p 
                                                                     className="text-lg font-bold"
-                                                                    style={{ color: percentile >= 0 ? '#10b981' : '#ef4444' }}
+                                                                    style={{ color: '#ffffff' }}
                                                                 >
                                                                     {percentile >= 0 ? '+' : ''}{formatScore(percentile)}
                                                                 </p>
@@ -458,48 +430,45 @@ export const CourseRankingSlidePanel = () => {
                                                         })()}
                                                     </div>
                                                 </div>
+                                                </div>
                                             </div>
                                             
-                                            {/* Separador */}
-                                            <div style={{ height: '1px', backgroundColor: 'rgba(156, 163, 175, 0.2)' }} />
-                                            
-                                            {/* Con Riesgo Row */}
+                                            {/* Arriesgando Row */}
                                             <div>
-                                                {/* Header Con Riesgo */}
-                                                <div 
-                                                    className="px-4 py-2"
-                                                    style={{ backgroundColor: pageColors.accent }}
+                                                {/* Header fuera del fondo de color */}
+                                                <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: isDarkMode ? '#ffffff' : primaryColor }}>
+                                                    Arriesgando
+                                                </p>
+                                                {/* Tabla con fondo de color y margen */}
+                                                <div
+                                                    className="mx-3"
+                                                    style={{
+                                                        backgroundColor: primaryColor,
+                                                        border: isDarkMode ? '1px solid #ffffff' : 'none',
+                                                        borderRadius: '0.75rem',
+                                                        overflow: 'hidden'
+                                                    }}
                                                 >
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>
-                                                            Con Riesgo
-                                                        </span>
-                                                        <div 
-                                                            className="w-2 h-2 rounded-full"
-                                                            style={{ backgroundColor: '#ffffff' }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                {/* Contenido Con Riesgo */}
-                                                <div className="grid grid-cols-3 gap-4 px-4 py-3">
+                                                {/* Contenido Arriesgando */}
+                                                <div className="grid grid-cols-3 px-4 py-2">
                                                     <div className="text-center">
-                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5 font-bold" style={{ color: isDarkMode ? pageColors.accent : '#ffffff' }}>
                                                             Posición
                                                         </p>
-                                                        <p className="text-lg font-bold" style={{ color: pageColors.accent }}>
+                                                        <p className="text-lg font-bold" style={{ color: '#ffffff' }}>
                                                             #{myStats?.position_with_risk || '-'}
                                                         </p>
                                                     </div>
                                                     <div className="text-center">
-                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5 font-bold" style={{ color: isDarkMode ? pageColors.accent : '#ffffff' }}>
                                                             Mi Media
                                                         </p>
-                                                        <p className="text-lg font-bold" style={{ color: pageColors.accent }}>
+                                                        <p className="text-lg font-bold" style={{ color: '#ffffff' }}>
                                                             {formatScore(myStats?.score_with_risk || 0)}
                                                         </p>
                                                     </div>
                                                     <div className="text-center">
-                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: pageColors.textMuted }}>
+                                                        <p className="text-[10px] uppercase tracking-wide mb-0.5 font-bold" style={{ color: isDarkMode ? pageColors.accent : '#ffffff' }}>
                                                             Percentil
                                                         </p>
                                                         {(() => {
@@ -507,7 +476,7 @@ export const CourseRankingSlidePanel = () => {
                                                             return (
                                                                 <p 
                                                                     className="text-lg font-bold"
-                                                                    style={{ color: percentile >= 0 ? '#10b981' : '#ef4444' }}
+                                                                    style={{ color: '#ffffff' }}
                                                                 >
                                                                     {percentile >= 0 ? '+' : ''}{formatScore(percentile)}
                                                                 </p>
@@ -516,40 +485,49 @@ export const CourseRankingSlidePanel = () => {
                                                     </div>
                                                 </div>
                                             </div>
+                                            </div>
                                         </div>
-                                    )}
+                                        )}
+                                    </div>
 
                                     {/* Ranking Table */}
                                     <div 
-                                        className="rounded-xl border-2 overflow-hidden"
-                                        style={{ backgroundColor: pageColors.bg, borderColor: pageColors.containerBorder }}
+                                        className="rounded-xl overflow-hidden mt-4"
+                                        style={{ 
+                                            backgroundColor: getColor('background', '#ffffff'), 
+                                            border: isDarkMode ? '1px solid #ffffff' : 'none'
+                                        }}
                                     >
-                                        <table className="w-full">
+                                        <table className="w-full" style={{ backgroundColor: isDarkMode ? '#000000' : '#ffffff' }}>
                                             <thead>
-                                                <tr style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : `${primaryColor}08` }}>
-                                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>#</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>Usuario</th>
-                                                    <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>Sin Riesgo</th>
-                                                    <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide" style={{ color: pageColors.text }}>Con Riesgo</th>
+                                                <tr style={{ 
+                                                    backgroundColor: '#000000'
+                                                }}>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>#</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>Usuario</th>
+                                                    <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>Sin Riesgo</th>
+                                                    <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>Con Riesgo</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {ranking.map((user) => {
+                                                {ranking.map((user, index) => {
                                                     const isCurrentUser = user.is_current_user;
-                                                    const positionColor = 
+                                                    const isLastRow = index === ranking.length - 1;
+                                                    const positionColor = isDarkMode ? '#ffffff' :
                                                         user.position === 1 ? '#eab308' :
                                                         user.position === 2 ? '#9ca3af' :
                                                         user.position === 3 ? '#f97316' :
                                                         pageColors.text;
 
-                                                    const currentUserColor = isDarkMode ? pageColors.accent : primaryColor;
+                                                    const textColor = isDarkMode ? '#ffffff' : pageColors.text;
+                                                    const currentUserColor = isDarkMode ? '#ffffff' : primaryColor;
 
                                                     return (
                                                         <tr
                                                             key={user.user_id}
-                                                            className="border-t transition-colors"
+                                                            className={`transition-colors ${!isLastRow ? 'border-b' : ''}`}
                                                             style={{
-                                                                borderColor: pageColors.border,
+                                                                borderColor: isDarkMode ? '#ffffff' : pageColors.border,
                                                                 backgroundColor: isCurrentUser 
                                                                     ? isDarkMode ? 'rgba(245, 158, 11, 0.1)' : `${primaryColor}08`
                                                                     : 'transparent'
@@ -574,7 +552,7 @@ export const CourseRankingSlidePanel = () => {
                                                                     />
                                                                     <span 
                                                                         className="font-medium"
-                                                                        style={{ color: isCurrentUser ? currentUserColor : pageColors.text }}
+                                                                        style={{ color: textColor }}
                                                                     >
                                                                         {user.display_name}
                                                                         {isCurrentUser && (
@@ -595,7 +573,7 @@ export const CourseRankingSlidePanel = () => {
                                                                 <span 
                                                                     className={`font-bold ${!withRisk ? 'underline decoration-2' : ''}`}
                                                                     style={{ 
-                                                                        color: isCurrentUser ? currentUserColor : pageColors.text,
+                                                                        color: textColor,
                                                                         textDecorationColor: '#10b981'
                                                                     }}
                                                                 >
@@ -606,7 +584,7 @@ export const CourseRankingSlidePanel = () => {
                                                                 <span 
                                                                     className={`font-bold ${withRisk ? 'underline decoration-2' : ''}`}
                                                                     style={{ 
-                                                                        color: isCurrentUser ? currentUserColor : pageColors.text,
+                                                                        color: textColor,
                                                                         textDecorationColor: pageColors.accent
                                                                     }}
                                                                 >
@@ -628,12 +606,16 @@ export const CourseRankingSlidePanel = () => {
                                             </div>
                                         )}
                                     </div>
+                                    </div>
 
                                     {/* Pagination */}
                                     {pagination.totalUsers > 0 && (
                                         <div 
-                                            className="flex flex-col sm:flex-row items-center justify-between p-3 rounded-lg border-2 gap-2"
-                                            style={{ backgroundColor: pageColors.bg, borderColor: pageColors.containerBorder }}
+                                            className="flex flex-col sm:flex-row items-center justify-between p-3 rounded-lg gap-2"
+                                            style={{ 
+                                                backgroundColor: getColor('background', '#ffffff'),
+                                                border: isDarkMode ? '1px solid #ffffff' : 'none'
+                                            }}
                                         >
                                             <span className="text-sm" style={{ color: pageColors.textMuted }}>
                                                 {((pagination.currentPage - 1) * pagination.perPage) + 1}-{Math.min(pagination.currentPage * pagination.perPage, pagination.totalUsers)} de {pagination.totalUsers}

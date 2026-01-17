@@ -18,6 +18,7 @@ import { getCourseLessons } from '../../api/services/courseLessonService';
 
 // Components
 import Quiz from '../../components/frontend/Quiz';
+import QuizResults from '../../components/frontend/QuizResults';
 import CoursePageTemplate from '../../components/course/CoursePageTemplate';
 
 // Simple MultiSelect Component with Select All
@@ -192,11 +193,13 @@ const QuizGeneratorPage = () => {
   const [showQuiz, setShowQuiz] = useState(false);
   const [lessons, setLessons] = useState([]);
   const [lessonsLoading, setLessonsLoading] = useState(true);
+  const [quizResults, setQuizResults] = useState(null);
+  const [resultsQuestions, setResultsQuestions] = useState(null);
+  const [resultsQuizInfo, setResultsQuizInfo] = useState(null);
   const [config, setConfig] = useState({
     lessons: [],
     difficulty: 'all',
     numQuestions: 10,
-    timeLimit: 0,
     statusFilters: [] // favorites, failed, risked, unanswered
   });
 
@@ -260,19 +263,40 @@ const QuizGeneratorPage = () => {
 
   const handleCloseQuiz = () => {
     setShowQuiz(false);
+    setQuizResults(null);
+    setResultsQuestions(null);
+    setResultsQuizInfo(null);
+  };
+
+  const handleQuizComplete = (result, questions, quizInfo) => {
+    setQuizResults(result);
+    setResultsQuestions(questions);
+    setResultsQuizInfo(quizInfo);
+  };
+
+  const handleCloseResults = () => {
+    setQuizResults(null);
+    setResultsQuestions(null);
+    setResultsQuizInfo(null);
+    setShowQuiz(false);
   };
 
   // Generated Quiz Object
-  const generatedQuiz = useMemo(() => ({
-    id: 'custom-generated',
-    title: { rendered: 'Test Personalizado' },
-    meta: {
-      _quiz_question_ids: questions.map(q => q.id),
-      _time_limit: config.timeLimit,
-      _passing_score: 70,
-    },
-    question_count: questions.length
-  }), [questions, config.timeLimit]);
+  const generatedQuiz = useMemo(() => {
+    // Calcular time_limit dinámicamente: mitad del número de preguntas
+    const calculatedTimeLimit = questions.length > 0 ? Math.max(1, Math.ceil(questions.length / 2)) : 0;
+    
+    return {
+      id: 'custom-generated',
+      title: { rendered: 'Test Personalizado' },
+      meta: {
+        _quiz_question_ids: questions.map(q => q.id),
+        _time_limit: calculatedTimeLimit,
+        _passing_score: 70,
+      },
+      question_count: questions.length
+    };
+  }, [questions]);
 
   // Options for selects
   const lessonOptions = lessons.map(l => ({ 
@@ -471,38 +495,6 @@ const QuizGeneratorPage = () => {
                           />
                         </div>
                       </div>
-
-                      {/* Time Limit */}
-                      <div 
-                        className="rounded-lg p-3"
-                        style={{ border: `1px solid ${pageColors.inputBorder}` }}
-                      >
-                        <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
-                          {t('tests.timeLimit')}
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={config.timeLimit}
-                            onChange={(e) => handleConfigChange('timeLimit', parseInt(e.target.value))}
-                            className="w-full px-3 py-2 text-sm rounded-lg appearance-none transition-all"
-                            style={{ 
-                              border: `2px solid ${pageColors.inputBorder}`,
-                              backgroundColor: pageColors.inputBg,
-                              color: pageColors.text
-                            }}
-                          >
-                            <option value={0} style={{ backgroundColor: pageColors.inputBg, color: pageColors.text }}>{t('common.noLimit')}</option>
-                            {Array.from({ length: 12 }, (_, i) => (i + 1) * 5).map(num => (
-                              <option key={num} value={num} style={{ backgroundColor: pageColors.inputBg, color: pageColors.text }}>{num} {t('common.minutes')}</option>
-                            ))}
-                          </select>
-                          <ChevronDown 
-                            className="absolute right-2.5 top-2.5 pointer-events-none" 
-                            size={14} 
-                            style={{ color: pageColors.textMuted }}
-                          />
-                        </div>
-                      </div>
                     </div>
 
                     {/* Generate Button */}
@@ -553,55 +545,29 @@ const QuizGeneratorPage = () => {
         >
           {showQuiz && (
             <div className="h-full flex flex-col">
-              {/* Header Compacto */}
-              <div 
-                className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0 gap-2"
-                style={{ 
-                  backgroundColor: pageColors.cardBg,
-                  borderColor: pageColors.inputBorder
-                }}
-              >
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <Sparkles size={16} style={{ color: pageColors.accent }} className="flex-shrink-0" />
-                  <h2 className="text-sm font-medium leading-tight truncate" style={{ color: pageColors.text }}>
-                    {t('tests.customTest')}
-                  </h2>
-                  <span 
-                    className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
-                    style={{ 
-                      backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.text}10`,
-                      color: isDarkMode ? pageColors.accent : pageColors.text
-                    }}
-                  >
-                    {questions.length} {t('common.questions').toLowerCase()}
-                  </span>
-                </div>
-
-                {/* Close button */}
-                <button
-                  onClick={handleCloseQuiz}
-                  className="p-1.5 rounded-lg transition-all flex-shrink-0"
-                  style={{ backgroundColor: isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10` }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}25` : `${pageColors.text}20`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`;
-                  }}
-                  title={t('common.back')}
-                >
-                  <X size={18} style={{ color: pageColors.text }} />
-                </button>
-              </div>
-
               {/* Quiz Content */}
               <div className="flex-1 overflow-hidden">
                 {questions.length > 0 ? (
-                  <Quiz 
-                    quizId="custom" 
-                    customQuiz={generatedQuiz}
-                    onQuizComplete={() => {}} // Handle completion if needed
-                  />
+                  quizResults ? (
+                    <QuizResults
+                      result={quizResults}
+                      questions={resultsQuestions}
+                      quizInfo={resultsQuizInfo}
+                      quizTitle={t('tests.customTest')}
+                      noPadding={true}
+                      onBack={handleCloseResults}
+                      courseId={courseId}
+                      courseName={courseName}
+                    />
+                  ) : (
+                    <Quiz 
+                      quizId="custom" 
+                      customQuiz={generatedQuiz}
+                      onQuizComplete={handleQuizComplete}
+                      onExit={handleCloseQuiz}
+                      hideDarkModeToggle={true}
+                    />
+                  )
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center p-8 text-center">
                     <div 

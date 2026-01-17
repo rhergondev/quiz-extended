@@ -273,12 +273,16 @@ class QE_Course_Lessons_API extends QE_API_Base
                         // Add quiz metadata
                         $step['data']['difficulty'] = get_post_meta($quiz_id, '_difficulty_level', true) ?: 'medium';
                         $step['data']['start_date'] = get_post_meta($quiz_id, '_start_date', true) ?: null;
-                        $step['data']['time_limit'] = (int) get_post_meta($quiz_id, '_time_limit', true) ?: 0;
-                        $step['data']['passing_score'] = (float) get_post_meta($quiz_id, '_passing_score', true) ?: 7.0;
 
                         // Add question count
                         $question_ids = get_post_meta($quiz_id, '_quiz_question_ids', true);
                         $step['data']['question_count'] = is_array($question_ids) ? count($question_ids) : 0;
+
+                        // Calculate time_limit dynamically (half the number of questions, min 1)
+                        $questions_count = is_array($question_ids) ? count($question_ids) : 0;
+                        $step['data']['time_limit'] = $questions_count > 0 ? max(1, ceil($questions_count / 2)) : 0;
+
+                        $step['data']['passing_score'] = (float) get_post_meta($quiz_id, '_passing_score', true) ?: 7.0;
                     }
                 }
             }

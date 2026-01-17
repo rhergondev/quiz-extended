@@ -119,15 +119,6 @@ class QE_Quiz_Meta
      */
     private function register_numeric_fields()
     {
-        register_post_meta($this->post_type, '_time_limit', [
-            'show_in_rest' => true,
-            'single' => true,
-            'type' => 'integer',
-            'description' => __('Time limit in minutes', 'quiz-extended'),
-            'sanitize_callback' => 'absint',
-            'auth_callback' => [$this, 'auth_callback'],
-        ]);
-
         register_post_meta($this->post_type, '_max_attempts', [
             'show_in_rest' => true,
             'single' => true,
@@ -247,6 +238,14 @@ class QE_Quiz_Meta
             'get_callback' => [$this, 'get_questions_count'],
             'schema' => [
                 'description' => __('Number of questions in the quiz', 'quiz-extended'),
+                'type' => 'integer',
+            ],
+        ]);
+
+        register_rest_field($this->post_type, '_time_limit', [
+            'get_callback' => [$this, 'get_time_limit'],
+            'schema' => [
+                'description' => __('Time limit in minutes (calculated as half the number of questions)', 'quiz-extended'),
                 'type' => 'integer',
             ],
         ]);
@@ -401,6 +400,34 @@ class QE_Quiz_Meta
         }
 
         return count($question_ids);
+    }
+
+    /**
+     * Get time limit for a quiz (calculated dynamically)
+     * Time limit is half the number of questions in minutes
+     *
+     * @param array $quiz Quiz data
+     * @return int Time limit in minutes
+     */
+    public function get_time_limit($quiz)
+    {
+        $quiz_id = is_array($quiz) && isset($quiz['id']) ? $quiz['id'] : 0;
+
+        if (!$quiz_id) {
+            return 0;
+        }
+
+        $question_ids = get_post_meta($quiz_id, '_quiz_question_ids', true);
+
+        if (!is_array($question_ids) || empty($question_ids)) {
+            return 0;
+        }
+
+        $questions_count = count($question_ids);
+
+        // Time limit is half the number of questions (in minutes)
+        // Round up to ensure at least 1 minute for odd numbers
+        return max(1, ceil($questions_count / 2));
     }
 
     /**

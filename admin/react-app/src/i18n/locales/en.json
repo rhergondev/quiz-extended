@@ -620,7 +620,8 @@
       "questionStatistics": "Question statistics",
       "failedBy": "This question has been failed by {{percentage}}% of students.",
       "answerExplanation": "Answer explanation",
-      "errorInvalidData": "Error: Invalid question data or result provided."
+      "errorInvalidData": "Error: Invalid question data or result provided.",
+      "correctAnswerIs": "The correct answer is"
     },
     "feedbackModal": {
       "successTitle": "Message Sent!",
@@ -693,6 +694,7 @@
       "noQuestionsAssigned": "This quiz has no questions assigned.",
       "loadingMoreQuestions": "Loading more questions...",
       "questionsLoadedCount": "{{loaded}} of {{total}} questions loaded",
+      "autoLoadingMore": "Scroll down to load more questions automatically",
       "inProgress": "Quiz in progress",
       "savedProgressFound": "Saved progress found",
       "continueWhereYouLeft": "Would you like to continue where you left off or start over?",
@@ -1350,6 +1352,7 @@
       "passingScore": "Passing score",
       "timeLimit": "Time limit (minutes)",
       "timeLimitPlaceholder": "Empty = no limit",
+      "autoCalculated": "Auto-calculated",
       "maxAttempts": "Maximum attempts",
       "maxAttemptsPlaceholder": "Empty = unlimited",
       "randomizeQuestions": "Randomize questions",

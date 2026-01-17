@@ -119,3 +119,70 @@ body {
 body.qe-quiz-focus-mode #qe-topbar {
   display: none !important;
 }
+
+/* ===================================
+   EXPLANATION CONTENT - Normalización de HTML de Word
+   =================================== */
+.explanation-content {
+  /* Reset de tamaños de fuente para evitar estilos inline de Word */
+  font-size: inherit !important;
+}
+
+.explanation-content * {
+  /* Forzar tamaño de fuente heredado en todos los elementos */
+  font-size: inherit !important;
+}
+
+.explanation-content p {
+  margin-bottom: 0.5rem;
+}
+
+.explanation-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Estilos para listas */
+.explanation-content ul,
+.explanation-content ol {
+  margin-left: 1.25rem;
+  margin-bottom: 0.5rem;
+  list-style-position: outside;
+}
+
+.explanation-content ul {
+  list-style-type: disc !important;
+}
+
+.explanation-content ol {
+  list-style-type: decimal !important;
+}
+
+.explanation-content li {
+  margin-bottom: 0.25rem;
+  display: list-item !important;
+}
+
+.explanation-content ul li::marker,
+.explanation-content ol li::marker {
+  font-size: inherit;
+}
+
+/* Eliminar estilos de Word que puedan interferir */
+.explanation-content [style*="mso-"] {
+  font-family: inherit !important;
+}
+
+.explanation-content strong,
+.explanation-content b {
+  font-weight: 600;
+}
+
+.explanation-content em,
+.explanation-content i {
+  font-style: italic;
+}
+
+.explanation-content span[style*="text-decoration: underline"],
+.explanation-content u {
+  text-decoration: underline;
+}

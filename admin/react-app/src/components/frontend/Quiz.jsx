@@ -23,6 +23,7 @@ const Quiz = ({
   onQuizComplete,
   onQuizStateChange,
   onExit,
+  hideDarkModeToggle = false,
   isDrawingMode, 
   setIsDrawingMode, 
   isDrawingEnabled, 
@@ -135,17 +136,46 @@ const Quiz = ({
     preservedOrder: preservedQuestionOrder // 🔥 FIX: Use preserved order if recovering
   });
 
-  // Auto-prefetch questions as user progresses
+  // 🔥 NUEVO: Intersection Observer para carga automática basada en scroll
+  const loadMoreTriggerRef = useRef(null);
+  
   useEffect(() => {
-    if (quizState === 'in-progress' && Object.keys(userAnswers).length > 0) {
-      const answeredCount = Object.keys(userAnswers).length;
-      const remainingLoaded = loadedCount - answeredCount;
-      
-      if (remainingLoaded <= 10 && hasMoreQuestions && !questionsLoading) {
-        checkPrefetch(answeredCount);
-      }
+    // Solo activar cuando estamos en progreso y hay más preguntas por cargar
+    if (quizState !== 'in-progress' || !hasMoreQuestions || questionsLoading) {
+      return;
     }
-  }, [userAnswers, quizState, checkPrefetch, loadedCount, hasMoreQuestions, questionsLoading]);
+
+    const triggerElement = loadMoreTriggerRef.current;
+    if (!triggerElement) return;
+
+    // Configurar Intersection Observer
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        
+        // Si el trigger es visible y hay más preguntas, cargar automáticamente
+        if (entry.isIntersecting && hasMoreQuestions && !questionsLoading) {
+          console.log('👁️ Trigger visible - Auto-loading more questions...');
+          if (typeof loadMore === 'function') {
+            loadMore();
+          }
+        }
+      },
+      {
+        root: questionsContainerRef.current,
+        rootMargin: '200px', // Cargar cuando está a 200px de ser visible
+        threshold: 0.1
+      }
+    );
+
+    observer.observe(triggerElement);
+
+    return () => {
+      if (triggerElement) {
+        observer.unobserve(triggerElement);
+      }
+    };
+  }, [quizState, hasMoreQuestions, questionsLoading, loadMore, questionsContainerRef]);
 
   useEffect(() => {
     const fetchAndStartQuiz = async () => {
@@ -458,7 +488,10 @@ const Quiz = ({
       return <div className="text-center p-8" style={{ color: textMuted }}>{t('quizzes.quiz.noQuestionsAssigned')}</div>
   }
 
-  const timeLimit = quizInfo?.meta?._time_limit || 0;
+  // Calcular time_limit dinámicamente basado en el número de preguntas
+  // Fórmula: mitad del número de preguntas (redondeado hacia arriba), mínimo 1
+  const questionsCount = questionIds.length;
+  const timeLimit = questionsCount > 0 ? Math.max(1, Math.ceil(questionsCount / 2)) : 0;
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
@@ -593,18 +626,20 @@ const Quiz = ({
               />
             )}
             
-            {/* Botón Dark Mode */}
-            <button
-              onClick={toggleDarkMode}
-              className="p-2 rounded-lg transition-all duration-200 hover:scale-105"
-              style={{
-                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                color: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c')
-              }}
-              aria-label={isDarkMode ? 'Modo claro' : 'Modo oscuro'}
-            >
-              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
+            {/* Botón Dark Mode - Solo si no está oculto */}
+            {!hideDarkModeToggle && (
+              <button
+                onClick={toggleDarkMode}
+                className="p-2 rounded-lg transition-all duration-200 hover:scale-105"
+                style={{
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  color: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c')
+                }}
+                aria-label={isDarkMode ? 'Modo claro' : 'Modo oscuro'}
+              >
+                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -692,12 +727,19 @@ const Quiz = ({
           />
         ))}
         
-        {/* Botón cargar más preguntas al final del quiz */}
+        {/* 🔥 NUEVO: Trigger invisible para auto-carga + indicador de progreso */}
         {hasMoreQuestions && (
           <div className="mt-8 mb-4 flex flex-col items-center gap-4">
-            {questionsLoading ? (
-              // Loading state
-              <div className="flex flex-col items-center justify-center p-8 gap-3">
+            {/* Elemento trigger invisible para Intersection Observer */}
+            <div 
+              ref={loadMoreTriggerRef}
+              className="w-full h-px"
+              aria-hidden="true"
+            />
+            
+            {/* Indicador de carga cuando se están cargando más preguntas */}
+            {questionsLoading && (
+              <div className="flex flex-col items-center justify-center p-6 gap-3">
                 <Loader className="w-8 h-8 animate-spin" style={{ color: getColor('primary', '#3b82f6') }} />
                 <div className="text-center">
                   <p className="font-medium" style={{ color: getColor('primary', '#3b82f6') }}>
@@ -708,29 +750,19 @@ const Quiz = ({
                   </p>
                 </div>
               </div>
-            ) : (
-              // Load more button
-              <button
-                onClick={() => {
-                  if (typeof loadMore === 'function') {
-                    loadMore();
-                  } else {
-                    checkPrefetch(loadedCount);
-                  }
-                }}
-                className="px-8 py-3.5 rounded-lg font-semibold transition-all duration-200 border-2 shadow-sm hover:scale-[1.02] hover:shadow-md active:scale-[0.98]"
-                style={{
-                  backgroundColor: getColor('primary', '#3b82f6') + '10',
-                  borderColor: getColor('primary', '#3b82f6'),
-                  color: getColor('primary', '#3b82f6')
-                }}
-              >
-                {t('quizzes.sidebar.loadMore')}
-              </button>
             )}
-            <p className="text-sm" style={{ color: textMuted }}>
-              {t('quizzes.quiz.questionsLoadedCount', { loaded: loadedCount, total: totalQuestions })}
-            </p>
+            
+            {/* Contador de progreso siempre visible */}
+            {!questionsLoading && (
+              <div className="text-center">
+                <p className="text-sm font-medium" style={{ color: textMuted }}>
+                  {t('quizzes.quiz.questionsLoadedCount', { loaded: loadedCount, total: totalQuestions })}
+                </p>
+                <p className="text-xs mt-1" style={{ color: textMuted, opacity: 0.7 }}>
+                  {t('quizzes.quiz.autoLoadingMore')}
+                </p>
+              </div>
+            )}
           </div>
         )}
         
@@ -776,6 +808,7 @@ const Quiz = ({
               riskedAnswers={riskedAnswers}
               onSubmit={handleSubmit}
               loadedCount={loadedCount}
+              onLoadMore={hasMoreQuestions && !questionsLoading ? loadMore : null}
             />
         </div>
       </aside>

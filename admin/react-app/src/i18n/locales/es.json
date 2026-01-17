@@ -643,7 +643,8 @@
       "questionStatistics": "Estadísticas de la pregunta",
       "failedBy": "Esta pregunta ha sido fallada por el {{percentage}}% del alumnado.",
       "answerExplanation": "Explicación de la respuesta",
-      "errorInvalidData": "Error: Datos de pregunta o resultado inválidos."
+      "errorInvalidData": "Error: Datos de pregunta o resultado inválidos.",
+      "correctAnswerIs": "La respuesta correcta es"
     },
     "feedbackModal": {
       "successTitle": "¡Mensaje Enviado!",
@@ -716,6 +717,7 @@
       "noQuestionsAssigned": "Este cuestionario no tiene preguntas asignadas.",
       "loadingMoreQuestions": "Cargando más preguntas...",
       "questionsLoadedCount": "{{loaded}} de {{total}} preguntas cargadas",
+      "autoLoadingMore": "Desplázate hacia abajo para cargar más preguntas automáticamente",
       "inProgress": "Cuestionario en progreso",
       "savedProgressFound": "Se encontró progreso guardado",
       "continueWhereYouLeft": "¿Deseas continuar donde lo dejaste o empezar de nuevo?",
@@ -1365,6 +1367,7 @@
       "passingScore": "Nota para aprobar",
       "timeLimit": "Límite de tiempo (minutos)",
       "timeLimitPlaceholder": "Vacío = sin límite",
+      "autoCalculated": "Calculado automáticamente",
       "maxAttempts": "Intentos máximos",
       "maxAttemptsPlaceholder": "Vacío = ilimitados",
       "randomizeQuestions": "Aleatorizar preguntas",

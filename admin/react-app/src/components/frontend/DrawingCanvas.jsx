@@ -38,29 +38,47 @@ const DrawingCanvas = ({ isActive, isDrawingEnabled, tool, color, lineWidth, onC
     const container = containerRef.current;
     const ctx = canvas.getContext('2d');
     
-    // Ajustar tamaño del canvas al contenedor de preguntas
+    // Ajustar tamaño del canvas al contenedor de preguntas (incluyendo área con scroll)
     const resizeCanvas = () => {
-      const rect = container.getBoundingClientRect();
-      canvas.width = container.scrollWidth;
-      canvas.height = container.scrollHeight;
+      // Usar scrollWidth y scrollHeight para cubrir TODO el contenido, no solo lo visible
+      const fullWidth = Math.max(container.scrollWidth, container.clientWidth);
+      const fullHeight = Math.max(container.scrollHeight, container.clientHeight);
       
-      // Restaurar configuración del contexto
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      // Solo redimensionar si cambió el tamaño
+      if (canvas.width !== fullWidth || canvas.height !== fullHeight) {
+        canvas.width = fullWidth;
+        canvas.height = fullHeight;
+        
+        // Restaurar configuración del contexto
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        console.log('🎨 Canvas resized to:', { width: fullWidth, height: fullHeight });
+      }
     };
 
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-    const resizeObserver = new ResizeObserver(resizeCanvas);
+    
+    // Redimensionar cuando cambia el contenido (ej: se cargan más preguntas)
+    const resizeObserver = new ResizeObserver(() => {
+      resizeCanvas();
+    });
     resizeObserver.observe(container);
+    
+    // También escuchar cambios de ventana
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Actualizar tamaño periódicamente por si cambia el contenido
+    const intervalId = setInterval(resizeCanvas, 2000);
     
     setContext(ctx);
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
       resizeObserver.disconnect();
+      clearInterval(intervalId);
     };
-  }, [isActive]);
+  }, [isActive, containerRef]);
 
   // Log props changes
   useEffect(() => {
@@ -158,16 +176,31 @@ const DrawingCanvas = ({ isActive, isDrawingEnabled, tool, color, lineWidth, onC
   return (
     <canvas
       ref={canvasRef}
-      className="absolute top-0 left-0"
+      className="absolute top-0 left-0 w-full"
       style={{ 
         cursor: isDrawingEnabled ? 'crosshair' : 'default',
         zIndex: 20,
-        pointerEvents: isDrawingEnabled ? 'auto' : 'none'
+        pointerEvents: isDrawingEnabled ? 'auto' : 'none',
+        touchAction: 'none' // Prevenir scroll mientras se dibuja en móviles
       }}
       onMouseDown={startDrawing}
       onMouseMove={draw}
       onMouseUp={stopDrawing}
       onMouseLeave={stopDrawing}
+      onTouchStart={(e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        startDrawing({ clientX: touch.clientX, clientY: touch.clientY });
+      }}
+      onTouchMove={(e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        draw({ clientX: touch.clientX, clientY: touch.clientY });
+      }}
+      onTouchEnd={(e) => {
+        e.preventDefault();
+        stopDrawing();
+      }}
     />
   );
 };

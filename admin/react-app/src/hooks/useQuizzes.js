@@ -55,7 +55,7 @@ export const useQuizzes = (options = {}) => {
       difficulty: quiz.meta?._difficulty_level || 'intermediate',
       category: quiz.meta?._quiz_category || '',
       passing_score: parseInt(quiz.meta?._passing_score || '70'),
-      time_limit: parseInt(quiz.meta?._time_limit || '0'),
+      time_limit: parseInt(quiz._time_limit || quiz.meta?._time_limit || '0'), // REST field computado
       max_attempts: parseInt(quiz.meta?._max_attempts || '0'),
       randomize_questions: quiz.meta?._randomize_questions === 'yes',
       show_results: quiz.meta?._show_results === 'yes',
@@ -67,7 +67,7 @@ export const useQuizzes = (options = {}) => {
       total_points: parseInt(quiz.meta?._total_points || '0'),
       instructions: quiz.meta?._quiz_instructions || '',
       // Computed flags
-      has_time_limit: parseInt(quiz.meta?._time_limit || '0') > 0,
+      has_time_limit: parseInt(quiz._time_limit || quiz.meta?._time_limit || '0') > 0,
       has_attempt_limit: parseInt(quiz.meta?._max_attempts || '0') > 0,
       has_questions: Array.isArray(quiz.meta?._quiz_question_ids) && quiz.meta._quiz_question_ids.length > 0,
       is_randomized: quiz.meta?._randomize_questions === 'yes'

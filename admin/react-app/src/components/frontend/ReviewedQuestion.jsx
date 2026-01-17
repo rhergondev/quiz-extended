@@ -81,40 +81,31 @@ const ReviewedQuestion = ({
   };
 
   const questionState = getQuestionState();
-  const borderColor = getQuestionColor();
-  
-  // Estilo de la tarjeta según si es arriesgando o no
-  // Usamos box-shadow inset para evitar que WordPress/Elementor sobrescriban los bordes
-  const getCardStyle = () => {
-    const baseColor = getQuestionColor();
-    const wasAnswered = answer_given !== null && answer_given !== undefined;
-    
-    if (!wasAnswered) {
-      // Sin contestar: fondo gris sutil
-      return {
-        backgroundColor: bgCard,
-        boxShadow: `inset 0 0 0 2px ${GRAY_COLOR}40, inset 4px 0 0 0 ${GRAY_COLOR}`
-      };
-    }
-    
-    if (is_risked) {
-      // Arriesgando: borde grueso de color, fondo neutro
-      return {
-        backgroundColor: bgCard,
-        boxShadow: `inset 0 0 0 3px ${baseColor}, inset 6px 0 0 0 ${baseColor}`
-      };
-    }
-    
-    // Sin riesgo: fondo coloreado sutil
-    return {
-      backgroundColor: baseColor + '10',
-      boxShadow: `inset 0 0 0 2px ${baseColor}60, inset 4px 0 0 0 ${baseColor}`
-    };
-  };
 
   const getOptionStyle = (optionId) => {
     const isSelected = optionId == answer_given;
     const isCorrectOption = optionId == correct_answer;
+    const wasAnswered = answer_given !== null && answer_given !== undefined;
+
+    // Si la pregunta no fue contestada, estilo neutral para todas excepto mostrar cuál era la correcta
+    if (!wasAnswered) {
+      if (isCorrectOption) {
+        // Solo la respuesta correcta tiene indicador verde, sin borde ni fondo de color
+        return {
+          backgroundColor: bgCard,
+          borderColor: borderSubtle,
+          indicatorColor: SUCCESS_COLOR,
+          textColor: textPrimary
+        };
+      }
+      // Resto de opciones: completamente neutral
+      return {
+        backgroundColor: bgCard,
+        borderColor: borderSubtle,
+        indicatorColor: textMuted,
+        textColor: textPrimary
+      };
+    }
 
     if (isCorrectOption) {
       // Respuesta correcta
@@ -207,20 +198,21 @@ const ReviewedQuestion = ({
         id={`question-${displayIndex || question.id}`} 
         className="rounded-lg mb-4 shadow-sm scroll-mt-6 transition-all duration-200"
         style={{
-          ...getCardStyle()
+          backgroundColor: bgCard,
+          border: `1px solid ${borderSubtle}`
         }}
       >
         {/* Header */}
         <div 
           className="p-3 border-b flex items-center justify-between"
-          style={{ borderColor: borderColor + '15' }}
+          style={{ borderColor: borderSubtle }}
         >
           <div className="flex items-center gap-3">
             {/* Número de pregunta */}
             <div 
               className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs"
               style={{
-                backgroundColor: borderColor + '15',
+                backgroundColor: bgSubtle,
                 color: textPrimary
               }}
             >
@@ -350,7 +342,7 @@ const ReviewedQuestion = ({
         {/* Título de la pregunta */}
         <div className="p-4">
           <h3
-            className="text-sm font-medium mb-3 leading-relaxed"
+            className="explanation-content text-sm font-medium mb-3 leading-relaxed"
             style={{ color: textPrimary }}
             dangerouslySetInnerHTML={{ __html: title }}
           />
@@ -418,12 +410,35 @@ const ReviewedQuestion = ({
           </div>
         </div>
 
+        {/* Badge de respuesta correcta */}
+        <div className="px-4 pb-3">
+          <div 
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{
+              backgroundColor: is_correct ? SUCCESS_COLOR + '15' : ERROR_COLOR + '15',
+              color: is_correct ? SUCCESS_COLOR : ERROR_COLOR
+            }}
+          >
+            {is_correct ? (
+              <CheckCircle size={14} strokeWidth={2.5} />
+            ) : (
+              <XCircle size={14} strokeWidth={2.5} />
+            )}
+            <span>
+              {t('quizzes.reviewedQuestion.correctAnswerIs')}{' '}
+              <span className="font-bold">
+                {String.fromCharCode(65 + options.findIndex(opt => opt.id == correct_answer))}
+              </span>
+            </span>
+          </div>
+        </div>
+
         {/* Estadísticas de la pregunta (one-liner) */}
         {total_answers > 0 && (
           <div 
             className="px-4 py-2.5 text-xs border-t"
             style={{ 
-              borderColor: borderColor + '15',
+              borderColor: borderSubtle,
               color: textMuted 
             }}
           >
@@ -435,7 +450,7 @@ const ReviewedQuestion = ({
         {fullExplanation && (
           <div 
             className="border-t"
-            style={{ borderColor: borderColor + '15' }}
+            style={{ borderColor: borderSubtle }}
           >
             <div className="px-4 py-3">
               <span 
@@ -449,7 +464,7 @@ const ReviewedQuestion = ({
                 style={{ backgroundColor: bgSubtle }}
               >
                 <div
-                  className="text-xs leading-relaxed"
+                  className="explanation-content text-xs leading-relaxed"
                   style={{ color: isDarkMode ? '#ffffff' : textMuted }}
                   dangerouslySetInnerHTML={{ __html: fullExplanation }}
                 />

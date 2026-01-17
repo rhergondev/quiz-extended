@@ -1,31 +1,36 @@
 import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
-import { Circle, CheckCircle, TrendingDown, AlertCircle } from 'lucide-react';
 
 // --- COMPONENTES AUXILIARES ---
 
-const StatBox = ({ label, value, bgColor, textColor, bgCard }) => (
+const StatBox = ({ label, value, textColor, bgCard }) => (
   <div 
-    className="text-center px-1 py-1.5 rounded border transition-all duration-200"
-    style={{ 
+    className="text-center px-2 py-2 rounded border-2"
+    style={{
       backgroundColor: bgCard,
       borderColor: textColor
     }}
   >
-    <span className="block text-[8px] font-medium leading-tight" style={{ color: textColor + '90' }}>
+    <span className="block text-[11px] font-semibold leading-tight" style={{ color: textColor }}>
       {label}
     </span>
-    <span className="block text-sm font-bold" style={{ color: textColor }}>
+    <span className="block text-xl font-bold mt-0.5" style={{ color: textColor }}>
       {value}
     </span>
   </div>
 );
 
-const LegendItem = ({ icon: Icon, color, text }) => (
-  <div className="flex items-center gap-1.5 text-[10px] font-medium" style={{ color: color }}>
-    <Icon size={14} strokeWidth={2.5} />
-    <span>{text}</span>
+const LegendItem = ({ bgColor, borderColor, textColor, text }) => (
+  <div 
+    className="px-2.5 py-1.5 rounded-md text-[10px] font-semibold flex items-center justify-center border-2"
+    style={{ 
+      backgroundColor: bgColor,
+      borderColor: borderColor,
+      color: textColor
+    }}
+  >
+    {text}
   </div>
 );
 // --- COMPONENTE PRINCIPAL ---
@@ -38,7 +43,8 @@ const QuizSidebar = ({
   riskedAnswers, 
   onQuestionSelect, 
   onSubmit,
-  loadedCount = 0
+  loadedCount = 0,
+  onLoadMore = null // Callback para cargar más preguntas si es necesario
 }) => {
   const { getColor, isDarkMode } = useTheme();
   const { t } = useTranslation();
@@ -69,23 +75,51 @@ const QuizSidebar = ({
     impugned: '#9ca3af' // gray-400
   };
 
-  const scrollToQuestion = (index) => {
-    console.log('🎯 scrollToQuestion called with index:', index);
+  const scrollToQuestion = async (absoluteIndex) => {
+    console.log('🎯 scrollToQuestion called with absoluteIndex:', absoluteIndex);
     
-    // Try to find the question element
-    const questionNumber = index + 1;
-    const element = document.getElementById(`quiz-question-${questionNumber}`);
+    // Obtener el ID real de la pregunta desde questionIds
+    const questionId = questionIds[absoluteIndex];
+    if (!questionId) {
+      console.warn('⚠️ Question ID not found for index:', absoluteIndex);
+      return;
+    }
     
-    console.log('🔍 Looking for element:', `quiz-question-${questionNumber}`, 'Found:', !!element);
+    console.log('🔍 Looking for question with ID:', questionId);
+    
+    // Buscar el elemento usando el ID real de la pregunta
+    let element = document.getElementById(`quiz-question-${questionId}`);
+    
+    // Si no se encuentra, la pregunta podría no estar cargada aún
+    if (!element) {
+      console.log('⏳ Question not loaded yet, checking if we can load more...');
+      
+      // Verificar si la pregunta está en la lista de cargadas
+      const loadedQuestion = questions?.find(q => q.id === questionId);
+      
+      if (!loadedQuestion && onLoadMore && typeof onLoadMore === 'function') {
+        console.log('📥 Attempting to load more questions...');
+        try {
+          await onLoadMore();
+          // Esperar un momento para que el DOM se actualice
+          await new Promise(resolve => setTimeout(resolve, 300));
+          // Intentar encontrar el elemento nuevamente
+          element = document.getElementById(`quiz-question-${questionId}`);
+        } catch (error) {
+          console.error('❌ Error loading more questions:', error);
+        }
+      }
+    }
     
     if (element) {
-      // Use scrollIntoView with nearest block to avoid issues with fixed elements
+      console.log('✅ Element found, scrolling...');
+      // Scroll suave al elemento
       element.scrollIntoView({ 
         behavior: 'smooth', 
         block: 'center'
       });
       
-      // Visual feedback: highlight the question temporarily with border only
+      // Feedback visual: resaltar temporalmente con borde más ancho
       const originalBorderWidth = element.style.borderLeftWidth || '4px';
       
       element.style.borderLeftWidth = '12px';
@@ -94,19 +128,18 @@ const QuizSidebar = ({
       setTimeout(() => {
         element.style.borderLeftWidth = originalBorderWidth;
       }, 2000);
-    } else {
-      console.warn('⚠️ Element not found, trying alternative selectors...');
-      // Try alternative: find by data attribute or class
-      const altElement = document.querySelector(`[data-question-index="${index}"]`);
-      if (altElement) {
-        console.log('✅ Found via data-question-index');
-        altElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      // Notificar al componente padre si hay callback
+      if (onQuestionSelect) {
+        // Encontrar el índice relativo de la pregunta en el array cargado
+        const relativeIndex = questions?.findIndex(q => q.id === questionId) ?? absoluteIndex;
+        console.log('📞 Calling onQuestionSelect with relativeIndex:', relativeIndex);
+        onQuestionSelect(relativeIndex);
       }
-    }
-    
-    if (onQuestionSelect) {
-      console.log('📞 Calling onQuestionSelect with index:', index);
-      onQuestionSelect(index);
+    } else {
+      console.warn('❌ Question element not found even after attempting to load');
+      // Mostrar mensaje al usuario (opcional)
+      // alert(t('quizzes.sidebar.questionNotLoaded'));
     }
   };
 
@@ -125,53 +158,52 @@ const QuizSidebar = ({
           className="px-1 py-1.5 border-b"
           style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
         >
-          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+          <div className="flex flex-wrap gap-1.5">
             <LegendItem 
-              icon={Circle} 
-              color={colors.unanswered} 
+              bgColor={colors.unansweredBg}
+              borderColor={colors.unansweredBorder}
+              textColor={colors.unanswered}
               text={t('quizzes.sidebar.unanswered')} 
             />
             <LegendItem 
-              icon={CheckCircle} 
-              color={colors.answered} 
+              bgColor={colors.answeredBgBright}
+              borderColor={colors.answeredBgBright}
+              textColor="#ffffff"
               text={t('quizzes.sidebar.answered')} 
             />
             <LegendItem 
-              icon={TrendingDown} 
-              color={colors.risked} 
+              bgColor={colors.risked}
+              borderColor={colors.risked}
+              textColor="#ffffff"
               text={t('quizzes.sidebar.withRisk')} 
             />
           </div>
         </div>
 
         {/* Estadísticas */}
-        <div className="px-1 py-1.5 border-b" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
-          <div className="grid grid-cols-2 gap-1">
+        <div className="px-1 py-2 border-b" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
+          <div className="grid grid-cols-2 gap-2">
             <StatBox 
               label={t('quizzes.sidebar.answered')} 
               value={answeredCount} 
-              bgColor={colors.answered + '10'}
               textColor={colors.answered}
               bgCard={bgCard}
             />
             <StatBox 
               label={t('quizzes.sidebar.withRisk')} 
               value={riskedCount} 
-              bgColor={colors.risked + '10'}
               textColor={colors.risked}
               bgCard={bgCard}
             />
             <StatBox 
               label={t('quizzes.sidebar.withoutRisk')} 
               value={answeredCount - riskedCount} 
-              bgColor={colors.answered + '10'}
               textColor={colors.answered}
               bgCard={bgCard}
             />
             <StatBox 
               label={t('quizzes.sidebar.unanswered')} 
               value={unansweredCount} 
-              bgColor={colors.unanswered + '10'}
               textColor={colors.unanswered}
               bgCard={bgCard}
             />
@@ -183,14 +215,14 @@ const QuizSidebar = ({
           <h3 className="text-[10px] font-semibold mb-1 flex-shrink-0" style={{ color: textPrimary }}>
             {t('quizzes.sidebar.questionsMap')}
           </h3>
-          <div className="overflow-y-scroll flex-1 min-h-0" style={{ maxHeight: '280px', scrollbarGutter: 'stable' }}>
+          <div className="flex-1 min-h-0" style={{ maxHeight: '280px' }}>
             <div 
-              className="grid grid-cols-10 gap-0.5 rounded"
-              style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
+              className="grid grid-cols-10 gap-0.5"
             >
             {Array.from({ length: effectiveTotal }).map((_, index) => {
               const qId = questionIds && questionIds[index] ? questionIds[index] : (questions && questions[index] ? questions[index].id : `unloaded-${index}`);
-              const isLoaded = questions && questions[index];
+              // Verificar si la pregunta está cargada buscándola en el array de questions
+              const isLoaded = questions && questions.some(q => q.id === qId);
               const isAnswered = userAnswers.hasOwnProperty(qId);
               const isRisked = riskedAnswers.includes(qId);
 
@@ -230,7 +262,7 @@ const QuizSidebar = ({
                     }
                   }}
                   disabled={!isLoaded}
-                  className="w-full aspect-square rounded text-[9px] font-semibold transition-all duration-150 flex items-center justify-center border disabled:cursor-wait hover:enabled:scale-110 hover:enabled:shadow-sm cursor-pointer"
+                  className="w-full aspect-square rounded text-[11px] font-bold transition-all duration-150 flex items-center justify-center border-2 disabled:cursor-wait hover:enabled:scale-110 hover:enabled:shadow-sm cursor-pointer"
                   style={{
                     backgroundColor: bgColor,
                     borderColor: borderColor,
@@ -248,10 +280,10 @@ const QuizSidebar = ({
         </div>
 
         {/* Botón finalizar - siempre visible al final */}
-        <div className="p-2 flex-shrink-0 flex justify-center">
+        <div className="px-2 py-2 flex-shrink-0">
           <button
             onClick={onSubmit}
-            className="px-6 py-1.5 text-xs text-white font-semibold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98]"
+            className="w-full py-3 text-sm text-white font-bold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98] text-center"
             style={{ backgroundColor: colors.answeredBg }}
           >
             {t('quizzes.sidebar.finishExam')}

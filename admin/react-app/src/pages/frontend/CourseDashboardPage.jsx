@@ -5,7 +5,6 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useScoreFormat } from '../../contexts/ScoreFormatContext';
 import useCourse from '../../hooks/useCourse';
 import CoursePageTemplate from '../../components/course/CoursePageTemplate';
-import PendingQuizBanner from '../../components/frontend/PendingQuizBanner';
 import { getCourseProgress } from '../../api/services/studentProgressService';
 import { getMyRankingStatus } from '../../api/services/courseRankingService';
 import { getCalendarNotes } from '../../api/services/calendarNotesService';
@@ -229,9 +228,6 @@ const CourseDashboardPage = () => {
       sectionName={t('courses.dashboard')}
     >
       <div className="px-4 sm:px-6 lg:px-8 py-6 pb-24 space-y-6">
-        {/* Pending Quiz Banner */}
-        <PendingQuizBanner courseId={courseId} />
-
         {/* Progress Overview Bar */}
         <div 
           className="rounded-xl p-4 border"

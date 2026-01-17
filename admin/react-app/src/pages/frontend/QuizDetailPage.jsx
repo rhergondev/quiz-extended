@@ -114,7 +114,9 @@ const QuizDetailPage = () => {
   });
 
   const questionCount = selectedQuiz.meta?._quiz_question_ids?.length || 0;
-  const timeLimit = selectedQuiz.meta?._time_limit || 0;
+  // Calcular time_limit dinámicamente basado en el número de preguntas
+  const questionsCount = selectedQuiz.meta?._quiz_question_ids?.length || 0;
+  const timeLimit = questionsCount > 0 ? Math.max(1, Math.ceil(questionsCount / 2)) : 0;
   const passingScore = selectedQuiz.meta?._passing_score || 0;
 
   return (

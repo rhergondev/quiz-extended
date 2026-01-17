@@ -1064,7 +1064,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
     {
         return [
             'instructions' => get_post_meta($quiz_id, '_quiz_instructions', true),
-            'time_limit' => absint(get_post_meta($quiz_id, '_time_limit', true) ?: 0),
+            'time_limit' => $this->calculate_time_limit($quiz_id),
             'randomize' => get_post_meta($quiz_id, '_randomize_questions', true) === 'yes'
         ];
     }
@@ -1684,6 +1684,25 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 500
             );
         }
+    }
+
+    /**
+     * Calculate time limit dynamically based on question count
+     * Formula: half the number of questions (rounded up), minimum 1
+     *
+     * @param int $quiz_id Quiz ID
+     * @return int Time limit in minutes
+     */
+    private function calculate_time_limit($quiz_id)
+    {
+        $question_ids = get_post_meta($quiz_id, '_quiz_question_ids', true);
+
+        if (!is_array($question_ids) || empty($question_ids)) {
+            return 0;
+        }
+
+        $questions_count = count($question_ids);
+        return max(1, ceil($questions_count / 2));
     }
 }
 

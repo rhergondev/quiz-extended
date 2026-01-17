@@ -111,7 +111,9 @@ const Question = ({
 
   return (
     <div 
-      id={`quiz-question-${displayIndex}`} 
+      id={`quiz-question-${id}`}
+      data-question-index={index}
+      data-question-number={displayIndex}
       className={`rounded-lg overflow-hidden shadow-sm mb-4 scroll-mt-6 transition-all duration-200 ${className}`}
       style={{ 
         backgroundColor: bgCard,
