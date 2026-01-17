@@ -583,17 +583,25 @@ class QE_Question_Type extends QE_Post_Types_Base
             return [];
         }
 
-        // Step 1: Get all lessons for this course
-        $lesson_ids = $wpdb->get_col($wpdb->prepare(
-            "SELECT p.ID 
-             FROM {$wpdb->posts} p
-             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-             WHERE p.post_type = 'qe_lesson'
-             AND p.post_status IN ('publish', 'draft', 'private')
-             AND pm.meta_key = '_course_id'
-             AND pm.meta_value = %d",
-            $course_id
-        ));
+        // Step 1: Prefer course meta _lesson_ids (source of truth for course→lessons)
+        $lesson_ids = get_post_meta($course_id, '_lesson_ids', true);
+        if (!is_array($lesson_ids)) {
+            $lesson_ids = [];
+        }
+
+        // Step 1b: Fallback to legacy lesson lookup by _course_id if meta is missing
+        if (empty($lesson_ids)) {
+            $lesson_ids = $wpdb->get_col($wpdb->prepare(
+                "SELECT p.ID 
+                 FROM {$wpdb->posts} p
+                 INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                 WHERE p.post_type = 'qe_lesson'
+                 AND p.post_status IN ('publish', 'draft', 'private')
+                 AND pm.meta_key = '_course_id'
+                 AND pm.meta_value = %d",
+                $course_id
+            ));
+        }
 
         if (empty($lesson_ids)) {
             return [];
