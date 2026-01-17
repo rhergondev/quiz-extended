@@ -240,9 +240,13 @@ const SelfPacedTestsPage = () => {
   };
 
   const handleStartPractice = async () => {
+    const hasLessons = config.lessons.length > 0;
+    const allLessonIds = lessons.map(l => l.id).filter(Boolean);
+    const lessonsFilter = hasLessons ? config.lessons : (allLessonIds.length > 0 ? allLessonIds : null);
+
     await fetchQuestions(true, {
-      course_id: courseId,
-      lessons: config.lessons.length > 0 ? config.lessons : null,
+      course_id: null,
+      lessons: lessonsFilter,
       difficulty: config.difficulty !== 'all' ? config.difficulty : null,
       perPage: config.numQuestions,
       status_filters: config.statusFilters.length > 0 ? config.statusFilters : null
