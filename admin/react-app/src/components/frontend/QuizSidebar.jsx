@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
 
@@ -48,6 +48,21 @@ const QuizSidebar = ({
 }) => {
   const { getColor, isDarkMode } = useTheme();
   const { t } = useTranslation();
+  
+  // 🔥 FIX: Forzar re-render cuando las preguntas se monten en el DOM
+  const [, forceUpdate] = useState({});
+  
+  useEffect(() => {
+    // Esperar a que las preguntas se rendericen completamente
+    if (questions && questions.length > 0) {
+      const timer = setTimeout(() => {
+        console.log('🔄 Force update sidebar after questions mount');
+        forceUpdate({});
+      }, 200);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [questions]);
   
   const answeredCount = Object.keys(userAnswers).length;
   const riskedCount = riskedAnswers.length;
@@ -273,6 +288,10 @@ const QuizSidebar = ({
               const qId = questionIds && questionIds[index] ? questionIds[index] : (questions && questions[index] ? questions[index].id : `unloaded-${index}`);
               // Verificar si la pregunta está cargada buscándola en el array de questions
               const isLoaded = questions && questions.some(q => q.id === qId);
+              
+              // 🔥 FIX: Verificar también que el elemento exista en el DOM antes de habilitar
+              const elementExists = isLoaded && document.getElementById(`quiz-question-${qId}`) !== null;
+              
               const isAnswered = userAnswers.hasOwnProperty(qId);
               const isRisked = riskedAnswers.includes(qId);
 
@@ -306,12 +325,23 @@ const QuizSidebar = ({
                 <button
                   key={qId}
                   onClick={() => {
-                    console.log('🖱️ Button clicked for question:', index + 1, 'isLoaded:', isLoaded);
-                    if (isLoaded) {
+                    console.log('🖱️ Button clicked for question:', index + 1, 'isLoaded:', isLoaded, 'elementExists:', elementExists);
+                    if (elementExists) {
                       scrollToQuestion(index);
+                    } else if (!isLoaded) {
+                      console.log('⚠️ Question not loaded yet');
+                    } else {
+                      console.log('⚠️ Question loaded but element not in DOM yet, retrying in 100ms...');
+                      setTimeout(() => {
+                        const retryExists = document.getElementById(`quiz-question-${qId}`) !== null;
+                        console.log('🔄 Retry check:', retryExists);
+                        if (retryExists) {
+                          scrollToQuestion(index);
+                        }
+                      }, 100);
                     }
                   }}
-                  disabled={!isLoaded}
+                  disabled={!elementExists}
                   className="w-full aspect-square rounded text-[11px] font-bold transition-all duration-150 flex items-center justify-center border-2 disabled:cursor-wait hover:enabled:scale-110 hover:enabled:shadow-sm cursor-pointer"
                   style={{
                     backgroundColor: bgColor,
