@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
 
@@ -51,16 +51,49 @@ const QuizSidebar = ({
   
   // 🔥 FIX: Forzar re-render cuando las preguntas se monten en el DOM
   const [, forceUpdate] = useState({});
+  const checkIntervalRef = useRef(null);
   
   useEffect(() => {
-    // Esperar a que las preguntas se rendericen completamente
+    // Esperar a que las preguntas se rendericen completamente en el DOM
     if (questions && questions.length > 0) {
-      const timer = setTimeout(() => {
-        console.log('🔄 Force update sidebar after questions mount');
-        forceUpdate({});
+      console.log('🔄 Questions arrived in sidebar, starting DOM check...');
+      
+      let checksCount = 0;
+      const maxChecks = 10; // Máximo 10 checks (2 segundos)
+      
+      // Limpiar intervalo anterior si existe
+      if (checkIntervalRef.current) {
+        clearInterval(checkIntervalRef.current);
+      }
+      
+      checkIntervalRef.current = setInterval(() => {
+        checksCount++;
+        
+        // Verificar si al menos la primera pregunta existe en el DOM
+        const firstQuestionId = questions[0]?.id;
+        if (firstQuestionId) {
+          const element = document.getElementById(`quiz-question-${firstQuestionId}`);
+          
+          if (element) {
+            console.log(`✅ Questions found in DOM after ${checksCount * 200}ms, forcing update`);
+            forceUpdate({});
+            clearInterval(checkIntervalRef.current);
+            checkIntervalRef.current = null;
+          } else if (checksCount >= maxChecks) {
+            console.warn('⚠️ Questions still not in DOM after 2 seconds, forcing update anyway');
+            forceUpdate({});
+            clearInterval(checkIntervalRef.current);
+            checkIntervalRef.current = null;
+          }
+        }
       }, 200);
       
-      return () => clearTimeout(timer);
+      return () => {
+        if (checkIntervalRef.current) {
+          clearInterval(checkIntervalRef.current);
+          checkIntervalRef.current = null;
+        }
+      };
     }
   }, [questions]);
   
