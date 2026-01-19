@@ -399,6 +399,7 @@ class QE_Books_API extends QE_API_Base
         $pdf_file_id = get_post_meta($post->ID, '_pdf_file_id', true);
         $pdf_url = get_post_meta($post->ID, '_pdf_url', true);
         $pdf_filename = get_post_meta($post->ID, '_pdf_filename', true);
+        $chapters = get_post_meta($post->ID, '_book_chapters', true);
 
         // Get featured image
         $featured_image_url = null;
@@ -415,6 +416,7 @@ class QE_Books_API extends QE_API_Base
                 'url' => $pdf_url ?: null,
                 'filename' => $pdf_filename ?: null,
             ],
+            'chapters' => is_array($chapters) ? $chapters : [],
         ];
     }
 
@@ -479,6 +481,9 @@ class QE_Books_API extends QE_API_Base
         }
         if ($request->has_param('pdf_url')) {
             $meta['_pdf_url'] = $request->get_param('pdf_url');
+        }
+        if ($request->has_param('chapters')) {
+            $meta['_book_chapters'] = $request->get_param('chapters');
         }
 
         $this->update_book_meta($post_id, $meta);
@@ -547,6 +552,9 @@ class QE_Books_API extends QE_API_Base
         }
         if ($request->has_param('pdf_url')) {
             $meta['_pdf_url'] = $request->get_param('pdf_url');
+        }
+        if ($request->has_param('chapters')) {
+            $meta['_book_chapters'] = $request->get_param('chapters');
         }
 
         if (!empty($meta)) {
@@ -735,6 +743,8 @@ class QE_Books_API extends QE_API_Base
             'url' => $pdf_url ?: null,
             'filename' => $pdf_filename ?: null,
         ];
+        
+        $chapters = get_post_meta($post->ID, '_book_chapters', true);
 
         // Get product info if linked
         $product_info = null;
@@ -768,6 +778,7 @@ class QE_Books_API extends QE_API_Base
             'featured_media' => get_post_thumbnail_id($post->ID) ?: null,
             'featured_image_url' => $featured_image_url,
             'pdf' => $pdf,
+            'chapters' => is_array($chapters) ? $chapters : [],
             'meta' => $meta,
             'linked_product' => $product_info,
         ];
@@ -786,6 +797,7 @@ class QE_Books_API extends QE_API_Base
             '_pdf_file_id',
             '_pdf_url',
             '_pdf_filename',
+            '_book_chapters',
             '_price',
             '_is_free',
         ];

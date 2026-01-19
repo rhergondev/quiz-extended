@@ -562,7 +562,13 @@
     "noBooksDescription": "Aún no has adquirido ningún libro. Cuando compres un producto con libro asociado, aparecerá aquí.",
     "download": "Descargar PDF",
     "downloading": "Descargando...",
-    "noDownload": "No disponible"
+    "noDownload": "No disponible",
+    "updates": "Actualizaciones",
+    "viewChapters": "Ver Actualizaciones",
+    "fullVersion": "Libro Completo",
+    "fullPdf": "PDF Completo",
+    "downloads": "Descargas Disponibles",
+    "noUpdates": "Sin actualizaciones"
   },
   "quizzes": {
     "title": "Cuestionarios",

@@ -11,10 +11,12 @@
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader, AlertTriangle, Inbox, Menu, X, BookOpen, FileText, Home, Sun, Moon, User, LogOut, Book } from 'lucide-react';
+import { Loader, AlertTriangle, Inbox, Menu, X, BookOpen, FileText, Home, Sun, Moon, User, LogOut, Book, Plus } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useUserBooks from '../../hooks/useUserBooks';
+import useBooks from '../../hooks/useBooks'; // Added for admin capabilities
 import BookCard from '../../components/frontend/BookCard';
+import BookEditorModal from '../../components/books/BookEditorModal'; // Replaces BookEditorSlidePanel
 import { isUserAdmin } from '../../utils/userUtils';
 import { NavLink } from 'react-router-dom';
 
@@ -47,7 +49,63 @@ const BooksPage = () => {
     hoverBg: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#1a202c'),
   };
   
-  const { books, loading, error } = useUserBooks({ autoFetch: true });
+  const { books, loading, error, refresh } = useUserBooks({ autoFetch: true });
+
+  // Admin capabilities
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [selectedBookId, setSelectedBookId] = useState(null);
+  const [mode, setMode] = useState('view'); // 'view', 'create', 'edit'
+
+  // Hook specifically for admin operations (CRUD) - autoFetch false as we use it just for actions
+  const booksManager = useBooks({ autoFetch: false });
+
+  // Handlers for Admin
+  const handleCreateNew = () => {
+    setSelectedBookId(null);
+    setMode('create');
+    setIsPanelOpen(true);
+  };
+
+  const handleEditBook = (book) => {
+    setSelectedBookId(book.id);
+    setMode('edit');
+    setIsPanelOpen(true);
+  };
+
+  const handleClosePanel = () => {
+    setIsPanelOpen(false);
+    setTimeout(() => {
+      setSelectedBookId(null);
+      setMode('view');
+    }, 300);
+  };
+
+  const handleSave = async (bookData) => {
+    try {
+      if (mode === 'create') {
+        await booksManager.createBook(bookData);
+      } else {
+        await booksManager.updateBook(selectedBookId, bookData);
+      }
+      // Refresh user books list to show changes
+      refresh();
+    } catch (error) {
+      console.error('Error saving book:', error);
+      throw error;
+    }
+  };
+
+  const handleDelete = async (bookId) => {
+    try {
+      await booksManager.deleteBook(bookId);
+      handleClosePanel();
+      // Refresh user books list to show changes
+      refresh();
+    } catch (error) {
+      console.error('Error deleting book:', error);
+      throw error;
+    }
+  };
 
   const renderContent = () => {
     if (loading && books.length === 0) {
@@ -74,19 +132,40 @@ const BooksPage = () => {
     
     if (!books || books.length === 0) {
       return (
-        <PageState 
-          icon={Inbox} 
-          title={t('books.noBooks')} 
-          message={t('books.noBooksDescription')}
-          colors={pageColors}
-        />
+        <div className="flex flex-col items-center">
+          <PageState 
+            icon={Inbox} 
+            title={t('books.noBooks')} 
+            message={t('books.noBooksDescription')}
+            colors={pageColors}
+          />
+          {userIsAdmin && (
+            <button
+              onClick={handleCreateNew}
+              className="mt-4 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 flex items-center gap-2"
+              style={{
+                backgroundColor: pageColors.accent,
+                color: '#ffffff',
+                boxShadow: `0 4px 12px ${pageColors.accent}40`
+              }}
+            >
+              <Plus size={18} />
+              <span>{t('books.createFirst', 'Crear el primer libro')}</span>
+            </button>
+          )}
+        </div>
       );
     }
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-items-center">
         {books.map(book => (
-          <BookCard key={book.id} book={book} />
+          <BookCard 
+            key={book.id} 
+            book={book} 
+            isAdmin={userIsAdmin}
+            onEdit={handleEditBook}
+          />
         ))}
       </div>
     );
@@ -274,24 +353,55 @@ const BooksPage = () => {
 
       <main>
         {/* Page Header */}
-        <div className="mb-8">
-          <h1 
-            className="text-2xl font-bold flex items-center gap-3"
-            style={{ color: pageColors.text }}
-          >
-            <Book className="w-8 h-8" style={{ color: pageColors.primary }} />
-            {t('books.myBooks')}
-          </h1>
-          <p 
-            className="mt-2 text-sm"
-            style={{ color: pageColors.textMuted }}
-          >
-            {t('books.myBooksDescription')}
-          </p>
+        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 
+              className="text-2xl font-bold flex items-center gap-3"
+              style={{ color: pageColors.text }}
+            >
+              <Book className="w-8 h-8" style={{ color: pageColors.primary }} />
+              {t('books.myBooks')}
+            </h1>
+            <p 
+              className="mt-2 text-sm"
+              style={{ color: pageColors.textMuted }}
+            >
+              {t('books.myBooksDescription')}
+            </p>
+          </div>
+
+          {/* Admin Action: Create Book */}
+          {userIsAdmin && (
+            <button
+              onClick={handleCreateNew}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 hover:-translate-y-0.5"
+              style={{
+                backgroundColor: pageColors.accent,
+                color: '#ffffff',
+                boxShadow: `0 4px 12px ${pageColors.accent}40`
+              }}
+            >
+              <Plus size={18} />
+              <span>{t('books.createBook', 'Nuevo Libro')}</span>
+            </button>
+          )}
         </div>
 
         {renderContent()}
       </main>
+
+      {/* Admin Editor Modal */}
+      {userIsAdmin && (
+        <BookEditorModal
+          isOpen={isPanelOpen}
+          bookId={selectedBookId}
+          mode={mode}
+          onSave={handleSave}
+          onClose={handleClosePanel}
+          onDelete={handleDelete}
+          getBook={booksManager.getBook}
+        />
+      )}
     </div>
   );
 };

@@ -65,7 +65,21 @@ export const useQuestions = (options = {}) => {
 
   // Determine user capabilities for default status handling
   // If user is not admin, they should only see published content by default
-  const isAdmin = window.qe_data?.user?.roles?.includes('administrator') || false;
+  const checkIsAdmin = () => {
+    const user = window.qe_data?.user;
+    if (!user) return false;
+    
+    // Check roles if available
+    if (user.roles?.includes('administrator')) return true;
+    
+    // Check capabilities if available (fallback)
+    // 'manage_options' is a standard capability for administrators
+    if (user.capabilities?.includes('manage_options')) return true;
+    
+    return false;
+  };
+  
+  const isAdmin = checkIsAdmin();
   const defaultStatus = isAdmin ? 'publish,draft,private' : 'publish';
 
   // Usar el hook genérico 'useResource' con la configuración específica para "questions"

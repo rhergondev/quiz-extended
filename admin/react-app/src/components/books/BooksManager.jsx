@@ -19,7 +19,7 @@ import useBooks from '../../hooks/useBooks.js';
 
 // Components
 import AdminBookCard from './AdminBookCard';
-import BookEditorSlidePanel from './BookEditorSlidePanel';
+import BookEditorModal from './BookEditorModal';
 
 /**
  * BooksManager Component
@@ -348,8 +348,8 @@ const BooksManager = () => {
         </div>
       </div>
 
-      {/* Editor Slide Panel - Contained within BooksManager */}
-      <BookEditorSlidePanel
+      {/* Editor Modal - Contained within BooksManager */}
+      <BookEditorModal
         isOpen={isPanelOpen}
         bookId={selectedBookId}
         mode={mode}

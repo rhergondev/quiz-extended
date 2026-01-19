@@ -267,6 +267,11 @@ class QE_Frontend
             return;
         }
 
+        // Enable WordPress Media Manager for Administrators/Editors
+        if (current_user_can('upload_files')) {
+            wp_enqueue_media();
+        }
+
         $build_path = 'admin/react-app/build/';
         $script_asset_path = QUIZ_EXTENDED_PLUGIN_DIR . $build_path . 'index.asset.php';
 
@@ -290,7 +295,171 @@ class QE_Frontend
             $script_asset['version']
         );
 
-        $custom_css = "footer.elementor-location-footer { display: none !important; }";
+        $custom_css = "
+            footer.elementor-location-footer { display: none !important; }
+            
+            /* WP Media Library Fixes for Frontend - Isolation from Tailwind/App styles */
+            .media-modal-backdrop {
+                z-index: 200000 !important; /* High enough to cover app */
+            }
+            .media-modal {
+                z-index: 200001 !important; /* One step higher than backdrop */
+            }
+            .media-modal {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif !important;
+                font-size: 13px !important;
+                line-height: 1.4 !important;
+            }
+            /* Fix box sizing and visibility */
+            .media-modal *, .media-modal *::before, .media-modal *::after {
+                box-sizing: border-box; 
+            }
+            .media-modal .media-modal-close,
+            .media-modal .media-modal-icon {
+                box-sizing: content-box !important;
+            }
+            
+            /* Fix image display in grid (Tailwind conflict) */
+            .media-modal .attachment-preview img {
+                max-width: none !important;
+                height: auto !important;
+                display: block !important;
+            }
+            
+            /* Fix Inputs (Tailwind reset conflict) */
+            .media-modal input[type='text'],
+            .media-modal input[type='search'],
+            .media-modal input[type='password'],
+            .media-modal input[type='url'],
+            .media-modal textarea,
+            .media-modal select {
+                background-color: #fff !important;
+                color: #3c434a !important;
+                border: 1px solid #8c8f94 !important;
+                border-radius: 4px !important;
+                padding: 0 8px !important;
+                min-height: 30px !important;
+                line-height: 2 !important;
+                font-size: 13px !important;
+                box-shadow: none !important;
+                max-width: 100%;
+                appearance: none; /* WP admin styles often handle appearance, but let's be safe */
+            }
+            .media-modal select {
+                padding-right: 24px !important; /* Space for arrow */
+                background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%206l5%205%205-5%202%201-7%207-7-7%202-1z%22%20fill%3D%22%23555%22%2F%3E%3C%2Fsvg%3E') !important;
+                background-repeat: no-repeat !important;
+                background-position: right 8px top 55% !important;
+                background-size: 16px 16px !important;
+            }
+
+            /* Fix Buttons */
+            .media-modal .button {
+                display: inline-flex !important;
+                align-items: center;
+                justify-content: center;
+                min-height: 30px !important;
+                padding: 0 10px !important;
+                line-height: normal !important;
+                font-size: 13px !important;
+                vertical-align: middle !important;
+                margin-bottom: 0 !important;
+                background: #f6f7f7 !important;
+                color: #2271b1 !important;
+                border: 1px solid #2271b1 !important;
+                border-radius: 3px !important;
+                cursor: pointer;
+                text-decoration: none;
+                font-weight: 400 !important;
+                text-shadow: none !important;
+            }
+            .media-modal .button-primary {
+                background: #2271b1 !important;
+                color: #fff !important;
+                border-color: #2271b1 !important;
+            }
+            .media-modal .button-primary:hover {
+                background: #135e96 !important;
+                border-color: #135e96 !important;
+            }
+            
+            /* Fix Checkboxes */
+            .media-modal input[type='checkbox'] {
+                appearance: auto !important; /* Restore native checkbox */
+                border: 1px solid #8c8f94 !important;
+                border-radius: 2px !important;
+                background: #fff !important;
+                width: 16px !important;
+                height: 16px !important;
+                min-width: 16px !important;
+                margin-right: 4px !important;
+            }
+            
+            /* Restore backgrounds */
+            .media-modal-content {
+                background: #fff !important;
+            }
+            .media-frame-content {
+                background: #fff !important;
+            }
+            .media-menu {
+                background: #f0f0f1 !important;
+            }
+            .media-frame-title {
+                background: #fff !important;
+                border-bottom: 1px solid #ddd !important;
+            }
+            .media-frame-router {
+                background: #fff !important;
+            }
+            
+            /* Links */
+            .media-modal a {
+                color: #2271b1;
+                transition-property: border, background, color;
+                transition-duration: .05s;
+                transition-timing-function: ease-in-out;
+            }
+            .media-modal a:hover, .media-modal a:focus {
+                color: #135e96;
+            }
+
+            /* --- FIX: Buttons Visibility & Contrast --- */
+            
+            /* Primary Actions (e.g., 'Unselect', 'Insert into post', 'Select Files') */
+            .media-modal .media-button, 
+            .media-modal .media-frame-toolbar .button-primary,
+            .media-modal .browser .button {
+                background-color: #2271b1 !important;
+                color: #ffffff !important;
+                border-color: #2271b1 !important;
+                text-shadow: none !important;
+            }
+
+            /* Hover state for primary buttons */
+            .media-modal .media-button:hover,
+            .media-modal .media-frame-toolbar .button-primary:hover,
+            .media-modal .browser .button:hover {
+                background-color: #135e96 !important;
+                border-color: #135e96 !important;
+                color: #ffffff !important;
+            }
+
+            /* Secondary Actions (e.g., 'Cancel') */
+            .media-modal .media-frame-toolbar .button-secondary {
+                background-color: #f6f7f7 !important;
+                color: #2271b1 !important;
+                border-color: #2271b1 !important;
+            }
+
+            /* The 'Upload Files' tab and 'Media Library' tab might be router links */
+            .media-modal .media-router .media-menu-item {
+                color: #2271b1 !important; 
+            }
+            .media-modal .media-router .media-menu-item.active {
+                color: #1d2327 !important;
+            }
+        ";
         wp_add_inline_style('quiz-extended-frontend-app', $custom_css);
 
         $this->localize_scripts();

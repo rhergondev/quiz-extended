@@ -539,7 +539,13 @@
     "noBooksDescription": "You haven't purchased any books yet. When you buy a product with an associated book, it will appear here.",
     "download": "Download PDF",
     "downloading": "Downloading...",
-    "noDownload": "Not available"
+    "noDownload": "Not available",
+    "updates": "Updates",
+    "viewChapters": "View Updates",
+    "fullVersion": "Full Version",
+    "fullPdf": "Complete Book (PDF)",
+    "noUpdates": "No updates",
+    "downloads": "Available Downloads"
   },
   "quizzes": {
     "title": "Quizzes",
