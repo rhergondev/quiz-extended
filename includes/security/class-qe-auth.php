@@ -466,7 +466,7 @@ class QE_Auth
         // Check permissions based on method
         switch ($method) {
             case 'GET':
-                return $this->check_read_permission($resource_type, $resource_id);
+                return $this->check_read_permission($resource_type, $resource_id, $request);
 
             case 'POST':
                 return $resource_id
@@ -492,7 +492,7 @@ class QE_Auth
      * @param int|null $resource_id Resource ID
      * @return bool|WP_Error
      */
-    private function check_read_permission($resource_type, $resource_id)
+    private function check_read_permission($resource_type, $resource_id, $request = null)
     {
         // Admins can read everything
         if (current_user_can('administrator') || current_user_can('manage_lms')) {
@@ -515,6 +515,61 @@ class QE_Auth
             $post = get_post($resource_id);
             if ($post && $post->post_status === 'publish') {
                 return true;
+            }
+        }
+
+        // Allow enrolled students to read questions list when scoped to their course/lessons
+        if ($resource_type === 'qe_question') {
+            // Single question: allow if published and user can view its course
+            if ($resource_id) {
+                $post = get_post($resource_id);
+                if ($post && $post->post_status === 'publish') {
+                    $course_id = absint(get_post_meta($resource_id, '_course_id', true));
+                    if ($course_id && $this->can_view_course($course_id)) {
+                        return true;
+                    }
+                }
+            }
+
+            // Collection: require course_id or lessons filter and enrollment
+            if ($request instanceof WP_REST_Request) {
+                $course_id = absint($request->get_param('course_id'));
+                if ($course_id) {
+                    if ($this->can_view_course($course_id)) {
+                        return true;
+                    }
+                }
+
+                $lessons_param = $request->get_param('lessons');
+                if (!empty($lessons_param)) {
+                    $lesson_ids = is_array($lessons_param)
+                        ? $lessons_param
+                        : array_filter(array_map('absint', explode(',', (string) $lessons_param)));
+
+                    $course_ids = [];
+                    foreach ($lesson_ids as $lesson_id) {
+                        if (!$lesson_id) {
+                            continue;
+                        }
+                        $lesson_course_id = absint(get_post_meta($lesson_id, '_course_id', true));
+                        if ($lesson_course_id) {
+                            $course_ids[$lesson_course_id] = true;
+                        }
+                    }
+
+                    if (!empty($course_ids)) {
+                        foreach (array_keys($course_ids) as $cid) {
+                            if (!$this->can_view_course($cid)) {
+                                return new WP_Error(
+                                    'rest_forbidden',
+                                    __('You do not have permission to view these questions.', 'quiz-extended'),
+                                    ['status' => 403]
+                                );
+                            }
+                        }
+                        return true;
+                    }
+                }
             }
         }
 

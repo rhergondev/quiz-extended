@@ -243,9 +243,10 @@ const SelfPacedTestsPage = () => {
     const hasLessons = config.lessons.length > 0;
     const allLessonIds = lessons.map(l => l.id).filter(Boolean);
     const lessonsFilter = hasLessons ? config.lessons : (allLessonIds.length > 0 ? allLessonIds : null);
+    const courseIdInt = parseInt(courseId, 10);
 
     await fetchQuestions(true, {
-      course_id: null,
+      course_id: Number.isNaN(courseIdInt) ? null : courseIdInt,
       lessons: lessonsFilter,
       difficulty: config.difficulty !== 'all' ? config.difficulty : null,
       perPage: config.numQuestions,
