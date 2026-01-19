@@ -470,6 +470,26 @@ class QE_Post_Types_Loader
             ];
         }
 
+        // Filter by lessons (supports comma-separated IDs)
+        if ($request->get_param('lessons')) {
+            $lessons_param = $request->get_param('lessons');
+            $lesson_ids = is_array($lessons_param)
+                ? $lessons_param
+                : array_filter(array_map('absint', explode(',', (string) $lessons_param)));
+
+            if (!empty($lesson_ids)) {
+                $lesson_meta_query = ['relation' => 'OR'];
+                foreach ($lesson_ids as $lesson_id) {
+                    $lesson_meta_query[] = [
+                        'key' => '_lesson_ids',
+                        'value' => '"' . absint($lesson_id) . '"',
+                        'compare' => 'LIKE'
+                    ];
+                }
+                $meta_query[] = $lesson_meta_query;
+            }
+        }
+
         // Filter by difficulty
         if ($request->get_param('difficulty')) {
             $meta_query[] = [
@@ -532,6 +552,12 @@ class QE_Post_Types_Loader
             'description' => __('Filter by course ID', 'quiz-extended'),
             'type' => 'integer',
             'sanitize_callback' => 'absint',
+        ];
+
+        $params['lessons'] = [
+            'description' => __('Filter by lesson IDs (comma separated)', 'quiz-extended'),
+            'type' => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
         ];
 
         $params['quiz_id'] = [
