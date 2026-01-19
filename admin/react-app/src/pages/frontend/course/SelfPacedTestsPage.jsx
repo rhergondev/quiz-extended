@@ -248,6 +248,7 @@ const SelfPacedTestsPage = () => {
       course_id: null,
       lessons: lessonsFilter,
       difficulty: config.difficulty !== 'all' ? config.difficulty : null,
+      status: 'publish',
       perPage: config.numQuestions,
       status_filters: config.statusFilters.length > 0 ? config.statusFilters : null
     });
