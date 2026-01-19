@@ -258,7 +258,8 @@ const QuizGeneratorPage = () => {
       lessons: lessonsFilter,
       difficulty: config.difficulty !== 'all' ? config.difficulty : null,
       perPage: config.numQuestions,
-      status_filters: config.statusFilters.length > 0 ? config.statusFilters : null
+      status_filters: config.statusFilters.length > 0 ? config.statusFilters : null,
+      status: 'publish'
     });
     setShowQuiz(true);
   };

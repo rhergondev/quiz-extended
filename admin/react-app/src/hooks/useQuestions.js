@@ -63,6 +63,11 @@ export const useQuestions = (options = {}) => {
     };
   }, []);
 
+  // Determine user capabilities for default status handling
+  // If user is not admin, they should only see published content by default
+  const isAdmin = window.qe_data?.user?.roles?.includes('administrator') || false;
+  const defaultStatus = isAdmin ? 'publish,draft,private' : 'publish';
+
   // Usar el hook genérico 'useResource' con la configuración específica para "questions"
   const resource = useResource({
     service: questionService,
@@ -76,7 +81,7 @@ export const useQuestions = (options = {}) => {
       course_id: options.course_id || null,
       lessons: options.lessons || null,
       status_filters: options.status_filters || null,
-      status: options.status || 'publish,draft,private'
+      status: options.status !== undefined ? options.status : defaultStatus
     },
     dataProcessor,
     computedValuesCalculator,
