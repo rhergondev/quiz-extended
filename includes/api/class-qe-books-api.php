@@ -743,7 +743,7 @@ class QE_Books_API extends QE_API_Base
             'url' => $pdf_url ?: null,
             'filename' => $pdf_filename ?: null,
         ];
-        
+
         $chapters = get_post_meta($post->ID, '_book_chapters', true);
 
         // Get product info if linked

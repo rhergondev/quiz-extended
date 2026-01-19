@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { 
   MessageSquare, Mail, MailOpen, Trash2, ChevronLeft, 
@@ -17,9 +17,24 @@ import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 const MessagesPage = () => {
   const { t } = useTranslation();
   const { courseId } = useParams();
+  const navigate = useNavigate();
   const { getColor, isDarkMode } = useTheme();
   const { course, loading: courseLoading } = useCourse(courseId);
   const courseName = course?.title?.rendered || course?.title || '';
+
+  // Check if user is admin
+  const isAdmin = window.qe_data?.user?.capabilities?.manage_options === true || 
+                  window.qe_data?.user?.is_admin === true;
+
+  // Redirect admins to MessagesManager with course filter
+  useEffect(() => {
+    if (isAdmin && course && !courseLoading) {
+      const title = course.title?.rendered || course.title;
+      if (title) {
+        navigate(`/admin/messages?search=${encodeURIComponent('(Curso: ' + title + ')')}`, { replace: true });
+      }
+    }
+  }, [isAdmin, course, courseLoading, navigate]);
 
   // Colores del tema
   const primary = getColor('primary', '#3b82f6');

@@ -1,6 +1,7 @@
 // admin/react-app/src/components/messages/MessagesManager.jsx
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   MessageSquare, 
   Mail,
@@ -39,6 +40,47 @@ import useQuizzes from '../../hooks/useQuizzes';
 import useLessons from '../../hooks/useLessons';
 import useCourses from '../../hooks/useCourses';
 import { toast } from 'react-toastify';
+
+// Helper to remove metadata from message
+const cleanMessageContent = (content) => {
+  if (!content) return '';
+  // Remove (Key: Value) pattern at the start of the message
+  return content.replace(/^(\s*\([^)]+\)\s*)+/g, '').trim();
+};
+
+// Component to fetch and display question title
+const QuestionPreview = ({ questionId, pageColors }) => {
+  const [title, setTitle] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchQuestion = async () => {
+      try {
+        const config = getApiConfig();
+        const response = await makeApiRequest(`${config.endpoints.questions}/${questionId}`);
+        if (isMounted && response) {
+          const questionData = response.data || response;
+          setTitle(questionData.title?.rendered || questionData.title || `Pregunta #${questionId}`);
+        }
+      } catch (e) {
+        console.error(e);
+        if (isMounted) setTitle(`Pregunta #${questionId}`);
+      }
+    };
+    if (questionId) fetchQuestion();
+    return () => { isMounted = false; };
+  }, [questionId]);
+
+  if (!title) return <span className="text-sm font-medium" style={{ color: pageColors.text }}>Cargando pregunta...</span>;
+
+  return (
+    <span 
+      className="text-sm font-medium line-clamp-1" 
+      style={{ color: pageColors.text }} 
+      dangerouslySetInnerHTML={{ __html: title }} 
+    />
+  );
+};
 
 const MessagesManager = () => {
   const { t } = useTranslation();
@@ -79,7 +121,8 @@ const MessagesManager = () => {
   const [replies, setReplies] = useState([]);
   const [loadingReplies, setLoadingReplies] = useState(false);
 
-  const { searchValue, handleSearchChange, clearSearch } = useSearchInput('', () => {}, 500);
+  const [searchParams] = useSearchParams();
+  const { searchValue, handleSearchChange, clearSearch } = useSearchInput(searchParams.get('search') || '', () => {}, 500);
   const { filters, updateFilter } = useFilterDebounce({ status: 'all', type: 'all' }, () => {}, 300);
 
   // Taxonomy options (like QuestionsManager)
@@ -673,7 +716,7 @@ const MessagesManager = () => {
                       }}
                     >
                       <p className="text-sm font-semibold mb-3" style={{ color: pageColors.text }}>{selectedMessage.subject}</p>
-                      <div className="text-sm prose prose-sm max-w-none leading-relaxed" style={{ color: pageColors.text }} dangerouslySetInnerHTML={{ __html: selectedMessage.message }} />
+                      <div className="text-sm prose prose-sm max-w-none leading-relaxed" style={{ color: pageColors.text }} dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedMessage.message) }} />
                     </div>
                     <p className="text-xs mt-2 ml-3" style={{ color: pageColors.textMuted }}>{formatFullDate(selectedMessage.created_at)}</p>
                   </div>
@@ -691,7 +734,7 @@ const MessagesManager = () => {
                   >
                     <div className="flex items-center gap-2 mb-3">
                       <FileQuestion size={16} style={{ color: pageColors.accent }} />
-                      <span className="text-sm font-medium" style={{ color: pageColors.text }}>Pregunta #{selectedMessage.related_object_id}</span>
+                      <QuestionPreview questionId={selectedMessage.related_object_id} pageColors={pageColors} />
                     </div>
                     {!showQuestionEditor ? (
                       <button 
