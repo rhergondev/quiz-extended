@@ -41,11 +41,22 @@ import useLessons from '../../hooks/useLessons';
 import useCourses from '../../hooks/useCourses';
 import { toast } from 'react-toastify';
 
-// Helper to remove metadata from message
-const cleanMessageContent = (content) => {
+// Helper to remove metadata and duplicated subject from message
+const cleanMessageContent = (content, subject = '') => {
   if (!content) return '';
-  // Remove (Key: Value) pattern at the start of the message
-  return content.replace(/^(\s*\([^)]+\)\s*)+/g, '').trim();
+  
+  // 1. Remove metadata pattern: (Curso: ...) (Lección: ...) (Pregunta ID: ...)
+  let cleaned = content.replace(/(\(Curso:[^)]+\)\s*\(Lección:[^)]+\)\s*\(Pregunta ID:[^)]+\))/gi, '');
+  
+  // 2. Remove subject if it appears at the start (ignoring tags/whitespace)
+  if (subject) {
+    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const subjectPattern = new RegExp(`^\\s*(?:<[^>]+>\\s*)*${escapeRegExp(subject.trim())}\\s*(?:<\\/[^>]+>\\s*)*`, 'i');
+    cleaned = cleaned.replace(subjectPattern, '');
+  }
+
+  // 3. Cleanup empty tags/whitespace
+  return cleaned.replace(/<p>\s*<\/p>/gi, '').trim();
 };
 
 // Component to fetch and display question title
@@ -716,7 +727,7 @@ const MessagesManager = () => {
                       }}
                     >
                       <p className="text-sm font-semibold mb-3" style={{ color: pageColors.text }}>{selectedMessage.subject}</p>
-                      <div className="text-sm prose prose-sm max-w-none leading-relaxed" style={{ color: pageColors.text }} dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedMessage.message) }} />
+                      <div className="text-sm prose prose-sm max-w-none leading-relaxed" style={{ color: pageColors.text }} dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedMessage.message, selectedMessage.subject) }} />
                     </div>
                     <p className="text-xs mt-2 ml-3" style={{ color: pageColors.textMuted }}>{formatFullDate(selectedMessage.created_at)}</p>
                   </div>
