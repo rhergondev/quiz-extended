@@ -93,7 +93,7 @@ const QuestionPreview = ({ questionId, pageColors }) => {
   );
 };
 
-const MessagesManager = () => {
+const MessagesManager = ({ initialSearch = '', courseMode = false }) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode, toggleDarkMode } = useTheme();
 
@@ -133,7 +133,7 @@ const MessagesManager = () => {
   const [loadingReplies, setLoadingReplies] = useState(false);
 
   const [searchParams] = useSearchParams();
-  const { searchValue, handleSearchChange, clearSearch } = useSearchInput(searchParams.get('search') || '', () => {}, 500);
+  const { searchValue, handleSearchChange, clearSearch } = useSearchInput(searchParams.get('search') || initialSearch, () => {}, 500);
   const { filters, updateFilter } = useFilterDebounce({ status: 'all', type: 'all' }, () => {}, 300);
 
   // Taxonomy options (like QuestionsManager)
@@ -311,7 +311,7 @@ const MessagesManager = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)]" style={{ backgroundColor: pageColors.bgPage }}>
+    <div className="flex flex-col" style={{ backgroundColor: pageColors.bgPage }}>
       {/* TOP BAR - Frontend-style design */}
       <div 
         className="flex items-center justify-between px-6 py-4" 
@@ -410,14 +410,15 @@ const MessagesManager = () => {
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 flex overflow-hidden p-4 gap-4">
+      <div className="flex-1 flex p-4 gap-4">
         {/* LEFT PANEL - Message List */}
         <div 
           className="w-80 flex-shrink-0 flex flex-col rounded-2xl overflow-hidden" 
           style={{ 
             backgroundColor: pageColors.bgCard, 
             boxShadow: pageColors.shadow,
-            border: `1px solid ${pageColors.cardBorder}`
+            border: `1px solid ${pageColors.cardBorder}`,
+            maxHeight: 'calc(100vh - 200px)'
           }}
         >
           <div className="p-4" style={{ borderBottom: `1px solid ${pageColors.cardBorder}` }}>
@@ -446,29 +447,31 @@ const MessagesManager = () => {
               </button>
             </div>
 
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: pageColors.textMuted }} />
-              <input 
-                type="text" 
-                value={searchValue} 
-                onChange={(e) => handleSearchChange(e.target.value)} 
-                placeholder="Buscar mensajes..." 
-                className="w-full pl-10 pr-10 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-2 transition-all" 
-                style={{ 
-                  backgroundColor: pageColors.inputBg, 
-                  border: `1px solid ${pageColors.cardBorder}`,
-                  color: pageColors.text,
-                  '--tw-ring-color': pageColors.accent
-                }} 
-              />
-              {searchValue && (
-                <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-black/5" style={{ color: pageColors.textMuted }}>
-                  <X size={14} />
-                </button>
-              )}
-            </div>
+            {!courseMode && (
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: pageColors.textMuted }} />
+                <input 
+                  type="text" 
+                  value={searchValue} 
+                  onChange={(e) => handleSearchChange(e.target.value)} 
+                  placeholder="Buscar mensajes..." 
+                  className="w-full pl-10 pr-10 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-2 transition-all" 
+                  style={{ 
+                    backgroundColor: pageColors.inputBg, 
+                    border: `1px solid ${pageColors.cardBorder}`,
+                    color: pageColors.text,
+                    '--tw-ring-color': pageColors.accent
+                  }} 
+                />
+                {searchValue && (
+                  <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-black/5" style={{ color: pageColors.textMuted }}>
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            )}
 
-            {activeView === 'inbox' && (
+            {!courseMode && activeView === 'inbox' && (
               <div className="flex gap-2 mt-3">
                 <select 
                   value={filters.status} 
@@ -635,7 +638,8 @@ const MessagesManager = () => {
           style={{ 
             backgroundColor: pageColors.bgCard,
             boxShadow: pageColors.shadow,
-            border: `1px solid ${pageColors.cardBorder}`
+            border: `1px solid ${pageColors.cardBorder}`,
+            maxHeight: 'calc(100vh - 200px)'
           }}
         >
           {activeView === 'inbox' && selectedMessage ? (
@@ -909,7 +913,7 @@ const MessagesManager = () => {
                         boxShadow: '0 2px 12px rgba(59, 130, 246, 0.2)'
                       }}
                     >
-                      <div className="text-sm prose prose-sm prose-invert max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: selectedSentMessage.message }} />
+                      <div className="text-sm prose prose-sm prose-invert max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedSentMessage.message, selectedSentMessage.subject) }} />
                     </div>
                     <p className="text-xs mt-2 mr-3 text-right" style={{ color: pageColors.textMuted }}>{formatFullDate(selectedSentMessage.created_at)}</p>
                   </div>

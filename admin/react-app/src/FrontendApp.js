@@ -32,6 +32,9 @@ import SelfPacedTestsPage from './pages/frontend/course/SelfPacedTestsPage';
 import MessagesPage from './pages/frontend/course/MessagesPage';
 import NotificationsPage from './pages/frontend/NotificationsPage';
 
+// MessagesManager - Available for admins in frontend
+import MessagesManager from './components/messages/MessagesManager';
+
 // Admin Pages - Lazy loaded (only loaded when admin navigates to /admin)
 const AdminDashboardPage = lazy(() => import('./pages/DashboardPage'));
 const CoursesManager = lazy(() => import('./components/courses/CoursesManager'));
@@ -39,7 +42,6 @@ const LessonsManager = lazy(() => import('./components/lessons/LessonsManager'))
 const QuizzesManager = lazy(() => import('./components/quizzes/QuizzesManager'));
 const UsersManager = lazy(() => import('./components/users/UsersManager'));
 const QuestionsManager = lazy(() => import('./components/questions/QuestionsManager'));
-const AdminMessagesManager = lazy(() => import('./components/messages/MessagesManager'));
 const AdminBooksManager = lazy(() => import('./components/books/BooksManager'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
@@ -103,7 +105,6 @@ function FrontendApp() {
                     <Route path="quizzes" element={<QuizzesManager />} />
                     <Route path="questions" element={<QuestionsManager />} />
                     <Route path="students" element={<UsersManager />} />
-                    <Route path="messages" element={<AdminMessagesManager />} />
                     <Route path="books" element={<AdminBooksManager />} />
                     <Route path="settings" element={<SettingsPage />} />
                   </Route>
@@ -112,6 +113,7 @@ function FrontendApp() {
                 {/* Protected Routes */}
                 <Route path="/" element={<ProtectedRoute><FrontendLayout /></ProtectedRoute>}>
                   <Route index element={<CoursesPage />} />
+                  <Route path="messages" element={<MessagesManager />} />
                   <Route path="dashboard" element={<DashboardPage />} />
                   <Route path="/dashboard/attempts/:attemptId" element={<QuizAttemptDetailsPage />} />
                   <Route path="courses" element={<CoursesPage />} />

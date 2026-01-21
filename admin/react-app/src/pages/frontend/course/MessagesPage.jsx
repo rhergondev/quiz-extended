@@ -13,6 +13,25 @@ import { useTheme } from '../../../contexts/ThemeContext';
 
 // Components
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
+import MessagesManager from '../../../components/messages/MessagesManager';
+
+// Helper to remove metadata and duplicated subject from message
+const cleanMessageContent = (content, subject = '') => {
+  if (!content) return '';
+  
+  // 1. Remove metadata pattern: (Curso: ...) (Lección: ...) (Pregunta ID: ...)
+  let cleaned = content.replace(/(\(Curso:[^)]+\)\s*\(Lección:[^)]+\)\s*\(Pregunta ID:[^)]+\))/gi, '');
+  
+  // 2. Remove subject if it appears at the start (ignoring tags/whitespace)
+  if (subject) {
+    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const subjectPattern = new RegExp(`^\\s*(?:<[^>]+>\\s*)*${escapeRegExp(subject.trim())}\\s*(?:<\\/[^>]+>\\s*)*`, 'i');
+    cleaned = cleaned.replace(subjectPattern, '');
+  }
+
+  // 3. Cleanup empty tags/whitespace
+  return cleaned.replace(/<p>\s*<\/p>/gi, '').trim();
+};
 
 const MessagesPage = () => {
   const { t } = useTranslation();
@@ -25,16 +44,6 @@ const MessagesPage = () => {
   // Check if user is admin
   const isAdmin = window.qe_data?.user?.capabilities?.manage_options === true || 
                   window.qe_data?.user?.is_admin === true;
-
-  // Redirect admins to MessagesManager with course filter
-  useEffect(() => {
-    if (isAdmin && course && !courseLoading) {
-      const title = course.title?.rendered || course.title;
-      if (title) {
-        navigate(`/admin/messages?search=${encodeURIComponent('(Curso: ' + title + ')')}`, { replace: true });
-      }
-    }
-  }, [isAdmin, course, courseLoading, navigate]);
 
   // Colores del tema
   const primary = getColor('primary', '#3b82f6');
@@ -123,392 +132,227 @@ const MessagesPage = () => {
 
   const isLoading = courseLoading || loading;
 
+  // If admin, show MessagesManager directly within course context
+  if (isAdmin && course && !courseLoading) {
+    const title = course.title?.rendered || course.title;
+    return (
+      <CoursePageTemplate
+        courseId={courseId}
+        courseName={courseName}
+        sectionName={t('header.messages')}
+        icon={MessageSquare}
+        loading={courseLoading}
+      >
+        <MessagesManager initialSearch={title ? `(Curso: ${title})` : ''} courseMode={true} />
+      </CoursePageTemplate>
+    );
+  }
+
   return (
     <CoursePageTemplate
       courseId={courseId}
       courseName={courseName}
       sectionName={t('header.messages')}
+      icon={MessageSquare}
+      loading={courseLoading}
     >
-      <div className="h-full overflow-hidden pb-8">
-        <div className="h-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10">
-          {/* Main Container */}
+      <div className="flex flex-col p-4 gap-4" style={{ backgroundColor: isDarkMode ? getColor('secondaryBackground', '#111827') : '#f5f7fa' }}>
+        {/* Main Content */}
+        <div className="flex-1 flex gap-4">
+          {/* LEFT PANEL - Message List */}
           <div 
-            className="h-full rounded-lg overflow-hidden border flex flex-col"
+            className="w-80 flex-shrink-0 flex flex-col rounded-2xl overflow-hidden" 
             style={{ 
-              backgroundColor: getColor('background', '#ffffff'),
-              borderColor: getColor('borderColor', '#e5e7eb')
+              backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+              boxShadow: isDarkMode ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.08)',
+              border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
+              maxHeight: 'calc(100vh - 200px)'
             }}
           >
-            {/* Header */}
-            <div 
-              className="px-3 py-2.5 flex-shrink-0"
-              style={{ backgroundColor: getColor('primary', '#1a202c') }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MessageSquare size={20} style={{ color: getColor('textColorContrast', '#ffffff') }} />
-                  <div>
-                    <h3 className="text-base font-bold" style={{ color: getColor('textColorContrast', '#ffffff') }}>
-                      {t('header.messages')}
-                    </h3>
-                  </div>
+            <div className="p-4" style={{ borderBottom: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}` }}>
+              <div className="flex items-center gap-3 mb-3">
+                <div 
+                  className="p-2.5 rounded-xl"
+                  style={{ 
+                    background: `linear-gradient(135deg, ${accent}, ${accent}dd)`,
+                    boxShadow: `0 4px 12px ${isDarkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)'}`
+                  }}
+                >
+                  <MessageSquare size={20} className="text-white" />
                 </div>
-                <div className="flex items-center gap-2">
+                <div>
+                  <h2 className="text-lg font-bold tracking-tight" style={{ color: pageColors.text }}>
+                    {t('header.messages')}
+                  </h2>
                   {computed.unreadMessages > 0 && (
-                    <span 
-                      className="px-2 py-0.5 rounded-full text-xs font-bold"
-                      style={{ 
-                        backgroundColor: getColor('accent', '#f59e0b'),
-                        color: '#ffffff'
-                      }}
-                    >
-                      {computed.unreadMessages} {t('messages.unread')}
-                    </span>
+                    <p className="text-xs mt-0.5" style={{ color: pageColors.textMuted }}>
+                      <span className="font-semibold" style={{ color: '#ef4444' }}>{computed.unreadMessages}</span> sin leer
+                    </p>
                   )}
-                  <span 
-                    className="text-xs"
-                    style={{ color: getColor('textColorContrast', '#ffffff'), opacity: 0.7 }}
-                  >
-                    {pagination.total} {t('messages.totalMessages')}
-                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Separator */}
-            <div style={{ height: '1px', backgroundColor: getColor('borderColor', '#e5e7eb') }} />
+            <div className="flex-1 overflow-y-auto">
+              {isLoading && messages.length === 0 && (
+                <div className="flex items-center justify-center h-32">
+                  <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: `${accent}30`, borderTopColor: accent }} />
+                </div>
+              )}
+              
+              {!isLoading && messages.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-32 text-center px-4">
+                  <Inbox size={28} style={{ color: pageColors.textMuted, opacity: 0.5 }} />
+                  <p className="text-sm mt-3" style={{ color: pageColors.textMuted }}>
+                    {t('messages.emptyInbox')}
+                  </p>
+                </div>
+              )}
 
-            {/* Content Area */}
-            <div className="flex-1 flex overflow-hidden">
-              {isLoading ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <div 
-                      className="w-10 h-10 border-3 rounded-full animate-spin mx-auto mb-3"
-                      style={{ 
-                        borderColor: `${pageColors.text}20`,
-                        borderTopColor: pageColors.text
-                      }}
-                    />
-                    <p style={{ color: pageColors.textMuted }}>
-                      {t('messages.loading')}
-                    </p>
-                  </div>
-                </div>
-              ) : error ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <AlertCircle size={48} className="mx-auto mb-3" style={{ color: '#ef4444' }} />
-                    <p className="font-medium" style={{ color: '#ef4444' }}>{t('messages.error')}</p>
-                    <p className="text-sm mt-1" style={{ color: pageColors.textMuted }}>
-                      {error}
-                    </p>
-                  </div>
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center px-4">
-                    <Inbox size={48} className="mx-auto mb-3" style={{ color: accent, opacity: 0.5 }} />
-                    <h4 className="text-base font-semibold mb-1" style={{ color: pageColors.text }}>
-                      {t('messages.emptyInbox')}
-                    </h4>
-                    <p className="text-xs" style={{ color: pageColors.textMuted }}>
-                      {t('messages.emptyInboxDescription')}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {/* Message List - Left Panel */}
+              {messages.map((message) => {
+                const isSelected = selectedMessage?.id === message.id;
+                const isUnread = message.status === 'unread';
+                
+                return (
                   <div 
-                    className="w-full md:w-2/5 lg:w-1/3 border-r overflow-y-auto flex-shrink-0"
+                    key={message.id} 
+                    onClick={() => handleSelectMessage(message)} 
+                    className="px-4 py-3.5 cursor-pointer transition-all duration-200" 
                     style={{ 
-                      borderColor: getColor('borderColor', '#e5e7eb'),
-                      backgroundColor: getColor('secondaryBackground', '#f9fafb')
+                      borderBottom: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                      backgroundColor: isSelected ? (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)') : 'transparent', 
+                      borderLeft: isSelected ? `3px solid ${accent}` : '3px solid transparent',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
                     }}
                   >
-                    {messages.map((message) => {
-                      const isSelected = selectedMessage?.id === message.id;
-                      const isUnread = message.status === 'unread';
-                      
-                      return (
-                        <div
-                          key={message.id}
-                          onClick={() => handleSelectMessage(message)}
-                          className="px-3 py-2.5 cursor-pointer border-b transition-all duration-150"
-                          style={{ 
-                            borderColor: getColor('borderColor', '#e5e7eb'),
-                            backgroundColor: isSelected 
-                              ? getColor('background', '#ffffff')
-                              : 'transparent',
-                            borderLeftWidth: isSelected ? '3px' : '0',
-                            borderLeftColor: isSelected ? accent : 'transparent'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isSelected) {
-                              e.currentTarget.style.backgroundColor = getColor('background', '#ffffff');
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!isSelected) {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }
-                          }}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            {/* Unread indicator */}
-                            <div 
-                              className="flex-shrink-0 w-2 h-2 rounded-full"
-                              style={{ 
-                                backgroundColor: isUnread ? accent : 'transparent'
-                              }}
-                            />
-                            
-                            {/* Content */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <span 
-                                  className={`text-xs truncate ${isUnread ? 'font-bold' : 'font-medium'}`}
-                                  style={{ color: isUnread ? accent : pageColors.textMuted }}
-                                >
-                                  {message.sender_name || t('messages.system')}
-                                </span>
-                                <span 
-                                  className="text-[10px] flex-shrink-0 ml-2"
-                                  style={{ color: pageColors.textMuted }}
-                                >
-                                  {formatDate(message.created_at)}
-                                </span>
-                              </div>
-                              <p 
-                                className={`text-sm truncate mt-0.5 ${isUnread ? 'font-semibold' : ''}`}
-                                style={{ color: pageColors.text }}
-                              >
-                                {message.subject}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    
-                    {/* Load More */}
-                    {pagination.hasMore && (
-                      <button
-                        onClick={() => fetchMessages(false)}
-                        className="w-full py-2 text-xs font-medium transition-colors"
-                        style={{ 
-                          color: accent,
-                          backgroundColor: 'transparent'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = getColor('background', '#ffffff');
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                        }}
-                      >
-                        {t('messages.loadMore')}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Message Detail - Right Panel */}
-                  <div className="hidden md:flex flex-1 flex-col overflow-hidden">
-                    {selectedMessage ? (
-                      <>
-                        {/* Message Header */}
-                        <div 
-                          className="px-4 py-3 border-b flex-shrink-0"
-                          style={{ borderColor: getColor('borderColor', '#e5e7eb') }}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <h2 
-                                className="text-base font-bold truncate"
-                                style={{ color: pageColors.text }}
-                              >
-                                {selectedMessage.subject}
-                              </h2>
-                              <div className="flex items-center gap-3 mt-1 text-xs">
-                                <span 
-                                  className="font-medium"
-                                  style={{ color: accent }}
-                                >
-                                  {selectedMessage.sender_name || t('messages.system')}
-                                </span>
-                                <span style={{ color: pageColors.textMuted }}>
-                                  {formatFullDate(selectedMessage.created_at)}
-                                </span>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => handleDeleteMessage(selectedMessage.id)}
-                              disabled={deletingId === selectedMessage.id}
-                              className="flex-shrink-0 p-1.5 rounded transition-all disabled:opacity-50"
-                              style={{ color: '#ef4444' }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#fee2e2';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'transparent';
-                              }}
-                              title={t('messages.delete')}
-                            >
-                              {deletingId === selectedMessage.id ? (
-                                <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <Trash2 size={16} />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Message Body */}
-                        <div 
-                          className="flex-1 overflow-y-auto px-4 py-3"
-                          style={{ backgroundColor: getColor('secondaryBackground', '#f9fafb') }}
-                        >
-                          <div 
-                            className="prose prose-sm max-w-none text-sm"
-                            style={{ color: pageColors.text }}
-                            dangerouslySetInnerHTML={{ __html: selectedMessage.message }}
-                          />
-                        </div>
-
-                        {/* Message Actions - only show if unread */}
-                        {selectedMessage.status === 'unread' && (
-                          <div 
-                            className="px-4 py-2 border-t flex-shrink-0"
-                            style={{ 
-                              borderColor: getColor('borderColor', '#e5e7eb'),
-                              backgroundColor: getColor('secondaryBackground', '#f9fafb')
-                            }}
-                          >
-                            <button
-                              onClick={() => updateMessageStatus(selectedMessage.id, 'read')}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all"
-                              style={{ 
-                                backgroundColor: accent,
-                                color: '#ffffff'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.opacity = '0.9';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.opacity = '1';
-                              }}
-                            >
-                              <Check size={14} />
-                              {t('messages.markAsRead')}
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="flex-1 flex items-center justify-center">
-                        <div className="text-center px-4">
-                          <Mail size={36} className="mx-auto mb-2" style={{ color: accent, opacity: 0.4 }} />
-                          <p className="text-sm" style={{ color: pageColors.textMuted }}>
-                            {t('messages.selectToRead')}
-                          </p>
-                        </div>
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-lg flex-shrink-0" style={{ backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe' }}>
+                        <AlertCircle size={14} style={{ color: '#3b82f6' }} />
                       </div>
-                    )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className={`text-sm truncate ${isUnread ? 'font-bold' : 'font-medium'}`} style={{ color: isUnread ? pageColors.text : pageColors.textMuted }}>
+                            {message.sender_name || t('messages.system')}
+                          </span>
+                          <span className="text-xs flex-shrink-0" style={{ color: pageColors.textMuted }}>
+                            {formatDate(message.created_at)}
+                          </span>
+                        </div>
+                        <p 
+                          className={`text-sm leading-relaxed ${isUnread ? 'font-medium' : ''}`} 
+                          style={{ 
+                            color: pageColors.text,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}
+                        >
+                          {message.subject}
+                        </p>
+                        {isUnread && (
+                          <span className="inline-block mt-2 w-2 h-2 rounded-full" style={{ backgroundColor: '#ef4444' }} />
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </>
-              )}
+                );
+              })}
             </div>
+          </div>
+
+          {/* RIGHT PANEL - Message Detail */}
+          <div 
+            className="flex-1 flex flex-col rounded-2xl overflow-hidden" 
+            style={{ 
+              backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+              boxShadow: isDarkMode ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.08)',
+              border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
+              maxHeight: 'calc(100vh - 200px)'
+            }}
+          >
+            {selectedMessage ? (
+              <>
+                <div 
+                  className="p-5 flex items-center justify-between" 
+                  style={{ 
+                    backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+                    borderBottom: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div 
+                      className="w-12 h-12 rounded-xl flex items-center justify-center" 
+                      style={{ 
+                        background: `linear-gradient(135deg, ${accent}, ${accent}dd)`,
+                        boxShadow: `0 4px 12px ${isDarkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)'}`
+                      }}
+                    >
+                      <Mail size={22} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg" style={{ color: pageColors.text }}>
+                        {selectedMessage.sender_name || t('messages.system')}
+                      </h3>
+                      <p className="text-xs mt-1" style={{ color: pageColors.textMuted }}>
+                        {formatFullDate(selectedMessage.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteMessage(selectedMessage.id)}
+                    disabled={deletingId === selectedMessage.id}
+                    className="p-2.5 rounded-xl transition-all duration-200 disabled:opacity-50" 
+                    style={{ 
+                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#ffffff',
+                      border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                      color: '#ef4444'
+                    }} 
+                    title={t('messages.delete')}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.05)' : '#ffffff';
+                    }}
+                  >
+                    {deletingId === selectedMessage.id ? (
+                      <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Trash2 size={18} />
+                    )}
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6">
+                  <h2 className="text-xl font-bold mb-4" style={{ color: pageColors.text }}>
+                    {selectedMessage.subject}
+                  </h2>
+                  <div 
+                    className="prose prose-sm max-w-none"
+                    style={{ color: pageColors.text }}
+                    dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedMessage.message, selectedMessage.subject) }}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center px-4">
+                  <Mail size={48} style={{ color: accent, opacity: 0.3 }} className="mx-auto mb-3" />
+                  <p className="text-sm" style={{ color: pageColors.textMuted }}>
+                    {t('messages.selectToRead')}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Mobile Message Detail Modal */}
-      {selectedMessage && (
-        <div className="md:hidden fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: getColor('background', '#ffffff') }}>
-          {/* Mobile Header */}
-          <div 
-            className="px-3 py-2.5 flex items-center gap-2 border-b flex-shrink-0"
-            style={{ 
-              backgroundColor: getColor('primary', '#1a202c'),
-              borderColor: getColor('borderColor', '#e5e7eb')
-            }}
-          >
-            <button
-              onClick={() => setSelectedMessage(null)}
-              className="p-1.5 -ml-1 rounded"
-              style={{ color: getColor('textColorContrast', '#ffffff') }}
-            >
-              <ChevronLeft size={20} />
-            </button>
-            <div className="flex-1 min-w-0">
-              <h3 
-                className="text-sm font-bold truncate"
-                style={{ color: getColor('textColorContrast', '#ffffff') }}
-              >
-                {selectedMessage.subject}
-              </h3>
-              <p 
-                className="text-[10px] truncate"
-                style={{ color: getColor('accent', '#f59e0b') }}
-              >
-                {selectedMessage.sender_name || t('messages.system')}
-              </p>
-            </div>
-            <button
-              onClick={() => handleDeleteMessage(selectedMessage.id)}
-              disabled={deletingId === selectedMessage.id}
-              className="p-1.5 rounded disabled:opacity-50"
-              style={{ color: '#ffffff' }}
-            >
-              {deletingId === selectedMessage.id ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Trash2 size={16} />
-              )}
-            </button>
-          </div>
-
-          {/* Mobile Body */}
-          <div 
-            className="flex-1 overflow-y-auto px-3 py-3"
-            style={{ backgroundColor: getColor('background', '#ffffff') }}
-          >
-            <div className="flex items-center gap-2 mb-3 text-[10px]" style={{ color: getColor('textSecondary', '#6b7280') }}>
-              <Clock size={10} />
-              <span>{formatFullDate(selectedMessage.created_at)}</span>
-            </div>
-            <div 
-              className="prose prose-sm max-w-none text-sm"
-              style={{ color: pageColors.text }}
-              dangerouslySetInnerHTML={{ __html: selectedMessage.message }}
-            />
-          </div>
-
-          {/* Mobile Actions - only show if unread */}
-          {selectedMessage.status === 'unread' && (
-            <div 
-              className="px-3 py-2 border-t flex-shrink-0"
-              style={{ 
-                borderColor: getColor('borderColor', '#e5e7eb'),
-                backgroundColor: getColor('secondaryBackground', '#f9fafb')
-              }}
-            >
-              <button
-                onClick={() => updateMessageStatus(selectedMessage.id, 'read')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium"
-                style={{ 
-                  backgroundColor: getColor('accent', '#f59e0b'),
-                  color: '#ffffff'
-                }}
-              >
-                <Check size={14} />
-                {t('messages.markAsRead')}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
     </CoursePageTemplate>
   );
 };
