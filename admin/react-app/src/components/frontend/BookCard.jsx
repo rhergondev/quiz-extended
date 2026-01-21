@@ -31,7 +31,7 @@ const ChapterDetailsModal = ({ book, onClose, colors }) => {
     const hasFullPdf = book.pdf && book.pdf.url;
     
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+        <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
              <div 
                 className="relative w-full max-w-lg rounded-xl shadow-2xl max-h-[80vh] flex flex-col overflow-hidden animate-in zoom-in duration-200"
                 style={{ backgroundColor: colors.cardBg }}
@@ -39,8 +39,12 @@ const ChapterDetailsModal = ({ book, onClose, colors }) => {
              >
                 <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: colors.disabledBg }}>
                     <h3 className="font-bold text-lg" style={{ color: colors.text }}>{t('books.downloads', 'Descargas Disponibles')}</h3>
-                    <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-700 transition-colors" style={{ backgroundColor: '#111827' }}>
-                        <X size={20} className="text-white" />
+                    <button
+                      onClick={onClose}
+                      className="p-1.5 rounded-full transition-colors hover:brightness-110"
+                      style={{ backgroundColor: colors.primary, color: '#ffffff' }}
+                    >
+                      <X size={20} />
                     </button>
                 </div>
                 
@@ -80,19 +84,19 @@ const ChapterDetailsModal = ({ book, onClose, colors }) => {
                                     rel="noopener noreferrer" 
                                     className="flex items-center gap-3 p-3 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/5 group"
                                 >
-                                    <div className="text-gray-400">
+                                    <div className="flex items-center justify-center w-5 h-5 text-gray-400">
                                         <List size={20} style={{ color: colors.textMuted }} />
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm truncate" style={{ color: colors.text }}>
-                                            {chapter.title}
-                                        </p>
-                                        {chapter.date_added && (
-                                            <div className="flex items-center gap-1.5 text-xs mt-0.5" style={{ color: colors.textMuted }}>
-                                                <Calendar size={12} />
-                                                <span>{formatDate(chapter.date_added)}</span>
-                                            </div>
-                                        )}
+                                    <div className="flex-1 min-w-0 flex items-center justify-between gap-2 h-5">
+                                      <p className="font-medium text-sm truncate leading-tight flex items-center mb-0" style={{ color: colors.text }}>
+                                        {chapter.title}
+                                      </p>
+                                      {chapter.date_added && (
+                                        <div className="flex items-center gap-1.5 text-xs shrink-0" style={{ color: colors.textMuted }}>
+                                          <Calendar size={12} />
+                                          <span>{formatDate(chapter.date_added)}</span>
+                                        </div>
+                                      )}
                                     </div>
                                     <div className="p-1.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-500">
                                         <Download size={14} />
@@ -114,13 +118,31 @@ const BookCard = ({ book, isAdmin, onEdit }) => {
   const [showChapters, setShowChapters] = useState(false);
 
   // Extract book data
-  const { id, title, description, featured_image_url, pdf, chapters } = book;
+  const { id, title, description, featured_image_url, pdf, chapters, start_date, end_date, meta } = book;
   const pdfUrl = pdf?.url;
   const hasChapters = chapters && chapters.length > 0;
+  const startDateRaw = start_date || meta?._book_start_date;
+  const endDateRaw = end_date || meta?._book_end_date;
+  const now = new Date();
+  const startDate = startDateRaw ? new Date(startDateRaw) : null;
+  const endDate = endDateRaw ? new Date(endDateRaw) : null;
+  const hasValidStart = startDate && !Number.isNaN(startDate.getTime());
+  const hasValidEnd = endDate && !Number.isNaN(endDate.getTime());
+  const isNotStarted = hasValidStart && now < startDate;
+  const isEnded = hasValidEnd && now > endDate;
   
   // Logic: View Chapters (Modal) OR Download Direct
   const isMultiFile = hasChapters; 
   const canDownload = pdfUrl || hasChapters;
+
+  const formatDate = (date) => {
+    if (!date) return '';
+    try {
+      return new Date(date).toLocaleDateString();
+    } catch (e) {
+      return '';
+    }
+  };
 
   // Adaptive colors based on mode (same pattern as CompactCourseCard)
   const cardColors = {
@@ -202,6 +224,17 @@ const BookCard = ({ book, isAdmin, onEdit }) => {
             <Pencil size={16} />
           </button>
         )}
+
+        {/* Admin Status Badge */}
+        {isAdmin && (isNotStarted || isEnded) && (
+          <div
+            className="absolute top-2 left-2 px-2 py-1 rounded-full text-xs font-semibold"
+            style={{ backgroundColor: cardColors.primary, color: '#ffffff' }}
+            title={isNotStarted ? 'No iniciado' : 'Finalizado'}
+          >
+            {isNotStarted ? 'No iniciado' : 'Finalizado'}
+          </div>
+        )}
       </div>
 
       {/* Card Content */}
@@ -212,6 +245,18 @@ const BookCard = ({ book, isAdmin, onEdit }) => {
           style={{ color: cardColors.text }}
           dangerouslySetInnerHTML={{ __html: title }}
         />
+
+        {(startDateRaw || endDateRaw) && (
+          <div className="text-xs mb-3" style={{ color: cardColors.textMuted }}>
+            {startDateRaw && (
+              <span>{t('books.startDate', 'Fecha de inicio')}: {formatDate(startDateRaw)}</span>
+            )}
+            {startDateRaw && endDateRaw && <span> · </span>}
+            {endDateRaw && (
+              <span>{t('books.endDate', 'Fecha de fin')}: {formatDate(endDateRaw)}</span>
+            )}
+          </div>
+        )}
 
         {/* Spacer to push button to bottom */}
         <div className="flex-1" />

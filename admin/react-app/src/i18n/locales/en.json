@@ -505,7 +505,8 @@
   },
   "books": {
     "title": "Books",
-    "description": "Manage PDF books linked to WooCommerce products",
+    "description": "Description",
+    "woocommerceReminder": "Remember to register the book in WooCommerce so it is available for purchase",
     "createBook": "Create Book",
     "editBook": "Edit Book",
     "deleteBook": "Delete Book",
@@ -520,6 +521,8 @@
     "titleRequired": "Title is required",
     "pdfFile": "PDF File",
     "featuredImage": "Cover Image",
+    "startDate": "Start date",
+    "endDate": "End date",
     "selectImage": "Select cover image",
     "uploading": "Uploading...",
     "selectPdf": "Select PDF file",
@@ -544,6 +547,8 @@
     "viewChapters": "View Updates",
     "fullVersion": "Full Version",
     "fullPdf": "Complete Book (PDF)",
+    "notStarted": "Not started",
+    "ended": "Ended",
     "noUpdates": "No updates",
     "downloads": "Available Downloads"
   },

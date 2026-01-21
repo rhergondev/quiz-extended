@@ -137,6 +137,30 @@ class QE_Book_Type extends QE_Post_Types_Base
             'sanitize_callback' => 'absint',
         ]);
 
+        // Book Start Date
+        register_post_meta('qe_book', '_book_start_date', [
+            'type' => 'string',
+            'description' => 'Start date for book availability',
+            'single' => true,
+            'show_in_rest' => true,
+            'auth_callback' => function () {
+                return current_user_can('edit_posts');
+            },
+            'sanitize_callback' => 'sanitize_text_field',
+        ]);
+
+        // Book End Date
+        register_post_meta('qe_book', '_book_end_date', [
+            'type' => 'string',
+            'description' => 'End date for book availability',
+            'single' => true,
+            'show_in_rest' => true,
+            'auth_callback' => function () {
+                return current_user_can('edit_posts');
+            },
+            'sanitize_callback' => 'sanitize_text_field',
+        ]);
+
         $this->log_info('Book meta fields registered');
     }
 

@@ -107,7 +107,9 @@ const BookEditorModal = ({
     border: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
     borderFocus: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6'),
     buttonPrimary: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6'),
-    buttonPrimaryText: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    buttonPrimaryText: '#ffffff',
+    buttonSecondary: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6'),
+    buttonSecondaryText: '#ffffff',
     buttonDanger: '#ef4444',
     success: '#10b981',
     error: '#ef4444',
@@ -126,6 +128,8 @@ const BookEditorModal = ({
     title: '',
     description: '',
     status: 'publish',
+    start_date: '',
+    end_date: '',
     featured_media: null,
     featured_image_url: null,
     pdf: { // Main complete PDF (optional)
@@ -169,6 +173,8 @@ const BookEditorModal = ({
       title: '',
       description: '',
       status: 'publish',
+      start_date: '',
+      end_date: '',
       featured_media: null,
       featured_image_url: null,
       pdf: { file_id: null, filename: null, url: null },
@@ -197,6 +203,8 @@ const BookEditorModal = ({
         title: book.title?.rendered || book.title || '',
         description: book.description || book.content?.rendered || '',
         status: book.status || 'publish',
+        start_date: book.meta?._book_start_date || '',
+        end_date: book.meta?._book_end_date || '',
         featured_media: book.featured_media || null,
         featured_image_url: book.featured_image_url || null,
         pdf: book.pdf || { file_id: null, filename: null, url: null },
@@ -365,7 +373,11 @@ const BookEditorModal = ({
         pdf_file_id: formData.pdf.file_id,
         pdf_filename: formData.pdf.filename,
         pdf_url: formData.pdf.url,
-        chapters: formData.chapters // Send chapters array
+        chapters: formData.chapters,
+        meta: {
+          _book_start_date: formData.start_date || '',
+          _book_end_date: formData.end_date || ''
+        }
       });
       onClose();
     } catch (err) {
@@ -383,7 +395,7 @@ const BookEditorModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4">
       <div className="absolute inset-0 transition-opacity duration-300" style={{ backgroundColor: modalColors.bgOverlay }} onClick={onClose} />
       
       <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200"
@@ -394,8 +406,12 @@ const BookEditorModal = ({
           <h2 className="text-lg font-bold" style={{ color: modalColors.text }}>
             {mode === 'create' ? t('books.createBook', 'Crear Libro') : t('books.editBook', 'Editar Libro')}
           </h2>
-          <button onClick={onClose} className="p-2 rounded-lg transition-colors hover:bg-gray-700" style={{ backgroundColor: '#111827' }}>
-            <X size={20} className="text-white" />
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg transition-colors hover:brightness-110"
+            style={{ backgroundColor: modalColors.buttonSecondary, color: modalColors.buttonSecondaryText }}
+          >
+            <X size={20} />
           </button>
         </div>
 
@@ -432,13 +448,43 @@ const BookEditorModal = ({
                       <option value="draft">{t('common.draft', 'Borrador')}</option>
                     </select>
                   </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: modalColors.text }}>
+                        {t('books.startDate', 'Fecha de inicio')}
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.start_date}
+                        onChange={(e) => updateField('start_date', e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-lg text-sm transition-colors focus:ring-2 outline-none"
+                        style={{ backgroundColor: modalColors.bgInput, border: `1px solid ${modalColors.border}`, color: modalColors.text, '--tw-ring-color': modalColors.accent }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: modalColors.text }}>
+                        {t('books.endDate', 'Fecha de fin')}
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.end_date}
+                        onChange={(e) => updateField('end_date', e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-lg text-sm transition-colors focus:ring-2 outline-none"
+                        style={{ backgroundColor: modalColors.bgInput, border: `1px solid ${modalColors.border}`, color: modalColors.text, '--tw-ring-color': modalColors.accent }}
+                      />
+                    </div>
+                  </div>
                   
                   <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: modalColors.text }}>{t('books.description', 'Descripción')}</label>
-                    <textarea value={formData.description} onChange={(e) => updateField('description', e.target.value)} rows={4}
-                      className="w-full px-4 py-2.5 rounded-lg text-sm transition-colors resize-none focus:ring-2 outline-none"
-                      style={{ backgroundColor: modalColors.bgInput, border: `1px solid ${modalColors.border}`, color: modalColors.text, '--tw-ring-color': modalColors.accent }}
-                    />
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium" style={{ color: modalColors.text }}>
+                        {t('books.description', 'Descripción')}
+                      </span>
+                      <p className="text-xs" style={{ color: modalColors.textMuted }}>
+                        {t('books.woocommerceReminder', 'Recuerda dar de alta el libro en Woocommerce para que esté disponible para la compra')}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Main PDF (Complete) */}
@@ -500,11 +546,13 @@ const BookEditorModal = ({
                 <div>
                      <div className="flex items-center justify-between mb-2">
                         <label className="block text-sm font-medium" style={{ color: modalColors.text }}>{t('books.updates', 'Actualizaciones')}</label>
-                        <button type="button" onClick={() => !isUploadingChapter && chapterInputRef.current?.click()} 
-                            disabled={isUploadingChapter}
-                            className="text-xs flex items-center gap-1 font-medium px-2 py-1 rounded transition-colors disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-800"
-                            style={{ color: modalColors.textMuted, border: `1px solid ${modalColors.border}` }}
-                            >
+                        <button
+                          type="button"
+                          onClick={() => !isUploadingChapter && chapterInputRef.current?.click()} 
+                          disabled={isUploadingChapter}
+                          className="text-xs flex items-center gap-1 font-medium px-2 py-1 rounded transition-all disabled:opacity-50 hover:brightness-110"
+                          style={{ backgroundColor: modalColors.buttonSecondary, color: modalColors.buttonSecondaryText }}
+                          >
                              <input type="file" accept="application/pdf" ref={chapterInputRef} onChange={handleChapterFileChange} className="hidden" />
                             {isUploadingChapter ? <Loader2 size={12} className="animate-spin"/> : <Plus size={14} />} 
                             {isUploadingChapter ? 'Subiendo...' : 'Añadir PDF'}
@@ -563,7 +611,13 @@ const BookEditorModal = ({
             </div>
             
             <div className="flex items-center gap-3">
-              <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Cancelar</button>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:brightness-110"
+                style={{ backgroundColor: modalColors.buttonSecondary, color: modalColors.buttonSecondaryText }}
+              >
+                Cancelar
+              </button>
               <button onClick={handleSubmit} disabled={saving || !formData.title.trim()} 
                 className="flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-semibold text-white transition-all shadow-md disabled:opacity-50 hover:brightness-110"
                 style={{ backgroundColor: modalColors.buttonPrimary }}

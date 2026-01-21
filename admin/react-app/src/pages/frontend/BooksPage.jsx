@@ -46,7 +46,8 @@ const BooksPage = () => {
     textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : `${getColor('primary', '#1a202c')}70`,
     accent: getColor('accent', '#f59e0b'),
     primary: getColor('primary', '#3b82f6'),
-    hoverBg: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#1a202c'),
+    surface: isDarkMode ? getColor('background', '#111827') : getColor('background', '#ffffff'),
+    border: isDarkMode ? 'rgba(255,255,255,0.08)' : getColor('borderColor', '#e5e7eb'),
   };
   
   const { books, loading, error, refresh } = useUserBooks({ autoFetch: true });
@@ -107,8 +108,32 @@ const BooksPage = () => {
     }
   };
 
+  const isBookAvailableForUser = (book) => {
+    const start = book.start_date || book.meta?._book_start_date;
+    const end = book.end_date || book.meta?._book_end_date;
+    const now = new Date();
+
+    if (start) {
+      const startDate = new Date(start);
+      if (!Number.isNaN(startDate.getTime()) && now < startDate) {
+        return false;
+      }
+    }
+
+    if (end) {
+      const endDate = new Date(end);
+      if (!Number.isNaN(endDate.getTime()) && now > endDate) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const visibleBooks = userIsAdmin ? books : books.filter(isBookAvailableForUser);
+
   const renderContent = () => {
-    if (loading && books.length === 0) {
+    if (loading && visibleBooks.length === 0) {
       return (
         <PageState 
           icon={Loader} 
@@ -130,7 +155,7 @@ const BooksPage = () => {
       );
     }
     
-    if (!books || books.length === 0) {
+    if (!visibleBooks || visibleBooks.length === 0) {
       return (
         <div className="flex flex-col items-center">
           <PageState 
@@ -142,11 +167,11 @@ const BooksPage = () => {
           {userIsAdmin && (
             <button
               onClick={handleCreateNew}
-              className="mt-4 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 flex items-center gap-2"
+              className="mt-4 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2"
               style={{
-                backgroundColor: pageColors.accent,
+                backgroundColor: pageColors.primary,
                 color: '#ffffff',
-                boxShadow: `0 4px 12px ${pageColors.accent}40`
+                boxShadow: `0 4px 10px ${pageColors.primary}30`
               }}
             >
               <Plus size={18} />
@@ -158,8 +183,8 @@ const BooksPage = () => {
     }
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-items-center">
-        {books.map(book => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {visibleBooks.map(book => (
           <BookCard 
             key={book.id} 
             book={book} 
@@ -353,7 +378,13 @@ const BooksPage = () => {
 
       <main>
         {/* Page Header */}
-        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div
+          className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl p-5"
+          style={{
+            backgroundColor: pageColors.surface,
+            border: `1px solid ${pageColors.border}`
+          }}
+        >
           <div>
             <h1 
               className="text-2xl font-bold flex items-center gap-3"
@@ -363,7 +394,7 @@ const BooksPage = () => {
               {t('books.myBooks')}
             </h1>
             <p 
-              className="mt-2 text-sm"
+              className="mt-1 text-sm"
               style={{ color: pageColors.textMuted }}
             >
               {t('books.myBooksDescription')}
@@ -374,11 +405,11 @@ const BooksPage = () => {
           {userIsAdmin && (
             <button
               onClick={handleCreateNew}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 hover:-translate-y-0.5"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:-translate-y-0.5"
               style={{
-                backgroundColor: pageColors.accent,
+                backgroundColor: pageColors.primary,
                 color: '#ffffff',
-                boxShadow: `0 4px 12px ${pageColors.accent}40`
+                boxShadow: `0 4px 10px ${pageColors.primary}30`
               }}
             >
               <Plus size={18} />

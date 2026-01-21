@@ -400,6 +400,8 @@ class QE_Books_API extends QE_API_Base
         $pdf_url = get_post_meta($post->ID, '_pdf_url', true);
         $pdf_filename = get_post_meta($post->ID, '_pdf_filename', true);
         $chapters = get_post_meta($post->ID, '_book_chapters', true);
+        $start_date = get_post_meta($post->ID, '_book_start_date', true);
+        $end_date = get_post_meta($post->ID, '_book_end_date', true);
 
         // Get featured image
         $featured_image_url = null;
@@ -417,6 +419,8 @@ class QE_Books_API extends QE_API_Base
                 'filename' => $pdf_filename ?: null,
             ],
             'chapters' => is_array($chapters) ? $chapters : [],
+            'start_date' => $start_date ?: null,
+            'end_date' => $end_date ?: null,
         ];
     }
 
@@ -484,6 +488,12 @@ class QE_Books_API extends QE_API_Base
         }
         if ($request->has_param('chapters')) {
             $meta['_book_chapters'] = $request->get_param('chapters');
+        }
+        if ($request->has_param('start_date')) {
+            $meta['_book_start_date'] = $request->get_param('start_date');
+        }
+        if ($request->has_param('end_date')) {
+            $meta['_book_end_date'] = $request->get_param('end_date');
         }
 
         $this->update_book_meta($post_id, $meta);
@@ -555,6 +565,12 @@ class QE_Books_API extends QE_API_Base
         }
         if ($request->has_param('chapters')) {
             $meta['_book_chapters'] = $request->get_param('chapters');
+        }
+        if ($request->has_param('start_date')) {
+            $meta['_book_start_date'] = $request->get_param('start_date');
+        }
+        if ($request->has_param('end_date')) {
+            $meta['_book_end_date'] = $request->get_param('end_date');
         }
 
         if (!empty($meta)) {
@@ -732,6 +748,8 @@ class QE_Books_API extends QE_API_Base
             '_pdf_url' => $pdf_url,
             '_pdf_filename' => $pdf_filename,
             '_woocommerce_product_id' => $wc_product_id,
+            '_book_start_date' => get_post_meta($post->ID, '_book_start_date', true),
+            '_book_end_date' => get_post_meta($post->ID, '_book_end_date', true),
             '_price' => get_post_meta($post->ID, '_price', true),
             '_is_free' => (bool) get_post_meta($post->ID, '_is_free', true),
             '_download_count' => (int) get_post_meta($post->ID, '_download_count', true),
@@ -798,6 +816,8 @@ class QE_Books_API extends QE_API_Base
             '_pdf_url',
             '_pdf_filename',
             '_book_chapters',
+            '_book_start_date',
+            '_book_end_date',
             '_price',
             '_is_free',
         ];
