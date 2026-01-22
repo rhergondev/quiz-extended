@@ -9,7 +9,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { makeApiRequest } from '../../api/services/baseService';
 import { getApiConfig } from '../../api/config/apiConfig';
 
-const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
+const SendMessageModal = ({ isOpen, onClose, onMessageSent, simplifiedMode = false, courseId = null }) => {
   const { getColor, isDarkMode } = useTheme();
 
   // Theme-aware colors
@@ -40,13 +40,21 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
   const [loadingCourses, setLoadingCourses] = useState(false);
 
   useEffect(() => {
-    if (isOpen && recipientType === 'specific') {
+    if (isOpen && !simplifiedMode && recipientType === 'specific') {
       fetchUsers();
     }
-    if (isOpen && recipientType === 'course') {
+    if (isOpen && !simplifiedMode && recipientType === 'course') {
       fetchCourses();
     }
-  }, [isOpen, recipientType]);
+  }, [isOpen, recipientType, simplifiedMode]);
+
+  // Efecto para configurar valores por defecto en modo simplificado
+  useEffect(() => {
+    if (isOpen && simplifiedMode) {
+      setMessageType('announcement'); // Siempre será anuncio en modo simplificado
+      setRecipientType('course'); // Configurar como tipo curso
+    }
+  }, [isOpen, simplifiedMode]);
 
   const fetchUsers = async () => {
     setLoadingUsers(true);
@@ -86,14 +94,23 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
       return;
     }
 
-    if (recipientType === 'specific' && selectedUsers.length === 0) {
-      setError('Selecciona al menos un usuario');
-      return;
-    }
+    // En modo simplificado, no validamos destinatarios (se envía automáticamente al curso)
+    if (!simplifiedMode) {
+      if (recipientType === 'specific' && selectedUsers.length === 0) {
+        setError('Selecciona al menos un usuario');
+        return;
+      }
 
-    if (recipientType === 'course' && !selectedCourse) {
-      setError('Selecciona un curso');
-      return;
+      if (recipientType === 'course' && !selectedCourse) {
+        setError('Selecciona un curso');
+        return;
+      }
+    } else {
+      // En modo simplificado, verificar que tenemos courseId
+      if (!courseId) {
+        setError('No se detectó el ID del curso');
+        return;
+      }
     }
 
     setSending(true);
@@ -104,7 +121,11 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
       const url = `${config.endpoints.custom_api}/messages/send`;
 
       let recipient_ids;
-      if (recipientType === 'all') {
+      if (simplifiedMode && courseId) {
+        // Modo simplificado: enviar automáticamente a todos los miembros del curso
+        recipient_ids = [`course:${courseId}`];
+        console.log('📤 Modo simplificado - Enviando a curso:', courseId, 'recipient_ids:', recipient_ids);
+      } else if (recipientType === 'all') {
         recipient_ids = ['all'];
       } else if (recipientType === 'course') {
         recipient_ids = [`course:${selectedCourse}`];
@@ -112,14 +133,18 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
         recipient_ids = selectedUsers;
       }
 
+      const payload = {
+        recipient_ids,
+        subject,
+        message,
+        type: messageType
+      };
+      
+      console.log('📤 Enviando mensaje:', payload);
+
       await makeApiRequest(url, {
         method: 'POST',
-        body: JSON.stringify({
-          recipient_ids,
-          subject,
-          message,
-          type: messageType
-        })
+        body: JSON.stringify(payload)
       });
 
       setSuccess(true);
@@ -219,8 +244,8 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                 <Send className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-base sm:text-xl font-bold text-white">Nuevo Mensaje</h2>
-                <p className="text-xs sm:text-sm text-white/80 hidden sm:block">Comunícate con tus estudiantes</p>
+                <h2 className="text-base sm:text-xl font-bold text-white">{simplifiedMode ? 'Mensaje al Curso' : 'Nuevo Mensaje'}</h2>
+                <p className="text-xs sm:text-sm text-white/80 hidden sm:block">{simplifiedMode ? 'Envía un mensaje a todos los miembros del curso' : 'Comunícate con tus estudiantes'}</p>
               </div>
             </div>
             <button
@@ -250,7 +275,8 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-                {/* Destinatarios */}
+                {/* Destinatarios - solo mostrar si NO es modo simplificado */}
+                {!simplifiedMode && (
                 <div>
                   <label 
                     className="block text-sm font-semibold mb-2 sm:mb-3"
@@ -296,9 +322,10 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                     })}
                   </div>
                 </div>
+                )}
 
                 {/* Selección de Curso */}
-                {recipientType === 'course' && (
+                {!simplifiedMode && recipientType === 'course' && (
                   <div 
                     className="p-3 sm:p-4 rounded-lg sm:rounded-xl"
                     style={{ backgroundColor: colors.backgroundSecondary }}
@@ -337,7 +364,7 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                 )}
 
                 {/* Selección de Usuarios */}
-                {recipientType === 'specific' && (
+                {!simplifiedMode && recipientType === 'specific' && (
                   <div 
                     className="p-3 sm:p-4 rounded-lg sm:rounded-xl"
                     style={{ backgroundColor: colors.backgroundSecondary }}
@@ -429,7 +456,8 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                   </div>
                 )}
 
-                {/* Tipo de mensaje */}
+                {/* Tipo de mensaje - solo mostrar si NO es modo simplificado */}
+                {!simplifiedMode && (
                 <div>
                   <label 
                     className="block text-sm font-semibold mb-2 sm:mb-3"
@@ -467,6 +495,7 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
                     })}
                   </div>
                 </div>
+                )}
 
                 {/* Asunto */}
                 <div>
@@ -554,9 +583,13 @@ const SendMessageModal = ({ isOpen, onClose, onMessageSent }) => {
               }}
             >
               <div className="text-xs hidden sm:block" style={{ color: colors.textSecondary }}>
-                {recipientType === 'all' && 'Se enviará a todos los usuarios'}
-                {recipientType === 'course' && selectedCourse && `Se enviará a los usuarios del curso`}
-                {recipientType === 'specific' && selectedUsers.length > 0 && `Se enviará a ${selectedUsers.length} usuario(s)`}
+                {simplifiedMode ? 'Se enviará a todos los miembros del curso' : (
+                  <>
+                    {recipientType === 'all' && 'Se enviará a todos los usuarios'}
+                    {recipientType === 'course' && selectedCourse && `Se enviará a los usuarios del curso`}
+                    {recipientType === 'specific' && selectedUsers.length > 0 && `Se enviará a ${selectedUsers.length} usuario(s)`}
+                  </>
+                )}
               </div>
               <div className="flex gap-2 sm:gap-3">
                 <button

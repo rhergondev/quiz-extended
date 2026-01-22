@@ -28,6 +28,8 @@ class QE_Notifications_API extends QE_API_Base
     const TYPE_NEW_TEXT = 'new_text';
     const TYPE_LESSON_UPDATED = 'lesson_updated';
     const TYPE_COURSE_UPDATED = 'course_updated';
+    const TYPE_QUIZ_UPDATED = 'quiz_updated';
+    const TYPE_QUESTION_UPDATED = 'question_updated';
 
     /**
      * Constructor

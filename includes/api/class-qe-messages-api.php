@@ -439,9 +439,8 @@ class QE_Messages_API extends QE_API_Base
 
                 $enrolled_users = $wpdb->get_col($wpdb->prepare(
                     "SELECT user_id FROM {$wpdb->usermeta} 
-                    WHERE meta_key = %s AND meta_value = %s",
-                    '_enrolled_course_' . $course_id,
-                    '1'
+                    WHERE meta_key = %s",
+                    '_enrolled_course_' . $course_id
                 ));
 
                 $this->log_info('Fetched enrolled users for course', [

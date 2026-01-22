@@ -40,20 +40,34 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
       // courseId puede ser string desde la URL, lo convertimos
       const parsedCourseId = courseId ? parseInt(courseId, 10) : null;
       
+      console.log('🔔 Topbar: fetchUnreadCount called', { 
+        courseId, 
+        parsedCourseId, 
+        isInCourseRoute 
+      });
+      
       if (parsedCourseId && isInCourseRoute) {
         try {
+          console.log('🔔 Topbar: Calling getUnreadNotificationCount for course', parsedCourseId);
           const response = await getUnreadNotificationCount(parsedCourseId);
-          // API returns { success: true, data: { unread_count: N } }
-          const count = response?.data?.unread_count || response?.unread_count || 0;
+          console.log('🔔 Topbar: Response from API', response);
+          // API returns { data: { success: true, data: { unread_count: N } } }
+          const count = response?.data?.data?.unread_count || response?.data?.unread_count || response?.unread_count || 0;
+          console.log('🔔 Topbar: Setting unreadNotifications to', count);
           setUnreadNotifications(count);
         } catch (error) {
-          console.error('Error fetching unread notifications:', error);
+          console.error('🔔 Topbar: Error fetching unread notifications:', error);
           setUnreadNotifications(0);
         }
+      } else {
+        console.log('🔔 Topbar: Skipping fetch - parsedCourseId:', parsedCourseId, 'isInCourseRoute:', isInCourseRoute);
       }
     };
 
     fetchUnreadCount();
+
+    // Poll every 30 seconds to update notification count
+    const pollInterval = setInterval(fetchUnreadCount, 30000);
 
     // Listen for notification read events to update the badge
     const handleNotificationRead = () => {
@@ -64,6 +78,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
     window.addEventListener('notificationsMarkedAllRead', handleNotificationRead);
     
     return () => {
+      clearInterval(pollInterval);
       window.removeEventListener('notificationRead', handleNotificationRead);
       window.removeEventListener('notificationsMarkedAllRead', handleNotificationRead);
     };

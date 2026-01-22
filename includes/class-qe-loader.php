@@ -466,6 +466,15 @@ final class QE_Loader
                 $this->loaded_components['enrollment_initialized'] = true;
             }
 
+            // Initialize notification hooks
+            if (!class_exists('QE_Notification_Hooks')) {
+                require_once $this->plugin_dir . 'includes/class-qe-notification-hooks.php';
+            }
+            if (class_exists('QE_Notification_Hooks')) {
+                QE_Notification_Hooks::instance();
+                $this->loaded_components['notification_hooks_initialized'] = true;
+            }
+
             // CRITICAL: Force immediate loading of API modules
             // This ensures REST API routes are registered before rest_api_init hook
             if (class_exists('QE_API_Loader')) {

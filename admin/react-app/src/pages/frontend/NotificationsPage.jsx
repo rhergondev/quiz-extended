@@ -60,6 +60,8 @@ const NotificationsPage = () => {
       'new_text': File,
       'lesson_updated': RefreshCw,
       'course_updated': Settings,
+      'quiz_updated': ClipboardList,
+      'question_updated': RefreshCw,
     };
     return icons[type] || Bell;
   };
@@ -74,6 +76,8 @@ const NotificationsPage = () => {
       'new_text': '#6b7280',   // gray
       'lesson_updated': '#f59e0b', // amber
       'course_updated': '#6366f1', // indigo
+      'quiz_updated': '#8b5cf6',   // purple (same as new_quiz)
+      'question_updated': '#f59e0b', // amber (same as lesson_updated)
     };
     return colors[type] || pageColors.primary;
   };

@@ -1,7 +1,7 @@
 // admin/react-app/src/components/messages/MessagesManager.jsx
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams } from 'react-router-dom';
 import { 
   MessageSquare, 
   Mail,
@@ -93,9 +93,16 @@ const QuestionPreview = ({ questionId, pageColors }) => {
   );
 };
 
-const MessagesManager = ({ initialSearch = '', courseMode = false }) => {
+const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = false, courseId: courseIdProp = null }) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode, toggleDarkMode } = useTheme();
+  const params = useParams();
+  
+  // Extraer courseId de la URL (ej: /courses/840/messages) o usar el prop
+  const courseId = params.courseId || courseIdProp;
+  
+  // Activar courseMode automáticamente si hay un courseId (de URL o prop)
+  const courseMode = courseModeProp || !!courseId;
 
   // pageColors pattern - diseño unificado con frontend
   const pageColors = useMemo(() => ({
@@ -937,7 +944,13 @@ const MessagesManager = ({ initialSearch = '', courseMode = false }) => {
         </div>
       </div>
 
-      <SendMessageModal isOpen={isSendModalOpen} onClose={() => setIsSendModalOpen(false)} onMessageSent={() => { handleRefresh(); if (sentMessages.length > 0) fetchSentMessages(); }} />
+      <SendMessageModal 
+        isOpen={isSendModalOpen} 
+        onClose={() => setIsSendModalOpen(false)} 
+        onMessageSent={() => { handleRefresh(); if (sentMessages.length > 0) fetchSentMessages(); }}
+        simplifiedMode={courseMode}
+        courseId={courseId}
+      />
     </div>
   );
 };
