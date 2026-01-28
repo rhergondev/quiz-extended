@@ -802,7 +802,7 @@ const Quiz = ({
         <div className="space-y-3 p-4 lg:p-0 lg:sticky lg:top-6 overflow-y-auto h-[calc(100%-88px)] lg:h-auto lg:ml-auto">
             <QuizSidebar
               questions={quizQuestions}
-              questionIds={questionIds}
+              questionIds={orderedQuestionIds || questionIds}
               totalCount={totalQuestions}
               userAnswers={userAnswers}
               riskedAnswers={riskedAnswers}
