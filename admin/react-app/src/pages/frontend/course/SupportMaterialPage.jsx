@@ -4,9 +4,15 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
 import useCourse from '../../../hooks/useCourse';
 import useStudentProgress from '../../../hooks/useStudentProgress';
+import useLessons from '../../../hooks/useLessons';
+import useCourses from '../../../hooks/useCourses';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
-import { ChevronRight, ChevronDown, ChevronUp, FileText, File, X, ChevronLeft, Check, Circle, FolderOpen } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, FileText, File, X, ChevronLeft, Check, Circle, FolderOpen, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import { isUserAdmin } from '../../../utils/userUtils';
+import { toast } from 'react-toastify';
+import SupportMaterialModal from '../../../components/supportMaterial/SupportMaterialModal';
+import LessonModal from '../../../components/lessons/LessonModal';
 
 const SupportMaterialPage = () => {
   const { t } = useTranslation();
@@ -33,6 +39,36 @@ const SupportMaterialPage = () => {
   const [selectedPDF, setSelectedPDF] = useState(null);
   const [selectedLesson, setSelectedLesson] = useState(null);
 
+  // Admin functionality
+  const userIsAdmin = isUserAdmin();
+  const lessonsManager = useLessons({ autoFetch: false, courseId: courseId });
+  const coursesHook = useCourses({ autoFetch: false, status: 'publish,draft,private' });
+  
+  // Modal states
+  const [lessonModalState, setLessonModalState] = useState({
+    isOpen: false,
+    mode: 'create',
+    lesson: null
+  });
+  const [materialModalState, setMaterialModalState] = useState({
+    isOpen: false,
+    mode: 'create',
+    lessonId: null,
+    materialIndex: null,
+    material: null
+  });
+  const [deleteThemeModalState, setDeleteThemeModalState] = useState({
+    isOpen: false,
+    lesson: null
+  });
+
+  // Load courses for lesson modal
+  useEffect(() => {
+    if (userIsAdmin && coursesHook.courses.length === 0 && !coursesHook.loading) {
+      coursesHook.fetchCourses(true, { perPage: 100 });
+    }
+  }, [userIsAdmin]);
+
   // Hook para manejar el progreso del estudiante
   const { 
     isCompleted, 
@@ -49,43 +85,217 @@ const SupportMaterialPage = () => {
     }
   }, [courseId, fetchCompletedContent]);
 
-  useEffect(() => {
-    const fetchLessons = async () => {
-      if (!courseId) return;
-      
-      setLoading(true);
-      try {
-        const courseIdInt = parseInt(courseId, 10);
-        if (isNaN(courseIdInt)) {
-          throw new Error('Invalid course ID');
-        }
-        
-        const result = await getCourseLessons(courseIdInt, { perPage: 100 });
-        
-        // Map lessons with their material steps (show all lessons, even without material)
-        const lessonsWithMaterial = (result.data || [])
-          .map(lesson => {
-            const materialSteps = (lesson.meta?._lesson_steps || [])
-              .filter(step => step.type === 'pdf' || step.type === 'text')
-              .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0));
-            
-            return {
-              ...lesson,
-              materialSteps
-            };
-          });
-        
-        setLessons(lessonsWithMaterial);
-      } catch (error) {
-        console.error('Error fetching lessons:', error);
-        setLessons([]);
-      } finally {
-        setLoading(false);
+  // Fetch lessons function (reusable)
+  const fetchLessons = async () => {
+    if (!courseId) return;
+    
+    setLoading(true);
+    try {
+      const courseIdInt = parseInt(courseId, 10);
+      if (isNaN(courseIdInt)) {
+        throw new Error('Invalid course ID');
       }
-    };
+      
+      const result = await getCourseLessons(courseIdInt, { perPage: 100 });
+      
+      // Map lessons with their material steps (show all lessons, even without material)
+      const lessonsWithMaterial = (result.data || [])
+        .map(lesson => {
+          const materialSteps = (lesson.meta?._lesson_steps || [])
+            .filter(step => step.type === 'pdf' || step.type === 'text')
+            .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0));
+          
+          return {
+            ...lesson,
+            materialSteps
+          };
+        });
+      
+      setLessons(lessonsWithMaterial);
+    } catch (error) {
+      console.error('Error fetching lessons:', error);
+      setLessons([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchLessons();
   }, [courseId]);
+
+  // Admin handlers
+  const handleCreateLesson = () => {
+    setLessonModalState({ isOpen: true, mode: 'create', lesson: null });
+  };
+
+  const handleSaveLesson = async (data, nextAction = 'close') => {
+    try {
+      if (lessonModalState.mode === 'create') {
+        const newLesson = await lessonsManager.createLesson({
+          ...data,
+          courseId: courseId // Ensure it's assigned to current course
+        });
+        toast.success(t('admin.lessons.createSuccess'));
+        
+        await fetchLessons();
+        
+        if (nextAction === 'reset') {
+          // Keep modal open to create another
+          setLessonModalState({ isOpen: true, mode: 'create', lesson: null });
+        } else {
+          // Close lesson modal
+          setLessonModalState({ isOpen: false, mode: 'create', lesson: null });
+        }
+      } else {
+        await lessonsManager.updateLesson(lessonModalState.lesson.id, data);
+        toast.success(t('admin.lessons.updateSuccess'));
+        await fetchLessons();
+        
+        if (nextAction !== 'reset') {
+          setLessonModalState({ isOpen: false, mode: 'create', lesson: null });
+        }
+      }
+    } catch (error) {
+      console.error('Error saving lesson:', error);
+      toast.error(t('errors.saveLesson'));
+      throw error;
+    }
+  };
+
+  const handleCloseLessonModal = () => {
+    setLessonModalState({ isOpen: false, mode: 'create', lesson: null });
+  };
+
+  const handleAddMaterial = (lessonId) => {
+    setMaterialModalState({
+      isOpen: true,
+      mode: 'create',
+      lessonId: lessonId,
+      materialIndex: null,
+      material: null
+    });
+  };
+
+  const handleEditMaterial = (lessonId, materialIndex, material) => {
+    setMaterialModalState({
+      isOpen: true,
+      mode: 'edit',
+      lessonId: lessonId,
+      materialIndex: materialIndex,
+      material: material
+    });
+  };
+
+  const handleSaveMaterial = async (materialData) => {
+    try {
+      const lesson = lessons.find(l => l.id === materialModalState.lessonId);
+      if (!lesson) throw new Error('Lesson not found');
+      
+      const currentSteps = lesson.meta?._lesson_steps || [];
+      let updatedSteps;
+      
+      if (materialModalState.mode === 'create') {
+        // Add new material
+        updatedSteps = [
+          ...currentSteps,
+          {
+            ...materialData,
+            order: currentSteps.length
+          }
+        ];
+      } else {
+        // Edit existing material
+        updatedSteps = currentSteps.map((step, idx) =>
+          idx === materialModalState.materialIndex ? { ...materialData, order: step.order } : step
+        );
+      }
+      
+      // Update lesson with all required fields to avoid validation errors
+      await lessonsManager.updateLesson(materialModalState.lessonId, {
+        title: lesson.title?.rendered || lesson.title,
+        courseId: lesson.meta?._course_id || courseId,
+        meta: {
+          _lesson_steps: updatedSteps
+        }
+      });
+      
+      toast.success(t('supportMaterial.materialSaved'));
+      await fetchLessons();
+      handleCloseModal();
+    } catch (error) {
+      console.error('Error saving material:', error);
+      toast.error(t('errors.saveMaterial'));
+      throw error;
+    }
+  };
+
+  const handleDeleteMaterial = async (lessonId, materialIndex) => {
+    if (!window.confirm(t('supportMaterial.deleteConfirm'))) return;
+    
+    try {
+      const lesson = lessons.find(l => l.id === lessonId);
+      if (!lesson) throw new Error('Lesson not found');
+      
+      const updatedSteps = (lesson.meta?._lesson_steps || [])
+        .filter((_, idx) => idx !== materialIndex)
+        .map((step, idx) => ({ ...step, order: idx })); // Reindex orders
+      
+      // Update lesson with all required fields to avoid validation errors
+      await lessonsManager.updateLesson(lessonId, {
+        title: lesson.title?.rendered || lesson.title,
+        courseId: lesson.meta?._course_id || courseId,
+        meta: {
+          _lesson_steps: updatedSteps
+        }
+      });
+      
+      toast.success(t('supportMaterial.materialDeleted'));
+      await fetchLessons();
+    } catch (error) {
+      console.error('Error deleting material:', error);
+      toast.error(t('errors.deleteMaterial'));
+    }
+  };
+
+  const handleCloseModal = () => {
+    setMaterialModalState({
+      isOpen: false,
+      mode: 'create',
+      lessonId: null,
+      materialIndex: null,
+      material: null
+    });
+  };
+
+  // Delete theme handlers
+  const handleOpenDeleteThemeModal = (lesson) => {
+    setDeleteThemeModalState({
+      isOpen: true,
+      lesson: lesson
+    });
+  };
+
+  const handleCloseDeleteThemeModal = () => {
+    setDeleteThemeModalState({
+      isOpen: false,
+      lesson: null
+    });
+  };
+
+  const handleConfirmDeleteTheme = async () => {
+    if (!deleteThemeModalState.lesson) return;
+    
+    try {
+      await lessonsManager.deleteLesson(deleteThemeModalState.lesson.id);
+      toast.success(t('supportMaterial.themeDeleted'));
+      await fetchLessons();
+      handleCloseDeleteThemeModal();
+    } catch (error) {
+      console.error('Error deleting theme:', error);
+      toast.error(t('errors.deleteTheme'));
+    }
+  };
 
   // Create flat array of all material steps for navigation
   const allMaterialSteps = useMemo(() => {
@@ -224,6 +434,29 @@ const SupportMaterialPage = () => {
           }`}
         >
           <div className="h-full overflow-y-auto">
+            {/* Admin: Create Theme Button */}
+            {userIsAdmin && (
+              <div className="max-w-5xl mx-auto px-4 pt-4 pb-2">
+                <button
+                  onClick={handleCreateLesson}
+                  className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 hover:shadow-lg"
+                  style={{
+                    backgroundColor: pageColors.accent,
+                    color: '#ffffff',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <Plus size={18} />
+                  {t('supportMaterial.createTheme')}
+                </button>
+              </div>
+            )}
+
             <div className="max-w-5xl mx-auto px-4 pt-8 pb-12">
             {loading ? (
               <div 
@@ -297,13 +530,61 @@ const SupportMaterialPage = () => {
                           />
                         </div>
                         
-                        {/* Badge count + Expand/Collapse Button */}
+                        {/* Badge count + Admin Actions + Expand/Collapse Button */}
                         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                          {/* Admin: Delete Theme Button */}
+                          {userIsAdmin && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenDeleteThemeModal(lesson);
+                              }}
+                              className="p-1.5 rounded-lg transition-all"
+                              style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
+                              title={t('supportMaterial.deleteTheme')}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.25)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                              }}
+                            >
+                              <Trash2 size={16} style={{ color: '#ef4444' }} />
+                            </button>
+                          )}
+
+                          {/* Admin: Add Material Button */}
+                          {userIsAdmin && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAddMaterial(lesson.id);
+                              }}
+                              className="px-3 py-1.5 rounded-lg transition-all text-xs font-medium flex items-center gap-1.5"
+                              style={{ 
+                                backgroundColor: pageColors.accent,
+                                color: '#ffffff'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.opacity = '0.9';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.opacity = '1';
+                              }}
+                            >
+                              <Plus size={14} />
+                              <span className="hidden sm:inline">{t('supportMaterial.addMaterial')}</span>
+                            </button>
+                          )}
+
                           <span 
                             className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full"
                             style={{ 
                               backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : `${getColor('primary', '#1a202c')}10`,
-                              color: pageColors.text
+                              color: pageColors.text,
+                              minWidth: '90px',
+                              textAlign: 'center',
+                              display: 'inline-block'
                             }}
                           >
                             {materialCount} <span className="hidden sm:inline">{materialCount === 1 ? t('supportMaterial.file') : t('supportMaterial.files')}</span>
@@ -368,6 +649,47 @@ const SupportMaterialPage = () => {
                                 >
                                   {step.title}
                                 </span>
+
+                                {/* Admin: Edit and Delete Buttons */}
+                                {userIsAdmin && (
+                                  <div className="flex items-center gap-1 flex-shrink-0 mr-2">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditMaterial(lesson.id, (lesson.meta?._lesson_steps || []).findIndex(s => s === step), step);
+                                      }}
+                                      className="p-1 rounded transition-all"
+                                      style={{ backgroundColor: `${pageColors.primary}15` }}
+                                      title={t('common.edit')}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = `${pageColors.primary}25`;
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = `${pageColors.primary}15`;
+                                      }}
+                                    >
+                                      <Edit2 size={14} style={{ color: pageColors.primary }} />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteMaterial(lesson.id, (lesson.meta?._lesson_steps || []).findIndex(s => s === step));
+                                      }}
+                                      className="p-1 rounded transition-all"
+                                      style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
+                                      title={t('common.delete')}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.25)';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                                      }}
+                                    >
+                                      <Trash2 size={14} style={{ color: '#ef4444' }} />
+                                    </button>
+                                  </div>
+                                )}
+
                                 {/* Available Button - same style as CourseCard */}
                                 <button
                                   onClick={() => handleOpenPDF(step, lesson)}
@@ -574,7 +896,7 @@ const SupportMaterialPage = () => {
                   <div 
                     className="px-6 md:px-24 py-6 overflow-y-auto h-full prose max-w-none"
                     style={{ 
-                      backgroundColor: getColor('background', '#ffffff'),
+                      backgroundColor: getColor('secondaryBackground', '#f8f9fa'),
                       color: pageColors.text
                     }}
                     dangerouslySetInnerHTML={{ __html: selectedPDF.data.content }}
@@ -597,6 +919,145 @@ const SupportMaterialPage = () => {
           )}
         </div>
       </div>
+
+      {/* Admin: Lesson Modal (for creating/editing themes) */}
+      {userIsAdmin && (
+        <LessonModal
+          isOpen={lessonModalState.isOpen}
+          onClose={handleCloseLessonModal}
+          lesson={lessonModalState.lesson}
+          mode={lessonModalState.mode}
+          onSave={handleSaveLesson}
+          availableCourses={coursesHook.courses.map(c => ({ 
+            value: c.id.toString(), 
+            label: c.title?.rendered || c.title 
+          }))}
+          compact={true}
+          preselectedCourseId={courseId}
+        />
+      )}
+
+      {/* Admin: Support Material Modal */}
+      {userIsAdmin && (
+        <SupportMaterialModal
+          isOpen={materialModalState.isOpen}
+          onClose={handleCloseModal}
+          mode={materialModalState.mode}
+          material={materialModalState.material}
+          onSave={handleSaveMaterial}
+        />
+      )}
+
+      {/* Admin: Delete Theme Confirmation Modal */}
+      {userIsAdmin && deleteThemeModalState.isOpen && (
+        <div 
+          className="fixed inset-0 flex items-center justify-center p-4"
+          style={{ 
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 999999
+          }}
+          onClick={handleCloseDeleteThemeModal}
+        >
+          <div
+            className="relative w-full max-w-md rounded-xl shadow-2xl overflow-hidden"
+            style={{ backgroundColor: getColor('background', '#ffffff') }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div 
+              className="flex items-center gap-3 px-6 py-4 border-b"
+              style={{ borderColor: getColor('borderColor', '#e5e7eb') }}
+            >
+              <div 
+                className="p-2 rounded-lg"
+                style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
+              >
+                <AlertTriangle size={20} style={{ color: '#ef4444' }} />
+              </div>
+              <h2 className="text-lg font-semibold" style={{ color: pageColors.text }}>
+                {t('supportMaterial.deleteThemeTitle')}
+              </h2>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-5">
+              <p className="text-sm mb-4" style={{ color: pageColors.text }}>
+                {t('supportMaterial.deleteThemeConfirm')}
+              </p>
+              
+              {/* Theme info */}
+              <div 
+                className="p-4 rounded-lg mb-4"
+                style={{ 
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                  border: `1px solid ${getColor('borderColor', '#e5e7eb')}`
+                }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText size={18} style={{ color: pageColors.accent }} />
+                  <span 
+                    className="font-medium"
+                    style={{ color: pageColors.text }}
+                    dangerouslySetInnerHTML={{ 
+                      __html: deleteThemeModalState.lesson?.title?.rendered || 
+                              deleteThemeModalState.lesson?.title || 
+                              t('courses.untitledLesson') 
+                    }}
+                  />
+                </div>
+                <p className="text-sm" style={{ color: pageColors.textMuted }}>
+                  {t('supportMaterial.associatedMaterials', { 
+                    count: deleteThemeModalState.lesson?.materialSteps?.length || 0 
+                  })}
+                </p>
+              </div>
+
+              <p className="text-xs" style={{ color: '#ef4444' }}>
+                {t('supportMaterial.deleteThemeWarning')}
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div 
+              className="flex items-center justify-end gap-3 px-6 py-4 border-t"
+              style={{ 
+                borderColor: getColor('borderColor', '#e5e7eb'),
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleCloseDeleteThemeModal}
+                className="px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+                style={{
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  color: pageColors.text,
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteTheme}
+                className="px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2"
+                style={{
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#dc2626';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#ef4444';
+                }}
+              >
+                <Trash2 size={16} />
+                {t('supportMaterial.confirmDelete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </CoursePageTemplate>
   );
 };

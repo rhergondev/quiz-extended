@@ -23,11 +23,183 @@ class QE_Quiz_Course_Sync
      */
     public function __construct()
     {
-        // Hook into lesson save to update quiz course associations
+        // Hook into lesson save to update quiz course associations AND sync lesson to course
         add_action('save_post_qe_lesson', [$this, 'sync_quiz_courses_on_lesson_save'], 20, 3);
+        add_action('save_post_qe_lesson', [$this, 'sync_lesson_to_course'], 25, 3);
 
         // Hook into quiz save to sync from lesson_ids
         add_action('save_post_qe_quiz', [$this, 'sync_quiz_courses_on_quiz_save'], 20, 3);
+
+        // Hook into lesson deletion to remove from course
+        add_action('before_delete_post', [$this, 'remove_lesson_from_course_on_delete'], 10, 1);
+    }
+
+    /**
+     * Sync lesson to course's _lesson_ids when a lesson is saved
+     * This ensures bidirectional relationship is maintained
+     * 
+     * @param int $lesson_id The lesson post ID
+     * @param WP_Post $post The lesson post object
+     * @param bool $update Whether this is an update or a new post
+     */
+    public function sync_lesson_to_course($lesson_id, $post, $update)
+    {
+        // Skip autosaves and revisions
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+            return;
+        }
+
+        if (wp_is_post_revision($lesson_id)) {
+            return;
+        }
+
+        // Get the course_id for this lesson
+        $course_id = get_post_meta($lesson_id, '_course_id', true);
+
+        if (empty($course_id)) {
+            // If no course_id, remove lesson from any course that might have it
+            $this->remove_lesson_from_all_courses($lesson_id);
+            return;
+        }
+
+        // Verify the course exists
+        $course = get_post($course_id);
+        if (!$course || $course->post_type !== 'qe_course') {
+            return;
+        }
+
+        // Get current lesson_ids from the course
+        $lesson_ids = get_post_meta($course_id, '_lesson_ids', true);
+        if (!is_array($lesson_ids)) {
+            $lesson_ids = [];
+        }
+
+        // Add this lesson if not already present
+        $lesson_id = absint($lesson_id);
+        if (!in_array($lesson_id, $lesson_ids)) {
+            $lesson_ids[] = $lesson_id;
+            $lesson_ids = array_values(array_unique(array_filter($lesson_ids)));
+            update_post_meta($course_id, '_lesson_ids', $lesson_ids);
+
+            // Also update the order map if it doesn't have this lesson
+            $order_map = get_post_meta($course_id, '_lesson_order_map', true);
+            if (!is_array($order_map)) {
+                $order_map = [];
+            }
+            if (!isset($order_map[(string) $lesson_id])) {
+                // Add at the end
+                $max_order = 0;
+                foreach ($order_map as $order) {
+                    $max_order = max($max_order, intval($order));
+                }
+                $order_map[(string) $lesson_id] = $max_order + 1;
+                update_post_meta($course_id, '_lesson_order_map', $order_map);
+            }
+
+            error_log("SYNC_LESSON_TO_COURSE - Added lesson $lesson_id to course $course_id");
+        }
+
+        // Remove this lesson from any other courses (a lesson should only belong to one course)
+        $this->remove_lesson_from_other_courses($lesson_id, $course_id);
+    }
+
+    /**
+     * Remove a lesson from all courses' _lesson_ids
+     * 
+     * @param int $lesson_id The lesson ID
+     */
+    private function remove_lesson_from_all_courses($lesson_id)
+    {
+        $courses = get_posts([
+            'post_type' => 'qe_course',
+            'post_status' => 'any',
+            'posts_per_page' => -1,
+            'fields' => 'ids',
+            'meta_query' => [
+                [
+                    'key' => '_lesson_ids',
+                    'compare' => 'EXISTS'
+                ]
+            ]
+        ]);
+
+        foreach ($courses as $course_id) {
+            $this->remove_lesson_from_course($lesson_id, $course_id);
+        }
+    }
+
+    /**
+     * Remove a lesson from courses other than the specified one
+     * 
+     * @param int $lesson_id The lesson ID
+     * @param int $keep_course_id The course to NOT remove from
+     */
+    private function remove_lesson_from_other_courses($lesson_id, $keep_course_id)
+    {
+        $courses = get_posts([
+            'post_type' => 'qe_course',
+            'post_status' => 'any',
+            'posts_per_page' => -1,
+            'fields' => 'ids',
+            'exclude' => [$keep_course_id]
+        ]);
+
+        foreach ($courses as $course_id) {
+            $this->remove_lesson_from_course($lesson_id, $course_id);
+        }
+    }
+
+    /**
+     * Remove a lesson from a specific course's _lesson_ids
+     * 
+     * @param int $lesson_id The lesson ID
+     * @param int $course_id The course ID
+     */
+    private function remove_lesson_from_course($lesson_id, $course_id)
+    {
+        $lesson_ids = get_post_meta($course_id, '_lesson_ids', true);
+
+        if (!is_array($lesson_ids)) {
+            return;
+        }
+
+        $lesson_id = absint($lesson_id);
+        $key = array_search($lesson_id, $lesson_ids);
+
+        if ($key !== false) {
+            unset($lesson_ids[$key]);
+            $lesson_ids = array_values($lesson_ids);
+            update_post_meta($course_id, '_lesson_ids', $lesson_ids);
+
+            // Also remove from order map
+            $order_map = get_post_meta($course_id, '_lesson_order_map', true);
+            if (is_array($order_map) && isset($order_map[(string) $lesson_id])) {
+                unset($order_map[(string) $lesson_id]);
+                update_post_meta($course_id, '_lesson_order_map', $order_map);
+            }
+
+            error_log("SYNC_LESSON_TO_COURSE - Removed lesson $lesson_id from course $course_id");
+        }
+    }
+
+    /**
+     * Remove lesson from course when lesson is deleted
+     * 
+     * @param int $post_id The post being deleted
+     */
+    public function remove_lesson_from_course_on_delete($post_id)
+    {
+        $post = get_post($post_id);
+
+        if (!$post || $post->post_type !== 'qe_lesson') {
+            return;
+        }
+
+        $course_id = get_post_meta($post_id, '_course_id', true);
+
+        if (!empty($course_id)) {
+            $this->remove_lesson_from_course($post_id, $course_id);
+        }
     }
 
     /**

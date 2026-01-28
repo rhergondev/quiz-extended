@@ -110,10 +110,20 @@ module.exports = {
         slideDown: {
           '0%': { opacity: '0', maxHeight: '0', transform: 'translateY(-10px)' },
           '100%': { opacity: '1', maxHeight: '500px', transform: 'translateY(0)' }
+        },
+        slideInRight: {
+          '0%': { transform: 'translateX(100%)' },
+          '100%': { transform: 'translateX(0)' }
+        },
+        slideOutRight: {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(100%)' }
         }
       },
       animation: {
-        slideDown: 'slideDown 0.3s ease-out forwards'
+        slideDown: 'slideDown 0.3s ease-out forwards',
+        'slide-in-right': 'slideInRight 0.2s ease-out forwards',
+        'slide-out-right': 'slideOutRight 0.2s ease-in forwards'
       }
     },
   },

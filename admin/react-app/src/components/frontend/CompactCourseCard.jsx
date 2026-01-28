@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { BookOpen, ClipboardList, Video, FileText } from 'lucide-react';
+import { BookOpen, ClipboardList, Video, FileText, Edit } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useStudentProgress from '../../hooks/useStudentProgress';
 
-const CompactCourseCard = ({ course }) => {
+const CompactCourseCard = ({ course, onEdit }) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
   const { id, title, _embedded } = course;
@@ -78,12 +78,30 @@ const CompactCourseCard = ({ course }) => {
   }, [stepsByType, t]);
 
   return (
-    <div className="rounded-lg shadow-sm overflow-hidden flex flex-col w-full max-w-sm transition-all duration-300 hover:shadow-lg"
+    <div className="rounded-lg shadow-sm overflow-hidden flex flex-col w-full max-w-sm transition-all duration-300 hover:shadow-lg relative"
       style={{ 
         backgroundColor: cardColors.cardBg,
         border: `2px solid ${cardColors.borderColor}`
       }}
     >
+      {/* Admin Edit Button */}
+      {onEdit && (
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            onEdit(course);
+          }}
+          className="absolute top-2 right-2 z-10 p-2 rounded-lg backdrop-blur-sm transition-all duration-200 hover:scale-110"
+          style={{
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            color: '#ffffff'
+          }}
+          title={t('common.edit')}
+        >
+          <Edit size={18} />
+        </button>
+      )}
+
       {/* Featured Image - 1:1 aspect ratio */}
       {imageUrl ? (
         <div 

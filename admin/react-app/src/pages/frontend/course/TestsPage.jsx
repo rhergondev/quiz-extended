@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useScoreFormat } from '../../../contexts/ScoreFormatContext';
 import useCourse from '../../../hooks/useCourse';
@@ -8,12 +9,18 @@ import useStudentProgress from '../../../hooks/useStudentProgress';
 import useQuizRanking from '../../../hooks/useQuizRanking';
 import useQuizAttempts from '../../../hooks/useQuizAttempts';
 import useQuizAttemptDetails from '../../../hooks/useQuizAttemptDetails';
+import useLessons from '../../../hooks/useLessons';
+import useCourses from '../../../hooks/useCourses';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
+import { getQuizzes } from '../../../api/services/quizService';
+import { isUserAdmin } from '../../../utils/userUtils';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import Quiz from '../../../components/frontend/Quiz';
 import QuizResults from '../../../components/frontend/QuizResults';
+import LessonModal from '../../../components/lessons/LessonModal';
+import UnifiedTestModal from '../../../components/tests/UnifiedTestModal';
 import { CourseRankingProvider, CourseRankingTrigger, CourseRankingSlidePanel } from '../../../components/frontend/CourseRankingPanel';
-import { ChevronDown, ChevronUp, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, XCircle, Loader, Trophy } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, XCircle, Loader, Trophy, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 
 const TestsPage = () => {
   const { t } = useTranslation();
@@ -70,6 +77,56 @@ const TestsPage = () => {
   const [drawingTool, setDrawingTool] = useState('pen');
   const [drawingColor, setDrawingColor] = useState('#000000');
   const [drawingLineWidth, setDrawingLineWidth] = useState(2);
+
+  // Admin functionality
+  const userIsAdmin = isUserAdmin();
+  const lessonsManager = useLessons({ autoFetch: false, courseId: courseId });
+  const coursesHook = useCourses({ autoFetch: false, status: 'publish,draft,private' });
+  const [allQuizzes, setAllQuizzes] = useState([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+
+  // Modal states for admin
+  const [lessonModalState, setLessonModalState] = useState({
+    isOpen: false,
+    mode: 'create',
+    lesson: null
+  });
+  const [testModalState, setTestModalState] = useState({
+    isOpen: false,
+    mode: 'create',
+    lessonId: null,
+    testIndex: null,
+    test: null
+  });
+  const [deleteThemeModalState, setDeleteThemeModalState] = useState({
+    isOpen: false,
+    lesson: null
+  });
+
+  // Load quizzes for test modal
+  useEffect(() => {
+    if (userIsAdmin && loadingQuizzes === false && allQuizzes.length === 0) {
+      const fetchQuizzes = async () => {
+        setLoadingQuizzes(true);
+        try {
+          const response = await getQuizzes({ perPage: 100, status: 'publish,draft,private' });
+          setAllQuizzes(response.data || []);
+        } catch (error) {
+          console.error('Error loading quizzes:', error);
+        } finally {
+          setLoadingQuizzes(false);
+        }
+      };
+      fetchQuizzes();
+    }
+  }, [userIsAdmin]);
+
+  // Load courses for lesson modal
+  useEffect(() => {
+    if (userIsAdmin && coursesHook.courses.length === 0 && !coursesHook.loading) {
+      coursesHook.fetchCourses();
+    }
+  }, [userIsAdmin]);
 
   // Hook para manejar el progreso del estudiante
   const { 
@@ -167,41 +224,42 @@ const TestsPage = () => {
     };
   }, [isQuizFocusMode]);
 
-  useEffect(() => {
-    const fetchLessons = async () => {
-      if (!courseId) return;
-      
-      setLoading(true);
-      try {
-        const courseIdInt = parseInt(courseId, 10);
-        if (isNaN(courseIdInt)) {
-          throw new Error('Invalid course ID');
-        }
-        
-        const result = await getCourseLessons(courseIdInt, { perPage: 100 });
-        
-        // Map lessons with their quiz steps (show all lessons, even without tests)
-        const lessonsWithTests = (result.data || [])
-          .map(lesson => {
-            const quizSteps = (lesson.meta?._lesson_steps || [])
-              .filter(step => step.type === 'quiz')
-              .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0));
-            
-            return {
-              ...lesson,
-              quizSteps
-            };
-          });
-        
-        setLessons(lessonsWithTests);
-      } catch (error) {
-        console.error('Error fetching lessons:', error);
-        setLessons([]);
-      } finally {
-        setLoading(false);
+  // Fetch lessons function (reusable)
+  const fetchLessons = async () => {
+    if (!courseId) return;
+    
+    setLoading(true);
+    try {
+      const courseIdInt = parseInt(courseId, 10);
+      if (isNaN(courseIdInt)) {
+        throw new Error('Invalid course ID');
       }
-    };
+      
+      const result = await getCourseLessons(courseIdInt, { perPage: 100 });
+      
+      // Map lessons with their quiz steps (show all lessons, even without tests)
+      const lessonsWithTests = (result.data || [])
+        .map(lesson => {
+          const quizSteps = (lesson.meta?._lesson_steps || [])
+            .filter(step => step.type === 'quiz')
+            .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0));
+          
+          return {
+            ...lesson,
+            quizSteps
+          };
+        });
+      
+      setLessons(lessonsWithTests);
+    } catch (error) {
+      console.error('Error fetching lessons:', error);
+      setLessons([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchLessons();
   }, [courseId]);
 
@@ -532,6 +590,172 @@ const TestsPage = () => {
     return isCompleted(selectedLesson.id, 'step', selectedLesson.id, originalStepIndex);
   };
 
+  // ============ ADMIN HANDLERS ============
+
+  const handleCreateLesson = () => {
+    setLessonModalState({ isOpen: true, mode: 'create', lesson: null });
+  };
+
+  const handleSaveLesson = async (data, nextAction = 'close') => {
+    try {
+      if (lessonModalState.mode === 'create') {
+        const newLesson = await lessonsManager.createLesson({
+          ...data,
+          courseId: courseId // Ensure it's assigned to current course
+        });
+        toast.success(t('admin.lessons.createSuccess'));
+        
+        await fetchLessons();
+        
+        if (nextAction === 'addTest') {
+          handleAddTest(newLesson.id);
+        }
+        
+        handleCloseLessonModal();
+      } else {
+        await lessonsManager.updateLesson(lessonModalState.lesson.id, data);
+        toast.success(t('admin.lessons.updateSuccess'));
+        await fetchLessons();
+        handleCloseLessonModal();
+      }
+    } catch (error) {
+      console.error('Error saving lesson:', error);
+      toast.error(t('errors.saveLesson'));
+      throw error;
+    }
+  };
+
+  const handleCloseLessonModal = () => {
+    setLessonModalState({ isOpen: false, mode: 'create', lesson: null });
+  };
+
+  const handleAddTest = (lessonId) => {
+    setTestModalState({
+      isOpen: true,
+      mode: 'create',
+      lessonId: lessonId,
+      testIndex: null,
+      test: null
+    });
+  };
+
+  const handleEditTest = (lessonId, testIndex, test) => {
+    setTestModalState({
+      isOpen: true,
+      mode: 'edit',
+      lessonId: lessonId,
+      testIndex: testIndex,
+      test: test
+    });
+  };
+
+  const handleSaveTest = async (testData) => {
+    try {
+      const lesson = lessons.find(l => l.id === testModalState.lessonId);
+      if (!lesson) throw new Error('Lesson not found');
+
+      const currentSteps = lesson.meta?._lesson_steps || [];
+      let updatedSteps;
+
+      if (testModalState.mode === 'create') {
+        updatedSteps = [...currentSteps, testData];
+      } else {
+        // Find the quiz step to edit by getting the nth quiz in the array
+        const quizSteps = currentSteps.filter(s => s.type === 'quiz');
+        const targetQuiz = quizSteps[testModalState.testIndex];
+        
+        updatedSteps = currentSteps.map(step => 
+          step === targetQuiz ? testData : step
+        );
+      }
+
+      // Update lesson with all required fields
+      await lessonsManager.updateLesson(lesson.id, {
+        title: lesson.title?.rendered || lesson.title,
+        courseId: lesson.meta?._lesson_course?.[0] || courseId,
+        meta: {
+          _lesson_steps: updatedSteps
+        }
+      });
+
+      await fetchLessons();
+      toast.success(t('tests.testSaved'));
+      handleCloseTestModal();
+    } catch (error) {
+      console.error('Error saving test:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteTest = async (lessonId, testIndex) => {
+    if (!window.confirm(t('tests.deleteConfirm'))) return;
+    
+    try {
+      const lesson = lessons.find(l => l.id === lessonId);
+      if (!lesson) throw new Error('Lesson not found');
+
+      const currentSteps = lesson.meta?._lesson_steps || [];
+      const quizSteps = currentSteps.filter(s => s.type === 'quiz');
+      const testToDelete = quizSteps[testIndex];
+      
+      const updatedSteps = currentSteps.filter(step => step !== testToDelete);
+
+      // Update lesson with all required fields
+      await lessonsManager.updateLesson(lesson.id, {
+        title: lesson.title?.rendered || lesson.title,
+        courseId: lesson.meta?._lesson_course?.[0] || courseId,
+        meta: {
+          _lesson_steps: updatedSteps
+        }
+      });
+
+      await fetchLessons();
+      toast.success(t('tests.testDeleted'));
+    } catch (error) {
+      console.error('Error deleting test:', error);
+      toast.error(t('tests.deleteError'));
+    }
+  };
+
+  const handleCloseTestModal = () => {
+    setTestModalState({
+      isOpen: false,
+      mode: 'create',
+      lessonId: null,
+      testIndex: null,
+      test: null
+    });
+  };
+
+  // Delete theme handlers
+  const handleOpenDeleteThemeModal = (lesson) => {
+    setDeleteThemeModalState({
+      isOpen: true,
+      lesson: lesson
+    });
+  };
+
+  const handleCloseDeleteThemeModal = () => {
+    setDeleteThemeModalState({
+      isOpen: false,
+      lesson: null
+    });
+  };
+
+  const handleConfirmDeleteTheme = async () => {
+    if (!deleteThemeModalState.lesson) return;
+    
+    try {
+      await lessonsManager.deleteLesson(deleteThemeModalState.lesson.id);
+      await fetchLessons();
+      toast.success(t('tests.themeDeleted'));
+      handleCloseDeleteThemeModal();
+    } catch (error) {
+      console.error('Error deleting theme:', error);
+      toast.error(t('tests.deleteThemeError'));
+    }
+  };
+
   const currentIndex = getCurrentStepIndex();
   const hasPrevious = currentIndex > 0;
   const hasNext = currentIndex < allTestSteps.length - 1;
@@ -562,6 +786,29 @@ const TestsPage = () => {
             }`}
           >
             <div className="h-full overflow-y-auto">
+              {/* Admin: Create Theme Button */}
+              {userIsAdmin && (
+                <div className="max-w-5xl mx-auto px-4 pt-4 pb-2">
+                  <button
+                    onClick={handleCreateLesson}
+                    className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 hover:shadow-lg"
+                    style={{
+                      backgroundColor: pageColors.accent,
+                      color: '#ffffff',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <Plus size={18} />
+                    {t('tests.createTheme')}
+                  </button>
+                </div>
+              )}
+
               <div className="max-w-5xl mx-auto px-4 pt-6 pb-12">
               {loading ? (
               <div className="space-y-4">
@@ -615,7 +862,7 @@ const TestsPage = () => {
                             </span>
                           </div>
                           
-                          {/* Badge count + Expand/Collapse Button */}
+                          {/* Badge count + Expand/Collapse Button + Admin Actions */}
                           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                             <span 
                               className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full"
@@ -626,6 +873,51 @@ const TestsPage = () => {
                             >
                               {testsCount} <span className="hidden sm:inline">{testsCount === 1 ? t('tests.test') : t('tests.tests')}</span>
                             </span>
+
+                            {/* Admin: Delete Theme Button */}
+                            {userIsAdmin && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenDeleteThemeModal(lesson);
+                                }}
+                                className="p-1.5 rounded-lg transition-all"
+                                style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
+                                title={t('tests.deleteTheme') || 'Delete Theme'}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.25)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                                }}
+                              >
+                                <Trash2 size={16} style={{ color: '#ef4444' }} />
+                              </button>
+                            )}
+
+                            {/* Admin: Add Test Button */}
+                            {userIsAdmin && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddTest(lesson.id);
+                                }}
+                                className="px-3 py-1.5 rounded-lg transition-all text-xs font-medium flex items-center gap-1.5"
+                                style={{ 
+                                  backgroundColor: pageColors.accent,
+                                  color: '#ffffff'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.opacity = '0.9';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.opacity = '1';
+                                }}
+                              >
+                                <Plus size={14} />
+                                <span className="hidden sm:inline">{t('tests.addTest') || 'Add Test'}</span>
+                              </button>
+                            )}
                             
                             {/* Expand/Collapse Button - same style as CourseCard */}
                             <button
@@ -761,28 +1053,71 @@ const TestsPage = () => {
                                         </div>
                                       </div>
                                     </div>
-                                    {/* Available Button - same style as CourseCard */}
-                                    <button
-                                      onClick={() => handleOpenTest(step, lesson)}
-                                      className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex-shrink-0"
-                                      style={{ 
-                                        backgroundColor: pageColors.buttonBg,
-                                        color: pageColors.buttonText
-                                      }}
-                                      onMouseEnter={(e) => {
-                                        if (isDarkMode) {
-                                          e.currentTarget.style.filter = 'brightness(1.15)';
-                                        } else {
-                                          e.currentTarget.style.backgroundColor = pageColors.buttonHoverBg;
-                                        }
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.currentTarget.style.filter = 'none';
-                                        e.currentTarget.style.backgroundColor = pageColors.buttonBg;
-                                      }}
-                                    >
-                                      {t('tests.available')}
-                                    </button>
+                                    {/* Action buttons */}
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      {/* Admin: Edit and Delete Buttons */}
+                                      {userIsAdmin && (
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleEditTest(lesson.id, stepIndex, step);
+                                            }}
+                                            className="p-1.5 rounded-lg transition-all"
+                                            style={{ backgroundColor: `${pageColors.accent}15` }}
+                                            title={t('common.edit')}
+                                            onMouseEnter={(e) => {
+                                              e.currentTarget.style.backgroundColor = `${pageColors.accent}25`;
+                                            }}
+                                            onMouseLeave={(e) => {
+                                              e.currentTarget.style.backgroundColor = `${pageColors.accent}15`;
+                                            }}
+                                          >
+                                            <Edit2 size={14} style={{ color: pageColors.accent }} />
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeleteTest(lesson.id, stepIndex);
+                                            }}
+                                            className="p-1.5 rounded-lg transition-all"
+                                            style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
+                                            title={t('common.delete')}
+                                            onMouseEnter={(e) => {
+                                              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.25)';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                                            }}
+                                          >
+                                            <Trash2 size={14} style={{ color: '#ef4444' }} />
+                                          </button>
+                                        </div>
+                                      )}
+
+                                      {/* Available Button - same style as CourseCard */}
+                                      <button
+                                        onClick={() => handleOpenTest(step, lesson)}
+                                        className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex-shrink-0"
+                                        style={{ 
+                                          backgroundColor: pageColors.buttonBg,
+                                          color: pageColors.buttonText
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          if (isDarkMode) {
+                                            e.currentTarget.style.filter = 'brightness(1.15)';
+                                          } else {
+                                            e.currentTarget.style.backgroundColor = pageColors.buttonHoverBg;
+                                          }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.filter = 'none';
+                                          e.currentTarget.style.backgroundColor = pageColors.buttonBg;
+                                        }}
+                                      >
+                                        {t('tests.available')}
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -1395,6 +1730,147 @@ const TestsPage = () => {
       </div>
       </CourseRankingProvider>
     </CoursePageTemplate>
+    
+    {/* Admin Modals */}
+    {userIsAdmin && (
+      <>
+        {/* Lesson Modal */}
+        <LessonModal
+          isOpen={lessonModalState.isOpen}
+          onClose={handleCloseLessonModal}
+          lesson={lessonModalState.lesson}
+          mode={lessonModalState.mode}
+          onSave={handleSaveLesson}
+          availableCourses={coursesHook.courses.map(c => ({ 
+            value: c.id.toString(), 
+            label: c.title?.rendered || c.title 
+          }))}
+          compact={true}
+          preselectedCourseId={courseId}
+        />
+
+        {/* Test Modal (Unified) */}
+        <UnifiedTestModal
+          isOpen={testModalState.isOpen}
+          onClose={handleCloseTestModal}
+          mode={testModalState.mode}
+          test={testModalState.test}
+          onSave={handleSaveTest}
+          courseId={courseId}
+        />
+
+        {/* Delete Theme Confirmation Modal */}
+        {deleteThemeModalState.isOpen && (
+          <div 
+            className="fixed inset-0 flex items-center justify-center p-4"
+            style={{ 
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 999999
+            }}
+            onClick={handleCloseDeleteThemeModal}
+          >
+            <div
+              className="relative w-full max-w-md rounded-xl shadow-2xl overflow-hidden"
+              style={{ backgroundColor: getColor('background', '#ffffff') }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div 
+                className="flex items-center gap-3 px-6 py-4 border-b"
+                style={{ borderColor: getColor('borderColor', '#e5e7eb') }}
+              >
+                <div 
+                  className="p-2 rounded-lg"
+                  style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
+                >
+                  <AlertTriangle size={20} style={{ color: '#ef4444' }} />
+                </div>
+                <h2 className="text-lg font-semibold" style={{ color: pageColors.text }}>
+                  {t('tests.deleteThemeTitle')}
+                </h2>
+              </div>
+
+              {/* Content */}
+              <div className="px-6 py-5">
+                <p className="text-sm mb-4" style={{ color: pageColors.text }}>
+                  {t('tests.deleteThemeConfirm')}
+                </p>
+                
+                {/* Theme info */}
+                <div 
+                  className="p-4 rounded-lg mb-4"
+                  style={{ 
+                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                    border: `1px solid ${getColor('borderColor', '#e5e7eb')}`
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <ClipboardList size={18} style={{ color: pageColors.accent }} />
+                    <span 
+                      className="font-medium"
+                      style={{ color: pageColors.text }}
+                      dangerouslySetInnerHTML={{ 
+                        __html: deleteThemeModalState.lesson?.title?.rendered || 
+                                deleteThemeModalState.lesson?.title || 
+                                t('courses.untitledLesson') 
+                      }}
+                    />
+                  </div>
+                  <p className="text-sm" style={{ color: pageColors.textMuted }}>
+                    {t('tests.associatedTests', { 
+                      count: deleteThemeModalState.lesson?.quizSteps?.length || 0 
+                    })}
+                  </p>
+                </div>
+
+                <p className="text-xs" style={{ color: '#ef4444' }}>
+                  {t('tests.deleteThemeWarning')}
+                </p>
+              </div>
+
+              {/* Footer */}
+              <div 
+                className="flex items-center justify-end gap-3 px-6 py-4 border-t"
+                style={{ 
+                  borderColor: getColor('borderColor', '#e5e7eb'),
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleCloseDeleteThemeModal}
+                  className="px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+                  style={{
+                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                    color: pageColors.text,
+                  }}
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteTheme}
+                  className="px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2"
+                  style={{
+                    backgroundColor: '#ef4444',
+                    color: '#ffffff',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <Trash2 size={16} />
+                  {t('tests.confirmDelete')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    )}
     
     {/* 🎯 FOCUS MODE: Full-screen Quiz overlay */}
     {isQuizFocusMode && quizToStart && (

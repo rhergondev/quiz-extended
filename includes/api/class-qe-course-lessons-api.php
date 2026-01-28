@@ -102,17 +102,48 @@ class QE_Course_Lessons_API extends QE_API_Base
             // Get lesson IDs from course meta
             $lesson_ids = get_post_meta($course_id, '_lesson_ids', true);
 
+            // If _lesson_ids is empty, try to find lessons by _course_id meta (fallback)
             if (!is_array($lesson_ids) || empty($lesson_ids)) {
-                return new WP_REST_Response([
-                    'data' => [],
-                    'pagination' => [
-                        'total' => 0,
-                        'total_pages' => 0,
-                        'current_page' => 1,
-                        'per_page' => $per_page,
-                        'has_more' => false
-                    ]
-                ], 200);
+                // Parse status parameter for the fallback query
+                $statuses = array_map('trim', explode(',', $status_param));
+
+                $fallback_lessons = get_posts([
+                    'post_type' => 'qe_lesson',
+                    'post_status' => $statuses,
+                    'posts_per_page' => -1,
+                    'fields' => 'ids',
+                    'meta_query' => [
+                        [
+                            'key' => '_course_id',
+                            'value' => $course_id,
+                            'compare' => '='
+                        ]
+                    ],
+                    'orderby' => 'menu_order',
+                    'order' => 'ASC'
+                ]);
+
+                if (!empty($fallback_lessons)) {
+                    $lesson_ids = $fallback_lessons;
+
+                    // Sync the course's _lesson_ids for future queries
+                    update_post_meta($course_id, '_lesson_ids', $lesson_ids);
+                    $this->log_info("Synced _lesson_ids from _course_id fallback", [
+                        'course_id' => $course_id,
+                        'lesson_ids' => $lesson_ids
+                    ]);
+                } else {
+                    return new WP_REST_Response([
+                        'data' => [],
+                        'pagination' => [
+                            'total' => 0,
+                            'total_pages' => 0,
+                            'current_page' => 1,
+                            'per_page' => $per_page,
+                            'has_more' => false
+                        ]
+                    ], 200);
+                }
             }
 
             // Parse status parameter

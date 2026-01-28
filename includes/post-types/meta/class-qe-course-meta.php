@@ -527,6 +527,8 @@ class QE_Course_Meta
 
     /**
      * Get lessons count for a course
+     * Looks for lessons that have _course_id pointing to this course
+     * AND checks the _lesson_ids array for compatibility
      *
      * @param array $course Course data
      * @return int Lessons count
@@ -539,13 +541,37 @@ class QE_Course_Meta
             return 0;
         }
 
+        // First check _lesson_ids (the array stored in course meta)
         $lesson_ids = get_post_meta($course_id, '_lesson_ids', true);
 
-        if (!is_array($lesson_ids)) {
-            return 0;
+        if (is_array($lesson_ids) && !empty($lesson_ids)) {
+            // Verify these lessons actually exist and are published/draft/private
+            $valid_lessons = get_posts([
+                'post_type' => 'qe_lesson',
+                'post__in' => $lesson_ids,
+                'post_status' => ['publish', 'draft', 'private'],
+                'posts_per_page' => -1,
+                'fields' => 'ids'
+            ]);
+            return count($valid_lessons);
         }
 
-        return count($lesson_ids);
+        // Fallback: count lessons that have _course_id pointing to this course
+        $lessons = get_posts([
+            'post_type' => 'qe_lesson',
+            'post_status' => ['publish', 'draft', 'private'],
+            'posts_per_page' => -1,
+            'fields' => 'ids',
+            'meta_query' => [
+                [
+                    'key' => '_course_id',
+                    'value' => $course_id,
+                    'compare' => '='
+                ]
+            ]
+        ]);
+
+        return count($lessons);
     }
 
     /**

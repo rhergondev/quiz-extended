@@ -1,12 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import { useTheme } from '../../../contexts/ThemeContext';
 import useCourse from '../../../hooks/useCourse';
 import useStudentProgress from '../../../hooks/useStudentProgress';
+import useLessons from '../../../hooks/useLessons';
+import useCourses from '../../../hooks/useCourses';
+import { isUserAdmin } from '../../../utils/userUtils';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
-import { ChevronDown, ChevronUp, ChevronRight, Video, Play, X, ChevronLeft, Check, Circle, Film } from 'lucide-react';
+import LessonModal from '../../../components/lessons/LessonModal';
+import VideoModal from '../../../components/videos/VideoModal';
+import { ChevronDown, ChevronUp, ChevronRight, Video, Play, X, ChevronLeft, Check, Circle, Film, Plus, Trash2, AlertTriangle, Edit2 } from 'lucide-react';
 
 const VideosPage = () => {
   const { t } = useTranslation();
@@ -33,6 +39,36 @@ const VideosPage = () => {
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [selectedLesson, setSelectedLesson] = useState(null);
 
+  // Admin functionality
+  const userIsAdmin = isUserAdmin();
+  const lessonsManager = useLessons({ autoFetch: false, courseId: courseId });
+  const coursesHook = useCourses({ autoFetch: false, status: 'publish,draft,private' });
+  
+  // Modal states
+  const [lessonModalState, setLessonModalState] = useState({
+    isOpen: false,
+    mode: 'create',
+    lesson: null
+  });
+  const [videoModalState, setVideoModalState] = useState({
+    isOpen: false,
+    mode: 'create',
+    lessonId: null,
+    videoIndex: null,
+    video: null
+  });
+  const [deleteThemeModalState, setDeleteThemeModalState] = useState({
+    isOpen: false,
+    lesson: null
+  });
+
+  // Load courses for lesson modal
+  useEffect(() => {
+    if (userIsAdmin && coursesHook.courses.length === 0 && !coursesHook.loading) {
+      coursesHook.fetchCourses();
+    }
+  }, [userIsAdmin]);
+
   // Hook para manejar el progreso del estudiante
   const { 
     isCompleted, 
@@ -49,43 +85,205 @@ const VideosPage = () => {
     }
   }, [courseId, fetchCompletedContent]);
 
-  useEffect(() => {
-    const fetchLessons = async () => {
-      if (!courseId) return;
-      
-      setLoading(true);
-      try {
-        const courseIdInt = parseInt(courseId, 10);
-        if (isNaN(courseIdInt)) {
-          throw new Error('Invalid course ID');
-        }
-        
-        const result = await getCourseLessons(courseIdInt, { perPage: 100 });
-        
-        // Map lessons with their video steps (show all lessons, even without videos)
-        const lessonsWithVideos = (result.data || [])
-          .map(lesson => {
-            const videoSteps = (lesson.meta?._lesson_steps || [])
-              .filter(step => step.type === 'video')
-              .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0));
-            
-            return {
-              ...lesson,
-              videoSteps
-            };
-          });
-        
-        setLessons(lessonsWithVideos);
-      } catch (error) {
-        console.error('Error fetching lessons:', error);
-        setLessons([]);
-      } finally {
-        setLoading(false);
+  // Fetch lessons function (reusable)
+  const fetchLessons = async () => {
+    if (!courseId) return;
+    
+    setLoading(true);
+    try {
+      const courseIdInt = parseInt(courseId, 10);
+      if (isNaN(courseIdInt)) {
+        throw new Error('Invalid course ID');
       }
-    };
+      
+      const result = await getCourseLessons(courseIdInt, { perPage: 100 });
+      
+      // Map lessons with their video steps (show all lessons, even without videos)
+      const lessonsWithVideos = (result.data || [])
+        .map(lesson => {
+          const videoSteps = (lesson.meta?._lesson_steps || [])
+            .filter(step => step.type === 'video')
+            .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0));
+          
+          return {
+            ...lesson,
+            videoSteps
+          };
+        });
+      
+      setLessons(lessonsWithVideos);
+    } catch (error) {
+      console.error('Error fetching lessons:', error);
+      setLessons([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchLessons();
   }, [courseId]);
+
+  // Admin handlers
+  const handleCreateLesson = () => {
+    setLessonModalState({ isOpen: true, mode: 'create', lesson: null });
+  };
+
+  const handleSaveLesson = async (data, nextAction = 'close') => {
+    try {
+      if (lessonModalState.mode === 'create') {
+        const newLesson = await lessonsManager.createLesson(data);
+        toast.success(t('videos.lessonCreated'));
+        
+        await fetchLessons();
+        
+        if (nextAction === 'addVideo') {
+          handleAddVideo(newLesson.id);
+        }
+        
+        handleCloseLessonModal();
+      } else {
+        await lessonsManager.updateLesson(lessonModalState.lesson.id, data);
+        toast.success(t('videos.lessonUpdated'));
+        await fetchLessons();
+        handleCloseLessonModal();
+      }
+    } catch (error) {
+      console.error('Error saving lesson:', error);
+      throw error;
+    }
+  };
+
+  const handleCloseLessonModal = () => {
+    setLessonModalState({ isOpen: false, mode: 'create', lesson: null });
+  };
+
+  const handleAddVideo = (lessonId) => {
+    setVideoModalState({
+      isOpen: true,
+      mode: 'create',
+      lessonId: lessonId,
+      videoIndex: null,
+      video: null
+    });
+  };
+
+  const handleEditVideo = (lessonId, videoIndex, video) => {
+    setVideoModalState({
+      isOpen: true,
+      mode: 'edit',
+      lessonId: lessonId,
+      videoIndex: videoIndex,
+      video: video
+    });
+  };
+
+  const handleSaveVideo = async (videoData) => {
+    try {
+      const lesson = lessons.find(l => l.id === videoModalState.lessonId);
+      if (!lesson) throw new Error('Lesson not found');
+
+      const currentSteps = lesson.meta?._lesson_steps || [];
+      let updatedSteps;
+
+      if (videoModalState.mode === 'create') {
+        updatedSteps = [...currentSteps, videoData];
+      } else {
+        // Find the video step to edit by getting the nth video in the array
+        const videoSteps = currentSteps.filter(s => s.type === 'video');
+        const targetVideo = videoSteps[videoModalState.videoIndex];
+        
+        updatedSteps = currentSteps.map(step => 
+          step === targetVideo ? videoData : step
+        );
+      }
+
+      // Update lesson with all required fields to avoid validation errors
+      await lessonsManager.updateLesson(lesson.id, {
+        title: lesson.title?.rendered || lesson.title,
+        courseId: lesson.meta?._lesson_course?.[0] || courseId,
+        meta: {
+          _lesson_steps: updatedSteps
+        }
+      });
+
+      await fetchLessons();
+      toast.success(t('videos.videoSaved'));
+      handleCloseVideoModal();
+    } catch (error) {
+      console.error('Error saving video:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteVideo = async (lessonId, videoIndex) => {
+    if (!window.confirm(t('videos.deleteConfirm'))) return;
+    
+    try {
+      const lesson = lessons.find(l => l.id === lessonId);
+      if (!lesson) throw new Error('Lesson not found');
+
+      const currentSteps = lesson.meta?._lesson_steps || [];
+      const videoSteps = currentSteps.filter(s => s.type === 'video');
+      const videoToDelete = videoSteps[videoIndex];
+      
+      const updatedSteps = currentSteps.filter(step => step !== videoToDelete);
+
+      // Update lesson with all required fields to avoid validation errors
+      await lessonsManager.updateLesson(lesson.id, {
+        title: lesson.title?.rendered || lesson.title,
+        courseId: lesson.meta?._lesson_course?.[0] || courseId,
+        meta: {
+          _lesson_steps: updatedSteps
+        }
+      });
+
+      await fetchLessons();
+      toast.success(t('videos.videoDeleted'));
+    } catch (error) {
+      console.error('Error deleting video:', error);
+      toast.error(t('videos.errors.deleteFailed'));
+    }
+  };
+
+  const handleCloseVideoModal = () => {
+    setVideoModalState({
+      isOpen: false,
+      mode: 'create',
+      lessonId: null,
+      videoIndex: null,
+      video: null
+    });
+  };
+
+  // Delete theme handlers
+  const handleOpenDeleteThemeModal = (lesson) => {
+    setDeleteThemeModalState({
+      isOpen: true,
+      lesson: lesson
+    });
+  };
+
+  const handleCloseDeleteThemeModal = () => {
+    setDeleteThemeModalState({
+      isOpen: false,
+      lesson: null
+    });
+  };
+
+  const handleConfirmDeleteTheme = async () => {
+    if (!deleteThemeModalState.lesson) return;
+    
+    try {
+      await lessonsManager.deleteLesson(deleteThemeModalState.lesson.id);
+      await fetchLessons();
+      toast.success(t('videos.themeDeleted'));
+      handleCloseDeleteThemeModal();
+    } catch (error) {
+      console.error('Error deleting theme:', error);
+      toast.error(t('videos.errors.deleteTheme'));
+    }
+  };
 
   // Create flat array of all video steps for navigation
   const allVideoSteps = useMemo(() => {
@@ -246,6 +444,29 @@ const VideosPage = () => {
           }`}
         >
           <div className="h-full overflow-y-auto">
+            {/* Admin: Create Theme Button */}
+            {userIsAdmin && (
+              <div className="max-w-5xl mx-auto px-4 pt-4 pb-2">
+                <button
+                  onClick={handleCreateLesson}
+                  className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 hover:shadow-lg"
+                  style={{
+                    backgroundColor: pageColors.accent,
+                    color: '#ffffff',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <Plus size={18} />
+                  {t('videos.createTheme')}
+                </button>
+              </div>
+            )}
+
             <div className="max-w-5xl mx-auto px-4 pt-8 pb-12">
             {loading ? (
               <div 
@@ -319,13 +540,61 @@ const VideosPage = () => {
                           />
                         </div>
                         
-                        {/* Badge count + Expand/Collapse Button */}
+                        {/* Badge count + Admin Actions + Expand/Collapse Button */}
                         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                          {/* Admin: Delete Theme Button */}
+                          {userIsAdmin && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenDeleteThemeModal(lesson);
+                              }}
+                              className="p-1.5 rounded-lg transition-all"
+                              style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
+                              title={t('videos.deleteTheme')}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.25)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                              }}
+                            >
+                              <Trash2 size={16} style={{ color: '#ef4444' }} />
+                            </button>
+                          )}
+
+                          {/* Admin: Add Video Button */}
+                          {userIsAdmin && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAddVideo(lesson.id);
+                              }}
+                              className="px-3 py-1.5 rounded-lg transition-all text-xs font-medium flex items-center gap-1.5"
+                              style={{ 
+                                backgroundColor: pageColors.accent,
+                                color: '#ffffff'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.opacity = '0.9';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.opacity = '1';
+                              }}
+                            >
+                              <Plus size={14} />
+                              <span className="hidden sm:inline">{t('videos.addVideo')}</span>
+                            </button>
+                          )}
+
                           <span 
                             className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full"
                             style={{ 
                               backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : `${getColor('primary', '#1a202c')}10`,
-                              color: pageColors.text
+                              color: pageColors.text,
+                              minWidth: '90px',
+                              textAlign: 'center',
+                              display: 'inline-block'
                             }}
                           >
                             {videoCount} <span className="hidden sm:inline">{videoCount === 1 ? t('videos.video') : t('videos.videos')}</span>
@@ -400,6 +669,45 @@ const VideosPage = () => {
                                       </span>
                                     )}
                                   </div>
+                                  {/* Admin: Edit and Delete Buttons */}
+                                  {userIsAdmin && (
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEditVideo(lesson.id, index, step);
+                                        }}
+                                        className="p-1.5 rounded-lg transition-all"
+                                        style={{ backgroundColor: `${pageColors.accent}15` }}
+                                        title={t('common.edit')}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.backgroundColor = `${pageColors.accent}25`;
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.backgroundColor = `${pageColors.accent}15`;
+                                        }}
+                                      >
+                                        <Edit2 size={14} style={{ color: pageColors.accent }} />
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteVideo(lesson.id, index);
+                                        }}
+                                        className="p-1.5 rounded-lg transition-all"
+                                        style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
+                                        title={t('common.delete')}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.25)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                                        }}
+                                      >
+                                        <Trash2 size={14} style={{ color: '#ef4444' }} />
+                                      </button>
+                                    </div>
+                                  )}
                                   {/* Available Button - same style as CourseCard */}
                                   <button
                                     onClick={() => handleOpenVideo(step, lesson)}
@@ -634,6 +942,145 @@ const VideosPage = () => {
           )}
         </div>
       </div>
+
+      {/* Admin: Lesson Modal (for creating/editing themes) */}
+      {userIsAdmin && (
+        <LessonModal
+          isOpen={lessonModalState.isOpen}
+          onClose={handleCloseLessonModal}
+          lesson={lessonModalState.lesson}
+          mode={lessonModalState.mode}
+          onSave={handleSaveLesson}
+          availableCourses={coursesHook.courses.map(c => ({ 
+            value: c.id.toString(), 
+            label: c.title?.rendered || c.title 
+          }))}
+          compact={true}
+          preselectedCourseId={courseId}
+        />
+      )}
+
+      {/* Admin: Video Modal */}
+      {userIsAdmin && (
+        <VideoModal
+          isOpen={videoModalState.isOpen}
+          onClose={handleCloseVideoModal}
+          mode={videoModalState.mode}
+          video={videoModalState.video}
+          onSave={handleSaveVideo}
+        />
+      )}
+
+      {/* Admin: Delete Theme Confirmation Modal */}
+      {userIsAdmin && deleteThemeModalState.isOpen && (
+        <div 
+          className="fixed inset-0 flex items-center justify-center p-4"
+          style={{ 
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 999999
+          }}
+          onClick={handleCloseDeleteThemeModal}
+        >
+          <div
+            className="relative w-full max-w-md rounded-xl shadow-2xl overflow-hidden"
+            style={{ backgroundColor: getColor('background', '#ffffff') }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div 
+              className="flex items-center gap-3 px-6 py-4 border-b"
+              style={{ borderColor: getColor('borderColor', '#e5e7eb') }}
+            >
+              <div 
+                className="p-2 rounded-lg"
+                style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
+              >
+                <AlertTriangle size={20} style={{ color: '#ef4444' }} />
+              </div>
+              <h2 className="text-lg font-semibold" style={{ color: pageColors.text }}>
+                {t('videos.deleteThemeTitle')}
+              </h2>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-5">
+              <p className="text-sm mb-4" style={{ color: pageColors.text }}>
+                {t('videos.deleteThemeConfirm')}
+              </p>
+              
+              {/* Lesson info */}
+              <div 
+                className="p-4 rounded-lg mb-4"
+                style={{ 
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                  border: `1px solid ${getColor('borderColor', '#e5e7eb')}`
+                }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Video size={18} style={{ color: pageColors.accent }} />
+                  <span 
+                    className="font-medium"
+                    style={{ color: pageColors.text }}
+                    dangerouslySetInnerHTML={{ 
+                      __html: deleteThemeModalState.lesson?.title?.rendered || 
+                              deleteThemeModalState.lesson?.title || 
+                              t('courses.untitledLesson') 
+                    }}
+                  />
+                </div>
+                <p className="text-sm" style={{ color: pageColors.textMuted }}>
+                  {t('videos.associatedVideos', { 
+                    count: deleteThemeModalState.lesson?.videoSteps?.length || 0 
+                  })}
+                </p>
+              </div>
+
+              <p className="text-xs" style={{ color: '#ef4444' }}>
+                {t('videos.deleteThemeWarning')}
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div 
+              className="flex items-center justify-end gap-3 px-6 py-4 border-t"
+              style={{ 
+                borderColor: getColor('borderColor', '#e5e7eb'),
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleCloseDeleteThemeModal}
+                className="px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+                style={{
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  color: pageColors.text,
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteTheme}
+                className="px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2"
+                style={{
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.9';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                }}
+              >
+                <Trash2 size={16} />
+                {t('videos.confirmDelete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </CoursePageTemplate>
   );
 };

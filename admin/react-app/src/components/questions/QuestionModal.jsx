@@ -26,7 +26,8 @@ const QuestionModal = ({
   availableLessons = [],
   availableCourses = [],
   isLoading = false,
-  parentQuizId = null // ID del quiz desde el que se crea/edita (para ocultar QuizSelector y asociar automáticamente)
+  parentQuizId = null, // ID del quiz desde el que se crea/edita (para ocultar QuizSelector y asociar automáticamente)
+  isSimplified = false // Oculta campos innecesarios (Categoría, Proveedor, Curso, Lección) cuando estamos en contexto de Test
 }) => {
   const { getColor, isDarkMode } = useTheme();
   
@@ -36,12 +37,12 @@ const QuestionModal = ({
     textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : '#6b7280',
     accent: getColor('accent', '#f59e0b'),
     primary: getColor('primary', '#3b82f6'),
-    inputBg: isDarkMode ? 'rgba(0,0,0,0.2)' : '#ffffff',
-    inputBorder: isDarkMode ? 'rgba(255,255,255,0.2)' : '#d1d5db',
+    inputBg: isDarkMode ? '#1f2937' : '#ffffff',
+    inputBorder: isDarkMode ? '#374151' : '#d1d5db',
     cardBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
     headerBg: isDarkMode ? getColor('primary', '#1a202c') : '#f9fafb',
-    footerBg: isDarkMode ? 'rgba(0,0,0,0.2)' : '#f9fafb',
-    border: isDarkMode ? 'rgba(255,255,255,0.1)' : '#e5e7eb',
+    footerBg: isDarkMode ? '#111827' : '#f9fafb',
+    border: isDarkMode ? '#374151' : '#e5e7eb',
     overlay: isDarkMode ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)',
   }), [getColor, isDarkMode]);
 
@@ -85,8 +86,8 @@ const QuestionModal = ({
     { value: 'multiple_choice', label: 'Opción Múltiple' },
     { value: 'true_false', label: 'Verdadero/Falso' },
     { value: 'short_answer', label: 'Respuesta Corta' },
-    { value: 'essay', label: 'Ensayo' },
-    { value: 'fill_blank', label: 'Completar Espacios' }
+    { value: 'essay', label: 'Desarrollo' },
+    { value: 'fill_blank', label: 'Completar' }
   ];
 
   const difficultyLevels = [
@@ -416,27 +417,27 @@ const QuestionModal = ({
 
   return (
     <div 
-      className="fixed inset-0 flex items-center justify-center z-[10000] p-4 pt-24"
+      className="fixed inset-0 flex items-start justify-center z-[10000] p-4 pt-32"
       style={{ backgroundColor: pageColors.overlay }}
     >
       <div 
-        className="rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+        className="rounded-xl shadow-2xl w-full max-w-3xl max-h-[75vh] flex flex-col overflow-hidden"
         style={{ backgroundColor: pageColors.cardBg }}
       >
         {/* Header */}
         <div 
-          className="flex items-center justify-between p-5 flex-shrink-0"
+          className="flex items-center justify-between px-5 py-3 flex-shrink-0"
           style={{ 
             backgroundColor: pageColors.headerBg,
             borderBottom: `1px solid ${pageColors.border}`
           }}
         >
-          <h2 className="text-lg font-bold" style={{ color: pageColors.text }}>{modalTitle}</h2>
+          <h2 className="text-base font-bold" style={{ color: pageColors.text }}>{modalTitle}</h2>
           <button 
             type="button"
             onClick={onClose} 
             style={{
-              padding: '8px',
+              padding: '6px',
               borderRadius: '8px',
               backgroundColor: 'transparent',
               border: 'none',
@@ -455,16 +456,16 @@ const QuestionModal = ({
               e.currentTarget.style.color = pageColors.textMuted;
             }}
           >
-            <X size={22} />
+            <X size={18} />
           </button>
         </div>
 
         {/* Form Content */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
           
           {/* Título de la Pregunta */}
           <div>
-            <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>
+            <label className="block text-xs font-bold uppercase mb-1" style={{ color: pageColors.text }}>
               Título de la Pregunta *
             </label>
             <input
@@ -475,7 +476,7 @@ const QuestionModal = ({
               disabled={isReadOnly}
               style={{
                 width: '100%',
-                padding: '10px 12px',
+                padding: '8px 10px',
                 borderRadius: '8px',
                 border: `2px solid ${errors.title ? '#ef4444' : pageColors.inputBorder}`,
                 backgroundColor: pageColors.inputBg,
@@ -485,22 +486,23 @@ const QuestionModal = ({
               }}
             />
             {errors.title && (
-              <p style={{ marginTop: '4px', fontSize: '13px', color: '#ef4444' }}>{errors.title}</p>
+              <p style={{ marginTop: '4px', fontSize: '12px', color: '#ef4444' }}>{errors.title}</p>
             )}
           </div>
 
           {/* Fila 1: Categoría, Proveedor, Dificultad */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className={`grid grid-cols-1 ${isSimplified ? '' : 'md:grid-cols-3'} gap-3`}>
             {/* Categoría */}
+            {!isSimplified && (
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium" style={{ color: pageColors.text }}>Categoría</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold uppercase" style={{ color: pageColors.text }}>Categoría</label>
                 {!isReadOnly && !showNewCategoryForm && (
                   <button
                     type="button"
                     onClick={() => setShowNewCategoryForm(true)}
                     style={{
-                      padding: '4px',
+                      padding: '2px',
                       backgroundColor: 'transparent',
                       border: 'none',
                       color: pageColors.accent,
@@ -511,12 +513,12 @@ const QuestionModal = ({
                     onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
                   >
-                    <Plus size={16} />
+                    <Plus size={14} />
                   </button>
                 )}
               </div>
               {showNewCategoryForm && (
-                <div style={{ marginBottom: '8px', padding: '8px', backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : '#f9fafb', border: `1px solid ${pageColors.border}`, borderRadius: '6px' }}>
+                <div style={{ marginBottom: '8px', padding: '8px', backgroundColor: isDarkMode ? '#111827' : '#f9fafb', border: `1px solid ${pageColors.border}`, borderRadius: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <input
                       type="text"
@@ -582,11 +584,11 @@ const QuestionModal = ({
                     outline: 'none'
                   }}
                 >
-                  <option value="" style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>
+                  <option value="">
                     {loadingCategories ? 'Cargando...' : 'Seleccionar categoría'}
                   </option>
                   {categories.map(cat => (
-                    <option key={cat.value} value={cat.value} style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>
+                    <option key={cat.value} value={cat.value}>
                       {cat.label}
                     </option>
                   ))}
@@ -604,17 +606,19 @@ const QuestionModal = ({
                 />
               </div>
             </div>
+            )}
 
             {/* Proveedor */}
+            {!isSimplified && (
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium" style={{ color: pageColors.text }}>Proveedor</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold uppercase" style={{ color: pageColors.text }}>Proveedor</label>
                 {!isReadOnly && !showNewProviderForm && (
                   <button
                     type="button"
                     onClick={() => setShowNewProviderForm(true)}
                     style={{
-                      padding: '4px',
+                      padding: '2px',
                       backgroundColor: 'transparent',
                       border: 'none',
                       color: pageColors.accent,
@@ -625,12 +629,12 @@ const QuestionModal = ({
                     onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
                   >
-                    <Plus size={16} />
+                    <Plus size={14} />
                   </button>
                 )}
               </div>
               {showNewProviderForm && (
-                <div style={{ marginBottom: '8px', padding: '8px', backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : '#f9fafb', border: `1px solid ${pageColors.border}`, borderRadius: '6px' }}>
+                <div style={{ marginBottom: '8px', padding: '8px', backgroundColor: isDarkMode ? '#111827' : '#f9fafb', border: `1px solid ${pageColors.border}`, borderRadius: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <input
                       type="text"
@@ -685,7 +689,7 @@ const QuestionModal = ({
                   disabled={isReadOnly || loadingProviders}
                   style={{
                     width: '100%',
-                    padding: '10px 32px 10px 12px',
+                    padding: '8px 24px 8px 10px',
                     borderRadius: '8px',
                     border: `2px solid ${pageColors.inputBorder}`,
                     backgroundColor: pageColors.inputBg,
@@ -696,11 +700,11 @@ const QuestionModal = ({
                     outline: 'none'
                   }}
                 >
-                  <option value="" style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>
+                  <option value="">
                     {loadingProviders ? 'Cargando...' : 'Seleccionar proveedor'}
                   </option>
                   {providers.map(prov => (
-                    <option key={prov.value} value={prov.value} style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>
+                    <option key={prov.value} value={prov.value}>
                       {prov.label}
                     </option>
                   ))}
@@ -709,7 +713,7 @@ const QuestionModal = ({
                   size={16} 
                   style={{ 
                     position: 'absolute', 
-                    right: '12px', 
+                    right: '10px', 
                     top: '50%', 
                     transform: 'translateY(-50%)', 
                     pointerEvents: 'none',
@@ -718,10 +722,11 @@ const QuestionModal = ({
                 />
               </div>
             </div>
+            )}
 
             {/* Dificultad */}
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>Dificultad</label>
+              <label className="block text-xs font-bold uppercase mb-1" style={{ color: pageColors.text }}>Dificultad</label>
               <div style={{ position: 'relative' }}>
                 <select
                   value={formData.difficulty}
@@ -729,7 +734,7 @@ const QuestionModal = ({
                   disabled={isReadOnly}
                   style={{
                     width: '100%',
-                    padding: '10px 32px 10px 12px',
+                    padding: '8px 24px 8px 10px',
                     borderRadius: '8px',
                     border: `2px solid ${pageColors.inputBorder}`,
                     backgroundColor: pageColors.inputBg,
@@ -741,7 +746,7 @@ const QuestionModal = ({
                   }}
                 >
                   {difficultyLevels.map(level => (
-                    <option key={level.value} value={level.value} style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>
+                    <option key={level.value} value={level.value}>
                       {level.label}
                     </option>
                   ))}
@@ -750,7 +755,7 @@ const QuestionModal = ({
                   size={16} 
                   style={{ 
                     position: 'absolute', 
-                    right: '12px', 
+                    right: '10px', 
                     top: '50%', 
                     transform: 'translateY(-50%)', 
                     pointerEvents: 'none',
@@ -762,10 +767,11 @@ const QuestionModal = ({
           </div>
 
           {/* Fila 2: Asignar a Curso, Asignar a Tema */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {!isSimplified && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Asignar a Curso */}
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>Asignar a Curso</label>
+              <label className="block text-xs font-bold uppercase mb-1" style={{ color: pageColors.text }}>Asignar a Curso</label>
               <div style={{ position: 'relative' }}>
                 <select
                   value={formData.courseId}
@@ -773,7 +779,7 @@ const QuestionModal = ({
                   disabled={isReadOnly}
                   style={{
                     width: '100%',
-                    padding: '10px 32px 10px 12px',
+                    padding: '8px 24px 8px 10px',
                     borderRadius: '8px',
                     border: `2px solid ${pageColors.inputBorder}`,
                     backgroundColor: pageColors.inputBg,
@@ -784,9 +790,9 @@ const QuestionModal = ({
                     outline: 'none'
                   }}
                 >
-                  <option value="" style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>Sin curso asignado</option>
+                  <option value="">Sin curso asignado</option>
                   {availableCourses.map(course => (
-                    <option key={course.id} value={course.id} style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>
+                    <option key={course.id} value={course.id}>
                       {course.title?.rendered || course.title}
                     </option>
                   ))}
@@ -795,7 +801,7 @@ const QuestionModal = ({
                   size={16} 
                   style={{ 
                     position: 'absolute', 
-                    right: '12px', 
+                    right: '10px', 
                     top: '50%', 
                     transform: 'translateY(-50%)', 
                     pointerEvents: 'none',
@@ -807,7 +813,7 @@ const QuestionModal = ({
 
             {/* Asignar a Tema */}
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>Asignar a Tema</label>
+              <label className="block text-xs font-bold uppercase mb-1" style={{ color: pageColors.text }}>Asignar a Tema</label>
               <div style={{ position: 'relative' }}>
                 <select
                   value={formData.lessonId}
@@ -815,7 +821,7 @@ const QuestionModal = ({
                   disabled={isReadOnly}
                   style={{
                     width: '100%',
-                    padding: '10px 32px 10px 12px',
+                    padding: '8px 24px 8px 10px',
                     borderRadius: '8px',
                     border: `2px solid ${pageColors.inputBorder}`,
                     backgroundColor: pageColors.inputBg,
@@ -826,9 +832,9 @@ const QuestionModal = ({
                     outline: 'none'
                   }}
                 >
-                  <option value="" style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>Sin tema (Pregunta General)</option>
+                  <option value="">Sin tema (Pregunta General)</option>
                   {availableLessons.map(lesson => (
-                    <option key={lesson.id} value={lesson.id} style={{ backgroundColor: pageColors.cardBg, color: pageColors.text }}>
+                    <option key={lesson.id} value={lesson.id}>
                       {lesson.title?.rendered || lesson.title}
                     </option>
                   ))}
@@ -837,7 +843,7 @@ const QuestionModal = ({
                   size={16} 
                   style={{ 
                     position: 'absolute', 
-                    right: '12px', 
+                    right: '10px', 
                     top: '50%', 
                     transform: 'translateY(-50%)', 
                     pointerEvents: 'none',
@@ -847,14 +853,15 @@ const QuestionModal = ({
               </div>
             </div>
           </div>
+          )}
 
           {/* Opciones de Respuesta */}
           {(formData.type === 'multiple_choice' || formData.type === 'true_false') && (
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>Opciones de Respuesta *</label>
+              <label className="block text-xs font-bold uppercase mb-2" style={{ color: pageColors.text }}>Opciones de Respuesta *</label>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={formData.options.map((_, i) => i)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {formData.options.map((option, index) => (
                       <SortableOption
                         key={index}
@@ -876,18 +883,18 @@ const QuestionModal = ({
                   type="button"
                   onClick={addOption} 
                   style={{
-                    marginTop: '12px',
-                    padding: '6px 12px',
+                    marginTop: '8px',
+                    padding: '4px 8px',
                     borderRadius: '6px',
                     border: `1px solid ${pageColors.inputBorder}`,
                     backgroundColor: pageColors.inputBg,
                     color: pageColors.text,
-                    fontSize: '13px',
+                    fontSize: '12px',
                     fontWeight: '500',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px'
+                    gap: '4px'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.opacity = '0.8';
@@ -896,17 +903,17 @@ const QuestionModal = ({
                     e.currentTarget.style.opacity = '1';
                   }}
                 >
-                  <Plus size={14} />
+                  <Plus size={12} />
                   Añadir Opción
                 </button>
               )}
-              {errors.options && <p style={{ marginTop: '4px', fontSize: '14px', color: '#dc2626' }}>{errors.options}</p>}
+              {errors.options && <p style={{ marginTop: '4px', fontSize: '12px', color: '#dc2626' }}>{errors.options}</p>}
             </div>
           )}
 
-          {/* Asignar a Tests - Oculto si viene de un test específico */}
-          {!parentQuizId && (
-            <div>
+          {/* Asignar a Tests - Oculto si viene de un test específico O si estamos en modo simplificado */}
+          {!parentQuizId && !isSimplified && (
+            <div className="mb-3">
               <QuizSelector
                 availableQuizzes={availableQuizzes}
                 selectedQuizIds={formData.quizIds}
@@ -918,13 +925,16 @@ const QuestionModal = ({
             
           {/* Explicación */}
           <div>
-            <label className="block text-sm font-medium mb-2" style={{ color: pageColors.text }}>Explicación (Opcional)</label>
+            <label className="block text-xs font-bold uppercase mb-1" style={{ color: pageColors.text }}>Explicación (Opcional)</label>
             <ReactQuill
               ref={quillRef}
               theme="snow"
               value={formData.explanation}
               onChange={(value) => handleFieldChange('explanation', value)}
               modules={quillModules}
+              style={{
+                fontSize: '14px' 
+              }}
             />
           </div>
             
@@ -933,24 +943,24 @@ const QuestionModal = ({
         {/* Footer */}
         {!isReadOnly && (
           <div 
-            className="flex items-center justify-end gap-3 p-6"
+            className="flex items-center justify-end gap-3 p-4"
             style={{ 
               borderTop: `1px solid ${pageColors.inputBorder}`,
               backgroundColor: pageColors.cardBg
             }}
           >
-            {errors.submit && <p style={{ color: '#dc2626', fontSize: '14px' }}>{errors.submit}</p>}
+            {errors.submit && <p style={{ color: '#dc2626', fontSize: '13px' }}>{errors.submit}</p>}
             <button 
               type="button"
               onClick={onClose} 
               disabled={isLoading}
               style={{
-                padding: '8px 16px',
+                padding: '6px 12px',
                 borderRadius: '6px',
                 border: `1px solid ${pageColors.inputBorder}`,
                 backgroundColor: pageColors.inputBg,
                 color: pageColors.text,
-                fontSize: '14px',
+                fontSize: '13px',
                 fontWeight: '500',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
                 opacity: isLoading ? 0.7 : 1
@@ -970,12 +980,12 @@ const QuestionModal = ({
                 onClick={handleSaveAndNew} 
                 disabled={isLoading}
                 style={{
-                  padding: '8px 16px',
+                  padding: '6px 12px',
                   borderRadius: '6px',
                   border: 'none',
                   backgroundColor: '#6b7280',
                   color: '#ffffff',
-                  fontSize: '14px',
+                  fontSize: '13px',
                   fontWeight: '500',
                   cursor: isLoading ? 'not-allowed' : 'pointer',
                   opacity: isLoading ? 0.7 : 1
@@ -995,12 +1005,12 @@ const QuestionModal = ({
               onClick={handleSubmit} 
               disabled={isLoading}
               style={{
-                padding: '8px 16px',
+                padding: '6px 12px',
                 borderRadius: '6px',
                 border: 'none',
                 backgroundColor: '#3b82f6',
                 color: '#ffffff',
-                fontSize: '14px',
+                fontSize: '13px',
                 fontWeight: '500',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
                 opacity: isLoading ? 0.7 : 1

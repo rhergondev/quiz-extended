@@ -9,6 +9,7 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { getCourseProgress } from '../../api/services/studentProgressService';
 import useCourse from '../../hooks/useCourse';
+import { isUserAdmin } from '../../utils/userUtils';
 
 const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
   const { courseId } = useParams();
@@ -85,37 +86,44 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
   // Menu items with stats (Dashboard and Statistics moved to header)
   const menuItems = useMemo(() => {
     const stepsByType = courseProgress?.steps_by_type || {};
+    const userIsAdmin = isUserAdmin();
     
     const items = [
       { to: `/courses/${courseId}/study-planner`, text: t('courses.studyPlanner'), icon: Calendar, divider: true },
     ];
 
-    if (stepsByType.quiz?.total > 0) {
+    // Agregar Tests si hay quizzes O si es admin
+    const hasQuizzes = stepsByType.quiz?.total > 0;
+    if (hasQuizzes || userIsAdmin) {
       items.push({ 
         to: `/courses/${courseId}/tests`, 
         text: t('courses.tests'), 
         icon: ClipboardList,
-        badge: `${stepsByType.quiz.completed}/${stepsByType.quiz.total}`
+        badge: hasQuizzes ? `${stepsByType.quiz.completed}/${stepsByType.quiz.total}` : null
       });
     }
 
+    // Agregar Material de Apoyo si hay PDFs/texto O si es admin
     const materialTotal = (stepsByType.text?.total || 0) + (stepsByType.pdf?.total || 0);
-    if (materialTotal > 0) {
+    const hasMaterial = materialTotal > 0;
+    if (hasMaterial || userIsAdmin) {
       items.push({ 
         to: `/courses/${courseId}/material`, 
         text: t('courses.supportMaterial'), 
         icon: FileText,
-        badge: `${(stepsByType.text?.completed || 0) + (stepsByType.pdf?.completed || 0)}/${materialTotal}`
+        badge: hasMaterial ? `${(stepsByType.text?.completed || 0) + (stepsByType.pdf?.completed || 0)}/${materialTotal}` : null
       });
     }
 
-    if (stepsByType.video?.total > 0) {
+    // Agregar Videos si hay videos O si es admin
+    const hasVideos = stepsByType.video?.total > 0;
+    if (hasVideos || userIsAdmin) {
       items.push({ 
         to: `/courses/${courseId}/videos`, 
         text: t('courses.videosSection'), 
         icon: Video,
         divider: true,
-        badge: `${stepsByType.video.completed}/${stepsByType.video.total}`
+        badge: hasVideos ? `${stepsByType.video.completed}/${stepsByType.video.total}` : null
       });
     } else if (items.length > 0 && !items[items.length - 1].divider) {
       items[items.length - 1].divider = true;

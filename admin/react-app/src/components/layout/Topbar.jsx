@@ -166,9 +166,9 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
       }}
       className="w-full"
     >
-      <div className="flex items-center justify-between px-4 sm:px-10 py-4 w-full max-w-full">
+      <div className="flex items-center justify-between px-4 sm:px-10 py-2 w-full max-w-full">
         {/* Left: Hamburger (mobile only, course routes only) + Logo */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {isInCourseRoute && (
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -199,7 +199,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
               <img 
                 src={currentLogo} 
                 alt="Campus" 
-                className="h-10 max-w-[200px] object-contain"
+                className="h-8 max-w-[180px] object-contain"
               />
             ) : (
               <h1 

@@ -40,7 +40,9 @@ const LessonModal = ({
   onSave,
   mode = 'create',
   availableCourses = [],
-  isLoading = false
+  isLoading = false,
+  compact = false, // New prop for simplified mode
+  preselectedCourseId = null // New prop for pre-selected course
 }) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
@@ -113,7 +115,7 @@ const LessonModal = ({
       setFormData({
         title: '',
         content: '',
-        courseId: '',
+        courseId: preselectedCourseId || '', // Use preselected course if provided
         description: '',
         lessonOrder: '1',
         completionCriteria: 'view_all',
@@ -165,9 +167,14 @@ const LessonModal = ({
     const newErrors = {};
     if (!formData.title.trim()) newErrors.title = t('admin.lessonModal.titleRequired');
     if (!formData.courseId) newErrors.courseId = t('admin.lessonModal.courseRequired');
-    if (formData.steps.length === 0) newErrors.steps = t('admin.lessonModal.stepsRequired');
-    const invalidSteps = formData.steps.filter(step => !step.title?.trim());
-    if (invalidSteps.length > 0) newErrors.steps = t('admin.lessonModal.allStepsMustHaveTitle');
+    
+    // In compact mode, steps are optional (can create empty themes)
+    if (!compact) {
+      if (formData.steps.length === 0) newErrors.steps = t('admin.lessonModal.stepsRequired');
+      const invalidSteps = formData.steps.filter(step => !step.title?.trim());
+      if (invalidSteps.length > 0) newErrors.steps = t('admin.lessonModal.allStepsMustHaveTitle');
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -425,27 +432,29 @@ const LessonModal = ({
                 )}
               </div>
 
-                {/* Course */}
-                <div>
-                  <label style={labelStyle}>{t('admin.lessonModal.course')} *</label>
-                  <select
-                    value={formData.courseId}
-                    onChange={(e) => handleInputChange('courseId', e.target.value)}
-                    style={{
-                      ...selectStyle,
-                      borderColor: errors.courseId ? pageColors.danger : pageColors.inputBorder,
-                    }}
-                    disabled={isViewMode}
-                  >
-                    <option value="">{t('admin.lessonModal.selectCourse')}</option>
-                    {availableCourses.map(course => (
-                      <option key={course.value} value={course.value}>{course.label}</option>
-                    ))}
-                  </select>
-                  {errors.courseId && (
-                    <p style={{ marginTop: '4px', fontSize: '12px', color: pageColors.danger }}>{errors.courseId}</p>
-                  )}
-                </div>
+                {/* Course - Hidden in compact mode */}
+                {!compact && (
+                  <div>
+                    <label style={labelStyle}>{t('admin.lessonModal.course')} *</label>
+                    <select
+                      value={formData.courseId}
+                      onChange={(e) => handleInputChange('courseId', e.target.value)}
+                      style={{
+                        ...selectStyle,
+                        borderColor: errors.courseId ? pageColors.danger : pageColors.inputBorder,
+                      }}
+                      disabled={isViewMode}
+                    >
+                      <option value="">{t('admin.lessonModal.selectCourse')}</option>
+                      {availableCourses.map(course => (
+                        <option key={course.value} value={course.value}>{course.label}</option>
+                      ))}
+                    </select>
+                    {errors.courseId && (
+                      <p style={{ marginTop: '4px', fontSize: '12px', color: pageColors.danger }}>{errors.courseId}</p>
+                    )}
+                  </div>
+                )}
 
                 {/* Description */}
                 <div>
@@ -460,55 +469,58 @@ const LessonModal = ({
                   />
                 </div>
 
-                {/* Order & Completion Criteria */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <label style={labelStyle}>{t('admin.lessonModal.lessonOrder')}</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={formData.lessonOrder}
-                      onChange={(e) => handleInputChange('lessonOrder', e.target.value)}
-                      style={inputStyle}
-                      disabled={isViewMode}
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>{t('admin.lessonModal.completionCriteria')}</label>
-                    <select
-                      value={formData.completionCriteria}
-                      onChange={(e) => handleInputChange('completionCriteria', e.target.value)}
-                      style={selectStyle}
-                      disabled={isViewMode}
-                    >
-                      <option value="view_all">{t('admin.lessonModal.completionViewAll')}</option>
-                      <option value="pass_quiz">{t('admin.lessonModal.completionPassQuiz')}</option>
-                      <option value="complete_steps">{t('admin.lessonModal.completionCompleteSteps')}</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Steps Section */}
-                <div style={{ 
-                  paddingTop: '20px', 
-                  borderTop: `1px solid ${pageColors.inputBorder}`,
-                  marginTop: '8px',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                {/* Order & Completion Criteria - Hidden in compact mode */}
+                {!compact && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
-                      <h4 style={{ fontSize: '16px', fontWeight: '600', color: pageColors.text, margin: 0 }}>
-                        {t('admin.lessonModal.stepsTitle')} *
-                      </h4>
-                      <p style={{ fontSize: '13px', color: pageColors.textMuted, marginTop: '4px' }}>
-                        {t('admin.lessonModal.stepsDescription')}
-                      </p>
+                      <label style={labelStyle}>{t('admin.lessonModal.lessonOrder')}</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.lessonOrder}
+                        onChange={(e) => handleInputChange('lessonOrder', e.target.value)}
+                        style={inputStyle}
+                        disabled={isViewMode}
+                      />
                     </div>
-                    {!isViewMode && (
-                      <button
-                        type="button"
-                        onClick={openAddStepModal}
-                        style={{
-                          display: 'flex',
+                    <div>
+                      <label style={labelStyle}>{t('admin.lessonModal.completionCriteria')}</label>
+                      <select
+                        value={formData.completionCriteria}
+                        onChange={(e) => handleInputChange('completionCriteria', e.target.value)}
+                        style={selectStyle}
+                        disabled={isViewMode}
+                      >
+                        <option value="view_all">{t('admin.lessonModal.completionViewAll')}</option>
+                        <option value="pass_quiz">{t('admin.lessonModal.completionPassQuiz')}</option>
+                        <option value="complete_steps">{t('admin.lessonModal.completionCompleteSteps')}</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Steps Section - Hidden in compact mode */}
+                {!compact && (
+                  <div style={{ 
+                    paddingTop: '20px', 
+                    borderTop: `1px solid ${pageColors.inputBorder}`,
+                    marginTop: '8px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                      <div>
+                        <h4 style={{ fontSize: '16px', fontWeight: '600', color: pageColors.text, margin: 0 }}>
+                          {t('admin.lessonModal.stepsTitle')} *
+                        </h4>
+                        <p style={{ fontSize: '13px', color: pageColors.textMuted, marginTop: '4px' }}>
+                          {t('admin.lessonModal.stepsDescription')}
+                        </p>
+                      </div>
+                      {!isViewMode && (
+                        <button
+                          type="button"
+                          onClick={openAddStepModal}
+                          style={{
+                            display: 'flex',
                           alignItems: 'center',
                           gap: '6px',
                           padding: '8px 14px',
@@ -603,9 +615,10 @@ const LessonModal = ({
                     </div>
                   )}
                 </div>
+                )}
 
-                {/* Assigned Tests Section - Read only with links */}
-                {assignedQuizIds.length > 0 && (
+                {/* Assigned Tests Section - Read only with links - Hidden in compact mode */}
+                {!compact && assignedQuizIds.length > 0 && (
                   <div>
                     <label style={labelStyle}>{t('admin.lessonModal.assignedTests')} ({assignedQuizIds.length})</label>
                     {loadingAssignedQuizzes ? (

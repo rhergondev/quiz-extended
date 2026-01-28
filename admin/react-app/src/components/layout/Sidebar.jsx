@@ -8,6 +8,7 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { getCourseProgress } from '../../api/services/studentProgressService';
 import useCourse from '../../hooks/useCourse';
+import { isUserAdmin } from '../../utils/userUtils';
 
 const Sidebar = () => {
   const location = useLocation();
@@ -73,44 +74,48 @@ const Sidebar = () => {
     if (isInCourseRoute) {
       // Course menu items with stats from steps_by_type
       const stepsByType = courseProgress?.steps_by_type || {};
+      const userIsAdmin = isUserAdmin();
       
       const items = [
         { to: `/courses/${courseId}/dashboard`, text: t('courses.dashboard'), icon: BookOpen, type: 'internal', divider: true },
         { to: `/courses/${courseId}/study-planner`, text: t('courses.studyPlanner'), icon: Calendar, type: 'internal', divider: true },
       ];
 
-      // Solo agregar Tests si hay quizzes
-      if (stepsByType.quiz?.total > 0) {
+      // Agregar Tests si hay quizzes O si es admin
+      const hasQuizzes = stepsByType.quiz?.total > 0;
+      if (hasQuizzes || userIsAdmin) {
         items.push({ 
           to: `/courses/${courseId}/test-browser`, 
           text: t('courses.tests'), 
           icon: ClipboardList, 
           type: 'internal',
-          badge: `${stepsByType.quiz.completed}/${stepsByType.quiz.total}`
+          badge: hasQuizzes ? `${stepsByType.quiz.completed}/${stepsByType.quiz.total}` : null
         });
       }
 
-      // Solo agregar Material de Apoyo si hay PDFs o texto
+      // Agregar Material de Apoyo si hay PDFs/texto O si es admin
       const materialTotal = (stepsByType.text?.total || 0) + (stepsByType.pdf?.total || 0);
-      if (materialTotal > 0) {
+      const hasMaterial = materialTotal > 0;
+      if (hasMaterial || userIsAdmin) {
         items.push({ 
           to: `/courses/${courseId}/material`, 
           text: t('courses.supportMaterial'), 
           icon: FileText, 
           type: 'internal',
-          badge: `${(stepsByType.text?.completed || 0) + (stepsByType.pdf?.completed || 0)}/${materialTotal}`
+          badge: hasMaterial ? `${(stepsByType.text?.completed || 0) + (stepsByType.pdf?.completed || 0)}/${materialTotal}` : null
         });
       }
 
-      // Solo agregar Videos si hay videos
-      if (stepsByType.video?.total > 0) {
+      // Agregar Videos si hay videos O si es admin
+      const hasVideos = stepsByType.video?.total > 0;
+      if (hasVideos || userIsAdmin) {
         items.push({ 
           to: `/courses/${courseId}/videos`, 
           text: t('courses.videosSection'), 
           icon: Video, 
           type: 'internal', 
           divider: true,
-          badge: `${stepsByType.video.completed}/${stepsByType.video.total}`
+          badge: hasVideos ? `${stepsByType.video.completed}/${stepsByType.video.total}` : null
         });
       } else if (items[items.length - 1] && !items[items.length - 1].divider) {
         // Si no hay videos pero hay otros items antes, agregar divider al último

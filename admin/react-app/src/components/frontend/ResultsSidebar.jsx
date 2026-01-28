@@ -44,9 +44,11 @@ const ResultsSidebar = ({ result, questions }) => {
   const scrollToQuestion = (displayIndex) => {
     const element = document.getElementById(`question-${displayIndex}`);
     if (element) {
+      element.style.scrollMarginTop = '80px';
       element.scrollIntoView({ 
         behavior: 'smooth', 
-        block: 'center' 
+        block: 'start',
+        inline: 'nearest'
       });
       
       element.style.borderLeftWidth = '8px';

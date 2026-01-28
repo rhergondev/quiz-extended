@@ -29,7 +29,7 @@ export const SortableOption = ({ id, option, index, isReadOnly, isMultipleChoice
                     {...listeners} 
                     style={{ 
                         cursor: 'move', 
-                        padding: '4px',
+                        padding: '2px', // Reduce padding
                         backgroundColor: 'transparent',
                         border: 'none',
                         color: pageColors.textMuted,
@@ -37,7 +37,7 @@ export const SortableOption = ({ id, option, index, isReadOnly, isMultipleChoice
                         alignItems: 'center'
                     }}
                 >
-                    <GripVertical className="h-5 w-5" />
+                    <GripVertical className="h-4 w-4" /> {/* Smaller icon */}
                 </button>
             )}
             <input
@@ -47,8 +47,8 @@ export const SortableOption = ({ id, option, index, isReadOnly, isMultipleChoice
                 onChange={() => setCorrectAnswer(index)}
                 disabled={isReadOnly}
                 style={{
-                    width: '16px',
-                    height: '16px',
+                    width: '14px', // Smaller checkbox/radio
+                    height: '14px',
                     accentColor: isDarkMode ? '#f59e0b' : '#3b82f6'
                 }}
             />
@@ -60,12 +60,12 @@ export const SortableOption = ({ id, option, index, isReadOnly, isMultipleChoice
                 disabled={isReadOnly}
                 style={{
                     flex: 1,
-                    padding: '8px 12px',
+                    padding: '6px 10px', // Smaller padding
                     borderRadius: '6px',
                     backgroundColor: pageColors.inputBg,
                     border: `1px solid ${pageColors.border}`,
                     color: pageColors.text,
-                    fontSize: '14px',
+                    fontSize: '13px', // Smaller font
                     outline: 'none'
                 }}
             />
@@ -74,7 +74,7 @@ export const SortableOption = ({ id, option, index, isReadOnly, isMultipleChoice
                     type="button" 
                     onClick={() => removeOption(index)} 
                     style={{
-                        padding: '6px',
+                        padding: '4px', // Smaller padding
                         backgroundColor: 'transparent',
                         border: 'none',
                         color: '#ef4444',

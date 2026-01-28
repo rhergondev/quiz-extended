@@ -118,18 +118,18 @@ const CourseCard = ({ course, viewMode, onEdit, onDelete, onDuplicate, onClick }
     <>
       {/* ❇️ ADDED: Featured Image */}
       {imageUrl && (
-        <div className="mb-4 -mx-6 -mt-6 overflow-hidden rounded-t-lg">
+        <div className="mb-3 -mx-6 -mt-6 overflow-hidden rounded-t-lg">
           <img 
             src={imageUrl} 
             alt={imageAlt}
-            className="w-full h-48 object-cover transition-transform duration-300 hover:scale-105"
+            className="w-full h-36 object-cover transition-transform duration-300 hover:scale-105"
             loading="lazy"
           />
         </div>
       )}
 
       {/* Title */}
-      <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 pr-10 mb-3">
+      <h3 className="text-base font-semibold text-gray-900 line-clamp-2 pr-10 mb-2">
         {title.rendered || title}
       </h3>
       
@@ -204,20 +204,20 @@ const listContent = (
    * Stats Slot - Lessons, Students, Date, Price
    */
   const statsContent = (
-    <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-      <div className="flex items-center gap-2 text-gray-600">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+      <div className="flex items-center gap-1.5 text-gray-600">
         <BookOpen className="w-4 h-4" />
         <span>{lessonCount} {lessonCount === 1 ? t('courses.units.lesson') : t('courses.units.lessons')}</span>
       </div>
-      <div className="flex items-center gap-2 text-gray-600">
+      <div className="flex items-center gap-1.5 text-gray-600">
         <Users className="w-4 h-4" />
         <span>{studentCount} {studentCount === 1 ? t('courses.units.student') : t('courses.units.students')}</span>
       </div>
-      <div className="flex items-center gap-2 text-gray-600">
+      <div className="flex items-center gap-1.5 text-gray-600">
         <Calendar className="w-4 h-4" />
         <span>{endDate ? formatDate(endDate) : t('courses.noEndDate')}</span>
       </div>
-      <div className="flex items-center gap-2 text-gray-600">
+      <div className="flex items-center gap-1.5 text-gray-600">
         <DollarSign className="w-4 h-4" />
         <span className="font-medium">{formatPrice(price)}</span>
       </div>

@@ -16,10 +16,10 @@ const QuizSelector = ({ availableQuizzes, selectedQuizIds, onChange, disabled })
         textMuted: isDarkMode ? getColor('textSecondary', '#9ca3af') : '#6b7280',
         accent: getColor('accent', '#f59e0b'),
         primary: getColor('primary', '#3b82f6'),
-        inputBg: isDarkMode ? 'rgba(255,255,255,0.05)' : '#ffffff',
-        bgSubtle: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-        border: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-        hoverBg: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+        inputBg: isDarkMode ? '#1f2937' : '#ffffff',
+        bgSubtle: isDarkMode ? '#111827' : '#f9fafb',
+        border: isDarkMode ? '#374151' : '#e5e7eb',
+        hoverBg: isDarkMode ? '#1f2937' : '#f3f4f6',
     };
 
     const { quizzes, loading } = useQuizzes({ search: debouncedSearchTerm, autoFetch: true, perPage: 100 });
