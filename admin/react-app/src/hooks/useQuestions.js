@@ -74,7 +74,8 @@ export const useQuestions = (options = {}) => {
     
     // Check capabilities if available (fallback)
     // 'manage_options' is a standard capability for administrators
-    if (user.capabilities?.includes('manage_options')) return true;
+    // capabilities is an object, not an array
+    if (user.capabilities?.manage_options === true) return true;
     
     return false;
   };
