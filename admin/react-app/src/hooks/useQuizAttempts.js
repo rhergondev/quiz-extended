@@ -15,7 +15,7 @@ import { makeApiRequest } from '../api/services/baseService';
  * @param {boolean} options.autoFetch - Si debe hacer el fetch automáticamente al montar.
  * @param {object} options.filters - Filtros adicionales (search, lesson_id, date_from, date_to).
  */
-export const useQuizAttempts = ({ userId, courseId, perPage = 10, autoFetch = true, filters = {} } = {}) => {
+export const useQuizAttempts = ({ userId, courseId, quizId, perPage = 10, autoFetch = true, filters = {} } = {}) => {
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -47,6 +47,11 @@ export const useQuizAttempts = ({ userId, courseId, perPage = 10, autoFetch = tr
       // Filtrar por curso
       if (courseId) {
         params.append('course_id', courseId.toString());
+      }
+
+      // Filtrar por quiz específico
+      if (quizId) {
+        params.append('quiz_id', quizId.toString());
       }
 
       // Aplicar filtros adicionales
@@ -91,7 +96,7 @@ export const useQuizAttempts = ({ userId, courseId, perPage = 10, autoFetch = tr
     } finally {
       setLoading(false);
     }
-  }, [userId, courseId, perPage, filters.search, filters.lesson_id, filters.date_from, filters.date_to]);
+  }, [userId, courseId, quizId, perPage, filters.search, filters.lesson_id, filters.date_from, filters.date_to]);
 
   const loadMore = useCallback(() => {
     if (pagination.hasMore && !loading) {

@@ -143,20 +143,22 @@ const TestsPage = () => {
   // Hook para obtener ranking y estadísticas del quiz
   const { ranking, loading: rankingLoading } = useQuizRanking(quizId);
 
-  // Hook para obtener todos los intentos del usuario (solo los últimos 5 ya ordenados)
-  const { attempts, loading: attemptsLoading } = useQuizAttempts({ perPage: 5, autoFetch: true });
+  // Hook para obtener los intentos del usuario para este quiz específico (últimos 5)
+  const { attempts: quizAttempts, loading: attemptsLoading, fetchAttempts: refetchAttempts } = useQuizAttempts({ 
+    quizId: quizId, 
+    perPage: 5, 
+    autoFetch: false // No auto-fetch, lo haremos cuando quizId cambie
+  });
+
+  // Refetch cuando cambia el quizId
+  React.useEffect(() => {
+    if (quizId) {
+      refetchAttempts(1);
+    }
+  }, [quizId, refetchAttempts]);
 
   // 🆕 Hook para cargar detalles de un intento específico
   const { details: attemptDetails, loading: attemptDetailsLoading, error: attemptDetailsError } = useQuizAttemptDetails(viewingAttemptId);
-
-  // Filtrar intentos de este quiz específico (últimos 5)
-  const quizAttempts = useMemo(() => {
-    if (!quizId || !attempts) return [];
-    
-    return attempts
-      .filter(a => parseInt(a.quiz_id) === parseInt(quizId))
-      .slice(0, 5);
-  }, [quizId, attempts]);
 
   // Función para calcular percentil (diferencia con la media)
   const calculatePercentile = (score, withRisk) => {
@@ -470,6 +472,11 @@ const TestsPage = () => {
     setQuizResults(result);
     setResultsQuestions(questions);
     setResultsQuizInfo(quizInfo);
+    
+    // Refrescar historial de intentos para que aparezca el nuevo
+    if (quizId) {
+      setTimeout(() => refetchAttempts(1), 500); // Pequeño delay para que el backend guarde
+    }
     
     // Marcar el quiz como completado
     if (quizToStart?.id && selectedLesson) {

@@ -352,6 +352,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
 
         // Obtener filtros
         $course_id = $request->get_param('course_id');
+        $quiz_id = $request->get_param('quiz_id');
         $search = $request->get_param('search');
         $lesson_id = $request->get_param('lesson_id');
         $date_from = $request->get_param('date_from');
@@ -363,6 +364,12 @@ class QE_Quiz_Attempts_API extends QE_API_Base
         // Construir condiciones WHERE
         $where_conditions = ["att.user_id = %d", "att.status = 'completed'"];
         $where_params = [$user_id];
+
+        // Filtro por quiz específico
+        if (!empty($quiz_id)) {
+            $where_conditions[] = "att.quiz_id = %d";
+            $where_params[] = $quiz_id;
+        }
 
         // Filtro por curso - buscar en att.course_id o en el array _course_ids del quiz
         if (!empty($course_id)) {
