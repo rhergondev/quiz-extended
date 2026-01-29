@@ -99,7 +99,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
         to: `/courses/${courseId}/tests`, 
         text: t('courses.tests'), 
         icon: ClipboardList,
-        badge: hasQuizzes ? `${stepsByType.quiz.completed}/${stepsByType.quiz.total}` : null
+        badge: hasQuizzes ? stepsByType.quiz.total : null
       });
     }
 
@@ -111,7 +111,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
         to: `/courses/${courseId}/material`, 
         text: t('courses.supportMaterial'), 
         icon: FileText,
-        badge: hasMaterial ? `${(stepsByType.text?.completed || 0) + (stepsByType.pdf?.completed || 0)}/${materialTotal}` : null
+        badge: hasMaterial ? materialTotal : null
       });
     }
 
@@ -123,7 +123,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
         text: t('courses.videosSection'), 
         icon: Video,
         divider: true,
-        badge: hasVideos ? `${stepsByType.video.completed}/${stepsByType.video.total}` : null
+        badge: hasVideos ? stepsByType.video.total : null
       });
     } else if (items.length > 0 && !items[items.length - 1].divider) {
       items[items.length - 1].divider = true;

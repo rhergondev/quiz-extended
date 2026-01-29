@@ -369,9 +369,6 @@ const QuestionEditorPanel = ({
              {mode === 'edit' && <p className="text-sm font-normal mt-0.5" style={{ color: pageColors.textMuted }}>{getQuestionTitle(formData)}</p>}
         </div>
         <div className="flex items-center gap-4">
-            <QEButton onClick={handleSave} disabled={isSaving} variant="primary" className="font-semibold py-2.5 px-5 rounded-xl text-sm">
-              {isSaving ? t('common.saving') : t('common.save')}
-            </QEButton>
             <button 
               onClick={onCancel} 
               className="p-2 rounded-xl transition-all duration-200"
@@ -526,6 +523,16 @@ const QuestionEditorPanel = ({
             />
         </div>
       </main>
+      
+      {/* Footer con botón de guardar */}
+      <footer 
+        className="p-4 flex justify-end flex-shrink-0"
+        style={{ borderTop: `1px solid ${pageColors.cardBorder}`, backgroundColor: pageColors.bgCard }}
+      >
+        <QEButton onClick={handleSave} disabled={isSaving} variant="primary" className="font-semibold py-2.5 px-6 rounded-xl text-sm">
+          {isSaving ? t('common.saving') : t('common.save')}
+        </QEButton>
+      </footer>
     </div>
   );
 };

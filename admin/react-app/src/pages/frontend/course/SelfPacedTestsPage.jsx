@@ -240,12 +240,17 @@ const SelfPacedTestsPage = () => {
   };
 
   const handleStartPractice = async () => {
-    const hasLessons = config.lessons.length > 0;
+    // Misma lógica que QuizGeneratorPage
     const allLessonIds = lessons.map(l => l.id).filter(Boolean);
-    const lessonsFilter = hasLessons ? config.lessons : (allLessonIds.length > 0 ? allLessonIds : null);
+    const hasLessons = config.lessons.length > 0;
+    
+    // Si se seleccionaron todos los temas o ninguno, no enviar filtro de lessons (usar null)
+    // Solo filtrar cuando hay una selección parcial
+    const isAllSelected = hasLessons && config.lessons.length === allLessonIds.length;
+    const lessonsFilter = (hasLessons && !isAllSelected) ? config.lessons : null;
 
     await fetchQuestions(true, {
-      course_id: null,
+      course_id: null, // Always prefer lessons filter (all lessons if none selected)
       lessons: lessonsFilter,
       difficulty: config.difficulty !== 'all' ? config.difficulty : null,
       status: 'publish',

@@ -25,6 +25,15 @@ class QE_Quiz_Meta
     private $post_type = 'qe_quiz';
 
     /**
+     * Constructor - Register hooks
+     */
+    public function __construct()
+    {
+        // Hook to update question difficulty when quiz meta is updated
+        add_action('updated_post_meta', [$this, 'sync_question_difficulty_on_quiz_update'], 10, 4);
+    }
+
+    /**
      * Register all quiz meta fields
      *
      * @return void
@@ -496,5 +505,47 @@ class QE_Quiz_Meta
     public function auth_callback($allowed, $meta_key, $object_id, $user_id, $cap, $caps)
     {
         return current_user_can('edit_quizzes');
+    }
+
+    /**
+     * Sync question difficulty when quiz questions or difficulty is updated
+     *
+     * @param int $meta_id ID of updated metadata entry
+     * @param int $object_id Post ID
+     * @param string $meta_key Meta key
+     * @param mixed $meta_value Meta value
+     * @return void
+     */
+    public function sync_question_difficulty_on_quiz_update($meta_id, $object_id, $meta_key, $meta_value)
+    {
+        // Only process quiz posts
+        if (get_post_type($object_id) !== 'qe_quiz') {
+            return;
+        }
+
+        // Only process when question IDs or difficulty level is updated
+        if ($meta_key !== '_quiz_question_ids' && $meta_key !== '_difficulty_level') {
+            return;
+        }
+
+        $quiz_id = $object_id;
+        $quiz_difficulty = get_post_meta($quiz_id, '_difficulty_level', true);
+        $question_ids = get_post_meta($quiz_id, '_quiz_question_ids', true);
+
+        // Validate data
+        if (empty($quiz_difficulty)) {
+            $quiz_difficulty = 'medium'; // Default
+        }
+
+        if (empty($question_ids) || !is_array($question_ids)) {
+            return;
+        }
+
+        // Update difficulty for all questions in this quiz
+        foreach ($question_ids as $question_id) {
+            if (!empty($question_id) && get_post_type($question_id) === 'qe_question') {
+                update_post_meta($question_id, '_difficulty_level', $quiz_difficulty);
+            }
+        }
     }
 }

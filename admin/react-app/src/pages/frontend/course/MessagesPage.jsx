@@ -156,36 +156,36 @@ const MessagesPage = () => {
       icon={MessageSquare}
       loading={courseLoading}
     >
-      <div className="flex flex-col p-4 gap-4" style={{ backgroundColor: isDarkMode ? getColor('secondaryBackground', '#111827') : '#f5f7fa' }}>
+      <div className="flex flex-col p-3 gap-3" style={{ backgroundColor: isDarkMode ? getColor('secondaryBackground', '#111827') : '#f5f7fa' }}>
         {/* Main Content */}
-        <div className="flex-1 flex gap-4">
+        <div className="flex-1 flex gap-3">
           {/* LEFT PANEL - Message List */}
           <div 
-            className="w-80 flex-shrink-0 flex flex-col rounded-2xl overflow-hidden" 
+            className="w-64 flex-shrink-0 flex flex-col rounded-xl overflow-hidden" 
             style={{ 
               backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
-              boxShadow: isDarkMode ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.08)',
+              boxShadow: isDarkMode ? '0 2px 12px rgba(0,0,0,0.3)' : '0 2px 12px rgba(0,0,0,0.06)',
               border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
-              maxHeight: 'calc(100vh - 200px)'
+              maxHeight: 'calc(100vh - 120px)'
             }}
           >
-            <div className="p-4" style={{ borderBottom: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}` }}>
-              <div className="flex items-center gap-3 mb-3">
+            <div className="p-3" style={{ borderBottom: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}` }}>
+              <div className="flex items-center gap-2">
                 <div 
-                  className="p-2.5 rounded-xl"
+                  className="p-1.5 rounded-lg"
                   style={{ 
                     background: `linear-gradient(135deg, ${accent}, ${accent}dd)`,
-                    boxShadow: `0 4px 12px ${isDarkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)'}`
+                    boxShadow: `0 2px 8px ${isDarkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)'}`
                   }}
                 >
-                  <MessageSquare size={20} className="text-white" />
+                  <MessageSquare size={16} className="text-white" />
                 </div>
-                <div>
-                  <h2 className="text-lg font-bold tracking-tight" style={{ color: pageColors.text }}>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-sm font-bold truncate" style={{ color: pageColors.text }}>
                     {t('header.messages')}
                   </h2>
                   {computed.unreadMessages > 0 && (
-                    <p className="text-xs mt-0.5" style={{ color: pageColors.textMuted }}>
+                    <p className="text-xs" style={{ color: pageColors.textMuted }}>
                       <span className="font-semibold" style={{ color: '#ef4444' }}>{computed.unreadMessages}</span> sin leer
                     </p>
                   )}
@@ -217,11 +217,11 @@ const MessagesPage = () => {
                   <div 
                     key={message.id} 
                     onClick={() => handleSelectMessage(message)} 
-                    className="px-4 py-3.5 cursor-pointer transition-all duration-200" 
+                    className="px-3 py-2 cursor-pointer transition-all duration-200" 
                     style={{ 
                       borderBottom: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
                       backgroundColor: isSelected ? (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)') : 'transparent', 
-                      borderLeft: isSelected ? `3px solid ${accent}` : '3px solid transparent',
+                      borderLeft: isSelected ? `2px solid ${accent}` : '2px solid transparent',
                     }}
                     onMouseEnter={(e) => {
                       if (!isSelected) e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)';
@@ -230,33 +230,19 @@ const MessagesPage = () => {
                       if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
                     }}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 rounded-lg flex-shrink-0" style={{ backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe' }}>
-                        <AlertCircle size={14} style={{ color: '#3b82f6' }} />
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg flex-shrink-0" style={{ backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe' }}>
+                        <AlertCircle size={12} style={{ color: '#3b82f6' }} />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className={`text-sm truncate ${isUnread ? 'font-bold' : 'font-medium'}`} style={{ color: isUnread ? pageColors.text : pageColors.textMuted }}>
-                            {message.sender_name || t('messages.system')}
-                          </span>
-                          <span className="text-xs flex-shrink-0" style={{ color: pageColors.textMuted }}>
-                            {formatDate(message.created_at)}
-                          </span>
-                        </div>
-                        <p 
-                          className={`text-sm leading-relaxed ${isUnread ? 'font-medium' : ''}`} 
-                          style={{ 
-                            color: pageColors.text,
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden'
-                          }}
-                        >
-                          {message.subject}
-                        </p>
+                      <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <span className={`text-xs truncate ${isUnread ? 'font-bold' : 'font-medium'}`} style={{ color: isUnread ? pageColors.text : pageColors.textMuted, maxWidth: '100px' }}>
+                          {message.sender_name || t('messages.system')}
+                        </span>
+                        <span className="text-xs flex-shrink-0" style={{ color: pageColors.textMuted }}>
+                          {formatDate(message.created_at)}
+                        </span>
                         {isUnread && (
-                          <span className="inline-block mt-2 w-2 h-2 rounded-full" style={{ backgroundColor: '#ef4444' }} />
+                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#ef4444' }} />
                         )}
                       </div>
                     </div>
@@ -268,46 +254,43 @@ const MessagesPage = () => {
 
           {/* RIGHT PANEL - Message Detail */}
           <div 
-            className="flex-1 flex flex-col rounded-2xl overflow-hidden" 
+            className="flex-1 flex flex-col rounded-xl overflow-hidden" 
             style={{ 
               backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
-              boxShadow: isDarkMode ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.08)',
+              boxShadow: isDarkMode ? '0 2px 12px rgba(0,0,0,0.3)' : '0 2px 12px rgba(0,0,0,0.06)',
               border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
-              maxHeight: 'calc(100vh - 200px)'
+              maxHeight: 'calc(100vh - 120px)'
             }}
           >
             {selectedMessage ? (
               <>
                 <div 
-                  className="p-5 flex items-center justify-between" 
+                  className="px-3 py-2 flex items-center justify-between" 
                   style={{ 
                     backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
                     borderBottom: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`
                   }}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
                     <div 
-                      className="w-12 h-12 rounded-xl flex items-center justify-center" 
+                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" 
                       style={{ 
                         background: `linear-gradient(135deg, ${accent}, ${accent}dd)`,
-                        boxShadow: `0 4px 12px ${isDarkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)'}`
                       }}
                     >
-                      <Mail size={22} className="text-white" />
+                      <Mail size={14} className="text-white" />
                     </div>
-                    <div>
-                      <h3 className="font-bold text-lg" style={{ color: pageColors.text }}>
-                        {selectedMessage.sender_name || t('messages.system')}
-                      </h3>
-                      <p className="text-xs mt-1" style={{ color: pageColors.textMuted }}>
-                        {formatFullDate(selectedMessage.created_at)}
-                      </p>
-                    </div>
+                    <span className="font-bold text-sm truncate" style={{ color: pageColors.text }}>
+                      {selectedMessage.sender_name || t('messages.system')}
+                    </span>
+                    <span className="text-xs flex-shrink-0" style={{ color: pageColors.textMuted }}>
+                      {formatFullDate(selectedMessage.created_at)}
+                    </span>
                   </div>
                   <button
                     onClick={() => handleDeleteMessage(selectedMessage.id)}
                     disabled={deletingId === selectedMessage.id}
-                    className="p-2.5 rounded-xl transition-all duration-200 disabled:opacity-50" 
+                    className="p-1.5 rounded-lg transition-all duration-200 disabled:opacity-50" 
                     style={{ 
                       backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#ffffff',
                       border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
@@ -322,19 +305,16 @@ const MessagesPage = () => {
                     }}
                   >
                     {deletingId === selectedMessage.id ? (
-                      <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
                     ) : (
-                      <Trash2 size={18} />
+                      <Trash2 size={14} />
                     )}
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6">
-                  <h2 className="text-xl font-bold mb-4" style={{ color: pageColors.text }}>
-                    {selectedMessage.subject}
-                  </h2>
+                <div className="flex-1 overflow-y-auto p-4">
                   <div 
-                    className="prose prose-sm max-w-none"
+                    className="prose prose-sm max-w-none text-sm"
                     style={{ color: pageColors.text }}
                     dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedMessage.message, selectedMessage.subject) }}
                   />

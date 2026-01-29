@@ -249,9 +249,13 @@ const QuizGeneratorPage = () => {
     // Fetch questions with all filters
     // If lessons are selected, don't pass course_id (lessons already belong to this course)
     // This avoids redundant AND conditions in the meta_query
-    const hasLessons = config.lessons.length > 0;
     const allLessonIds = lessons.map(l => l.id).filter(Boolean);
-    const lessonsFilter = hasLessons ? config.lessons : (allLessonIds.length > 0 ? allLessonIds : null);
+    const hasLessons = config.lessons.length > 0;
+    
+    // Si se seleccionaron todos los temas o ninguno, no enviar filtro de lessons (usar null)
+    // Solo filtrar cuando hay una selección parcial
+    const isAllSelected = hasLessons && config.lessons.length === allLessonIds.length;
+    const lessonsFilter = (hasLessons && !isAllSelected) ? config.lessons : null;
     
     await fetchQuestions(true, {
       course_id: null, // Always prefer lessons filter (all lessons if none selected)

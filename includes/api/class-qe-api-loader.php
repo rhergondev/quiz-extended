@@ -128,6 +128,7 @@ class QE_API_Loader
             'notifications' => 'class-qe-notifications-api.php',
             'calendar-notes' => 'class-qe-calendar-notes-api.php',
             'books' => 'class-qe-books-api.php',
+            'batch' => 'class-qe-batch-api.php',
             'debug' => 'class-qe-debug-api.php',
             'seeder' => 'class-qe-seeder-api.php',
         ];

@@ -77,11 +77,8 @@ const CourseDashboardPage = () => {
   }, [courseId]);
 
   // Componente de Donut Chart mejorado
-  const DonutChart = ({ completed, total, icon: Icon, label, color }) => {
-    const percentage = total > 0 ? (completed / total) * 100 : 0;
+  const DonutChart = ({ total, icon: Icon, label, color }) => {
     const radius = 45;
-    const circumference = 2 * Math.PI * radius;
-    const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
     return (
       <div className="flex flex-col items-center justify-center py-4">
@@ -96,25 +93,12 @@ const CourseDashboardPage = () => {
               strokeWidth="8"
               fill="none"
             />
-            {/* Progress circle */}
-            <circle
-              cx="55"
-              cy="55"
-              r={radius}
-              stroke={color}
-              strokeWidth="8"
-              fill="none"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              style={{ transition: 'stroke-dashoffset 0.5s ease' }}
-            />
           </svg>
           {/* Center content */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <Icon size={20} style={{ color }} className="mb-1" />
-            <span className="text-sm font-bold" style={{ color: pageColors.text }}>
-              {completed}/{total}
+            <span className="text-xl font-bold" style={{ color: pageColors.text }}>
+              {total}
             </span>
           </div>
         </div>
@@ -170,7 +154,6 @@ const CourseDashboardPage = () => {
     if ((stepsByType.quiz?.total || 0) > 0) {
       types.push({
         type: 'quiz',
-        completed: stepsByType.quiz.completed,
         total: stepsByType.quiz.total,
         icon: ClipboardList,
         label: t('courses.tests'),
@@ -182,7 +165,6 @@ const CourseDashboardPage = () => {
     if (materialTotal > 0) {
       types.push({
         type: 'material',
-        completed: (stepsByType.text?.completed || 0) + (stepsByType.pdf?.completed || 0),
         total: materialTotal,
         icon: FileText,
         label: t('courses.supportMaterial'),
@@ -193,7 +175,6 @@ const CourseDashboardPage = () => {
     if ((stepsByType.video?.total || 0) > 0) {
       types.push({
         type: 'video',
-        completed: stepsByType.video.completed,
         total: stepsByType.video.total,
         icon: Video,
         label: t('courses.videosSection'),
@@ -408,7 +389,7 @@ const CourseDashboardPage = () => {
               <div className="flex items-center gap-2">
                 <Award size={18} className="text-white" />
                 <span className="font-semibold text-white text-sm">
-                  {t('courses.contentProgress')}
+                  {t('courses.contentSummary', 'Resumen de Contenido')}
                 </span>
               </div>
             </div>
@@ -420,7 +401,6 @@ const CourseDashboardPage = () => {
                   {availableContentTypes.map((contentType) => (
                     <DonutChart
                       key={contentType.type}
-                      completed={contentType.completed}
                       total={contentType.total}
                       icon={contentType.icon}
                       label={contentType.label}

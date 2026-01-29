@@ -318,121 +318,24 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   };
 
   return (
-    <div className="flex flex-col" style={{ backgroundColor: pageColors.bgPage }}>
-      {/* TOP BAR - Frontend-style design */}
-      <div 
-        className="flex items-center justify-between px-6 py-4" 
-        style={{ 
-          backgroundColor: pageColors.bgCard, 
-          borderBottom: `1px solid ${pageColors.cardBorder}`,
-          boxShadow: pageColors.shadowSm
-        }}
-      >
-        <div className="flex items-center gap-4">
-          <div 
-            className="p-2.5 rounded-xl"
-            style={{ 
-              background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
-              boxShadow: `0 4px 12px ${pageColors.accentGlow}`
-            }}
-          >
-            <MessageSquare size={22} className="text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: pageColors.text }}>Mensajes</h1>
-            {computed?.unreadMessages > 0 && (
-              <p className="text-xs mt-0.5" style={{ color: pageColors.textMuted }}>
-                <span className="font-semibold" style={{ color: pageColors.error }}>{computed.unreadMessages}</span> sin leer
-              </p>
-            )}
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          {/* Main Send Button - Frontend style */}
-          <button 
-            onClick={() => setIsSendModalOpen(true)} 
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 focus:outline-none"
-            style={{ 
-              background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
-              color: '#fff',
-              boxShadow: `0 4px 12px ${pageColors.accentGlow}`
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = `0 6px 20px ${pageColors.accentGlow}`;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = `0 4px 12px ${pageColors.accentGlow}`;
-            }}
-          >
-            <Plus size={18} />
-            <span>Nuevo mensaje</span>
-          </button>
-          
-          {/* Refresh Button */}
-          <button 
-            onClick={handleRefresh} 
-            disabled={loading || sentLoading}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200 focus:outline-none"
-            style={{ 
-              backgroundColor: pageColors.inputBg, 
-              border: `1px solid ${pageColors.cardBorder}`,
-              color: pageColors.text,
-              boxShadow: pageColors.shadowSm
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = pageColors.hoverBg;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = pageColors.inputBg;
-            }}
-          >
-            <RefreshCw size={16} className={loading || sentLoading ? 'animate-spin' : ''} />
-            <span className="hidden sm:inline text-sm">Actualizar</span>
-          </button>
-          
-          {/* Dark Mode Toggle */}
-          <button 
-            onClick={toggleDarkMode}
-            className="p-2.5 rounded-xl transition-all duration-200 focus:outline-none"
-            style={{ 
-              backgroundColor: pageColors.inputBg, 
-              border: `1px solid ${pageColors.cardBorder}`,
-              color: pageColors.text,
-              boxShadow: pageColors.shadowSm
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = pageColors.hoverBg;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = pageColors.inputBg;
-            }}
-            title={isDarkMode ? 'Modo claro' : 'Modo oscuro'}
-          >
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-        </div>
-      </div>
-
-      {/* MAIN CONTENT */}
-      <div className="flex-1 flex p-4 gap-4">
+    <div className="flex flex-col h-full relative" style={{ backgroundColor: pageColors.bgPage }}>
+      {/* MAIN CONTENT AREA - Sin topbar */}
+      <div className="flex-1 flex gap-3 p-3" style={{ paddingBottom: '80px' /* Espacio para botones flotantes */ }}>
         {/* LEFT PANEL - Message List */}
         <div 
-          className="w-80 flex-shrink-0 flex flex-col rounded-2xl overflow-hidden" 
+          className="w-72 flex-shrink-0 flex flex-col rounded-xl overflow-hidden" 
           style={{ 
             backgroundColor: pageColors.bgCard, 
             boxShadow: pageColors.shadow,
             border: `1px solid ${pageColors.cardBorder}`,
-            maxHeight: 'calc(100vh - 200px)'
+            maxHeight: 'calc(100vh - 100px)'
           }}
         >
-          <div className="p-4" style={{ borderBottom: `1px solid ${pageColors.cardBorder}` }}>
-            <div className="flex gap-2 mb-3">
+          <div className="p-3" style={{ borderBottom: `1px solid ${pageColors.cardBorder}` }}>
+            <div className="flex gap-2 mb-2">
               <button 
                 onClick={() => { setActiveView('inbox'); setSelectedSentMessage(null); }} 
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200" 
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all duration-200" 
                 style={{ 
                   backgroundColor: activeView === 'inbox' ? pageColors.accent : pageColors.inputBg, 
                   color: activeView === 'inbox' ? '#fff' : pageColors.textMuted, 
@@ -443,7 +346,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
               </button>
               <button 
                 onClick={() => { setActiveView('sent'); setSelectedMessage(null); }} 
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200" 
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all duration-200" 
                 style={{ 
                   backgroundColor: activeView === 'sent' ? pageColors.accent : pageColors.inputBg, 
                   color: activeView === 'sent' ? '#fff' : pageColors.textMuted,
@@ -455,14 +358,14 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
             </div>
 
             {!courseMode && (
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: pageColors.textMuted }} />
+              <div className="relative mb-2">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: pageColors.textMuted }} />
                 <input 
                   type="text" 
                   value={searchValue} 
                   onChange={(e) => handleSearchChange(e.target.value)} 
-                  placeholder="Buscar mensajes..." 
-                  className="w-full pl-10 pr-10 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-2 transition-all" 
+                  placeholder="Buscar..." 
+                  className="w-full pl-9 pr-9 py-2 text-xs rounded-lg focus:outline-none focus:ring-2 transition-all" 
                   style={{ 
                     backgroundColor: pageColors.inputBg, 
                     border: `1px solid ${pageColors.cardBorder}`,
@@ -538,11 +441,11 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                     <div 
                       key={message.id} 
                       onClick={() => handleMessageClick(message)} 
-                      className="px-4 py-3.5 cursor-pointer transition-all duration-200" 
+                      className="px-3 py-2 cursor-pointer transition-all duration-200" 
                       style={{ 
                         borderBottom: `1px solid ${pageColors.cardBorder}`,
                         backgroundColor: isSelected ? pageColors.hoverBg : 'transparent', 
-                        borderLeft: isSelected ? `3px solid ${pageColors.accent}` : '3px solid transparent',
+                        borderLeft: isSelected ? `2px solid ${pageColors.accent}` : '2px solid transparent',
                       }}
                       onMouseEnter={(e) => {
                         if (!isSelected) e.currentTarget.style.backgroundColor = pageColors.hoverBg;
@@ -551,35 +454,23 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                         if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
                       }}
                     >
-                      <div className="flex items-start gap-3">
-                        <button onClick={(e) => handleToggleSelect(message.id, e)} className="mt-1 flex-shrink-0 transition-transform hover:scale-110">
-                          {isChecked ? <CheckSquare size={16} style={{ color: pageColors.accent }} /> : <Square size={16} style={{ color: pageColors.textMuted }} />}
+                      <div className="flex items-center gap-2">
+                        <button onClick={(e) => handleToggleSelect(message.id, e)} className="flex-shrink-0 transition-transform hover:scale-110">
+                          {isChecked ? <CheckSquare size={14} style={{ color: pageColors.accent }} /> : <Square size={14} style={{ color: pageColors.textMuted }} />}
                         </button>
-                        <div className="p-2 rounded-lg flex-shrink-0" style={{ backgroundColor: typeInfo.bgColor }}>
-                          <TypeIcon size={14} style={{ color: typeInfo.color }} />
+                        <div className="p-1.5 rounded-lg flex-shrink-0" style={{ backgroundColor: typeInfo.bgColor }}>
+                          <TypeIcon size={12} style={{ color: typeInfo.color }} />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <span className={`text-sm truncate ${isUnread ? 'font-bold' : 'font-medium'}`} style={{ color: isUnread ? pageColors.text : pageColors.textMuted }}>
-                              {message.sender_name || `Usuario #${message.sender_id}`}
-                            </span>
-                            <span className="text-xs flex-shrink-0" style={{ color: pageColors.textMuted }}>{formatDate(message.created_at)}</span>
-                          </div>
-                          {/* Subject - 2 lines */}
-                          <p 
-                            className={`text-sm leading-relaxed ${isUnread ? 'font-medium' : ''}`} 
-                            style={{ 
-                              color: pageColors.text,
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden'
-                            }}
-                          >
-                            {message.subject}
-                          </p>
-                          {isUnread && <span className="inline-block mt-2 w-2 h-2 rounded-full" style={{ backgroundColor: pageColors.error }} />}
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                          <span className={`text-xs truncate ${isUnread ? 'font-bold' : 'font-medium'}`} style={{ color: isUnread ? pageColors.text : pageColors.textMuted, maxWidth: '120px' }}>
+                            {message.sender_name || `Usuario #${message.sender_id}`}
+                          </span>
+                          <span className="text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0" style={{ backgroundColor: typeInfo.bgColor, color: typeInfo.color }}>
+                            {typeInfo.label}
+                          </span>
+                          {isUnread && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: pageColors.error }} />}
                         </div>
+                        <span className="text-xs flex-shrink-0" style={{ color: pageColors.textMuted }}>{formatDate(message.created_at)}</span>
                       </div>
                     </div>
                   );
@@ -652,53 +543,47 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
           {activeView === 'inbox' && selectedMessage ? (
             <>
               <div 
-                className="p-5 flex items-center justify-between" 
+                className="px-3 py-2 flex items-center justify-between" 
                 style={{ 
                   backgroundColor: pageColors.bgCard, 
                   borderBottom: `1px solid ${pageColors.cardBorder}`
                 }}
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
                   <div 
-                    className="w-12 h-12 rounded-xl flex items-center justify-center" 
+                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" 
                     style={{ 
                       background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
-                      boxShadow: `0 4px 12px ${pageColors.accentGlow}`
                     }}
                   >
-                    <User size={22} className="text-white" />
+                    <User size={14} className="text-white" />
                   </div>
-                  <div>
-                    <h3 className="font-bold text-lg" style={{ color: pageColors.text }}>{selectedMessage.sender_name || `Usuario #${selectedMessage.sender_id}`}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      {(() => { const typeInfo = getTypeInfo(selectedMessage.type); const TypeIcon = typeInfo.icon; return <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-medium" style={{ backgroundColor: typeInfo.bgColor, color: typeInfo.color }}><TypeIcon size={12} />{typeInfo.label}</span>; })()}
-                      {(() => { const statusInfo = getStatusInfo(selectedMessage.status); return <span className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ backgroundColor: statusInfo.bgColor, color: statusInfo.color }}>{statusInfo.label}</span>; })()}
-                    </div>
-                  </div>
+                  <span className="font-bold text-sm truncate" style={{ color: pageColors.text, maxWidth: '150px' }}>{selectedMessage.sender_name || `Usuario #${selectedMessage.sender_id}`}</span>
+                  {(() => { const typeInfo = getTypeInfo(selectedMessage.type); const TypeIcon = typeInfo.icon; return <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium flex-shrink-0" style={{ backgroundColor: typeInfo.bgColor, color: typeInfo.color }}><TypeIcon size={10} />{typeInfo.label}</span>; })()}
+                  {(() => { const statusInfo = getStatusInfo(selectedMessage.status); return <span className="text-xs px-2 py-0.5 rounded font-medium flex-shrink-0" style={{ backgroundColor: statusInfo.bgColor, color: statusInfo.color }}>{statusInfo.label}</span>; })()}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   {selectedMessage.status !== 'resolved' && (
                     <button 
                       onClick={() => handleStatusChange(selectedMessage.id, 'resolved')} 
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
                       style={{ 
                         backgroundColor: pageColors.success, 
                         color: '#fff',
-                        boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.opacity = '0.9';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.opacity = '1';
                       }}
                     >
-                      <CheckCircle size={14} />Resolver
+                      <CheckCircle size={12} />Resolver
                     </button>
                   )}
                   <button 
                     onClick={() => handleStatusChange(selectedMessage.id, 'archived')} 
-                    className="p-2.5 rounded-xl transition-all duration-200" 
+                    className="p-1.5 rounded-lg transition-all duration-200" 
                     style={{ 
                       backgroundColor: pageColors.inputBg,
                       border: `1px solid ${pageColors.cardBorder}`,
@@ -712,7 +597,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                       e.currentTarget.style.backgroundColor = pageColors.inputBg;
                     }}
                   >
-                    <Archive size={16} />
+                    <Archive size={14} />
                   </button>
                 </div>
               </div>
@@ -737,7 +622,6 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                         boxShadow: pageColors.shadowSm
                       }}
                     >
-                      <p className="text-sm font-semibold mb-3" style={{ color: pageColors.text }}>{selectedMessage.subject}</p>
                       <div className="text-sm prose prose-sm max-w-none leading-relaxed" style={{ color: pageColors.text }} dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedMessage.message, selectedMessage.subject) }} />
                     </div>
                     <p className="text-xs mt-2 ml-3" style={{ color: pageColors.textMuted }}>{formatFullDate(selectedMessage.created_at)}</p>
@@ -779,7 +663,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                     ) : (
                       <div className="mt-3">
                         <button onClick={() => setShowQuestionEditor(false)} className="flex items-center gap-1 text-sm mb-3 transition-colors hover:opacity-80" style={{ color: pageColors.textMuted }}><ChevronLeft size={16} />Cerrar editor</button>
-                        <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${pageColors.cardBorder}`, maxHeight: '500px', overflowY: 'auto' }}>
+                        <div className="rounded-xl overflow-visible" style={{ border: `1px solid ${pageColors.cardBorder}` }}>
                           <QuestionEditorPanel questionId={selectedMessage.related_object_id} mode="edit" onSave={handleQuestionSave} onCancel={() => setShowQuestionEditor(false)} simpleMode={true} />
                         </div>
                       </div>
@@ -827,19 +711,19 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
 
               {/* Reply Section */}
               <div 
-                className="p-5" 
+                className="p-3" 
                 style={{ 
                   backgroundColor: pageColors.bgCard, 
                   borderTop: `1px solid ${pageColors.cardBorder}`
                 }}
               >
-                <div className="flex gap-4">
+                <div className="flex gap-3">
                   <textarea 
                     value={replyText} 
                     onChange={(e) => setReplyText(e.target.value)} 
                     placeholder="Escribe tu respuesta..." 
-                    rows={3} 
-                    className="flex-1 px-4 py-3 text-sm rounded-xl resize-none focus:outline-none focus:ring-2 transition-all" 
+                    rows={2} 
+                    className="flex-1 px-3 py-2 text-sm rounded-lg resize-none focus:outline-none focus:ring-2 transition-all" 
                     style={{ 
                       backgroundColor: pageColors.inputBg, 
                       border: `1px solid ${pageColors.cardBorder}`,
@@ -850,12 +734,11 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                   <button 
                     onClick={handleSendReply} 
                     disabled={!replyText.trim() || sendingReply} 
-                    className="px-6 py-3 rounded-xl flex flex-col items-center justify-center gap-1.5 font-medium text-sm disabled:opacity-50 transition-all duration-200 self-stretch"
+                    className="px-4 py-2 rounded-lg flex items-center justify-center gap-2 font-medium text-sm disabled:opacity-50 transition-all duration-200"
                     style={{ 
                       background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
                       color: '#fff', 
-                      minWidth: '100px',
-                      boxShadow: `0 4px 12px ${pageColors.accentGlow}`
+                      minWidth: '90px',
                     }}
                     onMouseEnter={(e) => {
                       if (!e.currentTarget.disabled) {
@@ -942,6 +825,55 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
             </div>
           )}
         </div>
+      </div>
+
+      {/* FLOATING ACTION BUTTONS - Bottom Right */}
+      <div className="fixed bottom-6 right-6 flex items-center gap-3 z-50">
+        {/* Refresh Button */}
+        <button 
+          onClick={handleRefresh} 
+          disabled={loading || sentLoading}
+          className="flex items-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 focus:outline-none shadow-lg"
+          style={{ 
+            backgroundColor: pageColors.bgCard, 
+            border: `1px solid ${pageColors.cardBorder}`,
+            color: pageColors.text,
+            boxShadow: isDarkMode ? '0 4px 16px rgba(0,0,0,0.4)' : '0 4px 16px rgba(0,0,0,0.15)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = isDarkMode ? '0 6px 20px rgba(0,0,0,0.5)' : '0 6px 20px rgba(0,0,0,0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = isDarkMode ? '0 4px 16px rgba(0,0,0,0.4)' : '0 4px 16px rgba(0,0,0,0.15)';
+          }}
+        >
+          <RefreshCw size={18} className={loading || sentLoading ? 'animate-spin' : ''} />
+          <span className="text-sm font-medium">Actualizar</span>
+        </button>
+        
+        {/* New Message Button */}
+        <button 
+          onClick={() => setIsSendModalOpen(true)} 
+          className="flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all duration-200 focus:outline-none shadow-lg"
+          style={{ 
+            background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
+            color: '#fff',
+            boxShadow: `0 4px 16px ${pageColors.accentGlow}`
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = `0 6px 20px ${pageColors.accentGlow}`;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = `0 4px 16px ${pageColors.accentGlow}`;
+          }}
+        >
+          <Plus size={18} />
+          <span>Nuevo mensaje</span>
+        </button>
       </div>
 
       <SendMessageModal 

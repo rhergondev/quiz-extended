@@ -1,6 +1,6 @@
 // src/pages/SettingsPage.jsx
 import React, { useState, useEffect, useMemo } from 'react';
-import { Save, Settings, Percent, Hash, Palette, Sun, Moon, RotateCcw, Mail, Bell, AlertTriangle, MessageSquare, Send, Loader2, CheckCircle } from 'lucide-react';
+import { Save, Settings, Percent, Hash, Palette, Sun, Moon, RotateCcw, Mail, Bell, AlertTriangle, MessageSquare, Send, Loader2, CheckCircle, Database, RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';
 import settingsService from '../api/services/settingsService';
 import { DEFAULT_THEME, useTheme } from '../contexts/ThemeContext';
@@ -61,6 +61,7 @@ const SettingsPage = () => {
   });
   const [wpAdminEmail, setWpAdminEmail] = useState('');
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
+  const [updatingDifficulty, setUpdatingDifficulty] = useState(false);
   
 
 
@@ -179,6 +180,39 @@ const SettingsPage = () => {
       toast.error('Error al enviar el email de prueba. Verifica la configuración de tu servidor.');
     } finally {
       setSendingTestEmail(false);
+    }
+  };
+
+  const handleUpdateQuestionDifficulty = async () => {
+    if (!confirm('¿Estás seguro de que quieres actualizar la dificultad de todas las preguntas basándose en sus cuestionarios? Esta operación puede tardar unos minutos.')) {
+      return;
+    }
+
+    setUpdatingDifficulty(true);
+    try {
+      const response = await fetch('/wp-json/quiz-extended/v1/batch/update-question-difficulty', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': window.qe_data?.nonce || '',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Error en la respuesta del servidor');
+      }
+
+      const result = await response.json();
+      toast.success(result.message || 'Dificultad actualizada correctamente');
+      
+      if (result.stats) {
+        console.log('Estadísticas de actualización:', result.stats);
+      }
+    } catch (error) {
+      console.error('Error updating question difficulty:', error);
+      toast.error('Error al actualizar la dificultad de las preguntas');
+    } finally {
+      setUpdatingDifficulty(false);
     }
   };
 
@@ -515,6 +549,7 @@ const SettingsPage = () => {
               { id: 'general', label: 'General', icon: Settings },
               { id: 'theme', label: 'Tema', icon: Palette },
               { id: 'notifications', label: 'Notificaciones', icon: Bell },
+              { id: 'maintenance', label: 'Mantenimiento', icon: Database },
             ].map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -1259,6 +1294,81 @@ const SettingsPage = () => {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Maintenance Tab */}
+        {activeTab === 'maintenance' && (
+          <div className="grid grid-cols-1 gap-6">
+            <div 
+              className="p-6 rounded-xl"
+              style={{ 
+                backgroundColor: pageColors.bgCard,
+                border: `1px solid ${pageColors.cardBorder}`,
+                boxShadow: pageColors.shadowSm
+              }}
+            >
+              <div className="flex items-start gap-4">
+                <div 
+                  className="p-3 rounded-xl"
+                  style={{ backgroundColor: pageColors.accentGlow }}
+                >
+                  <RefreshCw className="w-6 h-6" style={{ color: pageColors.accent }} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold mb-2" style={{ color: pageColors.text }}>
+                    Actualizar Dificultad de Preguntas
+                  </h3>
+                  <p className="text-sm mb-4" style={{ color: pageColors.textMuted }}>
+                    Esta operación actualizará la dificultad de todas las preguntas basándose en la dificultad 
+                    del cuestionario al que pertenecen. Las preguntas que no estén asociadas a ningún cuestionario 
+                    mantendrán su dificultad actual o se les asignará "medio" por defecto.
+                  </p>
+                  <div 
+                    className="p-4 rounded-xl mb-4"
+                    style={{ 
+                      backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.1)' : '#fef3c7',
+                      border: `1px solid ${isDarkMode ? 'rgba(245, 158, 11, 0.2)' : '#fcd34d'}`
+                    }}
+                  >
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-5 h-5 mt-0.5" style={{ color: pageColors.warning }} />
+                      <div>
+                        <h4 className="font-medium mb-1" style={{ color: pageColors.warning }}>
+                          Importante
+                        </h4>
+                        <p className="text-sm" style={{ color: isDarkMode ? pageColors.warning : '#92400e' }}>
+                          • Esta operación puede tardar varios minutos dependiendo del número de preguntas<br />
+                          • Se recomienda hacer un respaldo antes de ejecutar<br />
+                          • Las preguntas ya actualizadas se omitirán automáticamente
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleUpdateQuestionDifficulty}
+                    disabled={updatingDifficulty}
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all focus:outline-none disabled:opacity-50"
+                    style={{ 
+                      backgroundColor: pageColors.accent,
+                      color: '#fff'
+                    }}
+                  >
+                    {updatingDifficulty ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Actualizando...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-5 h-5" />
+                        Ejecutar Actualización
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
           </div>

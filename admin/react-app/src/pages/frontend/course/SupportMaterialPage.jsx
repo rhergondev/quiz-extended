@@ -791,11 +791,12 @@ const SupportMaterialPage = () => {
                   <button
                     onClick={handlePrevious}
                     disabled={!hasPrevious}
-                    className="p-1.5 rounded-lg transition-all"
+                    className="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm font-medium"
                     style={{ 
                       backgroundColor: isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`,
                       opacity: hasPrevious ? 1 : 0.4,
-                      cursor: hasPrevious ? 'pointer' : 'not-allowed'
+                      cursor: hasPrevious ? 'pointer' : 'not-allowed',
+                      color: pageColors.text
                     }}
                     onMouseEnter={(e) => {
                       if (hasPrevious) {
@@ -805,49 +806,16 @@ const SupportMaterialPage = () => {
                     onMouseLeave={(e) => {
                       e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`;
                     }}
-                    title={t('navigation.previous')}
                   >
-                    <ChevronLeft size={18} style={{ color: pageColors.text }} />
-                  </button>
-
-                  {/* Complete button */}
-                  <button
-                    onClick={handleToggleComplete}
-                    disabled={progressLoading}
-                    className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-xs"
-                    style={{ 
-                      backgroundColor: isCurrentStepCompleted() 
-                        ? pageColors.accent
-                        : (isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`),
-                      color: isCurrentStepCompleted() ? '#ffffff' : pageColors.text
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isCurrentStepCompleted()) {
-                        e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}25` : `${pageColors.text}20`;
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isCurrentStepCompleted()) {
-                        e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`;
-                      }
-                    }}
-                    title={isCurrentStepCompleted() ? t('progress.completed') : t('progress.markComplete')}
-                  >
-                    {isCurrentStepCompleted() ? (
-                      <Check size={14} />
-                    ) : (
-                      <Circle size={14} />
-                    )}
-                    <span className="font-medium hidden sm:inline">
-                      {isCurrentStepCompleted() ? t('progress.completed') : t('progress.markComplete')}
-                    </span>
+                    <ChevronLeft size={16} style={{ color: pageColors.text }} />
+                    <span>{t('navigation.previous')}</span>
                   </button>
 
                   {/* Next button */}
                   <button
                     onClick={handleNext}
                     disabled={!hasNext}
-                    className="p-1.5 rounded-lg transition-all"
+                    className="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm font-medium"
                     style={{ 
                       backgroundColor: isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`,
                       opacity: hasNext ? 1 : 0.4,
@@ -861,9 +829,9 @@ const SupportMaterialPage = () => {
                     onMouseLeave={(e) => {
                       e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`;
                     }}
-                    title={t('navigation.next')}
                   >
-                    <ChevronRight size={18} style={{ color: pageColors.text }} />
+                    <span>{t('navigation.next')}</span>
+                    <ChevronRight size={16} style={{ color: pageColors.text }} />
                   </button>
 
                   {/* Close button */}
