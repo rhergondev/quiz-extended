@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getQuiz } from '../../api/services/quizService';
 import useQuizQuestions from '../../hooks/useQuizQuestions';
@@ -381,37 +381,34 @@ const Quiz = ({
     setRiskedAnswers(prev => prev.filter(id => id !== questionId));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
       if (!attemptId) {
           setQuizState('error');
           return;
       }
       setQuizState('submitting');
 
-      // Ensure we submit answers for ALL questions in the quiz
-      let questionsForSubmission = quizQuestions;
-      if (questionIds && questionIds.length > quizQuestions.length) {
-        try {
-          questionsForSubmission = await getQuestionsByIds(questionIds, { batchSize: 50 });
-        } catch (err) {
-          questionsForSubmission = quizQuestions;
-        }
-      }
-
-      const formattedAnswers = questionsForSubmission.map(q => ({
-        question_id: q.id,
-        answer_given: userAnswers.hasOwnProperty(q.id) ? userAnswers[q.id] : null,
-        is_risked: riskedAnswers.includes(q.id)
+      // 🔥 FIX: Use questionIds directly instead of trying to load all questions
+      // The backend already has the quiz question IDs and will grade accordingly
+      // We just need to send the answers the user has provided
+      const idsToSubmit = questionIds && questionIds.length > 0 ? questionIds : quizQuestions.map(q => q.id);
+      
+      const formattedAnswers = idsToSubmit.map(qId => ({
+        question_id: qId,
+        answer_given: userAnswers.hasOwnProperty(qId) ? userAnswers[qId] : null,
+        is_risked: riskedAnswers.includes(qId)
       }));
+
+      console.log(`📤 Submitting ${formattedAnswers.length} answers (${Object.keys(userAnswers).length} answered)`);
 
       try {
           let result;
           if (attemptId === 'custom-attempt' && customQuiz) {
-              const questionIds = customQuiz.meta._quiz_question_ids;
+              const customQuestionIds = customQuiz.meta._quiz_question_ids;
               const endTime = Date.now();
               const durationInSeconds = Math.round((endTime - startTime) / 1000);
               
-              result = await calculateCustomQuizResult(questionIds, formattedAnswers);
+              result = await calculateCustomQuizResult(customQuestionIds, formattedAnswers);
               result.duration_seconds = durationInSeconds;
           } else {
               result = await submitQuizAttempt(attemptId, formattedAnswers);
@@ -422,18 +419,20 @@ const Quiz = ({
             await clearAutosave();
           }
 
-          // 🔥 FIX: Recargar las preguntas para obtener el estado actualizado de is_favorite
-          let fullQuestions = questionsForSubmission || quizQuestions;
+          // 🔥 FIX: Load questions for the results view after successful submission
+          // This is non-blocking - if it fails, we still have the result
+          let fullQuestions = quizQuestions;
           try {
-            const questionIdsToRefresh = fullQuestions.map(q => q.id);
-            const refreshedQuestions = await getQuestionsByIds(questionIdsToRefresh, { batchSize: 50 });
+            // Load all questions for the results display
+            const allQuestionIds = idsToSubmit;
+            const refreshedQuestions = await getQuestionsByIds(allQuestionIds, { batchSize: 50 });
             if (refreshedQuestions && refreshedQuestions.length > 0) {
-              console.log('✅ Questions refreshed with updated is_favorite status');
+              console.log(`✅ Loaded ${refreshedQuestions.length} questions for results display`);
               fullQuestions = refreshedQuestions;
             }
           } catch (refreshError) {
-            console.warn('⚠️ Could not refresh questions, using cached data:', refreshError);
-            // Si falla el refresh, usar las preguntas que ya teníamos
+            console.warn('⚠️ Could not load all questions for results, using cached data:', refreshError);
+            // Use whatever questions we have loaded
           }
 
           setFinalQuestions(fullQuestions);
@@ -446,9 +445,10 @@ const Quiz = ({
             onQuizComplete(result, fullQuestions, quizInfo);
           }
       } catch (error) {
+          console.error('❌ Error submitting quiz:', error);
           setQuizState('error');
       }
-  };
+  }, [attemptId, quizQuestions, questionIds, userAnswers, riskedAnswers, customQuiz, startTime, quizId, clearAutosave, onQuizComplete, quizInfo]);
 
   if (quizState === 'loading' || (questionsLoading && quizQuestions.length === 0)) {
     return <div className="text-center p-8">{t('quizzes.quiz.loadingQuiz')}</div>;

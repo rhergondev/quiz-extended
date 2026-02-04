@@ -213,13 +213,39 @@ const UnifiedTestModal = ({
         resultQuizId = newQuiz.id;
       }
 
-      // 3. Call Parent onSave with the specific structure needed by TestsPage
-      // TestsPage expects: { type: 'quiz', title: '...', data: { quiz_id: ... } }
+      // 3. Calculate test metadata for display
+      // Calculate average difficulty from selected questions
+      const calculateAverageDifficulty = () => {
+        if (selectedQuestions.length === 0) return 'medium';
+        
+        const difficultyValues = { easy: 1, medium: 2, hard: 3 };
+        const reverseDifficultyMap = { 1: 'easy', 2: 'medium', 3: 'hard' };
+        
+        const sum = selectedQuestions.reduce((acc, q) => {
+          const difficulty = q.meta?._difficulty_level || 'medium';
+          return acc + (difficultyValues[difficulty] || 2);
+        }, 0);
+        
+        const average = Math.round(sum / selectedQuestions.length);
+        return reverseDifficultyMap[average] || 'medium';
+      };
+      
+      const difficulty = calculateAverageDifficulty();
+      const questionCount = selectedQuestions.length;
+      // Calculate time limit: half the number of questions (same logic as QuizGeneratorPage)
+      const timeLimit = questionCount > 0 ? Math.max(1, Math.ceil(questionCount / 2)) : null;
+      
+      // 4. Call Parent onSave with the specific structure needed by TestsPage
+      // TestsPage expects: { type: 'quiz', title: '...', data: { quiz_id: ..., difficulty: ..., ... } }
       await onSave({
         type: 'quiz',
         title: formData.title,
         data: {
-          quiz_id: resultQuizId
+          quiz_id: resultQuizId,
+          difficulty: difficulty,
+          question_count: questionCount,
+          time_limit: timeLimit,
+          start_date: new Date().toISOString() // Set current date as start date
         }
       });
       

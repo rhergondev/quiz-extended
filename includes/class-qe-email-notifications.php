@@ -359,6 +359,9 @@ class QE_Email_Notifications
                                     </td>
                                 </tr>
                             </table>
+
+                            <!-- CTA Button -->
+                            ' . $this->build_cta_button($data, $accent_color) . '
                         </td>
                     </tr>
                 </table>
@@ -386,6 +389,38 @@ class QE_Email_Notifications
 </html>';
 
         return $html;
+    }
+
+    /**
+     * Build CTA button for email
+     *
+     * @param array $data
+     * @param string $accent_color
+     * @return string
+     */
+    private function build_cta_button($data, $accent_color)
+    {
+        $message_id = $data['message_id'] ?? 0;
+
+        if (!$message_id) {
+            return '';
+        }
+
+        // Build admin URL with hash route for React SPA
+        $admin_url = admin_url('admin.php?page=qe-lms') . '#/messages?messageId=' . intval($message_id);
+
+        return '
+                            <!-- CTA Button -->
+                            <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 8px;">
+                                <tr>
+                                    <td align="center">
+                                        <a href="' . esc_url($admin_url) . '" 
+                                           style="display: inline-block; padding: 12px 24px; background-color: ' . esc_attr($accent_color) . '; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                                            Ver y responder mensaje
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>';
     }
 
     /**

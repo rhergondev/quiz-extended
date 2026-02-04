@@ -974,32 +974,6 @@ const QuestionModal = ({
             >
               Cancelar
             </button>
-            {mode === 'create' && (
-              <button 
-                type="button"
-                onClick={handleSaveAndNew} 
-                disabled={isLoading}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  backgroundColor: '#6b7280',
-                  color: '#ffffff',
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  cursor: isLoading ? 'not-allowed' : 'pointer',
-                  opacity: isLoading ? 0.7 : 1
-                }}
-                onMouseEnter={(e) => {
-                  if (!isLoading) e.currentTarget.style.backgroundColor = '#4b5563';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#6b7280';
-                }}
-              >
-                {isLoading ? 'Guardando...' : 'Guardar y Crear Otra'}
-              </button>
-            )}
             <button 
               type="submit"
               onClick={handleSubmit} 

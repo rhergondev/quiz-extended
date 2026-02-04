@@ -1,5 +1,5 @@
 // src/components/frontend/Timer.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Clock } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,19 @@ const Timer = ({ durationMinutes, onTimeUp, isPaused, initialTimeRemaining = nul
   const [remainingTime, setRemainingTime] = useState(
     initialTimeRemaining !== null ? initialTimeRemaining : durationMinutes * 60
   );
+  
+  // 🔥 FIX: Use refs to store callbacks to avoid restarting the timer when they change
+  const onTimeUpRef = useRef(onTimeUp);
+  const onTickRef = useRef(onTick);
+  
+  // Keep refs updated with latest callbacks
+  useEffect(() => {
+    onTimeUpRef.current = onTimeUp;
+  }, [onTimeUp]);
+  
+  useEffect(() => {
+    onTickRef.current = onTick;
+  }, [onTick]);
 
   // Dark mode colors
   const bgCard = isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff';
@@ -33,14 +46,18 @@ const Timer = ({ durationMinutes, onTimeUp, isPaused, initialTimeRemaining = nul
       setRemainingTime(prevTime => {
         if (prevTime <= 1) {
           clearInterval(timer);
-          onTimeUp();
+          // 🔥 FIX: Use ref to call the latest callback
+          if (onTimeUpRef.current) {
+            console.log('⏰ Time is up! Submitting quiz...');
+            onTimeUpRef.current();
+          }
           return 0;
         }
         const newTime = prevTime - 1;
         
         // Notificar al padre el tiempo restante para autoguardado
-        if (onTick) {
-          onTick(newTime);
+        if (onTickRef.current) {
+          onTickRef.current(newTime);
         }
         
         return newTime;
@@ -48,7 +65,7 @@ const Timer = ({ durationMinutes, onTimeUp, isPaused, initialTimeRemaining = nul
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isPaused, onTimeUp, durationMinutes, onTick]);
+  }, [isPaused, durationMinutes]); // 🔥 FIX: Removed onTimeUp and onTick from dependencies
 
   const formatTime = (seconds) => {
     const h = Math.floor(seconds / 3600).toString().padStart(2, '0');

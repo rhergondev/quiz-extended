@@ -10,6 +10,7 @@ const useMessages = (options = {}) => {
     search = '',
     status = null,
     type = null,
+    courseId = null,
     autoFetch = true,
     enablePolling = true,
     pollingInterval = 30000 // 30 seconds
@@ -31,7 +32,7 @@ const useMessages = (options = {}) => {
 
   // --- REFS ---
   const mountedRef = useRef(true);
-  const currentFiltersRef = useRef({ search, status, type });
+  const currentFiltersRef = useRef({ search, status, type, courseId });
   const lastFetchParamsRef = useRef('');
   const pollingTimerRef = useRef(null);
   const lastTotalRef = useRef(0);
@@ -39,8 +40,8 @@ const useMessages = (options = {}) => {
 
   // Update filters ref
   useEffect(() => {
-    currentFiltersRef.current = { search, status, type };
-  }, [search, status, type]);
+    currentFiltersRef.current = { search, status, type, courseId };
+  }, [search, status, type, courseId]);
 
   // Page visibility detection
   useEffect(() => {
@@ -190,6 +191,10 @@ const useMessages = (options = {}) => {
 
       if (currentFilters.type) {
         queryParams.append('type', currentFilters.type);
+      }
+
+      if (currentFilters.courseId) {
+        queryParams.append('course_id', currentFilters.courseId);
       }
 
       const url = `${config.endpoints.custom_api}/messages?${queryParams}`;

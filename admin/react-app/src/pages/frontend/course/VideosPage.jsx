@@ -129,6 +129,10 @@ const VideosPage = () => {
     setLessonModalState({ isOpen: true, mode: 'create', lesson: null });
   };
 
+  const handleEditLesson = (lesson) => {
+    setLessonModalState({ isOpen: true, mode: 'edit', lesson: lesson });
+  };
+
   const handleSaveLesson = async (data, nextAction = 'close') => {
     try {
       if (lessonModalState.mode === 'create') {
@@ -542,6 +546,27 @@ const VideosPage = () => {
                         
                         {/* Badge count + Admin Actions + Expand/Collapse Button */}
                         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                          {/* Admin: Edit Theme Button */}
+                          {userIsAdmin && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditLesson(lesson);
+                              }}
+                              className="p-1.5 rounded-lg transition-all"
+                              style={{ backgroundColor: `${pageColors.accent}15` }}
+                              title={t('videos.editTheme')}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = `${pageColors.accent}25`;
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = `${pageColors.accent}15`;
+                              }}
+                            >
+                              <Edit2 size={16} style={{ color: pageColors.accent }} />
+                            </button>
+                          )}
+
                           {/* Admin: Delete Theme Button */}
                           {userIsAdmin && (
                             <button

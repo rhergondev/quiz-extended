@@ -1,10 +1,11 @@
 // admin/react-app/src/components/messages/MessagesManager.jsx
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { useSearchParams, useParams } from 'react-router-dom';
+import { useSearchParams, useParams, useLocation } from 'react-router-dom';
 import { 
   MessageSquare, 
   Mail,
+  MailOpen,
   Flag,
   MessageCircle,
   Send,
@@ -22,9 +23,9 @@ import {
   Square,
   Edit3,
   ChevronLeft,
-  Sun,
-  Moon,
-  Plus
+  Plus,
+  Clock,
+  ArrowRight
 } from 'lucide-react';
 
 import { useTranslation } from 'react-i18next';
@@ -95,8 +96,13 @@ const QuestionPreview = ({ questionId, pageColors }) => {
 
 const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = false, courseId: courseIdProp = null }) => {
   const { t } = useTranslation();
-  const { getColor, isDarkMode, toggleDarkMode } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
   const params = useParams();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Deep linking: leer messageId de la URL
+  const urlMessageId = searchParams.get('messageId');
   
   // Extraer courseId de la URL (ej: /courses/840/messages) o usar el prop
   const courseId = params.courseId || courseIdProp;
@@ -125,21 +131,21 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
     accentGlow: isDarkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)',
   }), [getColor, isDarkMode]);
 
-  const [activeView, setActiveView] = useState('inbox');
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [showQuestionEditor, setShowQuestionEditor] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [batchLoading, setBatchLoading] = useState(false);
-  const [sentMessages, setSentMessages] = useState([]);
-  const [sentLoading, setSentLoading] = useState(false);
-  const [selectedSentMessage, setSelectedSentMessage] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
   const [replies, setReplies] = useState([]);
   const [loadingReplies, setLoadingReplies] = useState(false);
+  
+  // Courses with messages (for course selector)
+  const [coursesWithMessages, setCoursesWithMessages] = useState([]);
+  const [loadingCourses, setLoadingCourses] = useState(false);
+  const [selectedCourseFilter, setSelectedCourseFilter] = useState(null);
 
-  const [searchParams] = useSearchParams();
   const { searchValue, handleSearchChange, clearSearch } = useSearchInput(searchParams.get('search') || initialSearch, () => {}, 500);
   const { filters, updateFilter } = useFilterDebounce({ status: 'all', type: 'all' }, () => {}, 300);
 
@@ -158,26 +164,13 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
     search: searchValue,
     status: filters.status !== 'all' ? filters.status : null,
     type: filters.type !== 'all' ? filters.type : null,
+    courseId: selectedCourseFilter,
     autoFetch: true,
     enablePolling: true,
     pollingInterval: 30000
   });
 
-  useEffect(() => { requestNotificationPermission(); }, [requestNotificationPermission]);
-  useEffect(() => { if (activeView === 'sent') fetchSentMessages(); }, [activeView]);
-  useEffect(() => { if (selectedMessage && !messages.find(m => m.id === selectedMessage.id)) setSelectedMessage(null); }, [messages, selectedMessage]);
-
-  const fetchSentMessages = useCallback(async () => {
-    setSentLoading(true);
-    try {
-      const config = getApiConfig();
-      const response = await makeApiRequest(`${config.endpoints.custom_api}/messages/sent?per_page=50`);
-      setSentMessages(Array.isArray(response?.data?.data || response?.data) ? (response?.data?.data || response?.data) : []);
-    } catch (err) { console.error('Error fetching sent messages:', err); }
-    finally { setSentLoading(false); }
-  }, []);
-
-  // Fetch replies for a message
+  // Fetch replies for a message - MUST be defined before the useEffect that uses it
   const fetchReplies = useCallback(async (messageId) => {
     setLoadingReplies(true);
     try {
@@ -193,14 +186,88 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
     finally { setLoadingReplies(false); }
   }, []);
 
-  const handleRefresh = useCallback(() => {
-    if (activeView === 'inbox') { 
-      fetchMessages(true); 
-      setSelectedIds(new Set()); 
-      if (selectedMessage) fetchReplies(selectedMessage.id);
+  // Fetch courses with messages on mount
+  useEffect(() => {
+    const fetchCoursesWithMessages = async () => {
+      setLoadingCourses(true);
+      try {
+        const config = getApiConfig();
+        const response = await makeApiRequest(`${config.endpoints.custom_api}/messages/courses`);
+        const data = response?.data?.courses || response?.courses || [];
+        setCoursesWithMessages(data);
+      } catch (err) {
+        console.error('Error fetching courses with messages:', err);
+      } finally {
+        setLoadingCourses(false);
+      }
+    };
+    if (!courseMode) fetchCoursesWithMessages();
+  }, [courseMode]);
+
+  useEffect(() => { requestNotificationPermission(); }, [requestNotificationPermission]);
+  useEffect(() => { if (selectedMessage && !messages.find(m => m.id === selectedMessage.id)) setSelectedMessage(null); }, [messages, selectedMessage]);
+
+  // 🔗 Deep linking: abrir mensaje desde URL con ?messageId=X
+  useEffect(() => {
+    if (!urlMessageId || loading || messages.length === 0) return;
+    
+    const messageIdNum = parseInt(urlMessageId, 10);
+    if (isNaN(messageIdNum)) return;
+    
+    // Buscar el mensaje en la lista cargada
+    const messageFromList = messages.find(m => m.id === messageIdNum);
+    
+    if (messageFromList) {
+      // Mensaje encontrado en la lista, abrirlo
+      console.log('🔗 Deep link: Abriendo mensaje #' + messageIdNum);
+      setSelectedMessage(messageFromList);
+      setShowQuestionEditor(false);
+      setReplyText('');
+      setReplies([]);
+      fetchReplies(messageIdNum);
+      if (messageFromList.status === 'unread') updateMessageStatus(messageIdNum, 'read');
+      // Limpiar el query param después de abrir
+      setSearchParams(prev => {
+        const newParams = new URLSearchParams(prev);
+        newParams.delete('messageId');
+        return newParams;
+      });
+    } else {
+      // Mensaje no está en la lista actual, intentar cargarlo directamente
+      const fetchMessageById = async () => {
+        try {
+          const config = getApiConfig();
+          const response = await makeApiRequest(`${config.endpoints.custom_api}/messages/${messageIdNum}`);
+          const message = response?.data?.data || response?.data;
+          if (message) {
+            console.log('🔗 Deep link: Mensaje cargado desde API #' + messageIdNum);
+            setSelectedMessage(message);
+            setShowQuestionEditor(false);
+            setReplyText('');
+            setReplies([]);
+            fetchReplies(messageIdNum);
+            if (message.status === 'unread') updateMessageStatus(messageIdNum, 'read');
+          }
+        } catch (err) {
+          console.error('Error loading message from deep link:', err);
+          toast.error('No se pudo cargar el mensaje');
+        }
+        // Limpiar el query param
+        setSearchParams(prev => {
+          const newParams = new URLSearchParams(prev);
+          newParams.delete('messageId');
+          return newParams;
+        });
+      };
+      fetchMessageById();
     }
-    else { fetchSentMessages(); }
-  }, [fetchMessages, fetchSentMessages, activeView, selectedMessage, fetchReplies]);
+  }, [urlMessageId, loading, messages, fetchReplies, updateMessageStatus, setSearchParams]);
+
+  const handleRefresh = useCallback(() => {
+    fetchMessages(true); 
+    setSelectedIds(new Set()); 
+    if (selectedMessage) fetchReplies(selectedMessage.id);
+  }, [fetchMessages, selectedMessage, fetchReplies]);
 
   const handleToggleSelect = useCallback((messageId, event) => {
     event.stopPropagation();
@@ -226,7 +293,6 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
 
   const handleMessageClick = useCallback((message) => {
     setSelectedMessage(message); 
-    setSelectedSentMessage(null); 
     setShowQuestionEditor(false); 
     setReplyText('');
     setReplies([]); // Clear previous replies
@@ -234,7 +300,11 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
     if (message.status === 'unread') updateMessageStatus(message.id, 'read');
   }, [updateMessageStatus, fetchReplies]);
 
-  const handleSentMessageClick = useCallback((message) => { setSelectedSentMessage(message); setSelectedMessage(null); setReplies([]); }, []);
+  const handleClosePanel = useCallback(() => {
+    setSelectedMessage(null);
+    setReplies([]);
+    setReplyText('');
+  }, []);
 
   const handleStatusChange = useCallback(async (messageId, newStatus) => {
     try {
@@ -281,7 +351,6 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
       await handleStatusChange(selectedMessage.id, 'resolved');
       // Reload replies to show the new message in chat
       await fetchReplies(selectedMessage.id);
-      fetchSentMessages();
       toast.success('Respuesta enviada correctamente');
     } catch (err) {
       console.error('❌ Error sending reply:', err);
@@ -289,7 +358,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
     } finally {
       setSendingReply(false);
     }
-  }, [replyText, selectedMessage, handleStatusChange, fetchSentMessages, fetchReplies]);
+  }, [replyText, selectedMessage, handleStatusChange, fetchReplies]);
 
   const handleQuestionSave = useCallback(async () => { setShowQuestionEditor(false); }, []);
 
@@ -311,358 +380,387 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   };
 
   const getStatusInfo = (status) => {
-    if (status === 'unread') return { label: 'Sin leer', color: pageColors.error, bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2' };
-    if (status === 'read') return { label: 'Leído', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' };
-    if (status === 'resolved') return { label: 'Resuelto', color: pageColors.success, bgColor: isDarkMode ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5' };
-    return { label: status || 'Archivado', color: pageColors.textMuted, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6' };
+    if (status === 'unread') return { label: 'Sin leer', color: pageColors.error, bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2', icon: Mail };
+    if (status === 'read') return { label: 'Leído', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe', icon: MailOpen };
+    if (status === 'resolved') return { label: 'Resuelto', color: pageColors.success, bgColor: isDarkMode ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5', icon: CheckCircle };
+    return { label: status || 'Archivado', color: pageColors.textMuted, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6', icon: Archive };
   };
+
+  const isPanelOpen = selectedMessage !== null;
+
+  const formatTableDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Get selected course name for display
+  const selectedCourseName = useMemo(() => {
+    if (!selectedCourseFilter) return null;
+    const course = coursesWithMessages.find(c => c.id === selectedCourseFilter);
+    return course?.title || null;
+  }, [selectedCourseFilter, coursesWithMessages]);
 
   return (
     <div className="flex flex-col h-full relative" style={{ backgroundColor: pageColors.bgPage }}>
-      {/* MAIN CONTENT AREA - Sin topbar */}
-      <div className="flex-1 flex gap-3 p-3" style={{ paddingBottom: '80px' /* Espacio para botones flotantes */ }}>
-        {/* LEFT PANEL - Message List */}
+      <div className="flex-1 relative overflow-hidden">
+        {/* LIST VIEW - Slides out to left when detail is open */}
         <div 
-          className="w-72 flex-shrink-0 flex flex-col rounded-xl overflow-hidden" 
-          style={{ 
-            backgroundColor: pageColors.bgCard, 
-            boxShadow: pageColors.shadow,
-            border: `1px solid ${pageColors.cardBorder}`,
-            maxHeight: 'calc(100vh - 100px)'
-          }}
+          className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${
+            isPanelOpen ? '-translate-x-full' : 'translate-x-0'
+          }`}
         >
-          <div className="p-3" style={{ borderBottom: `1px solid ${pageColors.cardBorder}` }}>
-            <div className="flex gap-2 mb-2">
-              <button 
-                onClick={() => { setActiveView('inbox'); setSelectedSentMessage(null); }} 
-                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all duration-200" 
-                style={{ 
-                  backgroundColor: activeView === 'inbox' ? pageColors.accent : pageColors.inputBg, 
-                  color: activeView === 'inbox' ? '#fff' : pageColors.textMuted, 
-                  boxShadow: activeView === 'inbox' ? `0 2px 8px ${pageColors.accentGlow}` : 'none'
-                }}
-              >
-                <Inbox size={14} />Recibidos
-              </button>
-              <button 
-                onClick={() => { setActiveView('sent'); setSelectedMessage(null); }} 
-                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all duration-200" 
-                style={{ 
-                  backgroundColor: activeView === 'sent' ? pageColors.accent : pageColors.inputBg, 
-                  color: activeView === 'sent' ? '#fff' : pageColors.textMuted,
-                  boxShadow: activeView === 'sent' ? `0 2px 8px ${pageColors.accentGlow}` : 'none'
-                }}
-              >
-                <Send size={14} />Enviados
-              </button>
+          {/* HEADER BAR */}
+          <div 
+            className="px-4 py-3 flex items-center justify-between flex-shrink-0"
+            style={{ 
+              backgroundColor: pageColors.bgCard,
+              borderBottom: `1px solid ${pageColors.cardBorder}`
+            }}
+          >
+            {/* Left: Course Selector (only in admin mode, not courseMode) */}
+            <div className="flex items-center gap-3">
+              {!courseMode && coursesWithMessages.length > 0 && (
+                <div className="flex gap-1 p-1 rounded-lg" style={{ backgroundColor: pageColors.inputBg }}>
+                  <button 
+                    onClick={() => setSelectedCourseFilter(null)} 
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200" 
+                    style={{ 
+                      backgroundColor: !selectedCourseFilter ? pageColors.bgCard : 'transparent', 
+                      color: !selectedCourseFilter ? pageColors.text : pageColors.textMuted,
+                      boxShadow: !selectedCourseFilter ? pageColors.shadowSm : 'none'
+                    }}
+                  >
+                    <Inbox size={16} />Todos
+                  </button>
+                  {coursesWithMessages.slice(0, 4).map(course => (
+                    <button 
+                      key={course.id}
+                      onClick={() => setSelectedCourseFilter(course.id)} 
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 max-w-[150px]" 
+                      style={{ 
+                        backgroundColor: selectedCourseFilter === course.id ? pageColors.bgCard : 'transparent', 
+                        color: selectedCourseFilter === course.id ? pageColors.text : pageColors.textMuted,
+                        boxShadow: selectedCourseFilter === course.id ? pageColors.shadowSm : 'none'
+                      }}
+                      title={course.title}
+                    >
+                      <span className="truncate">{course.title}</span>
+                      {course.unread_count > 0 && (
+                        <span 
+                          className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold text-white"
+                          style={{ backgroundColor: pageColors.error }}
+                        >
+                          {course.unread_count}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                  {coursesWithMessages.length > 4 && (
+                    <select
+                      value={selectedCourseFilter && !coursesWithMessages.slice(0, 4).find(c => c.id === selectedCourseFilter) ? selectedCourseFilter : ''}
+                      onChange={(e) => setSelectedCourseFilter(e.target.value ? parseInt(e.target.value) : null)}
+                      className="text-sm px-2 py-1.5 rounded-md transition-all"
+                      style={{ 
+                        backgroundColor: 'transparent', 
+                        color: pageColors.textMuted,
+                        border: 'none'
+                      }}
+                    >
+                      <option value="">+{coursesWithMessages.length - 4} más</option>
+                      {coursesWithMessages.slice(4).map(course => (
+                        <option key={course.id} value={course.id}>{course.title} ({course.unread_count})</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+              {!courseMode && coursesWithMessages.length === 0 && !loadingCourses && (
+                <div className="flex items-center gap-2 text-sm" style={{ color: pageColors.textMuted }}>
+                  <Inbox size={16} />
+                  <span>Bandeja de entrada</span>
+                </div>
+              )}
             </div>
 
-            {!courseMode && (
-              <div className="relative mb-2">
-                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: pageColors.textMuted }} />
-                <input 
-                  type="text" 
-                  value={searchValue} 
-                  onChange={(e) => handleSearchChange(e.target.value)} 
-                  placeholder="Buscar..." 
-                  className="w-full pl-9 pr-9 py-2 text-xs rounded-lg focus:outline-none focus:ring-2 transition-all" 
-                  style={{ 
-                    backgroundColor: pageColors.inputBg, 
-                    border: `1px solid ${pageColors.cardBorder}`,
-                    color: pageColors.text,
-                    '--tw-ring-color': pageColors.accent
-                  }} 
-                />
-                {searchValue && (
-                  <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-black/5" style={{ color: pageColors.textMuted }}>
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-            )}
+            {/* Center: Search and Filters */}
+            <div className="flex items-center gap-3 flex-1 max-w-xl mx-4">
+              {!courseMode && (
+                <>
+                  <div className="relative flex-1">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: pageColors.textMuted }} />
+                    <input 
+                      type="text" 
+                      value={searchValue} 
+                      onChange={(e) => handleSearchChange(e.target.value)} 
+                      placeholder="Buscar mensajes..." 
+                      className="w-full pl-10 pr-10 py-2 text-sm rounded-lg focus:outline-none focus:ring-2 transition-all" 
+                      style={{ 
+                        backgroundColor: pageColors.inputBg, 
+                        border: `1px solid ${pageColors.cardBorder}`,
+                        color: pageColors.text,
+                        '--tw-ring-color': pageColors.accent
+                      }} 
+                    />
+                    {searchValue && (
+                      <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-black/5" style={{ color: pageColors.textMuted }}>
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
 
-            {!courseMode && activeView === 'inbox' && (
-              <div className="flex gap-2 mt-3">
-                <select 
-                  value={filters.status} 
-                  onChange={(e) => updateFilter('status', e.target.value)} 
-                  className="flex-1 text-sm px-3 py-2 rounded-xl focus:outline-none focus:ring-2 transition-all" 
-                  style={{ 
-                    backgroundColor: pageColors.inputBg, 
-                    border: `1px solid ${pageColors.cardBorder}`,
-                    color: pageColors.text,
-                    '--tw-ring-color': pageColors.accent
-                  }}
-                >
-                  <option value="all">Todos</option>
-                  <option value="unread">Sin leer</option>
-                  <option value="read">Leídos</option>
-                  <option value="resolved">Resueltos</option>
-                </select>
-                <select 
-                  value={filters.type} 
-                  onChange={(e) => updateFilter('type', e.target.value)} 
-                  className="flex-1 text-sm px-3 py-2 rounded-xl focus:outline-none focus:ring-2 transition-all" 
-                  style={{ 
-                    backgroundColor: pageColors.inputBg, 
-                    border: `1px solid ${pageColors.cardBorder}`,
-                    color: pageColors.text,
-                    '--tw-ring-color': pageColors.accent
-                  }}
-                >
-                  <option value="all">Tipo</option>
-                  <option value="question_feedback">Dudas</option>
-                  <option value="question_challenge">Impugn.</option>
-                </select>
-              </div>
-            )}
+                  <select 
+                    value={filters.status} 
+                    onChange={(e) => updateFilter('status', e.target.value)} 
+                    className="text-sm px-3 py-2 rounded-lg focus:outline-none focus:ring-2 transition-all" 
+                    style={{ 
+                      backgroundColor: pageColors.inputBg, 
+                      border: `1px solid ${pageColors.cardBorder}`,
+                      color: pageColors.text,
+                      '--tw-ring-color': pageColors.accent
+                    }}
+                  >
+                    <option value="all">Todos</option>
+                    <option value="unread">Sin leer</option>
+                    <option value="read">Leídos</option>
+                    <option value="resolved">Resueltos</option>
+                  </select>
+                  <select 
+                    value={filters.type} 
+                    onChange={(e) => updateFilter('type', e.target.value)} 
+                    className="text-sm px-3 py-2 rounded-lg focus:outline-none focus:ring-2 transition-all" 
+                    style={{ 
+                      backgroundColor: pageColors.inputBg, 
+                      border: `1px solid ${pageColors.cardBorder}`,
+                      color: pageColors.text,
+                      '--tw-ring-color': pageColors.accent
+                    }}
+                  >
+                    <option value="all">Todos los tipos</option>
+                    <option value="question_feedback">Dudas</option>
+                    <option value="question_challenge">Impugnaciones</option>
+                  </select>
+                </>
+              )}
+            </div>
+
+            {/* Right: Actions */}
+            <div className="flex items-center gap-2">
+              {selectedIds.size > 0 && (
+                <div className="flex items-center gap-2 mr-2 px-3 py-1.5 rounded-lg" style={{ backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe' }}>
+                  <span className="text-sm font-medium" style={{ color: pageColors.info }}>{selectedIds.size} sel.</span>
+                  <button onClick={() => handleBatchAction('mark_read')} className="text-xs px-2 py-1 rounded font-medium" style={{ backgroundColor: pageColors.info, color: '#fff' }}>Leídos</button>
+                  <button onClick={() => handleBatchAction('archive')} className="text-xs px-2 py-1 rounded" style={{ backgroundColor: pageColors.hoverBg, color: pageColors.textMuted }}>Archivar</button>
+                </div>
+              )}
+              <button 
+                onClick={handleRefresh} 
+                disabled={loading}
+                className="p-2 rounded-lg transition-all duration-200"
+                style={{ 
+                  backgroundColor: pageColors.inputBg, 
+                  border: `1px solid ${pageColors.cardBorder}`,
+                  color: pageColors.textMuted
+                }}
+              >
+                <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+              </button>
+              <button 
+                onClick={() => setIsSendModalOpen(true)} 
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200"
+                style={{ 
+                  background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
+                  color: '#fff',
+                }}
+              >
+                <Plus size={16} />Nuevo mensaje
+              </button>
+            </div>
           </div>
 
-          {activeView === 'inbox' && selectedIds.size > 0 && (
-            <div className="px-4 py-2.5 flex items-center gap-2" style={{ backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe', borderBottom: `1px solid ${pageColors.cardBorder}` }}>
-              <span className="text-sm font-medium" style={{ color: pageColors.info }}>{selectedIds.size} seleccionados</span>
-              <button onClick={() => handleBatchAction('mark_read')} className="text-xs px-3 py-1.5 rounded-lg font-medium" style={{ backgroundColor: pageColors.info, color: '#fff' }}>Marcar leídos</button>
-              <button onClick={() => handleBatchAction('archive')} className="text-xs px-3 py-1.5 rounded-lg" style={{ backgroundColor: pageColors.hoverBg, color: pageColors.textMuted }}>Archivar</button>
-            </div>
-          )}
+          {/* TABLE */}
+          <div className="flex-1 overflow-hidden p-4 pb-16">
+            <div 
+              className="h-full rounded-xl overflow-hidden flex flex-col"
+              style={{ 
+                backgroundColor: pageColors.bgCard,
+                border: `1px solid ${pageColors.cardBorder}`,
+                boxShadow: pageColors.shadow
+              }}
+            >
+              {/* Table Header */}
+              <div 
+                className="grid gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wider flex-shrink-0"
+                style={{ 
+                  gridTemplateColumns: '40px 1fr 1.5fr 100px 100px 140px',
+                  backgroundColor: pageColors.inputBg,
+                  color: pageColors.textMuted,
+                  borderBottom: `1px solid ${pageColors.cardBorder}`
+                }}
+              >
+                <div className="flex items-center justify-center"><Square size={14} /></div>
+                <div>Remitente</div>
+                <div>Mensaje</div>
+                <div>Tipo</div>
+                <div>Estado</div>
+                <div className="flex items-center gap-1"><Clock size={12} />Fecha</div>
+              </div>
 
-          <div className="flex-1 overflow-y-auto">
-            {activeView === 'inbox' ? (
-              <>
-                {loading && messages.length === 0 && <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: `${pageColors.accent}30`, borderTopColor: pageColors.accent }} /></div>}
-                {!loading && messages.length === 0 && <div className="flex flex-col items-center justify-center h-32 text-center px-4"><Inbox size={28} style={{ color: pageColors.textMuted, opacity: 0.5 }} /><p className="text-sm mt-3" style={{ color: pageColors.textMuted }}>No hay mensajes</p></div>}
+              {/* Table Body */}
+              <div className="flex-1 overflow-y-auto">
+                {loading && messages.length === 0 && (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: `${pageColors.accent}30`, borderTopColor: pageColors.accent }} />
+                  </div>
+                )}
+                {!loading && messages.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-48">
+                    <Inbox size={40} style={{ color: pageColors.textMuted, opacity: 0.3 }} />
+                    <p className="text-sm mt-3" style={{ color: pageColors.textMuted }}>
+                      {selectedCourseFilter ? 'No hay mensajes en este curso' : 'No hay mensajes'}
+                    </p>
+                  </div>
+                )}
                 {messages.map((message) => {
                   const isSelected = selectedMessage?.id === message.id;
                   const isChecked = selectedIds.has(message.id);
                   const isUnread = message.status === 'unread';
                   const typeInfo = getTypeInfo(message.type);
+                  const statusInfo = getStatusInfo(message.status);
                   const TypeIcon = typeInfo.icon;
+                  const StatusIcon = statusInfo.icon;
                   return (
                     <div 
-                      key={message.id} 
-                      onClick={() => handleMessageClick(message)} 
-                      className="px-3 py-2 cursor-pointer transition-all duration-200" 
+                      key={message.id}
+                      className="grid gap-4 px-4 py-3 items-center cursor-pointer transition-all duration-150"
                       style={{ 
+                        gridTemplateColumns: '40px 1fr 1.5fr 100px 100px 140px',
+                        backgroundColor: 'transparent',
                         borderBottom: `1px solid ${pageColors.cardBorder}`,
-                        backgroundColor: isSelected ? pageColors.hoverBg : 'transparent', 
-                        borderLeft: isSelected ? `2px solid ${pageColors.accent}` : '2px solid transparent',
                       }}
-                      onMouseEnter={(e) => {
-                        if (!isSelected) e.currentTarget.style.backgroundColor = pageColors.hoverBg;
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
+                      onClick={() => handleMessageClick(message)}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = pageColors.hoverBg; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                     >
-                      <div className="flex items-center gap-2">
-                        <button onClick={(e) => handleToggleSelect(message.id, e)} className="flex-shrink-0 transition-transform hover:scale-110">
-                          {isChecked ? <CheckSquare size={14} style={{ color: pageColors.accent }} /> : <Square size={14} style={{ color: pageColors.textMuted }} />}
+                      <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={(e) => handleToggleSelect(message.id, e)} className="transition-transform hover:scale-110">
+                          {isChecked ? <CheckSquare size={16} style={{ color: pageColors.accent }} /> : <Square size={16} style={{ color: pageColors.textMuted }} />}
                         </button>
-                        <div className="p-1.5 rounded-lg flex-shrink-0" style={{ backgroundColor: typeInfo.bgColor }}>
-                          <TypeIcon size={12} style={{ color: typeInfo.color }} />
+                      </div>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: pageColors.inputBg }}>
+                          <User size={14} style={{ color: pageColors.textMuted }} />
                         </div>
-                        <div className="flex-1 min-w-0 flex items-center gap-2">
-                          <span className={`text-xs truncate ${isUnread ? 'font-bold' : 'font-medium'}`} style={{ color: isUnread ? pageColors.text : pageColors.textMuted, maxWidth: '120px' }}>
-                            {message.sender_name || `Usuario #${message.sender_id}`}
-                          </span>
-                          <span className="text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0" style={{ backgroundColor: typeInfo.bgColor, color: typeInfo.color }}>
-                            {typeInfo.label}
-                          </span>
-                          {isUnread && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: pageColors.error }} />}
-                        </div>
-                        <span className="text-xs flex-shrink-0" style={{ color: pageColors.textMuted }}>{formatDate(message.created_at)}</span>
+                        <span className={`text-sm truncate ${isUnread ? 'font-semibold' : ''}`} style={{ color: isUnread ? pageColors.text : pageColors.textMuted }}>
+                          {message.sender_name || `Usuario #${message.sender_id}`}
+                        </span>
+                        {isUnread && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pageColors.error }} />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-sm truncate ${isUnread ? 'font-medium' : ''}`} style={{ color: pageColors.text }}>
+                          {cleanMessageContent(message.message, message.subject) ? cleanMessageContent(message.message, message.subject).replace(/<[^>]*>/g, '').substring(0, 100) : '(Sin mensaje)'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium" style={{ backgroundColor: typeInfo.bgColor, color: typeInfo.color }}>
+                          <TypeIcon size={12} />{typeInfo.label}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium" style={{ backgroundColor: statusInfo.bgColor, color: statusInfo.color }}>
+                          <StatusIcon size={12} />{statusInfo.label}
+                        </span>
+                      </div>
+                      <div className="text-xs" style={{ color: pageColors.textMuted }}>
+                        {formatTableDate(message.created_at)}
                       </div>
                     </div>
                   );
                 })}
-              </>
-            ) : (
-              <>
-                {sentLoading && sentMessages.length === 0 && <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: `${pageColors.accent}30`, borderTopColor: pageColors.accent }} /></div>}
-                {!sentLoading && sentMessages.length === 0 && <div className="flex flex-col items-center justify-center h-32 text-center px-4"><Send size={28} style={{ color: pageColors.textMuted, opacity: 0.5 }} /><p className="text-sm mt-3" style={{ color: pageColors.textMuted }}>No hay mensajes enviados</p></div>}
-                {sentMessages.map((msg) => {
-                  const isSelected = selectedSentMessage?.id === msg.id;
-                  return (
-                    <div 
-                      key={msg.id} 
-                      onClick={() => handleSentMessageClick(msg)} 
-                      className="px-4 py-3.5 cursor-pointer transition-all duration-200" 
-                      style={{ 
-                        borderBottom: `1px solid ${pageColors.cardBorder}`,
-                        backgroundColor: isSelected ? pageColors.hoverBg : 'transparent', 
-                        borderLeft: isSelected ? `3px solid ${pageColors.accent}` : '3px solid transparent',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isSelected) e.currentTarget.style.backgroundColor = pageColors.hoverBg;
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-lg" style={{ backgroundColor: pageColors.accentGlow }}>
-                          <Users size={14} style={{ color: pageColors.accent }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium" style={{ color: pageColors.accent }}>{msg.recipient_count} destinatarios</span>
-                            <span className="text-xs" style={{ color: pageColors.textMuted }}>{formatDate(msg.created_at)}</span>
-                          </div>
-                          <p 
-                            className="text-sm font-medium leading-relaxed" 
-                            style={{ 
-                              color: pageColors.text,
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden'
-                            }}
-                          >
-                            {msg.subject}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </>
-            )}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* RIGHT PANEL - CHAT VIEW */}
+        {/* DETAIL VIEW - Slides in from right */}
         <div 
-          className="flex-1 flex flex-col rounded-2xl overflow-hidden" 
-          style={{ 
-            backgroundColor: pageColors.bgCard,
-            boxShadow: pageColors.shadow,
-            border: `1px solid ${pageColors.cardBorder}`,
-            maxHeight: 'calc(100vh - 200px)'
-          }}
+          className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${
+            isPanelOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+          style={{ backgroundColor: pageColors.bgPage }}
         >
-          {activeView === 'inbox' && selectedMessage ? (
+          {selectedMessage && (
             <>
+              {/* Detail Header */}
               <div 
-                className="px-3 py-2 flex items-center justify-between" 
+                className="px-4 py-3 flex items-center justify-between flex-shrink-0"
                 style={{ 
-                  backgroundColor: pageColors.bgCard, 
+                  backgroundColor: pageColors.bgCard,
                   borderBottom: `1px solid ${pageColors.cardBorder}`
                 }}
               >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div 
-                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" 
-                    style={{ 
-                      background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
-                    }}
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <button 
+                    onClick={handleClosePanel} 
+                    className="p-2 rounded-lg transition-all mr-2" 
+                    style={{ backgroundColor: pageColors.inputBg, color: pageColors.text }}
                   >
-                    <User size={14} className="text-white" />
+                    <ChevronLeft size={18} />
+                  </button>
+                  <div 
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" 
+                    style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)` }}
+                  >
+                    <User size={16} className="text-white" />
                   </div>
-                  <span className="font-bold text-sm truncate" style={{ color: pageColors.text, maxWidth: '150px' }}>{selectedMessage.sender_name || `Usuario #${selectedMessage.sender_id}`}</span>
-                  {(() => { const typeInfo = getTypeInfo(selectedMessage.type); const TypeIcon = typeInfo.icon; return <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium flex-shrink-0" style={{ backgroundColor: typeInfo.bgColor, color: typeInfo.color }}><TypeIcon size={10} />{typeInfo.label}</span>; })()}
-                  {(() => { const statusInfo = getStatusInfo(selectedMessage.status); return <span className="text-xs px-2 py-0.5 rounded font-medium flex-shrink-0" style={{ backgroundColor: statusInfo.bgColor, color: statusInfo.color }}>{statusInfo.label}</span>; })()}
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="font-bold text-sm truncate" style={{ color: pageColors.text }}>
+                      {selectedMessage.sender_name || `Usuario #${selectedMessage.sender_id}`}
+                    </span>
+                    {(() => { const typeInfo = getTypeInfo(selectedMessage.type); const TypeIcon = typeInfo.icon; return <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0" style={{ backgroundColor: typeInfo.bgColor, color: typeInfo.color }}><TypeIcon size={10} />{typeInfo.label}</span>; })()}
+                    {(() => { const statusInfo = getStatusInfo(selectedMessage.status); return <span className="text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0" style={{ backgroundColor: statusInfo.bgColor, color: statusInfo.color }}>{statusInfo.label}</span>; })()}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {selectedMessage.status !== 'resolved' && (
-                    <button 
-                      onClick={() => handleStatusChange(selectedMessage.id, 'resolved')} 
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
-                      style={{ 
-                        backgroundColor: pageColors.success, 
-                        color: '#fff',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.opacity = '0.9';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.opacity = '1';
-                      }}
-                    >
-                      <CheckCircle size={12} />Resolver
-                    </button>
-                  )}
                   <button 
                     onClick={() => handleStatusChange(selectedMessage.id, 'archived')} 
-                    className="p-1.5 rounded-lg transition-all duration-200" 
-                    style={{ 
-                      backgroundColor: pageColors.inputBg,
-                      border: `1px solid ${pageColors.cardBorder}`,
-                      color: pageColors.textMuted 
-                    }} 
+                    className="p-2 rounded-lg" 
+                    style={{ backgroundColor: pageColors.inputBg, border: `1px solid ${pageColors.cardBorder}`, color: pageColors.textMuted }} 
                     title="Archivar"
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = pageColors.hoverBg;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = pageColors.inputBg;
-                    }}
                   >
-                    <Archive size={14} />
+                    <Archive size={16} />
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-6" style={{ backgroundColor: pageColors.bgPage }}>
-                {/* Original message from user - LEFT SIDE */}
-                <div className="flex gap-4">
-                  <div 
-                    className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center" 
-                    style={{ 
-                      background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
-                    }}
-                  >
+              {/* Chat Content */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {/* Original message */}
+                <div className="flex gap-4 max-w-4xl">
+                  <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)` }}>
                     <User size={16} className="text-white" />
                   </div>
-                  <div className="flex-1 max-w-[80%]">
-                    <div 
-                      className="rounded-2xl rounded-tl-md p-4" 
-                      style={{ 
-                        backgroundColor: pageColors.bgCard, 
-                        border: `1px solid ${pageColors.cardBorder}`,
-                        boxShadow: pageColors.shadowSm
-                      }}
-                    >
+                  <div className="flex-1">
+                    <div className="rounded-2xl rounded-tl-sm p-4" style={{ backgroundColor: pageColors.bgCard, border: `1px solid ${pageColors.cardBorder}`, boxShadow: pageColors.shadowSm }}>
                       <div className="text-sm prose prose-sm max-w-none leading-relaxed" style={{ color: pageColors.text }} dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedMessage.message, selectedMessage.subject) }} />
                     </div>
                     <p className="text-xs mt-2 ml-3" style={{ color: pageColors.textMuted }}>{formatFullDate(selectedMessage.created_at)}</p>
                   </div>
                 </div>
 
-                {/* Related question card */}
+                {/* Question card */}
                 {selectedMessage.related_object_id && (
-                  <div 
-                    className="ml-14 p-4 rounded-xl" 
-                    style={{ 
-                      backgroundColor: pageColors.inputBg, 
-                      border: `1px solid ${pageColors.cardBorder}`,
-                      boxShadow: pageColors.shadowSm
-                    }}
-                  >
+                  <div className="ml-14 max-w-2xl p-4 rounded-xl" style={{ backgroundColor: pageColors.inputBg, border: `1px solid ${pageColors.cardBorder}` }}>
                     <div className="flex items-center gap-2 mb-3">
                       <FileQuestion size={16} style={{ color: pageColors.accent }} />
                       <QuestionPreview questionId={selectedMessage.related_object_id} pageColors={pageColors} />
                     </div>
                     {!showQuestionEditor ? (
-                      <button 
-                        onClick={() => setShowQuestionEditor(true)} 
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium w-full justify-center transition-all duration-200"
-                        style={{ 
-                          background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`,
-                          color: '#fff',
-                          boxShadow: '0 2px 8px rgba(59, 130, 246, 0.25)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-1px)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                        }}
-                      >
+                      <button onClick={() => setShowQuestionEditor(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium w-full justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`, color: '#fff' }}>
                         <Edit3 size={14} />Editar pregunta
                       </button>
                     ) : (
                       <div className="mt-3">
-                        <button onClick={() => setShowQuestionEditor(false)} className="flex items-center gap-1 text-sm mb-3 transition-colors hover:opacity-80" style={{ color: pageColors.textMuted }}><ChevronLeft size={16} />Cerrar editor</button>
+                        <button onClick={() => setShowQuestionEditor(false)} className="flex items-center gap-1 text-sm mb-3" style={{ color: pageColors.textMuted }}><ChevronLeft size={16} />Cerrar editor</button>
                         <div className="rounded-xl overflow-visible" style={{ border: `1px solid ${pageColors.cardBorder}` }}>
                           <QuestionEditorPanel questionId={selectedMessage.related_object_id} mode="edit" onSave={handleQuestionSave} onCancel={() => setShowQuestionEditor(false)} simpleMode={true} />
                         </div>
@@ -671,215 +769,45 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                   </div>
                 )}
 
-                {/* Loading replies indicator */}
-                {loadingReplies && (
-                  <div className="flex justify-center py-4">
-                    <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: `${pageColors.accent}30`, borderTopColor: pageColors.accent }} />
-                  </div>
-                )}
+                {/* Loading */}
+                {loadingReplies && <div className="flex justify-center py-4"><div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: `${pageColors.accent}30`, borderTopColor: pageColors.accent }} /></div>}
 
-                {/* Replies - RIGHT SIDE (admin messages) */}
+                {/* Replies */}
                 {replies.map((reply) => (
-                  <div key={reply.id} className="flex gap-4 justify-end">
+                  <div key={reply.id} className="flex gap-4 justify-end max-w-4xl ml-auto">
                     <div className="max-w-[80%]">
-                      <div 
-                        className="rounded-2xl rounded-tr-md p-4" 
-                        style={{ 
-                          background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`,
-                          color: '#fff',
-                          boxShadow: '0 2px 12px rgba(59, 130, 246, 0.2)'
-                        }}
-                      >
+                      <div className="rounded-2xl rounded-tr-sm p-4" style={{ background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`, color: '#fff', boxShadow: '0 2px 12px rgba(59, 130, 246, 0.2)' }}>
                         <div className="text-sm prose prose-sm prose-invert max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: reply.message }} />
                       </div>
                       <p className="text-xs mt-2 mr-3 text-right" style={{ color: pageColors.textMuted }}>
-                        {formatFullDate(reply.created_at)}
-                        {reply.sender_name && <span className="ml-1">• {reply.sender_name}</span>}
+                        {formatFullDate(reply.created_at)}{reply.sender_name && <span className="ml-1">• {reply.sender_name}</span>}
                       </p>
                     </div>
-                    <div 
-                      className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center" 
-                      style={{ 
-                        background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`
-                      }}
-                    >
+                    <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)` }}>
                       <Send size={14} className="text-white" />
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Reply Section */}
-              <div 
-                className="p-3" 
-                style={{ 
-                  backgroundColor: pageColors.bgCard, 
-                  borderTop: `1px solid ${pageColors.cardBorder}`
-                }}
-              >
-                <div className="flex gap-3">
-                  <textarea 
-                    value={replyText} 
-                    onChange={(e) => setReplyText(e.target.value)} 
-                    placeholder="Escribe tu respuesta..." 
-                    rows={2} 
-                    className="flex-1 px-3 py-2 text-sm rounded-lg resize-none focus:outline-none focus:ring-2 transition-all" 
-                    style={{ 
-                      backgroundColor: pageColors.inputBg, 
-                      border: `1px solid ${pageColors.cardBorder}`,
-                      color: pageColors.text,
-                      '--tw-ring-color': pageColors.accent 
-                    }} 
-                  />
-                  <button 
-                    onClick={handleSendReply} 
-                    disabled={!replyText.trim() || sendingReply} 
-                    className="px-4 py-2 rounded-lg flex items-center justify-center gap-2 font-medium text-sm disabled:opacity-50 transition-all duration-200"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
-                      color: '#fff', 
-                      minWidth: '90px',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!e.currentTarget.disabled) {
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                        e.currentTarget.style.boxShadow = `0 6px 20px ${pageColors.accentGlow}`;
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = `0 4px 12px ${pageColors.accentGlow}`;
-                    }}
-                  >
-                    {sendingReply ? (
-                      <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }} />
-                    ) : (
-                      <>
-                        <Send size={20} />
-                        <span>Enviar</span>
-                      </>
-                    )}
+              {/* Reply input */}
+              <div className="p-3 pb-16 flex-shrink-0" style={{ backgroundColor: pageColors.bgCard, borderTop: `1px solid ${pageColors.cardBorder}` }}>
+                <div className="flex gap-2 max-w-4xl mx-auto items-center">
+                  <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Escribe tu respuesta..." rows={1} className="flex-1 px-3 py-2 text-sm rounded-lg resize-none focus:outline-none focus:ring-2" style={{ backgroundColor: pageColors.inputBg, border: `1px solid ${pageColors.cardBorder}`, color: pageColors.text, '--tw-ring-color': pageColors.accent }} />
+                  <button onClick={handleSendReply} disabled={!replyText.trim() || sendingReply} className="px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium disabled:opacity-50" style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`, color: '#fff' }}>
+                    {sendingReply ? <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }} /> : <><Send size={14} /><span>Enviar</span></>}
                   </button>
                 </div>
               </div>
             </>
-          ) : activeView === 'sent' && selectedSentMessage ? (
-            <>
-              <div 
-                className="p-5" 
-                style={{ 
-                  backgroundColor: pageColors.bgCard, 
-                  borderBottom: `1px solid ${pageColors.cardBorder}`
-                }}
-              >
-                <div className="flex items-center gap-4">
-                  <div 
-                    className="w-12 h-12 rounded-xl flex items-center justify-center" 
-                    style={{ 
-                      background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`,
-                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)'
-                    }}
-                  >
-                    <Send size={20} className="text-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg" style={{ color: pageColors.text }}>{selectedSentMessage.subject}</h3>
-                    <div className="flex items-center gap-3 text-sm mt-1" style={{ color: pageColors.textMuted }}>
-                      <span className="flex items-center gap-1"><Users size={14} />{selectedSentMessage.recipient_count} destinatarios</span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1"><Eye size={14} />{selectedSentMessage.read_count} leídos</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6" style={{ backgroundColor: pageColors.bgPage }}>
-                <div className="flex gap-4 justify-end">
-                  <div className="max-w-[80%]">
-                    <div 
-                      className="rounded-2xl rounded-tr-md p-4" 
-                      style={{ 
-                        background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`,
-                        color: '#fff',
-                        boxShadow: '0 2px 12px rgba(59, 130, 246, 0.2)'
-                      }}
-                    >
-                      <div className="text-sm prose prose-sm prose-invert max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedSentMessage.message, selectedSentMessage.subject) }} />
-                    </div>
-                    <p className="text-xs mt-2 mr-3 text-right" style={{ color: pageColors.textMuted }}>{formatFullDate(selectedSentMessage.created_at)}</p>
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: pageColors.bgPage }}>
-              <div className="text-center">
-                <div 
-                  className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-4"
-                  style={{ backgroundColor: pageColors.hoverBg }}
-                >
-                  <Mail size={36} style={{ color: pageColors.textMuted, opacity: 0.5 }} />
-                </div>
-                <p className="text-base font-medium" style={{ color: pageColors.textMuted }}>Selecciona una conversación</p>
-                <p className="text-sm mt-1" style={{ color: pageColors.textMuted, opacity: 0.7 }}>Elige un mensaje de la lista para ver su contenido</p>
-              </div>
-            </div>
           )}
         </div>
-      </div>
-
-      {/* FLOATING ACTION BUTTONS - Bottom Right */}
-      <div className="fixed bottom-6 right-6 flex items-center gap-3 z-50">
-        {/* Refresh Button */}
-        <button 
-          onClick={handleRefresh} 
-          disabled={loading || sentLoading}
-          className="flex items-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 focus:outline-none shadow-lg"
-          style={{ 
-            backgroundColor: pageColors.bgCard, 
-            border: `1px solid ${pageColors.cardBorder}`,
-            color: pageColors.text,
-            boxShadow: isDarkMode ? '0 4px 16px rgba(0,0,0,0.4)' : '0 4px 16px rgba(0,0,0,0.15)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = isDarkMode ? '0 6px 20px rgba(0,0,0,0.5)' : '0 6px 20px rgba(0,0,0,0.2)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = isDarkMode ? '0 4px 16px rgba(0,0,0,0.4)' : '0 4px 16px rgba(0,0,0,0.15)';
-          }}
-        >
-          <RefreshCw size={18} className={loading || sentLoading ? 'animate-spin' : ''} />
-          <span className="text-sm font-medium">Actualizar</span>
-        </button>
-        
-        {/* New Message Button */}
-        <button 
-          onClick={() => setIsSendModalOpen(true)} 
-          className="flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all duration-200 focus:outline-none shadow-lg"
-          style={{ 
-            background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`,
-            color: '#fff',
-            boxShadow: `0 4px 16px ${pageColors.accentGlow}`
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = `0 6px 20px ${pageColors.accentGlow}`;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = `0 4px 16px ${pageColors.accentGlow}`;
-          }}
-        >
-          <Plus size={18} />
-          <span>Nuevo mensaje</span>
-        </button>
       </div>
 
       <SendMessageModal 
         isOpen={isSendModalOpen} 
         onClose={() => setIsSendModalOpen(false)} 
-        onMessageSent={() => { handleRefresh(); if (sentMessages.length > 0) fetchSentMessages(); }}
+        onMessageSent={() => { handleRefresh(); }}
         simplifiedMode={courseMode}
         courseId={courseId}
       />

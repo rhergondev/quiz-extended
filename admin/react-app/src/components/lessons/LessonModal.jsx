@@ -378,17 +378,19 @@ const LessonModal = ({
               type="button"
               onClick={onClose}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
+                padding: '6px',
+                borderRadius: '6px',
                 border: 'none',
-                backgroundColor: pageColors.hoverBg,
+                background: 'transparent',
                 color: pageColors.textMuted,
                 cursor: 'pointer',
+                transition: 'opacity 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
             >
               <X size={18} />
             </button>

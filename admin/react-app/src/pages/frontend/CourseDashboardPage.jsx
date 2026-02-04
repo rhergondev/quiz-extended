@@ -5,10 +5,10 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useScoreFormat } from '../../contexts/ScoreFormatContext';
 import useCourse from '../../hooks/useCourse';
 import CoursePageTemplate from '../../components/course/CoursePageTemplate';
-import { getCourseProgress } from '../../api/services/studentProgressService';
 import { getMyRankingStatus } from '../../api/services/courseRankingService';
 import { getCalendarNotes } from '../../api/services/calendarNotesService';
-import { ClipboardList, FileText, Video, Trophy, TrendingUp, Target, Award, Users, ToggleLeft, ToggleRight, Calendar, ExternalLink } from 'lucide-react';
+import { getCourseLessons } from '../../api/services/courseLessonService';
+import { ClipboardList, FileText, Video, Trophy, TrendingUp, Award, Users, ToggleLeft, ToggleRight, Calendar, ExternalLink } from 'lucide-react';
 
 const CourseDashboardPage = () => {
   const { t } = useTranslation();
@@ -18,12 +18,13 @@ const CourseDashboardPage = () => {
   
   const { course, loading } = useCourse(courseId);
   const courseName = course?.title?.rendered || course?.title || t('courses.title');
-  const [courseProgress, setCourseProgress] = useState(null);
   const [rankingStatus, setRankingStatus] = useState(null);
   const [rankingLoading, setRankingLoading] = useState(true);
   const [showWithRisk, setShowWithRisk] = useState(false);
   const [nextLiveClass, setNextLiveClass] = useState(null);
   const [liveClassLoading, setLiveClassLoading] = useState(true);
+  const [lessons, setLessons] = useState([]);
+  const [lessonsLoading, setLessonsLoading] = useState(true);
 
   // Dark mode aware colors (same pattern as SupportMaterialPage)
   const pageColors = {
@@ -39,9 +40,7 @@ const CourseDashboardPage = () => {
 
   useEffect(() => {
     if (courseId) {
-      getCourseProgress(courseId)
-        .then(progress => setCourseProgress(progress))
-        .catch(error => console.error('Error loading course progress:', error));
+      const courseIdInt = parseInt(courseId, 10);
       
       // Fetch ranking status
       setRankingLoading(true);
@@ -73,8 +72,44 @@ const CourseDashboardPage = () => {
           console.error('Error loading live classes:', error);
           setLiveClassLoading(false);
         });
+      
+      // Fetch lessons for content summary
+      setLessonsLoading(true);
+      getCourseLessons(courseIdInt, { perPage: 100 })
+        .then(result => {
+          console.log('📚 Dashboard lessons result:', result);
+          setLessons(result.data || []);
+          setLessonsLoading(false);
+        })
+        .catch(error => {
+          console.error('Error loading lessons:', error);
+          setLessonsLoading(false);
+        });
     }
   }, [courseId]);
+
+  // Calculate steps by type from lessons
+  const stepsByType = useMemo(() => {
+    const types = { quiz: { total: 0 }, text: { total: 0 }, pdf: { total: 0 }, video: { total: 0 } };
+    
+    console.log('📊 Calculating stepsByType from lessons:', lessons);
+    
+    lessons.forEach(lesson => {
+      const steps = lesson.meta?._lesson_steps || [];
+      console.log(`  📖 Lesson ${lesson.id} has ${steps.length} steps:`, steps);
+      steps.forEach(step => {
+        if (step.type) {
+          if (!types[step.type]) {
+            types[step.type] = { total: 0 };
+          }
+          types[step.type].total += 1;
+        }
+      });
+    });
+    
+    console.log('📊 Final stepsByType:', types);
+    return types;
+  }, [lessons]);
 
   // Componente de Donut Chart mejorado
   const DonutChart = ({ total, icon: Icon, label, color }) => {
@@ -142,11 +177,6 @@ const CourseDashboardPage = () => {
     </div>
   );
 
-  const stepsByType = courseProgress?.steps_by_type || {};
-  const totalSteps = courseProgress?.total_steps || 0;
-  const completedSteps = courseProgress?.completed_steps || 0;
-  const overallProgress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
-
   // Calcular qué tipos de contenido están disponibles
   const availableContentTypes = useMemo(() => {
     const types = [];
@@ -209,43 +239,6 @@ const CourseDashboardPage = () => {
       sectionName={t('courses.dashboard')}
     >
       <div className="px-4 sm:px-6 lg:px-8 py-6 pb-24 space-y-6">
-        {/* Progress Overview Bar */}
-        <div 
-          className="rounded-xl p-4 border"
-          style={{ 
-            backgroundColor: pageColors.cardBg,
-            borderColor: pageColors.border
-          }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Target size={18} style={{ color: pageColors.primary }} />
-              <span className="font-semibold" style={{ color: pageColors.text }}>
-                {t('courses.overallProgress')}
-              </span>
-            </div>
-            <span className="text-2xl font-bold" style={{ color: pageColors.text }}>
-              {overallProgress}%
-            </span>
-          </div>
-          <div 
-            className="w-full h-3 rounded-full overflow-hidden"
-            style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : `${pageColors.primary}15` }}
-          >
-            <div 
-              className="h-full rounded-full transition-all duration-500"
-              style={{ 
-                width: `${overallProgress}%`,
-                backgroundColor: pageColors.primary
-              }}
-            />
-          </div>
-          <div className="flex justify-between mt-2 text-xs" style={{ color: pageColors.textMuted }}>
-            <span>{completedSteps} {t('courses.completed')}</span>
-            <span>{totalSteps - completedSteps} {t('courses.remaining')}</span>
-          </div>
-        </div>
-
         {/* Main Grid: Ranking + Content Progress + Next Live Class */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Ranking Card */}

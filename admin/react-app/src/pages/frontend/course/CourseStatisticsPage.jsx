@@ -6,7 +6,7 @@ import { useScoreFormat } from '../../../contexts/ScoreFormatContext';
 import useCourse from '../../../hooks/useCourse';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import ScoreEvolutionChart from '../../../components/statistics/ScoreEvolutionChart';
-import CourseRankingModal from '../../../components/frontend/CourseRankingModal';
+import { CourseRankingProvider, CourseRankingSlidePanel } from '../../../components/frontend/CourseRankingPanel';
 import { 
   getPerformanceByLesson, 
   getWeakSpots, 
@@ -61,8 +61,8 @@ const CourseStatisticsPage = () => {
     primary: getColor('primary', '#3b82f6'),
   };
 
-  // State for ranking modal
-  const [showRankingModal, setShowRankingModal] = useState(false);
+  // State for ranking panel
+  const [isRankingOpen, setIsRankingOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [performanceByLesson, setPerformanceByLesson] = useState([]);
@@ -118,7 +118,13 @@ const CourseStatisticsPage = () => {
     const refetchQuestionStats = async () => {
       if (!courseId) return;
       try {
+        console.log('🔍 Refetching Question Stats with filters:', {
+          courseId,
+          lessonId: selectedLessonFilter,
+          difficulty: selectedDifficulty
+        });
         const questionStatsData = await getUserQuestionStats(courseId, selectedLessonFilter, selectedDifficulty);
+        console.log('📊 Question Stats Response (filtered):', questionStatsData);
         setQuestionStats(questionStatsData?.data || questionStatsData || null);
       } catch (error) {
         console.error('❌ Error refetching question stats:', error);
@@ -441,7 +447,7 @@ const CourseStatisticsPage = () => {
                       backgroundColor: pageColors.cardBg,
                       borderColor: pageColors.border
                     }}
-                    onClick={() => setShowRankingModal(true)}
+                    onClick={() => setIsRankingOpen(true)}
                   >
                     <div 
                       className="px-3 py-1.5 flex items-center justify-between"
@@ -1128,12 +1134,16 @@ const CourseStatisticsPage = () => {
         </div>
       </div>
 
-      {/* Modal de Ranking */}
-      <CourseRankingModal
-        isOpen={showRankingModal}
-        onClose={() => setShowRankingModal(false)}
+      {/* Ranking Panel - usando el mismo componente que TestsPage */}
+      <CourseRankingProvider
         courseId={courseId}
-      />
+        courseName={courseName}
+        isOpen={isRankingOpen}
+        onOpen={() => setIsRankingOpen(true)}
+        onClose={() => setIsRankingOpen(false)}
+      >
+        <CourseRankingSlidePanel />
+      </CourseRankingProvider>
     </CoursePageTemplate>
   );
 };

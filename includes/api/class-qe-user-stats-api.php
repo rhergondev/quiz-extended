@@ -195,12 +195,20 @@ class QE_User_Stats_API extends QE_API_Base
             }
         }
 
-        // Difficulty filter - join with postmeta to filter by question difficulty
+        // Difficulty filter - use WHERE EXISTS instead of INNER JOIN
+        // This avoids eliminating questions without the meta field
         $difficulty_join = "";
         $difficulty_filter = "";
         if ($difficulty && in_array($difficulty, ['easy', 'medium', 'hard'])) {
-            $difficulty_join = "INNER JOIN {$wpdb->postmeta} pm ON s.question_id = pm.post_id AND pm.meta_key = '_difficulty_level'";
-            $difficulty_filter = $wpdb->prepare("AND pm.meta_value = %s", $difficulty);
+            $difficulty_filter = $wpdb->prepare(
+                "AND EXISTS (
+                    SELECT 1 FROM {$wpdb->postmeta} pm 
+                    WHERE pm.post_id = s.question_id 
+                    AND pm.meta_key = '_difficulty_level' 
+                    AND pm.meta_value = %s
+                )",
+                $difficulty
+            );
         }
 
         // USER STATS - Simple aggregation from pre-calculated table
@@ -215,7 +223,6 @@ class QE_User_Stats_API extends QE_API_Base
                 SUM(CASE WHEN s.last_answer_status = 'incorrect_with_risk' THEN 1 ELSE 0 END) as incorrect_with_risk,
                 SUM(CASE WHEN s.last_answer_status = 'incorrect_without_risk' THEN 1 ELSE 0 END) as incorrect_without_risk
             FROM {$stats_table} s
-            {$difficulty_join}
             WHERE s.user_id = %d {$course_filter} {$quiz_filter} {$difficulty_filter}
         ", $user_id));
 
@@ -232,7 +239,6 @@ class QE_User_Stats_API extends QE_API_Base
                 SUM(CASE WHEN s.last_answer_status = 'incorrect_with_risk' THEN 1 ELSE 0 END) as global_incorrect_with_risk,
                 SUM(CASE WHEN s.last_answer_status = 'incorrect_without_risk' THEN 1 ELSE 0 END) as global_incorrect_without_risk
             FROM {$stats_table} s
-            {$difficulty_join}
             WHERE 1=1 {$course_filter} {$quiz_filter} {$difficulty_filter}
         ");
 
@@ -264,16 +270,31 @@ class QE_User_Stats_API extends QE_API_Base
             }
         }
 
-        // Difficulty filter
+        // Difficulty filter - use WHERE EXISTS instead of INNER JOIN  
+        // This avoids eliminating questions without the meta field
         $user_difficulty_join = "";
         $user_difficulty_filter = "";
         $global_difficulty_join = "";
         $global_difficulty_filter = "";
         if ($difficulty && in_array($difficulty, ['easy', 'medium', 'hard'])) {
-            $user_difficulty_join = "INNER JOIN {$wpdb->postmeta} pm ON a.question_id = pm.post_id AND pm.meta_key = '_difficulty_level'";
-            $user_difficulty_filter = $wpdb->prepare("AND pm.meta_value = %s", $difficulty);
-            $global_difficulty_join = "INNER JOIN {$wpdb->postmeta} pm2 ON a.question_id = pm2.post_id AND pm2.meta_key = '_difficulty_level'";
-            $global_difficulty_filter = $wpdb->prepare("AND pm2.meta_value = %s", $difficulty);
+            $user_difficulty_filter = $wpdb->prepare(
+                "AND EXISTS (
+                    SELECT 1 FROM {$wpdb->postmeta} pm 
+                    WHERE pm.post_id = a.question_id 
+                    AND pm.meta_key = '_difficulty_level' 
+                    AND pm.meta_value = %s
+                )",
+                $difficulty
+            );
+            $global_difficulty_filter = $wpdb->prepare(
+                "AND EXISTS (
+                    SELECT 1 FROM {$wpdb->postmeta} pm2 
+                    WHERE pm2.post_id = a.question_id 
+                    AND pm2.meta_key = '_difficulty_level' 
+                    AND pm2.meta_value = %s
+                )",
+                $difficulty
+            );
         }
 
         // USER STATS - Get latest answer per question using subquery
@@ -292,7 +313,6 @@ class QE_User_Stats_API extends QE_API_Base
                 SELECT a.question_id, a.is_correct, a.is_risked, a.answer_given
                 FROM {$answers_table} a
                 INNER JOIN {$attempts_table} att ON a.attempt_id = att.attempt_id
-                {$user_difficulty_join}
                 WHERE att.user_id = %d 
                   AND att.status = 'completed'
                   {$user_course_filter}
@@ -325,7 +345,6 @@ class QE_User_Stats_API extends QE_API_Base
                 SUM(CASE WHEN a.is_correct = 0 AND a.answer_given IS NOT NULL AND a.answer_given != '' AND a.is_risked = 0 THEN 1 ELSE 0 END) as global_incorrect_without_risk
             FROM {$answers_table} a
             INNER JOIN {$attempts_table} att2 ON a.attempt_id = att2.attempt_id
-            {$global_difficulty_join}
             WHERE att2.status = 'completed' {$global_course_filter} {$global_quiz_filter} {$global_difficulty_filter}
         ");
 

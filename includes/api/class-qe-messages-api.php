@@ -200,6 +200,19 @@ class QE_Messages_API extends QE_API_Base
         );
 
         // ============================================================
+        // COURSES WITH MESSAGES - Get courses that have messages
+        // ============================================================
+
+        $this->register_secure_route(
+            '/messages/courses',
+            WP_REST_Server::READABLE,
+            'get_courses_with_messages',
+            [
+                'permission_callback' => [$this, 'check_admin_permission']
+            ]
+        );
+
+        // ============================================================
         // GET REPLIES - Get all replies for a message thread
         // ============================================================
 
@@ -282,7 +295,8 @@ class QE_Messages_API extends QE_API_Base
                 'feedback_type' => $feedback_type,
                 'question_id' => $question_id,
                 'user_id' => $user_id,
-                'message' => $message
+                'message' => $message,
+                'message_id' => $message_id  // Para deep linking en el email
             ]);
 
             $this->log_info('Question feedback submitted', [
@@ -912,6 +926,7 @@ class QE_Messages_API extends QE_API_Base
             $search = $request->get_param('search');
             $status = $request->get_param('status');
             $type = $request->get_param('type');
+            $course_id = $request->get_param('course_id');
             $orderby = $request->get_param('orderby') ?: 'created_at';
             $order = strtoupper($request->get_param('order') ?: 'DESC');
 
@@ -935,6 +950,18 @@ class QE_Messages_API extends QE_API_Base
             if ($type) {
                 $where[] = 'type = %s';
                 $params[] = $type;
+            }
+
+            // Filter by course - get question IDs that belong to this course
+            if ($course_id) {
+                $course_question_ids = $this->get_question_ids_for_course((int) $course_id);
+                if (!empty($course_question_ids)) {
+                    $ids_placeholder = implode(',', array_map('intval', $course_question_ids));
+                    $where[] = "related_object_id IN ({$ids_placeholder})";
+                } else {
+                    // No questions for this course, return empty
+                    return $this->success_response(['data' => []]);
+                }
             }
 
             $where_clause = implode(' AND ', $where);
@@ -1078,6 +1105,188 @@ class QE_Messages_API extends QE_API_Base
         } catch (Exception $e) {
             $this->log_error('Exception in get_sent_messages', ['message' => $e->getMessage()]);
             return $this->error_response('internal_error', 'Error al obtener los mensajes enviados.', 500);
+        }
+    }
+
+    // ============================================================
+    // GET COURSES WITH MESSAGES (ADMIN)
+    // ============================================================
+
+    /**
+     * Get list of courses that have associated messages
+     * This helps admins filter messages by course
+     */
+    public function get_courses_with_messages($request)
+    {
+        try {
+            global $wpdb;
+            $messages_table = $this->get_table('messages');
+
+            // Get distinct question IDs from messages (related_object_id)
+            // Then get the quiz/lesson/course hierarchy
+            $query = "
+                SELECT DISTINCT m.related_object_id as question_id
+                FROM {$messages_table} m
+                WHERE m.related_object_id > 0 
+                AND m.type NOT LIKE 'admin_%'
+                AND m.type IN ('question_feedback', 'question_challenge')
+            ";
+
+            $question_ids = $wpdb->get_col($query);
+
+            if (empty($question_ids)) {
+                return $this->success_response([
+                    'courses' => [],
+                    'total_messages' => 0
+                ]);
+            }
+
+            // For each question, find its course via quiz -> lesson -> course
+            $courses_data = [];
+            $processed_questions = [];
+
+            foreach ($question_ids as $question_id) {
+                if (isset($processed_questions[$question_id]))
+                    continue;
+                $processed_questions[$question_id] = true;
+
+                // Get the quiz this question belongs to
+                $quiz_ids = get_post_meta($question_id, '_qe_quiz_id', false);
+                if (empty($quiz_ids))
+                    continue;
+
+                foreach ($quiz_ids as $quiz_id) {
+                    // Get course from quiz meta
+                    $course_id = get_post_meta($quiz_id, '_qe_course_id', true);
+
+                    if (!$course_id) {
+                        // Try to get course via lesson
+                        $lesson_id = get_post_meta($quiz_id, '_qe_lesson_id', true);
+                        if ($lesson_id) {
+                            $course_id = get_post_meta($lesson_id, '_qe_course_id', true);
+                        }
+                    }
+
+                    if ($course_id) {
+                        if (!isset($courses_data[$course_id])) {
+                            $course = get_post($course_id);
+                            if ($course && $course->post_type === 'qe_course') {
+                                $courses_data[$course_id] = [
+                                    'id' => (int) $course_id,
+                                    'title' => $course->post_title,
+                                    'message_count' => 0,
+                                    'unread_count' => 0
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Now count messages per course
+            foreach ($courses_data as $course_id => &$course_info) {
+                // Get all quizzes for this course
+                $quiz_ids = get_posts([
+                    'post_type' => 'qe_quiz',
+                    'posts_per_page' => -1,
+                    'fields' => 'ids',
+                    'meta_query' => [
+                        [
+                            'key' => '_qe_course_id',
+                            'value' => $course_id
+                        ]
+                    ]
+                ]);
+
+                // Also get quizzes via lessons
+                $lesson_ids = get_posts([
+                    'post_type' => 'qe_lesson',
+                    'posts_per_page' => -1,
+                    'fields' => 'ids',
+                    'meta_query' => [
+                        [
+                            'key' => '_qe_course_id',
+                            'value' => $course_id
+                        ]
+                    ]
+                ]);
+
+                foreach ($lesson_ids as $lesson_id) {
+                    $lesson_quizzes = get_posts([
+                        'post_type' => 'qe_quiz',
+                        'posts_per_page' => -1,
+                        'fields' => 'ids',
+                        'meta_query' => [
+                            [
+                                'key' => '_qe_lesson_id',
+                                'value' => $lesson_id
+                            ]
+                        ]
+                    ]);
+                    $quiz_ids = array_merge($quiz_ids, $lesson_quizzes);
+                }
+
+                $quiz_ids = array_unique($quiz_ids);
+
+                if (empty($quiz_ids))
+                    continue;
+
+                // Get all question IDs for these quizzes
+                $all_question_ids = [];
+                foreach ($quiz_ids as $quiz_id) {
+                    $question_ids_for_quiz = get_posts([
+                        'post_type' => 'qe_question',
+                        'posts_per_page' => -1,
+                        'fields' => 'ids',
+                        'meta_query' => [
+                            [
+                                'key' => '_qe_quiz_id',
+                                'value' => $quiz_id
+                            ]
+                        ]
+                    ]);
+                    $all_question_ids = array_merge($all_question_ids, $question_ids_for_quiz);
+                }
+
+                $all_question_ids = array_unique($all_question_ids);
+
+                if (empty($all_question_ids))
+                    continue;
+
+                // Count messages for these questions
+                $ids_placeholder = implode(',', array_map('intval', $all_question_ids));
+                $count_query = $wpdb->prepare(
+                    "SELECT COUNT(*) as total, SUM(CASE WHEN status = 'unread' THEN 1 ELSE 0 END) as unread
+                     FROM {$messages_table}
+                     WHERE related_object_id IN ({$ids_placeholder})
+                     AND type NOT LIKE 'admin_%%'
+                     AND type IN ('question_feedback', 'question_challenge')"
+                );
+
+                $counts = $wpdb->get_row($count_query);
+                $course_info['message_count'] = (int) ($counts->total ?? 0);
+                $course_info['unread_count'] = (int) ($counts->unread ?? 0);
+            }
+            unset($course_info);
+
+            // Filter out courses with 0 messages and sort by unread count desc
+            $courses = array_values(array_filter($courses_data, fn($c) => $c['message_count'] > 0));
+            usort($courses, fn($a, $b) => $b['unread_count'] <=> $a['unread_count']);
+
+            // Get total message count
+            $total_query = $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$messages_table} WHERE type NOT LIKE 'admin_%%' AND type IN ('question_feedback', 'question_challenge')"
+            );
+            $total_messages = (int) $wpdb->get_var($total_query);
+
+            return $this->success_response([
+                'courses' => $courses,
+                'total_messages' => $total_messages
+            ]);
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in get_courses_with_messages', ['message' => $e->getMessage()]);
+            return $this->error_response('internal_error', 'Error al obtener los cursos.', 500);
         }
     }
 
@@ -1361,6 +1570,85 @@ class QE_Messages_API extends QE_API_Base
             $this->log_error('Exception in batch_update_messages', ['message' => $e->getMessage()]);
             return $this->error_response('internal_error', 'Error al procesar la operación batch.', 500);
         }
+    }
+
+    // ============================================================
+    // HELPER: Get question IDs for a course
+    // ============================================================
+
+    /**
+     * Get all question IDs that belong to a specific course
+     * 
+     * @param int $course_id
+     * @return array Array of question IDs
+     */
+    private function get_question_ids_for_course($course_id)
+    {
+        // Get all quizzes for this course (directly or via lessons)
+        $quiz_ids = get_posts([
+            'post_type' => 'qe_quiz',
+            'posts_per_page' => -1,
+            'fields' => 'ids',
+            'meta_query' => [
+                [
+                    'key' => '_qe_course_id',
+                    'value' => $course_id
+                ]
+            ]
+        ]);
+
+        // Also get quizzes via lessons
+        $lesson_ids = get_posts([
+            'post_type' => 'qe_lesson',
+            'posts_per_page' => -1,
+            'fields' => 'ids',
+            'meta_query' => [
+                [
+                    'key' => '_qe_course_id',
+                    'value' => $course_id
+                ]
+            ]
+        ]);
+
+        foreach ($lesson_ids as $lesson_id) {
+            $lesson_quizzes = get_posts([
+                'post_type' => 'qe_quiz',
+                'posts_per_page' => -1,
+                'fields' => 'ids',
+                'meta_query' => [
+                    [
+                        'key' => '_qe_lesson_id',
+                        'value' => $lesson_id
+                    ]
+                ]
+            ]);
+            $quiz_ids = array_merge($quiz_ids, $lesson_quizzes);
+        }
+
+        $quiz_ids = array_unique($quiz_ids);
+
+        if (empty($quiz_ids)) {
+            return [];
+        }
+
+        // Get all question IDs for these quizzes
+        $question_ids = [];
+        foreach ($quiz_ids as $quiz_id) {
+            $questions = get_posts([
+                'post_type' => 'qe_question',
+                'posts_per_page' => -1,
+                'fields' => 'ids',
+                'meta_query' => [
+                    [
+                        'key' => '_qe_quiz_id',
+                        'value' => $quiz_id
+                    ]
+                ]
+            ]);
+            $question_ids = array_merge($question_ids, $questions);
+        }
+
+        return array_unique($question_ids);
     }
 }
 
