@@ -115,6 +115,15 @@ export const transformCourseDataForApi = (courseData) => {
   };
 
   // ============================================================
+  // MENU ORDER (WordPress standard, root level - for sorting)
+  // ============================================================
+  
+  if (courseData.menu_order !== undefined) {
+    const menuOrder = parseInt(courseData.menu_order);
+    transformed.menu_order = isNaN(menuOrder) ? 0 : menuOrder;
+  }
+
+  // ============================================================
   // FEATURED MEDIA (WordPress standard, root level)
   // ============================================================
   
@@ -363,6 +372,7 @@ export const sanitizeCourseData = (courseData) => {
     modified: courseData.modified || '',
     slug: courseData.slug || '',
     author: courseData.author || 0,
+    menu_order: courseData.menu_order || 0, // 🔥 Orden del curso
 
     // Featured media
     featured_media: courseData.featured_media || 0,

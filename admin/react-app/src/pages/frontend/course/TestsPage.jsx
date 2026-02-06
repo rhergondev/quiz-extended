@@ -12,6 +12,7 @@ import useQuizAttemptDetails from '../../../hooks/useQuizAttemptDetails';
 import useLessons from '../../../hooks/useLessons';
 import useCourses from '../../../hooks/useCourses';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
+import { updateLessonOrderMap } from '../../../api/services/courseService';
 import { getQuizzes } from '../../../api/services/quizService';
 import { isUserAdmin } from '../../../utils/userUtils';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
@@ -20,7 +21,7 @@ import QuizResults from '../../../components/frontend/QuizResults';
 import LessonModal from '../../../components/lessons/LessonModal';
 import UnifiedTestModal from '../../../components/tests/UnifiedTestModal';
 import { CourseRankingProvider, CourseRankingTrigger, CourseRankingSlidePanel } from '../../../components/frontend/CourseRankingPanel';
-import { ChevronDown, ChevronUp, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, XCircle, Loader, Trophy, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, XCircle, Loader, Trophy, Plus, Edit2, Trash2, AlertTriangle, ArrowUpDown } from 'lucide-react';
 
 const TestsPage = () => {
   const { t } = useTranslation();
@@ -102,6 +103,11 @@ const TestsPage = () => {
     isOpen: false,
     lesson: null
   });
+
+  // Ordering mode state
+  const [isOrderingMode, setIsOrderingMode] = useState(false);
+  const [orderingLessons, setOrderingLessons] = useState([]);
+  const [isUpdatingOrder, setIsUpdatingOrder] = useState(false);
 
   // Load quizzes for test modal
   useEffect(() => {
@@ -767,6 +773,56 @@ const TestsPage = () => {
     }
   };
 
+  // Ordering mode handlers
+  const handleEnterOrderingMode = () => {
+    setOrderingLessons([...lessons]);
+    setIsOrderingMode(true);
+  };
+
+  const handleExitOrderingMode = () => {
+    setIsOrderingMode(false);
+    setOrderingLessons([]);
+  };
+
+  const handleMoveLessonUp = (index) => {
+    if (index === 0) return;
+    const newLessons = [...orderingLessons];
+    [newLessons[index - 1], newLessons[index]] = [newLessons[index], newLessons[index - 1]];
+    setOrderingLessons(newLessons);
+  };
+
+  const handleMoveLessonDown = (index) => {
+    if (index >= orderingLessons.length - 1) return;
+    const newLessons = [...orderingLessons];
+    [newLessons[index], newLessons[index + 1]] = [newLessons[index + 1], newLessons[index]];
+    setOrderingLessons(newLessons);
+  };
+
+  const handleSaveOrder = async () => {
+    setIsUpdatingOrder(true);
+    try {
+      const lessonOrderMap = {};
+      orderingLessons.forEach((lesson, index) => {
+        lessonOrderMap[lesson.id.toString()] = index + 1;
+      });
+
+      await updateLessonOrderMap(parseInt(courseId, 10), lessonOrderMap);
+      toast.success(t('tests.orderSaved'));
+      
+      setLessons(orderingLessons);
+      setIsOrderingMode(false);
+      setOrderingLessons([]);
+    } catch (error) {
+      console.error('Error saving lesson order:', error);
+      toast.error(t('tests.errors.saveOrder'));
+    } finally {
+      setIsUpdatingOrder(false);
+    }
+  };
+
+  // Use orderingLessons when in ordering mode, otherwise use lessons
+  const displayLessons = isOrderingMode ? orderingLessons : lessons;
+
   const currentIndex = getCurrentStepIndex();
   const hasPrevious = currentIndex > 0;
   const hasNext = currentIndex < allTestSteps.length - 1;
@@ -797,26 +853,96 @@ const TestsPage = () => {
             }`}
           >
             <div className="h-full overflow-y-auto">
-              {/* Admin: Create Theme Button */}
+              {/* Admin: Create Theme Button + Order Themes Button */}
               {userIsAdmin && (
-                <div className="max-w-5xl mx-auto px-4 pt-4 pb-2">
-                  <button
-                    onClick={handleCreateLesson}
-                    className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 hover:shadow-lg"
-                    style={{
-                      backgroundColor: pageColors.accent,
-                      color: '#ffffff',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                  >
-                    <Plus size={18} />
-                    {t('tests.createTheme')}
-                  </button>
+                <div className="max-w-5xl mx-auto px-4 pt-4 pb-2 flex items-center gap-3">
+                  {!isOrderingMode ? (
+                    <>
+                      <button
+                        onClick={handleCreateLesson}
+                        className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 hover:shadow-lg"
+                        style={{
+                          backgroundColor: pageColors.accent,
+                          color: '#ffffff',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        <Plus size={18} />
+                        {t('tests.createTheme')}
+                      </button>
+                      {lessons.length > 1 && (
+                        <button
+                          onClick={handleEnterOrderingMode}
+                          className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 hover:shadow-lg border"
+                          style={{
+                            backgroundColor: 'transparent',
+                            color: pageColors.text,
+                            borderColor: getColor('borderColor', '#e5e7eb'),
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.backgroundColor = pageColors.accent + '15';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
+                        >
+                          <ArrowUpDown size={18} />
+                          {t('tests.orderThemes')}
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={handleSaveOrder}
+                        disabled={isUpdatingOrder}
+                        className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 hover:shadow-lg disabled:opacity-50"
+                        style={{
+                          backgroundColor: '#22c55e',
+                          color: '#ffffff',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isUpdatingOrder) e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        <Check size={18} />
+                        {isUpdatingOrder ? t('common.saving') : t('tests.saveOrder')}
+                      </button>
+                      <button
+                        onClick={handleExitOrderingMode}
+                        disabled={isUpdatingOrder}
+                        className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 hover:shadow-lg border disabled:opacity-50"
+                        style={{
+                          backgroundColor: 'transparent',
+                          color: pageColors.text,
+                          borderColor: getColor('borderColor', '#e5e7eb'),
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isUpdatingOrder) {
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <X size={18} />
+                        {t('common.cancel')}
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -852,10 +978,12 @@ const TestsPage = () => {
                     borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
                   }}
                 >
-                  {lessons.map((lesson, lessonIndex) => {
+                  {displayLessons.map((lesson, lessonIndex) => {
                     const isExpanded = expandedLessons.has(lesson.id);
                     const testsCount = lesson.quizSteps.length;
                     const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
+                    const isFirst = lessonIndex === 0;
+                    const isLast = lessonIndex === displayLessons.length - 1;
 
                     return (
                       <div key={lesson.id} id={`lesson-${lesson.id}`}>
@@ -867,6 +995,39 @@ const TestsPage = () => {
                           }}
                         >
                           <div className="flex items-center gap-3 overflow-hidden">
+                            {/* Ordering arrows - only show in ordering mode */}
+                            {isOrderingMode && (
+                              <div className="flex flex-col gap-0.5">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMoveLessonUp(lessonIndex);
+                                  }}
+                                  disabled={isFirst || isUpdatingOrder}
+                                  className="p-0.5 rounded transition-all disabled:opacity-30"
+                                  style={{ 
+                                    color: isFirst ? pageColors.textMuted : pageColors.accent 
+                                  }}
+                                  title={t('tests.moveUp')}
+                                >
+                                  <ChevronUp size={16} />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMoveLessonDown(lessonIndex);
+                                  }}
+                                  disabled={isLast || isUpdatingOrder}
+                                  className="p-0.5 rounded transition-all disabled:opacity-30"
+                                  style={{ 
+                                    color: isLast ? pageColors.textMuted : pageColors.accent 
+                                  }}
+                                  title={t('tests.moveDown')}
+                                >
+                                  <ChevronDown size={16} />
+                                </button>
+                              </div>
+                            )}
                             <ClipboardList size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
                             <span className="font-semibold text-left truncate" style={{ color: pageColors.text }}>
                               {lessonTitle}
@@ -874,25 +1035,15 @@ const TestsPage = () => {
                           </div>
                           
                           {/* Badge count + Expand/Collapse Button + Admin Actions */}
-                          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                            <span 
-                              className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full"
-                              style={{ 
-                                backgroundColor: pageColors.hoverBg,
-                                color: pageColors.text
-                              }}
-                            >
-                              {testsCount} <span className="hidden sm:inline">{testsCount === 1 ? t('tests.test') : t('tests.tests')}</span>
-                            </span>
-
-                            {/* Admin: Edit Theme Button */}
-                            {userIsAdmin && (
+                          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+                            {/* Admin: Edit Theme Button - hide in ordering mode */}
+                            {userIsAdmin && !isOrderingMode && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleEditLesson(lesson);
                                 }}
-                                className="p-1.5 rounded-lg transition-all"
+                                className="p-1 sm:p-1.5 rounded-lg transition-all"
                                 style={{ backgroundColor: `${pageColors.accent}15` }}
                                 title={t('tests.editTheme') || 'Edit Theme'}
                                 onMouseEnter={(e) => {
@@ -902,18 +1053,18 @@ const TestsPage = () => {
                                   e.currentTarget.style.backgroundColor = `${pageColors.accent}15`;
                                 }}
                               >
-                                <Edit2 size={16} style={{ color: pageColors.accent }} />
+                                <Edit2 size={14} className="sm:w-4 sm:h-4" style={{ color: pageColors.accent }} />
                               </button>
                             )}
 
-                            {/* Admin: Delete Theme Button */}
-                            {userIsAdmin && (
+                            {/* Admin: Delete Theme Button - hide in ordering mode */}
+                            {userIsAdmin && !isOrderingMode && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleOpenDeleteThemeModal(lesson);
                                 }}
-                                className="p-1.5 rounded-lg transition-all"
+                                className="p-1 sm:p-1.5 rounded-lg transition-all"
                                 style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
                                 title={t('tests.deleteTheme') || 'Delete Theme'}
                                 onMouseEnter={(e) => {
@@ -923,18 +1074,18 @@ const TestsPage = () => {
                                   e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
                                 }}
                               >
-                                <Trash2 size={16} style={{ color: '#ef4444' }} />
+                                <Trash2 size={14} className="sm:w-4 sm:h-4" style={{ color: '#ef4444' }} />
                               </button>
                             )}
 
-                            {/* Admin: Add Test Button */}
-                            {userIsAdmin && (
+                            {/* Admin: Add Test Button - hide in ordering mode */}
+                            {userIsAdmin && !isOrderingMode && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleAddTest(lesson.id);
                                 }}
-                                className="px-3 py-1.5 rounded-lg transition-all text-xs font-medium flex items-center gap-1.5"
+                                className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all text-xs font-medium flex items-center gap-1.5"
                                 style={{ 
                                   backgroundColor: pageColors.accent,
                                   color: '#ffffff'
@@ -950,12 +1101,22 @@ const TestsPage = () => {
                                 <span className="hidden sm:inline">{t('tests.addTest') || 'Add Test'}</span>
                               </button>
                             )}
+
+                            <span 
+                              className="hidden sm:inline-block text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full"
+                              style={{ 
+                                backgroundColor: pageColors.hoverBg,
+                                color: pageColors.text
+                              }}
+                            >
+                              {testsCount} {testsCount === 1 ? t('tests.test') : t('tests.tests')}
+                            </span>
                             
-                            {/* Expand/Collapse Button - same style as CourseCard */}
+                            {/* Expand/Collapse Button - icon only on mobile */}
                             <button
                               onClick={() => testsCount > 0 && toggleLesson(lesson.id)}
                               disabled={testsCount === 0}
-                              className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                              className="p-2 sm:py-2 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-1 sm:gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                               style={{ 
                                 backgroundColor: pageColors.buttonBg,
                                 color: pageColors.buttonText
@@ -973,7 +1134,8 @@ const TestsPage = () => {
                                 e.currentTarget.style.backgroundColor = pageColors.buttonBg;
                               }}
                             >
-                              {isExpanded ? t('tests.hideLesson') : t('tests.showLesson')}
+                              {/* Desktop: show full text */}
+                              <span className="hidden sm:inline">{isExpanded ? t('tests.hideLesson') : t('tests.showLesson')}</span>
                               {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                             </button>
                           </div>
@@ -1037,49 +1199,49 @@ const TestsPage = () => {
                                       ) : (
                                         <Circle size={18} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
                                       )}
-                                      <div className="flex flex-col flex-1 overflow-hidden">
+                                      <div className="flex flex-col flex-1 overflow-hidden min-w-0">
                                         <span className="text-sm font-medium mb-1.5 truncate" style={{ color: pageColors.text }}>
                                           {step.title}
                                         </span>
-                                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-3">
                                           {/* Dificultad */}
                                           <div 
-                                            className="flex items-center gap-1 px-2 py-0.5 rounded-full flex-shrink-0"
+                                            className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full flex-shrink-0"
                                             style={{ 
                                               backgroundColor: `${difficultyColors[difficulty]}15`,
                                             }}
                                           >
-                                            <Target size={12} style={{ color: difficultyColors[difficulty] }} />
-                                            <span className="text-xs font-medium" style={{ color: difficultyColors[difficulty] }}>
+                                            <Target size={10} className="sm:w-3 sm:h-3" style={{ color: difficultyColors[difficulty] }} />
+                                            <span className="text-[10px] sm:text-xs font-medium" style={{ color: difficultyColors[difficulty] }}>
                                               {difficultyLabels[difficulty]}
                                             </span>
                                           </div>
                                           
                                           {/* Número de preguntas */}
                                           {questionCount && (
-                                            <div className="flex items-center gap-1 flex-shrink-0">
-                                              <HelpCircle size={12} style={{ color: pageColors.textMuted }} />
-                                              <span className="text-xs" style={{ color: pageColors.textMuted }}>
-                                                {questionCount} {t('tests.questions')}
+                                            <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+                                              <HelpCircle size={10} className="sm:w-3 sm:h-3" style={{ color: pageColors.textMuted }} />
+                                              <span className="text-[10px] sm:text-xs" style={{ color: pageColors.textMuted }}>
+                                                {questionCount}
                                               </span>
                                             </div>
                                           )}
                                           
                                           {/* Tiempo límite */}
                                           {timeLimit && (
-                                            <div className="flex items-center gap-1 flex-shrink-0">
-                                              <Clock size={12} style={{ color: pageColors.textMuted }} />
-                                              <span className="text-xs" style={{ color: pageColors.textMuted }}>
-                                                {timeLimit} min
+                                            <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+                                              <Clock size={10} className="sm:w-3 sm:h-3" style={{ color: pageColors.textMuted }} />
+                                              <span className="text-[10px] sm:text-xs" style={{ color: pageColors.textMuted }}>
+                                                {timeLimit}<span className="hidden sm:inline"> min</span><span className="sm:hidden">'</span>
                                               </span>
                                             </div>
                                           )}
                                           
-                                          {/* Fecha de inicio */}
-                                          <div className="flex items-center gap-1 flex-shrink-0">
+                                          {/* Fecha de inicio - solo en desktop */}
+                                          <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
                                             <Calendar size={12} style={{ color: pageColors.textMuted }} />
                                             <span className="text-xs" style={{ color: pageColors.textMuted }}>
-                                              <span className="hidden sm:inline">{t('tests.startDate')}: </span>{formatStartDate(startDate)}
+                                              {t('tests.startDate')}: {formatStartDate(startDate)}
                                             </span>
                                           </div>
                                         </div>

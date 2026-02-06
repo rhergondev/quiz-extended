@@ -1,11 +1,20 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { BookOpen, ClipboardList, Video, FileText, Edit } from 'lucide-react';
+import { BookOpen, ClipboardList, Video, FileText, Edit, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useStudentProgress from '../../hooks/useStudentProgress';
 
-const CompactCourseCard = ({ course, onEdit }) => {
+const CompactCourseCard = ({ 
+  course, 
+  onEdit,
+  // Props de ordenación (solo para admin)
+  onMoveLeft,
+  onMoveRight,
+  isFirst = false,
+  isLast = false,
+  isUpdating = false
+}) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
   const { id, title, _embedded } = course;
@@ -84,22 +93,68 @@ const CompactCourseCard = ({ course, onEdit }) => {
         border: `2px solid ${cardColors.borderColor}`
       }}
     >
-      {/* Admin Edit Button */}
-      {onEdit && (
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            onEdit(course);
-          }}
-          className="absolute top-2 right-2 z-10 p-2 rounded-lg backdrop-blur-sm transition-all duration-200 hover:scale-110"
-          style={{
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            color: '#ffffff'
-          }}
-          title={t('common.edit')}
-        >
-          <Edit size={18} />
-        </button>
+      {/* Admin Controls: Order + Edit */}
+      {(onEdit || onMoveLeft || onMoveRight) && (
+        <div className="absolute top-2 right-2 z-10 flex gap-1">
+          {/* Botón mover izquierda */}
+          {onMoveLeft && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!isFirst && !isUpdating) onMoveLeft(course);
+              }}
+              disabled={isFirst || isUpdating}
+              className="p-2 rounded-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.6)',
+                color: '#ffffff'
+              }}
+              title="Mover antes"
+            >
+              <ChevronLeft size={16} />
+            </button>
+          )}
+          
+          {/* Botón mover derecha */}
+          {onMoveRight && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!isLast && !isUpdating) onMoveRight(course);
+              }}
+              disabled={isLast || isUpdating}
+              className="p-2 rounded-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.6)',
+                color: '#ffffff'
+              }}
+              title="Mover después"
+            >
+              <ChevronRight size={16} />
+            </button>
+          )}
+          
+          {/* Botón editar */}
+          {onEdit && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onEdit(course);
+              }}
+              className="p-2 rounded-lg backdrop-blur-sm transition-all duration-200 hover:scale-110"
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.6)',
+                color: '#ffffff'
+              }}
+              title={t('common.edit')}
+            >
+              <Edit size={16} />
+            </button>
+          )}
+        </div>
       )}
 
       {/* Featured Image - 1:1 aspect ratio */}

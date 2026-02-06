@@ -431,6 +431,14 @@ class QE_Post_Types_Loader
     {
         $meta_query = $args['meta_query'] ?? [];
 
+        // 🔥 NEW: Support ordering by menu_order
+        $orderby = $request->get_param('orderby');
+        if ($orderby === 'menu_order') {
+            $args['orderby'] = 'menu_order';
+            $order = $request->get_param('order');
+            $args['order'] = ($order === 'desc') ? 'DESC' : 'ASC';
+        }
+
         // 🎯 NEW: Filter by user enrollment (only show enrolled courses)
         if ($request->get_param('enrolled_only') === 'true' || $request->get_param('enrolled_only') === true) {
             $current_user_id = get_current_user_id();
@@ -553,6 +561,13 @@ class QE_Post_Types_Loader
             'default' => false,
             'sanitize_callback' => 'rest_sanitize_boolean',
         ];
+
+        // 🔥 NEW: Add menu_order to orderby options for course ordering
+        if (isset($params['orderby']) && isset($params['orderby']['enum'])) {
+            if (!in_array('menu_order', $params['orderby']['enum'])) {
+                $params['orderby']['enum'][] = 'menu_order';
+            }
+        }
 
         return $params;
     }

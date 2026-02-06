@@ -179,7 +179,10 @@ class QE_User_Enrollments_API extends QE_API_Base
     {
         try {
             $user_id = $request['user_id'];
-            $course_id = $request['course_id'];
+            $course_id = $request->get_param('course_id');
+
+            // Debug logging
+            error_log("Enroll user called - user_id: {$user_id}, course_id: {$course_id}");
 
             // Verify user exists
             $user = get_user_by('id', $user_id);
@@ -343,6 +346,9 @@ class QE_User_Enrollments_API extends QE_API_Base
             $per_page = min(100, max(1, (int) $request->get_param('per_page')));
             $offset = ($page - 1) * $per_page;
 
+            // Debug logging
+            error_log("Get enrolled users - course_id: {$course_id}, include_ghosts: " . ($include_ghosts ? 'true' : 'false'));
+
             // Verify course exists
             $course = get_post($course_id);
             if (!$course || $course->post_type !== 'qe_course') {
@@ -375,6 +381,9 @@ class QE_User_Enrollments_API extends QE_API_Base
                 $meta_key
             ));
 
+            // Debug logging
+            error_log("Enrolled users query - meta_key: {$meta_key}, total_count: {$total_count}");
+
             // Get enrolled users with pagination
             $users = $wpdb->get_results($wpdb->prepare(
                 "SELECT u.ID, u.display_name, u.user_email, u.user_registered,
@@ -400,20 +409,61 @@ class QE_User_Enrollments_API extends QE_API_Base
             // Get quiz attempts table for quiz stats
             $attempts_table = $wpdb->prefix . 'qe_quiz_attempts';
 
+            // Get all quiz IDs for this course
+            $course_quiz_ids = get_posts([
+                'post_type' => 'qe_quiz',
+                'posts_per_page' => -1,
+                'fields' => 'ids',
+                'meta_query' => [
+                    [
+                        'key' => '_course_id',
+                        'value' => $course_id,
+                        'compare' => '='
+                    ]
+                ]
+            ]);
+
             // Enrich user data with quiz stats
             $enriched_users = [];
             foreach ($users as $user) {
-                // Get quiz attempts count for this user in this course
-                $attempts_stats = $wpdb->get_row($wpdb->prepare(
-                    "SELECT 
-                        COUNT(*) as total_attempts,
-                        AVG(score) as avg_score,
-                        MAX(score) as best_score
-                     FROM {$attempts_table} 
-                     WHERE user_id = %d AND course_id = %d",
-                    $user->ID,
-                    $course_id
-                ));
+                // Calculate average score using ONLY the last completed attempt of each quiz
+                // Same logic as my-ranking-status endpoint
+                $last_attempts_scores = [];
+                $total_attempts = 0;
+                $best_score = 0;
+
+                if (!empty($course_quiz_ids)) {
+                    foreach ($course_quiz_ids as $quiz_id) {
+                        $last_attempt = $wpdb->get_row($wpdb->prepare("
+                            SELECT score
+                            FROM {$attempts_table}
+                            WHERE user_id = %d 
+                            AND quiz_id = %d
+                            AND status = 'completed'
+                            ORDER BY end_time DESC
+                            LIMIT 1
+                        ", $user->ID, $quiz_id));
+
+                        if ($last_attempt) {
+                            $last_attempts_scores[] = (float) $last_attempt->score;
+                            if ((float) $last_attempt->score > $best_score) {
+                                $best_score = (float) $last_attempt->score;
+                            }
+                        }
+                    }
+
+                    // Get total attempts count
+                    $total_attempts = (int) $wpdb->get_var($wpdb->prepare(
+                        "SELECT COUNT(*) FROM {$attempts_table} 
+                         WHERE user_id = %d AND course_id = %d AND status = 'completed'",
+                        $user->ID, $course_id
+                    ));
+                }
+
+                // Calculate average from last attempts
+                $avg_score = !empty($last_attempts_scores) 
+                    ? round(array_sum($last_attempts_scores) / count($last_attempts_scores), 2) 
+                    : 0;
 
                 // Check if user is a ghost
                 $is_ghost = get_user_meta($user->ID, '_qe_ghost_user', true) === '1';
@@ -425,9 +475,9 @@ class QE_User_Enrollments_API extends QE_API_Base
                     'user_registered' => $user->user_registered,
                     'enrollment_date' => $user->enrollment_date ?: $user->user_registered,
                     'progress' => (int) ($user->progress ?: 0),
-                    'total_attempts' => (int) ($attempts_stats->total_attempts ?: 0),
-                    'avg_score' => $attempts_stats->avg_score ? round((float) $attempts_stats->avg_score, 2) : 0,
-                    'best_score' => $attempts_stats->best_score ? round((float) $attempts_stats->best_score, 2) : 0,
+                    'total_attempts' => $total_attempts,
+                    'avg_score' => $avg_score,
+                    'best_score' => round($best_score, 2),
                     'is_ghost' => $is_ghost,
                 ];
             }

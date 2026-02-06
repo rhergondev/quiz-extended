@@ -69,7 +69,8 @@
     "noLimit": "Sin límite",
     "selectAll": "Seleccionar todos",
     "allSelected": "Todos seleccionados",
-    "allLessons": "Todos los temas"
+    "allLessons": "Todos los temas",
+    "confirm": "Confirmar"
   },
   "errors": {
     "fetchQuiz": "Error al cargar los datos del cuestionario.",
@@ -78,7 +79,8 @@
     "createLesson": "Error al crear el tema",
     "saveMaterial": "Error al guardar el material",
     "deleteMaterial": "Error al eliminar el material",
-    "deleteTheme": "Error al eliminar el tema"
+    "deleteTheme": "Error al eliminar el tema",
+    "saveOrder": "Error al guardar el orden"
   },
   "sidebar": {
     "myDesk": "Mi Escritorio",
@@ -333,6 +335,51 @@
       "found_plural": "{{count}} cursos encontrados",
       "noCategories": "No hay categorías disponibles",
       "noLessons": "Aún no hay temas disponibles"
+    },
+    "students": {
+      "title": "Estudiantes",
+      "enrolledCount": "estudiantes inscritos",
+      "addStudent": "Añadir Estudiante",
+      "name": "Nombre",
+      "email": "Correo",
+      "avgScore": "Media",
+      "actions": "Acciones",
+      "remove": "Quitar",
+      "enroll": "Inscribir",
+      "noStudents": "No hay estudiantes inscritos",
+      "noStudentsDescription": "Aún no hay estudiantes inscritos en este curso.",
+      "searchPlaceholder": "Buscar usuario por nombre o correo...",
+      "searchHint": "Escribe al menos 2 caracteres para buscar",
+      "minSearchChars": "Escribe al menos 2 caracteres",
+      "noResults": "No se encontraron usuarios",
+      "confirmUnenroll": "Confirmar eliminación",
+      "confirmUnenrollMessage": "¿Estás seguro de que quieres eliminar a {{name}} de este curso?",
+      "enrollSuccess": "Estudiante inscrito correctamente",
+      "unenrollSuccess": "Estudiante eliminado del curso",
+      "ghost": "Fantasma",
+      "ghostUsers": {
+        "title": "Usuarios Fantasma",
+        "generate": "Generar Fantasmas",
+        "generateDescription": "Genera usuarios fantasma para simular actividad en el ranking del curso.",
+        "count": "Cantidad",
+        "generating": "Generando...",
+        "deleteAll": "Eliminar Fantasmas",
+        "deleteAllConfirm": "Eliminar Todos los Fantasmas",
+        "deleteConfirmMessage": "¿Estás seguro de que quieres eliminar todos los usuarios fantasma de este curso? Esta acción eliminará también sus intentos de test.",
+        "deleting": "Eliminando...",
+        "generateSuccess": "{{count}} usuarios fantasma generados correctamente",
+        "deleteSuccess": "{{count}} usuarios fantasma eliminados",
+        "noGhosts": "No hay usuarios fantasma en este curso",
+        "errors": {
+          "generate": "Error al generar usuarios fantasma",
+          "delete": "Error al eliminar usuarios fantasma"
+        }
+      },
+      "errors": {
+        "loadStudents": "Error al cargar los estudiantes",
+        "enroll": "Error al inscribir al estudiante",
+        "unenroll": "Error al eliminar al estudiante"
+      }
     }
   },
   "lessons": {
@@ -1104,6 +1151,11 @@
     "associatedMaterials_other": "{{count}} materiales asociados",
     "themeDeleted": "Tema eliminado exitosamente",
     "confirmDelete": "Eliminar",
+    "orderThemes": "Ordenar Temas",
+    "saveOrder": "Guardar Orden",
+    "orderSaved": "Orden guardado exitosamente",
+    "moveUp": "Mover arriba",
+    "moveDown": "Mover abajo",
     "errors": {
       "titleRequired": "El título es requerido",
       "pdfRequired": "Debe seleccionar un archivo PDF",
@@ -1148,13 +1200,19 @@
     "associatedVideos_other": "{{count}} videos asociados",
     "themeDeleted": "Tema eliminado exitosamente",
     "confirmDelete": "Eliminar",
+    "orderThemes": "Ordenar Temas",
+    "saveOrder": "Guardar Orden",
+    "orderSaved": "Orden guardado exitosamente",
+    "moveUp": "Mover arriba",
+    "moveDown": "Mover abajo",
     "errors": {
       "titleRequired": "El título es requerido",
       "urlRequired": "La URL del video es requerida",
       "invalidUrl": "La URL no es válida",
       "saveFailed": "Error al guardar el video",
       "deleteFailed": "Error al eliminar el video",
-      "deleteTheme": "Error al eliminar el tema"
+      "deleteTheme": "Error al eliminar el tema",
+      "saveOrder": "Error al guardar el orden"
     }
   },
   "tests": {
@@ -1279,10 +1337,16 @@
     "deleteThemeError": "Error al eliminar el tema",
     "confirmDelete": "Eliminar",
     "points": "puntos",
+    "orderThemes": "Ordenar Temas",
+    "saveOrder": "Guardar Orden",
+    "orderSaved": "Orden guardado exitosamente",
+    "moveUp": "Mover arriba",
+    "moveDown": "Mover abajo",
     "errors": {
       "titleRequired": "El título es requerido",
       "quizRequired": "Debes seleccionar un quiz",
-      "deleteQuestionFailed": "Error al eliminar la pregunta"
+      "deleteQuestionFailed": "Error al eliminar la pregunta",
+      "saveOrder": "Error al guardar el orden"
     }
   },
   "navigation": {

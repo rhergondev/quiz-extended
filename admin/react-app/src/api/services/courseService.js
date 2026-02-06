@@ -16,8 +16,15 @@ import {
 
 // 🔥 AÑADIDO: Constructor de parámetros personalizado para cursos
 const buildCourseQueryParams = (options = {}) => {
+  // Forzar ordenación por menu_order para cursos (no puede ser sobrescrito)
+  const courseOptions = {
+    ...options,
+    orderBy: 'menu_order',
+    order: 'asc'
+  };
+  
   // Llama al constructor base para obtener los parámetros por defecto
-  const params = buildQueryParams(options);
+  const params = buildQueryParams(courseOptions);
 
   // Añade el filtro específico de categoría si existe
   if (options.category) {
@@ -136,6 +143,105 @@ export const duplicate = async (courseId) => {
 
   } catch (error) {
     console.error(`❌ Error duplicating course ${courseId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Update course order (menu_order field)
+ * Lightweight update that only changes the order - bypasses full validation
+ * @param {number} courseId - Course ID
+ * @param {number} menuOrder - New order position
+ * @returns {Promise<Object>} Updated course
+ */
+export const updateOrder = async (courseId, menuOrder) => {
+  try {
+    const config = window.qe_data || {};
+    
+    if (!config.nonce || !config.endpoints?.courses) {
+      throw new Error('WordPress configuration not found');
+    }
+
+    const url = `${config.endpoints.courses}/${courseId}`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-WP-Nonce': config.nonce,
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({ menu_order: menuOrder })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(`API Error ${response.status}: ${response.statusText} - ${errorData}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`❌ Error updating course order ${courseId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Batch update course orders
+ * @param {Array<{id: number, menu_order: number}>} orders - Array of course IDs and their new orders
+ * @returns {Promise<Array>} Array of updated courses
+ */
+export const batchUpdateOrders = async (orders) => {
+  try {
+    const updatePromises = orders.map(({ id, menu_order }) => 
+      updateOrder(id, menu_order)
+    );
+    return await Promise.all(updatePromises);
+  } catch (error) {
+    console.error('❌ Error batch updating course orders:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update lesson order map for a course
+ * Lightweight update that only changes the _lesson_order_map meta field
+ * @param {number} courseId - Course ID
+ * @param {Object} lessonOrderMap - Object with lessonId as key and position as value { "123": 1, "456": 2 }
+ * @returns {Promise<Object>} Updated course
+ */
+export const updateLessonOrderMap = async (courseId, lessonOrderMap) => {
+  try {
+    const config = window.qe_data || {};
+    
+    if (!config.nonce || !config.endpoints?.courses) {
+      throw new Error('WordPress configuration not found');
+    }
+
+    const url = `${config.endpoints.courses}/${courseId}`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-WP-Nonce': config.nonce,
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({ 
+        meta: {
+          _lesson_order_map: lessonOrderMap
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(`API Error ${response.status}: ${response.statusText} - ${errorData}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`❌ Error updating lesson order map for course ${courseId}:`, error);
     throw error;
   }
 };

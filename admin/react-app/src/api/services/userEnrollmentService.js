@@ -312,6 +312,68 @@ export const enrollUserInMultipleCourses = async (userId, courseIds) => {
 };
 
 // ============================================================
+// GET ENROLLED USERS FOR A COURSE
+// ============================================================
+
+/**
+ * Get all enrolled users for a specific course (admin only)
+ * 
+ * @param {number} courseId - Course ID
+ * @param {Object} options - Optional parameters
+ * @param {number} options.page - Page number (default: 1)
+ * @param {number} options.perPage - Results per page (default: 50)
+ * @param {boolean} options.includeGhosts - Include ghost users (default: false)
+ * @returns {Promise<Object>} Object with data array and meta info
+ */
+export const getEnrolledUsers = async (courseId, options = {}) => {
+  try {
+    if (!courseId || (typeof courseId !== 'number' && typeof courseId !== 'string')) {
+      throw new Error('Valid course ID is required');
+    }
+
+    const { page = 1, perPage = 50, includeGhosts = false } = options;
+    const config = getApiConfig();
+    
+    const params = new URLSearchParams({
+      page: page.toString(),
+      per_page: perPage.toString(),
+      include_ghosts: includeGhosts.toString()
+    });
+    
+    const url = `${config.apiUrl}/qe/v1/courses/${courseId}/enrolled-users?${params}`;
+
+    console.log(`👥 Fetching enrolled users for course ${courseId}...`);
+
+    const result = await makeApiRequest(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-WP-Nonce': config.nonce,
+      },
+      credentials: 'same-origin'
+    });
+
+    const users = result.data?.data || [];
+    const meta = result.data?.meta || {};
+
+    console.log(`✅ Fetched ${users.length} enrolled users for course ${courseId}`);
+
+    return {
+      data: users,
+      meta
+    };
+
+  } catch (error) {
+    console.error(`❌ Error fetching enrolled users for course ${courseId}:`, error);
+    return handleApiError(error, ErrorType.FETCH, {
+      resource: 'enrolled-users',
+      courseId,
+      action: 'getEnrolledUsers'
+    });
+  }
+};
+
+// ============================================================
 // ENROLLMENT STATISTICS
 // ============================================================
 

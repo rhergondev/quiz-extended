@@ -64,7 +64,8 @@
     "noLimit": "No limit",
     "selectAll": "Select all",
     "allSelected": "All selected",
-    "allTopics": "All topics"
+    "allTopics": "All topics",
+    "confirm": "Confirm"
   },
   "errors": {
     "fetchQuiz": "Failed to load quiz data.",
@@ -73,7 +74,8 @@
     "createLesson": "Failed to create theme",
     "saveMaterial": "Failed to save material",
     "deleteMaterial": "Failed to delete material",
-    "deleteTheme": "Failed to delete theme"
+    "deleteTheme": "Failed to delete theme",
+    "saveOrder": "Failed to save order"
   },
   "sidebar": {
     "myDesk": "My Desk",
@@ -310,6 +312,51 @@
       "found_plural": "{{count}} courses found",
       "noCategories": "No categories available",
       "noTopics": "No topics available yet"
+    },
+    "students": {
+      "title": "Students",
+      "enrolledCount": "enrolled students",
+      "addStudent": "Add Student",
+      "name": "Name",
+      "email": "Email",
+      "avgScore": "Avg Score",
+      "actions": "Actions",
+      "remove": "Remove",
+      "enroll": "Enroll",
+      "noStudents": "No enrolled students",
+      "noStudentsDescription": "There are no students enrolled in this course yet.",
+      "searchPlaceholder": "Search user by name or email...",
+      "searchHint": "Type at least 2 characters to search",
+      "minSearchChars": "Type at least 2 characters",
+      "noResults": "No users found",
+      "confirmUnenroll": "Confirm removal",
+      "confirmUnenrollMessage": "Are you sure you want to remove {{name}} from this course?",
+      "enrollSuccess": "Student enrolled successfully",
+      "unenrollSuccess": "Student removed from course",
+      "ghost": "Ghost",
+      "ghostUsers": {
+        "title": "Ghost Users",
+        "generate": "Generate Ghosts",
+        "generateDescription": "Generate ghost users to simulate activity in the course ranking.",
+        "count": "Count",
+        "generating": "Generating...",
+        "deleteAll": "Delete Ghosts",
+        "deleteAllConfirm": "Delete All Ghosts",
+        "deleteConfirmMessage": "Are you sure you want to delete all ghost users from this course? This will also delete their test attempts.",
+        "deleting": "Deleting...",
+        "generateSuccess": "{{count}} ghost users generated successfully",
+        "deleteSuccess": "{{count}} ghost users deleted",
+        "noGhosts": "No ghost users in this course",
+        "errors": {
+          "generate": "Error generating ghost users",
+          "delete": "Error deleting ghost users"
+        }
+      },
+      "errors": {
+        "loadStudents": "Error loading students",
+        "enroll": "Error enrolling student",
+        "unenroll": "Error removing student"
+      }
     }
   },
   "topics": {
@@ -1100,6 +1147,11 @@
     "associatedMaterials_other": "{{count}} associated materials",
     "themeDeleted": "Theme deleted successfully",
     "confirmDelete": "Delete",
+    "orderThemes": "Order Themes",
+    "saveOrder": "Save Order",
+    "orderSaved": "Order saved successfully",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
     "errors": {
       "titleRequired": "Title is required",
       "pdfRequired": "You must select a PDF file",
@@ -1144,13 +1196,19 @@
     "associatedVideos_other": "{{count}} associated videos",
     "themeDeleted": "Theme deleted successfully",
     "confirmDelete": "Delete",
+    "orderThemes": "Order Themes",
+    "saveOrder": "Save Order",
+    "orderSaved": "Order saved successfully",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
     "errors": {
       "titleRequired": "Title is required",
       "urlRequired": "Video URL is required",
       "invalidUrl": "URL is not valid",
       "saveFailed": "Error saving video",
       "deleteFailed": "Error deleting video",
-      "deleteTheme": "Error deleting theme"
+      "deleteTheme": "Error deleting theme",
+      "saveOrder": "Error saving order"
     }
   },
   "tests": {
@@ -1266,10 +1324,16 @@
     "deleteThemeError": "Error deleting theme",
     "confirmDelete": "Delete",
     "points": "points",
+    "orderThemes": "Order Themes",
+    "saveOrder": "Save Order",
+    "orderSaved": "Order saved successfully",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
     "errors": {
       "titleRequired": "Title is required",
       "quizRequired": "You must select a quiz",
-      "deleteQuestionFailed": "Error deleting question"
+      "deleteQuestionFailed": "Error deleting question",
+      "saveOrder": "Error saving order"
     }
   },
   "navigation": {

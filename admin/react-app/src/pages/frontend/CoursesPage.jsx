@@ -7,35 +7,7 @@ import CompactCourseCard from '../../components/frontend/CompactCourseCard';
 import CourseEditorModal from '../../components/courses/CourseEditorModal';
 import { isUserAdmin } from '../../utils/userUtils';
 import { NavLink } from 'react-router-dom';
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-
-// Sortable wrapper for CompactCourseCard
-const SortableCourseCard = ({ course, onEdit }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
-    id: course.id 
-  });
-  
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.7 : 1,
-    zIndex: isDragging ? 50 : 1,
-    touchAction: 'none'
-  };
-
-  return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
-      className="w-full flex justify-center"
-      {...(onEdit ? { ...attributes, ...listeners } : {})}
-    >
-      <CompactCourseCard course={course} onEdit={onEdit} />
-    </div>
-  );
-};
+import * as courseService from '../../api/services/courseService';
 
 const PageState = ({ icon: Icon, title, message, colors }) => (
   <div className="text-center py-16">
@@ -50,25 +22,17 @@ const CoursesPage = () => {
   const { getColor, isDarkMode, toggleDarkMode } = useTheme();
   const userIsAdmin = isUserAdmin();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isUpdatingOrder, setIsUpdatingOrder] = useState(false);
   
   const homeUrl = window.qe_data?.home_url || '';
   const logoutUrl = window.qe_data?.logout_url;
-
-  // Drag and drop sensors (only for admin)
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // 8px de movimiento antes de iniciar el drag
-      },
-    })
-  );
 
   // Admin modal state
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [mode, setMode] = useState('view'); // 'view', 'create', 'edit'
   
-  // Local courses state for optimistic drag-and-drop updates
+  // Local courses state for optimistic order updates
   const [localCourses, setLocalCourses] = useState(null);
 
   // Colores adaptativos según el modo (mismo patrón que SupportMaterialPage)
@@ -101,14 +65,16 @@ const CoursesPage = () => {
     const coursesToSort = localCourses || courses;
     if (!coursesToSort || coursesToSort.length === 0) return [];
     
+    // Ordenar por menu_order (campo nativo de WordPress)
     return [...coursesToSort].sort((a, b) => {
-      const positionA = parseInt(a.meta?._course_position) || 0;
-      const positionB = parseInt(b.meta?._course_position) || 0;
+      const orderA = parseInt(a.menu_order) || 0;
+      const orderB = parseInt(b.menu_order) || 0;
       
-      if (positionA !== positionB) {
-        return positionA - positionB;
+      if (orderA !== orderB) {
+        return orderA - orderB;
       }
       
+      // Fallback: ordenar por título si tienen el mismo menu_order
       const titleA = (a.title?.rendered || a.title || '').toLowerCase();
       const titleB = (b.title?.rendered || b.title || '').toLowerCase();
       
@@ -172,46 +138,85 @@ const CoursesPage = () => {
     return Promise.resolve(coursesToSearch.find(c => c.id === courseId));
   };
 
-  const handleDragEnd = async (event) => {
-    const { active, over } = event;
+  // Mover curso hacia la izquierda (antes en el orden)
+  const handleMoveUp = async (course) => {
+    if (isUpdatingOrder) return;
     
-    if (!over || !userIsAdmin || active.id === over.id) return;
+    const currentIndex = sortedCourses.findIndex(c => c.id === course.id);
+    if (currentIndex <= 0) return;
 
-    const oldIndex = sortedCourses.findIndex(c => c.id === active.id);
-    const newIndex = sortedCourses.findIndex(c => c.id === over.id);
+    setIsUpdatingOrder(true);
     
-    if (oldIndex === -1 || newIndex === -1) return;
+    // Intercambiar posiciones - usar índices como orden si menu_order no está definido o es igual
+    const previousCourse = sortedCourses[currentIndex - 1];
+    
+    // Asignar nuevos órdenes basados en índice (el que se mueve toma índice-1, el anterior toma índice actual)
+    const newOrderForCurrent = currentIndex - 1;
+    const newOrderForPrevious = currentIndex;
 
-    // Reordenar el array y actualizar posiciones
-    const reorderedCourses = arrayMove(sortedCourses, oldIndex, newIndex).map((course, index) => ({
-      ...course,
-      meta: {
-        ...course.meta,
-        _course_position: index
+    // Actualización optimista
+    const newCourses = sortedCourses.map(c => {
+      if (c.id === course.id) {
+        return { ...c, menu_order: newOrderForCurrent };
       }
-    }));
-    
-    // Actualización optimista - actualizar UI inmediatamente
-    setLocalCourses(reorderedCourses);
-    
-    // Actualizar posiciones en el servidor en segundo plano
+      if (c.id === previousCourse.id) {
+        return { ...c, menu_order: newOrderForPrevious };
+      }
+      return c;
+    });
+    setLocalCourses(newCourses);
+
     try {
-      const updatePromises = reorderedCourses.map((course, index) => 
-        coursesHook.updateCourse(course.id, {
-          title: course.title?.rendered || course.title,
-          meta: {
-            _course_position: index
-          }
-        })
-      );
-      
-      await Promise.all(updatePromises);
-      // No hacer refresh inmediato - confiar en el estado local
-      // El refresh se hará cuando el usuario cree/edite/elimine un curso
+      await courseService.batchUpdateOrders([
+        { id: course.id, menu_order: newOrderForCurrent },
+        { id: previousCourse.id, menu_order: newOrderForPrevious }
+      ]);
     } catch (error) {
-      console.error('Error updating course positions:', error);
-      // Revertir cambios locales en caso de error
-      setLocalCourses(null);
+      console.error('Error updating order:', error);
+      setLocalCourses(null); // Revertir en caso de error
+    } finally {
+      setIsUpdatingOrder(false);
+    }
+  };
+
+  // Mover curso hacia la derecha (después en el orden)
+  const handleMoveDown = async (course) => {
+    if (isUpdatingOrder) return;
+    
+    const currentIndex = sortedCourses.findIndex(c => c.id === course.id);
+    if (currentIndex >= sortedCourses.length - 1) return;
+
+    setIsUpdatingOrder(true);
+    
+    // Intercambiar posiciones - usar índices como orden
+    const nextCourse = sortedCourses[currentIndex + 1];
+    
+    // Asignar nuevos órdenes basados en índice (el que se mueve toma índice+1, el siguiente toma índice actual)
+    const newOrderForCurrent = currentIndex + 1;
+    const newOrderForNext = currentIndex;
+
+    // Actualización optimista
+    const newCourses = sortedCourses.map(c => {
+      if (c.id === course.id) {
+        return { ...c, menu_order: newOrderForCurrent };
+      }
+      if (c.id === nextCourse.id) {
+        return { ...c, menu_order: newOrderForNext };
+      }
+      return c;
+    });
+    setLocalCourses(newCourses);
+
+    try {
+      await courseService.batchUpdateOrders([
+        { id: course.id, menu_order: newOrderForCurrent },
+        { id: nextCourse.id, menu_order: newOrderForNext }
+      ]);
+    } catch (error) {
+      console.error('Error updating order:', error);
+      setLocalCourses(null); // Revertir en caso de error
+    } finally {
+      setIsUpdatingOrder(false);
     }
   };
 
@@ -249,34 +254,23 @@ const CoursesPage = () => {
       );
     }
 
-    const courseGrid = (
+    return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {sortedCourses.map(course => (
-          <SortableCourseCard 
-            key={course.id} 
-            course={course} 
-            onEdit={userIsAdmin ? handleEditCourse : null}
-          />
+        {sortedCourses.map((course, index) => (
+          <div key={course.id} className="w-full flex justify-center">
+            <CompactCourseCard 
+              course={course} 
+              onEdit={userIsAdmin ? handleEditCourse : null}
+              onMoveLeft={userIsAdmin ? handleMoveUp : null}
+              onMoveRight={userIsAdmin ? handleMoveDown : null}
+              isFirst={index === 0}
+              isLast={index === sortedCourses.length - 1}
+              isUpdating={isUpdatingOrder}
+            />
+          </div>
         ))}
       </div>
     );
-
-    // Solo admin puede drag-and-drop
-    if (userIsAdmin) {
-      return (
-        <DndContext 
-          sensors={sensors} 
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext items={sortedCourses.map(c => c.id)} strategy={rectSortingStrategy}>
-            {courseGrid}
-          </SortableContext>
-        </DndContext>
-      );
-    }
-
-    return courseGrid;
   };
 
   const menuItems = [

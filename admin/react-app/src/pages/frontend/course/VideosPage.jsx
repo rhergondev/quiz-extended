@@ -9,10 +9,11 @@ import useLessons from '../../../hooks/useLessons';
 import useCourses from '../../../hooks/useCourses';
 import { isUserAdmin } from '../../../utils/userUtils';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
+import { updateLessonOrderMap } from '../../../api/services/courseService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import LessonModal from '../../../components/lessons/LessonModal';
 import VideoModal from '../../../components/videos/VideoModal';
-import { ChevronDown, ChevronUp, ChevronRight, Video, Play, X, ChevronLeft, Check, Circle, Film, Plus, Trash2, AlertTriangle, Edit2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, Video, Play, X, ChevronLeft, Check, Circle, Film, Plus, Trash2, AlertTriangle, Edit2, ArrowUpDown } from 'lucide-react';
 
 const VideosPage = () => {
   const { t } = useTranslation();
@@ -61,6 +62,11 @@ const VideosPage = () => {
     isOpen: false,
     lesson: null
   });
+
+  // Ordering mode state
+  const [isOrderingMode, setIsOrderingMode] = useState(false);
+  const [orderingLessons, setOrderingLessons] = useState([]);
+  const [isUpdatingOrder, setIsUpdatingOrder] = useState(false);
 
   // Load courses for lesson modal
   useEffect(() => {
@@ -289,6 +295,56 @@ const VideosPage = () => {
     }
   };
 
+  // Ordering mode handlers
+  const handleEnterOrderingMode = () => {
+    setOrderingLessons([...lessons]);
+    setIsOrderingMode(true);
+  };
+
+  const handleExitOrderingMode = () => {
+    setIsOrderingMode(false);
+    setOrderingLessons([]);
+  };
+
+  const handleMoveLessonUp = (index) => {
+    if (index === 0) return;
+    const newLessons = [...orderingLessons];
+    [newLessons[index - 1], newLessons[index]] = [newLessons[index], newLessons[index - 1]];
+    setOrderingLessons(newLessons);
+  };
+
+  const handleMoveLessonDown = (index) => {
+    if (index >= orderingLessons.length - 1) return;
+    const newLessons = [...orderingLessons];
+    [newLessons[index], newLessons[index + 1]] = [newLessons[index + 1], newLessons[index]];
+    setOrderingLessons(newLessons);
+  };
+
+  const handleSaveOrder = async () => {
+    setIsUpdatingOrder(true);
+    try {
+      const lessonOrderMap = {};
+      orderingLessons.forEach((lesson, index) => {
+        lessonOrderMap[lesson.id.toString()] = index + 1;
+      });
+
+      await updateLessonOrderMap(parseInt(courseId, 10), lessonOrderMap);
+      toast.success(t('videos.orderSaved'));
+      
+      setLessons(orderingLessons);
+      setIsOrderingMode(false);
+      setOrderingLessons([]);
+    } catch (error) {
+      console.error('Error saving lesson order:', error);
+      toast.error(t('videos.errors.saveOrder'));
+    } finally {
+      setIsUpdatingOrder(false);
+    }
+  };
+
+  // Use orderingLessons when in ordering mode, otherwise use lessons
+  const displayLessons = isOrderingMode ? orderingLessons : lessons;
+
   // Create flat array of all video steps for navigation
   const allVideoSteps = useMemo(() => {
     return lessons.flatMap(lesson => 
@@ -448,26 +504,96 @@ const VideosPage = () => {
           }`}
         >
           <div className="h-full overflow-y-auto">
-            {/* Admin: Create Theme Button */}
+            {/* Admin: Create Theme Button + Order Themes Button */}
             {userIsAdmin && (
-              <div className="max-w-5xl mx-auto px-4 pt-4 pb-2">
-                <button
-                  onClick={handleCreateLesson}
-                  className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 hover:shadow-lg"
-                  style={{
-                    backgroundColor: pageColors.accent,
-                    color: '#ffffff',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  <Plus size={18} />
-                  {t('videos.createTheme')}
-                </button>
+              <div className="max-w-5xl mx-auto px-4 pt-4 pb-2 flex items-center gap-3">
+                {!isOrderingMode ? (
+                  <>
+                    <button
+                      onClick={handleCreateLesson}
+                      className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 hover:shadow-lg"
+                      style={{
+                        backgroundColor: pageColors.accent,
+                        color: '#ffffff',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      <Plus size={18} />
+                      {t('videos.createTheme')}
+                    </button>
+                    {lessons.length > 1 && (
+                      <button
+                        onClick={handleEnterOrderingMode}
+                        className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 hover:shadow-lg border"
+                        style={{
+                          backgroundColor: 'transparent',
+                          color: pageColors.text,
+                          borderColor: getColor('borderColor', '#e5e7eb'),
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.backgroundColor = pageColors.accent + '15';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <ArrowUpDown size={18} />
+                        {t('videos.orderThemes')}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleSaveOrder}
+                      disabled={isUpdatingOrder}
+                      className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 hover:shadow-lg disabled:opacity-50"
+                      style={{
+                        backgroundColor: '#22c55e',
+                        color: '#ffffff',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isUpdatingOrder) e.currentTarget.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      <Check size={18} />
+                      {isUpdatingOrder ? t('common.saving') : t('videos.saveOrder')}
+                    </button>
+                    <button
+                      onClick={handleExitOrderingMode}
+                      disabled={isUpdatingOrder}
+                      className="px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 hover:shadow-lg border disabled:opacity-50"
+                      style={{
+                        backgroundColor: 'transparent',
+                        color: pageColors.text,
+                        borderColor: getColor('borderColor', '#e5e7eb'),
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isUpdatingOrder) {
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <X size={18} />
+                      {t('common.cancel')}
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
@@ -518,10 +644,12 @@ const VideosPage = () => {
                   borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
                 }}
               >
-                {lessons.map((lesson, lessonIndex) => {
+                {displayLessons.map((lesson, lessonIndex) => {
                   const isExpanded = expandedLessons.has(lesson.id);
                   const videoCount = lesson.videoSteps.length;
                   const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
+                  const isFirst = lessonIndex === 0;
+                  const isLast = lessonIndex === displayLessons.length - 1;
 
                   return (
                     <div 
@@ -535,6 +663,39 @@ const VideosPage = () => {
                         }}
                       >
                         <div className="flex items-center gap-3 overflow-hidden">
+                          {/* Ordering arrows - only show in ordering mode */}
+                          {isOrderingMode && (
+                            <div className="flex flex-col gap-0.5">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMoveLessonUp(lessonIndex);
+                                }}
+                                disabled={isFirst || isUpdatingOrder}
+                                className="p-0.5 rounded transition-all disabled:opacity-30"
+                                style={{ 
+                                  color: isFirst ? pageColors.textMuted : pageColors.accent 
+                                }}
+                                title={t('videos.moveUp')}
+                              >
+                                <ChevronUp size={16} />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMoveLessonDown(lessonIndex);
+                                }}
+                                disabled={isLast || isUpdatingOrder}
+                                className="p-0.5 rounded transition-all disabled:opacity-30"
+                                style={{ 
+                                  color: isLast ? pageColors.textMuted : pageColors.accent 
+                                }}
+                                title={t('videos.moveDown')}
+                              >
+                                <ChevronDown size={16} />
+                              </button>
+                            </div>
+                          )}
                           {/* Icon + Title */}
                           <Video size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
                           <span 
@@ -545,15 +706,15 @@ const VideosPage = () => {
                         </div>
                         
                         {/* Badge count + Admin Actions + Expand/Collapse Button */}
-                        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                          {/* Admin: Edit Theme Button */}
-                          {userIsAdmin && (
+                        <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+                          {/* Admin: Edit Theme Button - hide in ordering mode */}
+                          {userIsAdmin && !isOrderingMode && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleEditLesson(lesson);
                               }}
-                              className="p-1.5 rounded-lg transition-all"
+                              className="p-1 sm:p-1.5 rounded-lg transition-all"
                               style={{ backgroundColor: `${pageColors.accent}15` }}
                               title={t('videos.editTheme')}
                               onMouseEnter={(e) => {
@@ -563,18 +724,18 @@ const VideosPage = () => {
                                 e.currentTarget.style.backgroundColor = `${pageColors.accent}15`;
                               }}
                             >
-                              <Edit2 size={16} style={{ color: pageColors.accent }} />
+                              <Edit2 size={14} className="sm:w-4 sm:h-4" style={{ color: pageColors.accent }} />
                             </button>
                           )}
 
-                          {/* Admin: Delete Theme Button */}
-                          {userIsAdmin && (
+                          {/* Admin: Delete Theme Button - hide in ordering mode */}
+                          {userIsAdmin && !isOrderingMode && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleOpenDeleteThemeModal(lesson);
                               }}
-                              className="p-1.5 rounded-lg transition-all"
+                              className="p-1 sm:p-1.5 rounded-lg transition-all"
                               style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
                               title={t('videos.deleteTheme')}
                               onMouseEnter={(e) => {
@@ -584,18 +745,18 @@ const VideosPage = () => {
                                 e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
                               }}
                             >
-                              <Trash2 size={16} style={{ color: '#ef4444' }} />
+                              <Trash2 size={14} className="sm:w-4 sm:h-4" style={{ color: '#ef4444' }} />
                             </button>
                           )}
 
-                          {/* Admin: Add Video Button */}
-                          {userIsAdmin && (
+                          {/* Admin: Add Video Button - hide in ordering mode */}
+                          {userIsAdmin && !isOrderingMode && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleAddVideo(lesson.id);
                               }}
-                              className="px-3 py-1.5 rounded-lg transition-all text-xs font-medium flex items-center gap-1.5"
+                              className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all text-xs font-medium flex items-center gap-1.5"
                               style={{ 
                                 backgroundColor: pageColors.accent,
                                 color: '#ffffff'
@@ -613,23 +774,22 @@ const VideosPage = () => {
                           )}
 
                           <span 
-                            className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full"
+                            className="hidden sm:inline-block text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full"
                             style={{ 
                               backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : `${getColor('primary', '#1a202c')}10`,
                               color: pageColors.text,
                               minWidth: '90px',
-                              textAlign: 'center',
-                              display: 'inline-block'
+                              textAlign: 'center'
                             }}
                           >
-                            {videoCount} <span className="hidden sm:inline">{videoCount === 1 ? t('videos.video') : t('videos.videos')}</span>
+                            {videoCount} {videoCount === 1 ? t('videos.video') : t('videos.videos')}
                           </span>
                           
-                          {/* Expand/Collapse Button - same style as CourseCard */}
+                          {/* Expand/Collapse Button - icon only on mobile */}
                           <button
                             onClick={() => videoCount > 0 && toggleLesson(lesson.id)}
                             disabled={videoCount === 0}
-                            className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                            className="p-2 sm:py-2 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-1 sm:gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                             style={{ 
                               backgroundColor: pageColors.buttonBg,
                               color: pageColors.buttonText
@@ -647,7 +807,8 @@ const VideosPage = () => {
                               e.currentTarget.style.backgroundColor = pageColors.buttonBg;
                             }}
                           >
-                            {isExpanded ? t('videos.hideLesson') : t('videos.showLesson')}
+                            {/* Desktop: show full text */}
+                            <span className="hidden sm:inline">{isExpanded ? t('videos.hideLesson') : t('videos.showLesson')}</span>
                             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                           </button>
                         </div>
