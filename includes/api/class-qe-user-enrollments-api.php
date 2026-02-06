@@ -456,13 +456,14 @@ class QE_User_Enrollments_API extends QE_API_Base
                     $total_attempts = (int) $wpdb->get_var($wpdb->prepare(
                         "SELECT COUNT(*) FROM {$attempts_table} 
                          WHERE user_id = %d AND course_id = %d AND status = 'completed'",
-                        $user->ID, $course_id
+                        $user->ID,
+                        $course_id
                     ));
                 }
 
                 // Calculate average from last attempts
-                $avg_score = !empty($last_attempts_scores) 
-                    ? round(array_sum($last_attempts_scores) / count($last_attempts_scores), 2) 
+                $avg_score = !empty($last_attempts_scores)
+                    ? round(array_sum($last_attempts_scores) / count($last_attempts_scores), 2)
                     : 0;
 
                 // Check if user is a ghost
