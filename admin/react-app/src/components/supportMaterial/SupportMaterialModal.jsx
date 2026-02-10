@@ -42,6 +42,7 @@ const SupportMaterialModal = ({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
+  const mouseDownOnOverlayRef = useRef(false);
 
   // Page colors
   const pageColors = useMemo(() => ({
@@ -336,7 +337,17 @@ const SupportMaterialModal = ({
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
           zIndex: 100000
         }}
-        onClick={onClose}
+        onMouseDown={(e) => {
+          // Solo marcar si el mousedown fue directamente en el overlay
+          mouseDownOnOverlayRef.current = e.target === e.currentTarget;
+        }}
+        onClick={(e) => {
+          // Solo cerrar si el mousedown y el click fueron en el overlay
+          if (e.target === e.currentTarget && mouseDownOnOverlayRef.current) {
+            onClose();
+          }
+          mouseDownOnOverlayRef.current = false;
+        }}
       >
       <div
         style={{ 

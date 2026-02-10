@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
@@ -62,6 +62,7 @@ const VideosPage = () => {
     isOpen: false,
     lesson: null
   });
+  const deleteModalOverlayRef = useRef(false);
 
   // Ordering mode state
   const [isOrderingMode, setIsOrderingMode] = useState(false);
@@ -380,6 +381,38 @@ const VideosPage = () => {
     setSelectedVideo(null);
     setSelectedLesson(null);
   };
+
+  // 🎯 Auto-mark video as completed when opened (visualizado/comenzado)
+  useEffect(() => {
+    const markVideoAsViewed = async () => {
+      if (!selectedVideo || !selectedLesson || !courseId) return;
+      
+      // Find the original step index for this video
+      const stepData = allVideoSteps.find(
+        item => item.step === selectedVideo && item.lesson.id === selectedLesson.id
+      );
+      
+      if (!stepData || stepData.originalStepIndex === -1) return;
+      
+      const { originalStepIndex } = stepData;
+      
+      // Check if already completed to avoid unnecessary API calls
+      const alreadyCompleted = isCompleted(selectedLesson.id, 'step', selectedLesson.id, originalStepIndex);
+      if (alreadyCompleted) return;
+      
+      try {
+        await markComplete(selectedLesson.id, 'step', selectedLesson.id, originalStepIndex);
+        await fetchCompletedContent();
+        
+        // Notify sidebar to update badges
+        window.dispatchEvent(new CustomEvent('courseProgressUpdated', { detail: { courseId } }));
+      } catch (error) {
+        console.error('Error auto-marking video as viewed:', error);
+      }
+    };
+    
+    markVideoAsViewed();
+  }, [selectedVideo, selectedLesson, courseId, allVideoSteps, isCompleted, markComplete, fetchCompletedContent]);
 
   // Navigation functions
   const getCurrentStepIndex = () => {
@@ -1132,7 +1165,15 @@ const VideosPage = () => {
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
             zIndex: 999999
           }}
-          onClick={handleCloseDeleteThemeModal}
+          onMouseDown={(e) => {
+            deleteModalOverlayRef.current = e.target === e.currentTarget;
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && deleteModalOverlayRef.current) {
+              handleCloseDeleteThemeModal();
+            }
+            deleteModalOverlayRef.current = false;
+          }}
         >
           <div
             className="relative w-full max-w-md rounded-xl shadow-2xl overflow-hidden"

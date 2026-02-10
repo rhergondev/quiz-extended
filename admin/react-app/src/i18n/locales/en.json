@@ -65,7 +65,9 @@
     "selectAll": "Select all",
     "allSelected": "All selected",
     "allTopics": "All topics",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "openInNewTab": "Open in new tab",
+    "download": "Download"
   },
   "errors": {
     "fetchQuiz": "Failed to load quiz data.",
@@ -1152,6 +1154,7 @@
     "orderSaved": "Order saved successfully",
     "moveUp": "Move up",
     "moveDown": "Move down",
+    "iosFallback": "For a better experience, open the PDF in a new tab or download it",
     "errors": {
       "titleRequired": "Title is required",
       "pdfRequired": "You must select a PDF file",

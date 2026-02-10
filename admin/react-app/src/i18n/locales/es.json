@@ -70,7 +70,9 @@
     "selectAll": "Seleccionar todos",
     "allSelected": "Todos seleccionados",
     "allLessons": "Todos los temas",
-    "confirm": "Confirmar"
+    "confirm": "Confirmar",
+    "openInNewTab": "Abrir en nueva pestaña",
+    "download": "Descargar"
   },
   "errors": {
     "fetchQuiz": "Error al cargar los datos del cuestionario.",
@@ -1156,6 +1158,7 @@
     "orderSaved": "Orden guardado exitosamente",
     "moveUp": "Mover arriba",
     "moveDown": "Mover abajo",
+    "iosFallback": "Para una mejor experiencia, abre el PDF en una nueva pestaña o descárgalo",
     "errors": {
       "titleRequired": "El título es requerido",
       "pdfRequired": "Debe seleccionar un archivo PDF",

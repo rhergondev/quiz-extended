@@ -406,15 +406,19 @@ class QE_Email_Notifications
             return '';
         }
 
-        // Build admin URL with hash route for React SPA
-        $admin_url = admin_url('admin.php?page=qe-lms') . '#/messages?messageId=' . intval($message_id);
+        // Build frontend URL with hash route for React SPA
+        // Use the public LMS page URL instead of admin URL so unauthenticated users
+        // see the login form first, then get redirected to messages after login
+        $lms_page_id = get_option('quiz_extended_lms_page_id', 0);
+        $base_url = $lms_page_id > 0 ? get_permalink($lms_page_id) : home_url('/campus/');
+        $message_url = trailingslashit($base_url) . '#/messages?messageId=' . intval($message_id);
 
         return '
                             <!-- CTA Button -->
                             <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 8px;">
                                 <tr>
                                     <td align="center">
-                                        <a href="' . esc_url($admin_url) . '" 
+                                        <a href="' . esc_url($message_url) . '" 
                                            style="display: inline-block; padding: 12px 24px; background-color: ' . esc_attr($accent_color) . '; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
                                             Ver y responder mensaje
                                         </a>

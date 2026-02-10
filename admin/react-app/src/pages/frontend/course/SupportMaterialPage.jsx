@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -9,7 +9,7 @@ import useCourses from '../../../hooks/useCourses';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
 import { updateLessonOrderMap } from '../../../api/services/courseService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
-import { ChevronRight, ChevronDown, ChevronUp, FileText, File, X, ChevronLeft, Check, Circle, FolderOpen, Plus, Edit2, Trash2, AlertTriangle, ArrowUpDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, FileText, File, X, ChevronLeft, Check, Circle, FolderOpen, Plus, Edit2, Trash2, AlertTriangle, ArrowUpDown, ExternalLink, Download } from 'lucide-react';
 import { isUserAdmin } from '../../../utils/userUtils';
 import { toast } from 'react-toastify';
 import SupportMaterialModal from '../../../components/supportMaterial/SupportMaterialModal';
@@ -39,6 +39,27 @@ const SupportMaterialPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPDF, setSelectedPDF] = useState(null);
   const [selectedLesson, setSelectedLesson] = useState(null);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  // Listen to window resize for responsive behavior
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Detect mobile/tablet based on screen width (< 1024px = tablet or smaller)
+  const isMobileOrTablet = windowWidth < 1024;
+  
+  // Detect touch-capable devices (iOS, Android, etc.)
+  const isTouchDevice = useMemo(() => {
+    if (typeof navigator === 'undefined' || typeof window === 'undefined') return false;
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  }, []);
+
+  // Show PDF fallback (buttons instead of iframe) on mobile/tablet OR touch devices
+  // PDFs in iframes don't work well on most mobile browsers
+  const showPDFFallback = isMobileOrTablet || isTouchDevice;
 
   // Admin functionality
   const userIsAdmin = isUserAdmin();
@@ -62,6 +83,7 @@ const SupportMaterialPage = () => {
     isOpen: false,
     lesson: null
   });
+  const deleteModalOverlayRef = useRef(false);
 
   // Ordering mode state
   const [isOrderingMode, setIsOrderingMode] = useState(false);
@@ -394,6 +416,38 @@ const SupportMaterialPage = () => {
     setSelectedPDF(null);
     setSelectedLesson(null);
   };
+
+  // 🎯 Auto-mark material as completed when opened (acceso/leído)
+  useEffect(() => {
+    const markMaterialAsAccessed = async () => {
+      if (!selectedPDF || !selectedLesson || !courseId) return;
+      
+      // Find the original step index for this material
+      const stepData = allMaterialSteps.find(
+        item => item.step === selectedPDF && item.lesson.id === selectedLesson.id
+      );
+      
+      if (!stepData || stepData.originalStepIndex === -1) return;
+      
+      const { originalStepIndex } = stepData;
+      
+      // Check if already completed to avoid unnecessary API calls
+      const alreadyCompleted = isCompleted(selectedLesson.id, 'step', selectedLesson.id, originalStepIndex);
+      if (alreadyCompleted) return;
+      
+      try {
+        await markComplete(selectedLesson.id, 'step', selectedLesson.id, originalStepIndex);
+        await fetchCompletedContent();
+        
+        // Notify sidebar to update badges
+        window.dispatchEvent(new CustomEvent('courseProgressUpdated', { detail: { courseId } }));
+      } catch (error) {
+        console.error('Error auto-marking material as accessed:', error);
+      }
+    };
+    
+    markMaterialAsAccessed();
+  }, [selectedPDF, selectedLesson, courseId, allMaterialSteps, isCompleted, markComplete, fetchCompletedContent]);
 
   // Navigation functions
   const getCurrentStepIndex = () => {
@@ -935,52 +989,64 @@ const SupportMaterialPage = () => {
         >
           {selectedPDF && (
             <div className="h-full flex flex-col w-full overflow-hidden">
-              {/* Header Compacto con Breadcrumbs Integrados */}
+              {/* Header Compacto con Breadcrumbs Integrados - Responsive */}
               <div 
-                className="flex items-center justify-between px-4 py-2 sm:py-1.5 border-b flex-shrink-0 gap-2"
+                className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-1.5 border-b flex-shrink-0 gap-2"
                 style={{ 
                   backgroundColor: getColor('background', '#ffffff'),
                   borderColor: getColor('borderColor', '#e5e7eb')
                 }}
               >
-                <div className="flex flex-col gap-1 overflow-hidden">
-                  {/* Breadcrumbs compactos */}
-                  <nav className="hidden sm:flex items-center text-xs space-x-1.5">
-                    <Link 
-                      to="/courses"
-                      className="transition-colors duration-200 hover:underline font-medium"
-                      style={{ color: pageColors.text }}
-                    >
-                      {t('sidebar.studyPlanner')}
-                    </Link>
-                    <ChevronRight size={12} style={{ color: pageColors.textMuted }} />
-                    <Link 
-                      to={`/courses/${courseId}/dashboard`}
-                      className="transition-colors duration-200 hover:underline font-medium"
-                      style={{ color: pageColors.text }}
-                      dangerouslySetInnerHTML={{ __html: courseName }}
-                    />
-                    <ChevronRight size={12} style={{ color: pageColors.textMuted }} />
-                    <span className="font-medium" style={{ color: pageColors.textMuted }}>
-                      {t('courses.supportMaterial')}
-                    </span>
-                  </nav>
-                  {/* Título del material */}
-                  <div className="flex items-center gap-2">
-                    <FileText size={16} style={{ color: pageColors.accent }} className="flex-shrink-0" />
-                    <h2 className="text-sm font-medium leading-tight truncate" style={{ color: pageColors.text }}>
-                      {selectedPDF.title}
-                    </h2>
+                {/* Left: Back button (mobile) + Title */}
+                <div className="flex items-center gap-2 overflow-hidden min-w-0 flex-1">
+                  {/* Mobile: Back button */}
+                  <button
+                    onClick={closePDFViewer}
+                    className="sm:hidden p-2 -ml-1 rounded-lg transition-all flex-shrink-0"
+                    style={{ backgroundColor: isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10` }}
+                  >
+                    <ChevronLeft size={20} style={{ color: pageColors.text }} />
+                  </button>
+                  
+                  <div className="flex flex-col gap-0.5 overflow-hidden min-w-0">
+                    {/* Breadcrumbs compactos - solo desktop */}
+                    <nav className="hidden md:flex items-center text-xs space-x-1.5">
+                      <Link 
+                        to="/courses"
+                        className="transition-colors duration-200 hover:underline font-medium"
+                        style={{ color: pageColors.text }}
+                      >
+                        {t('sidebar.studyPlanner')}
+                      </Link>
+                      <ChevronRight size={12} style={{ color: pageColors.textMuted }} />
+                      <Link 
+                        to={`/courses/${courseId}/dashboard`}
+                        className="transition-colors duration-200 hover:underline font-medium truncate max-w-[150px]"
+                        style={{ color: pageColors.text }}
+                        dangerouslySetInnerHTML={{ __html: courseName }}
+                      />
+                      <ChevronRight size={12} style={{ color: pageColors.textMuted }} />
+                      <span className="font-medium" style={{ color: pageColors.textMuted }}>
+                        {t('courses.supportMaterial')}
+                      </span>
+                    </nav>
+                    {/* Título del material */}
+                    <div className="flex items-center gap-2">
+                      <FileText size={16} style={{ color: pageColors.accent }} className="flex-shrink-0 hidden sm:block" />
+                      <h2 className="text-sm sm:text-base font-medium leading-tight truncate" style={{ color: pageColors.text }}>
+                        {selectedPDF.title}
+                      </h2>
+                    </div>
                   </div>
                 </div>
 
-                {/* Navigation and Complete buttons */}
-                <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                  {/* Previous button */}
+                {/* Right: Navigation buttons - Responsive */}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {/* Previous button - Icon only on mobile */}
                   <button
                     onClick={handlePrevious}
                     disabled={!hasPrevious}
-                    className="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm font-medium"
+                    className="p-2 sm:px-3 sm:py-1.5 rounded-lg transition-all flex items-center gap-1 text-sm font-medium"
                     style={{ 
                       backgroundColor: isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`,
                       opacity: hasPrevious ? 1 : 0.4,
@@ -995,20 +1061,22 @@ const SupportMaterialPage = () => {
                     onMouseLeave={(e) => {
                       e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`;
                     }}
+                    title={t('navigation.previous')}
                   >
-                    <ChevronLeft size={16} style={{ color: pageColors.text }} />
-                    <span>{t('navigation.previous')}</span>
+                    <ChevronLeft size={18} style={{ color: pageColors.text }} />
+                    <span className="hidden sm:inline">{t('navigation.previous')}</span>
                   </button>
 
-                  {/* Next button */}
+                  {/* Next button - Icon only on mobile */}
                   <button
                     onClick={handleNext}
                     disabled={!hasNext}
-                    className="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-sm font-medium"
+                    className="p-2 sm:px-3 sm:py-1.5 rounded-lg transition-all flex items-center gap-1 text-sm font-medium"
                     style={{ 
                       backgroundColor: isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`,
                       opacity: hasNext ? 1 : 0.4,
-                      cursor: hasNext ? 'pointer' : 'not-allowed'
+                      cursor: hasNext ? 'pointer' : 'not-allowed',
+                      color: pageColors.text
                     }}
                     onMouseEnter={(e) => {
                       if (hasNext) {
@@ -1018,15 +1086,36 @@ const SupportMaterialPage = () => {
                     onMouseLeave={(e) => {
                       e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`;
                     }}
+                    title={t('navigation.next')}
                   >
-                    <span>{t('navigation.next')}</span>
-                    <ChevronRight size={16} style={{ color: pageColors.text }} />
+                    <span className="hidden sm:inline">{t('navigation.next')}</span>
+                    <ChevronRight size={18} style={{ color: pageColors.text }} />
                   </button>
 
-                  {/* Close button */}
+                  {/* Open in new tab button - Always visible */}
+                  {getPDFUrl(selectedPDF) && (
+                    <a
+                      href={getPDFUrl(selectedPDF)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-lg transition-all"
+                      style={{ backgroundColor: isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10` }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}25` : `${pageColors.text}20`;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`;
+                      }}
+                      title={t('common.openInNewTab') || 'Abrir en nueva pestaña'}
+                    >
+                      <ExternalLink size={18} style={{ color: pageColors.text }} />
+                    </a>
+                  )}
+
+                  {/* Close button - Only on desktop (mobile has back arrow) */}
                   <button
                     onClick={closePDFViewer}
-                    className="p-1.5 rounded-lg transition-all ml-1"
+                    className="hidden sm:block p-2 rounded-lg transition-all"
                     style={{ backgroundColor: isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10` }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}25` : `${pageColors.text}20`;
@@ -1034,21 +1123,71 @@ const SupportMaterialPage = () => {
                     onMouseLeave={(e) => {
                       e.currentTarget.style.backgroundColor = isDarkMode ? `${pageColors.accent}15` : `${pageColors.text}10`;
                     }}
-                    title={t('common.back')}
+                    title={t('common.close') || 'Cerrar'}
                   >
                     <X size={18} style={{ color: pageColors.text }} />
                   </button>
                 </div>
               </div>
 
-              {/* PDF Content */}
-              <div className="flex-1 overflow-hidden">
+              {/* PDF Content - With mobile/tablet fallback */}
+              <div className="flex-1 overflow-hidden relative">
                 {getPDFUrl(selectedPDF) ? (
-                  <iframe
-                    src={getPDFUrl(selectedPDF)}
-                    className="w-full h-full border-0"
-                    title={selectedPDF.title}
-                  />
+                  showPDFFallback ? (
+                    // Mobile/Tablet Fallback: Show preview message with open/download buttons
+                    <div 
+                      className="flex flex-col items-center justify-center h-full p-6 text-center"
+                      style={{ backgroundColor: getColor('secondaryBackground', '#f8f9fa') }}
+                    >
+                      <div 
+                        className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center mb-6"
+                        style={{ backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.text}10` }}
+                      >
+                        <FileText size={40} style={{ color: pageColors.accent }} />
+                      </div>
+                      <h3 className="text-lg sm:text-xl font-semibold mb-2" style={{ color: pageColors.text }}>
+                        {selectedPDF.title}
+                      </h3>
+                      <p className="text-sm mb-6 max-w-sm" style={{ color: pageColors.textMuted }}>
+                        {t('supportMaterial.iosFallback')}
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <a
+                          href={getPDFUrl(selectedPDF)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all"
+                          style={{ 
+                            backgroundColor: pageColors.buttonBg,
+                            color: pageColors.buttonText
+                          }}
+                        >
+                          <ExternalLink size={18} />
+                          {t('common.openInNewTab')}
+                        </a>
+                        <a
+                          href={getPDFUrl(selectedPDF)}
+                          download
+                          className="px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all"
+                          style={{ 
+                            backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.text}10`,
+                            color: pageColors.text
+                          }}
+                        >
+                          <Download size={18} />
+                          {t('common.download')}
+                        </a>
+                      </div>
+                    </div>
+                  ) : (
+                    // Standard iframe for desktop browsers
+                    <iframe
+                      src={getPDFUrl(selectedPDF)}
+                      className="w-full h-full border-0"
+                      title={selectedPDF.title}
+                      style={{ minHeight: '100%' }}
+                    />
+                  )
                 ) : selectedPDF.type === 'text' && selectedPDF.data?.content ? (
                   <div 
                     className="px-6 md:px-24 py-6 overflow-y-auto h-full prose max-w-none"
@@ -1113,7 +1252,15 @@ const SupportMaterialPage = () => {
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
             zIndex: 999999
           }}
-          onClick={handleCloseDeleteThemeModal}
+          onMouseDown={(e) => {
+            deleteModalOverlayRef.current = e.target === e.currentTarget;
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && deleteModalOverlayRef.current) {
+              handleCloseDeleteThemeModal();
+            }
+            deleteModalOverlayRef.current = false;
+          }}
         >
           <div
             className="relative w-full max-w-md rounded-xl shadow-2xl overflow-hidden"

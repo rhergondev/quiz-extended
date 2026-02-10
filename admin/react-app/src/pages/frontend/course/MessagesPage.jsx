@@ -3,13 +3,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { 
   MessageSquare, Mail, MailOpen, Trash2, ChevronLeft, 
-  Inbox, AlertCircle, Clock, Check, RefreshCw, User, Eye
+  Inbox, AlertCircle, Clock, Check, RefreshCw, User, Eye,
+  FileQuestion, ChevronDown, ChevronUp, CheckCircle, XCircle
 } from 'lucide-react';
 
 // Hooks & Context
 import { useMessagesContext } from '../../../contexts/MessagesContext';
 import useCourse from '../../../hooks/useCourse';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { getApiConfig } from '../../../api/config/apiConfig';
+import { makeApiRequest } from '../../../api/services/baseService';
 
 // Components
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
@@ -79,6 +82,32 @@ const MessagesPage = () => {
   // State
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [relatedQuestion, setRelatedQuestion] = useState(null);
+  const [loadingQuestion, setLoadingQuestion] = useState(false);
+  const [showQuestion, setShowQuestion] = useState(false);
+
+  // Load related question when message is selected
+  useEffect(() => {
+    const loadQuestion = async () => {
+      if (selectedMessage?.related_object_id) {
+        setLoadingQuestion(true);
+        try {
+          const config = getApiConfig();
+          const response = await makeApiRequest(`${config.endpoints.questions}/${selectedMessage.related_object_id}?context=view`);
+          setRelatedQuestion(response.data || response);
+        } catch (err) {
+          console.error('Error loading question:', err);
+          setRelatedQuestion(null);
+        } finally {
+          setLoadingQuestion(false);
+        }
+      } else {
+        setRelatedQuestion(null);
+      }
+    };
+    loadQuestion();
+    setShowQuestion(false);
+  }, [selectedMessage]);
 
   // Reset selected message when messages change
   useEffect(() => {
@@ -159,8 +188,8 @@ const MessagesPage = () => {
       icon={MessageSquare}
       loading={courseLoading}
     >
-      <div className="flex flex-col h-full relative" style={{ backgroundColor: pageColors.bgPage }}>
-        <div className="flex-1 relative overflow-hidden">
+      <div className="flex flex-col relative" style={{ backgroundColor: pageColors.bgPage, height: 'calc(100vh - 52px)', maxHeight: 'calc(100vh - 52px)' }}>
+        <div className="flex-1 relative overflow-hidden min-h-0">
           {/* LIST VIEW - Slides out to left when detail is open */}
           <div 
             className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${
@@ -357,6 +386,113 @@ const MessagesPage = () => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Related Question Viewer */}
+                    {selectedMessage.related_object_id && (
+                      <div 
+                        className="mt-4 ml-14 rounded-xl overflow-hidden"
+                        style={{ 
+                          backgroundColor: pageColors.inputBg, 
+                          border: `1px solid ${pageColors.cardBorder}` 
+                        }}
+                      >
+                        {/* Toggle header */}
+                        <button
+                          onClick={() => setShowQuestion(!showQuestion)}
+                          className="w-full flex items-center justify-between p-4 transition-all"
+                          style={{ color: pageColors.text }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <FileQuestion size={18} style={{ color: pageColors.accent }} />
+                            <span className="font-medium text-sm">
+                              {loadingQuestion ? 'Cargando pregunta...' : 'Ver pregunta relacionada'}
+                            </span>
+                          </div>
+                          {showQuestion ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                        </button>
+
+                        {/* Question content */}
+                        {showQuestion && relatedQuestion && (
+                          <div className="p-4 pt-0 space-y-4">
+                            {/* Question title/enunciado */}
+                            <div 
+                              className="p-4 rounded-xl"
+                              style={{ 
+                                backgroundColor: pageColors.bgCard, 
+                                border: `1px solid ${pageColors.cardBorder}` 
+                              }}
+                            >
+                              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: pageColors.textMuted }}>
+                                Enunciado
+                              </p>
+                              <div 
+                                className="text-sm leading-relaxed prose prose-sm max-w-none"
+                                style={{ color: pageColors.text }}
+                                dangerouslySetInnerHTML={{ __html: relatedQuestion.title?.rendered || relatedQuestion.title || '' }}
+                              />
+                            </div>
+
+                            {/* Options/Answers */}
+                            {relatedQuestion.meta?._question_options && relatedQuestion.meta._question_options.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: pageColors.textMuted }}>
+                                  Respuestas
+                                </p>
+                                <div className="space-y-2">
+                                  {relatedQuestion.meta._question_options.map((option, index) => (
+                                    <div 
+                                      key={index}
+                                      className="flex items-start gap-3 p-3 rounded-lg"
+                                      style={{ 
+                                        backgroundColor: option.isCorrect 
+                                          ? (isDarkMode ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5')
+                                          : pageColors.bgCard,
+                                        border: `1px solid ${option.isCorrect 
+                                          ? (isDarkMode ? 'rgba(16, 185, 129, 0.3)' : '#a7f3d0')
+                                          : pageColors.cardBorder}`
+                                      }}
+                                    >
+                                      <div className="flex-shrink-0 mt-0.5">
+                                        {option.isCorrect ? (
+                                          <CheckCircle size={16} style={{ color: pageColors.success }} />
+                                        ) : (
+                                          <XCircle size={16} style={{ color: pageColors.textMuted }} />
+                                        )}
+                                      </div>
+                                      <span 
+                                        className="text-sm"
+                                        style={{ color: option.isCorrect ? pageColors.success : pageColors.text }}
+                                        dangerouslySetInnerHTML={{ __html: option.text || '' }}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Explanation */}
+                            {relatedQuestion.content?.rendered && (
+                              <div 
+                                className="p-4 rounded-xl"
+                                style={{ 
+                                  backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.1)' : '#eff6ff',
+                                  border: `1px solid ${isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#bfdbfe'}`
+                                }}
+                              >
+                                <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: pageColors.info }}>
+                                  Explicación
+                                </p>
+                                <div 
+                                  className="text-sm leading-relaxed prose prose-sm max-w-none"
+                                  style={{ color: pageColors.text }}
+                                  dangerouslySetInnerHTML={{ __html: relatedQuestion.content.rendered }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Info note */}
                     <div 

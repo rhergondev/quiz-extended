@@ -255,7 +255,41 @@ class QE_Frontend
             </style>
         ";
 
-        return $styles . '<div class="qe-login-container">' . $login_form . '</div>';
+        // JavaScript to preserve hash fragment after login redirect
+        $hash_script = "
+            <script>
+                (function() {
+                    // Store the current hash in sessionStorage before form submission
+                    var currentHash = window.location.hash;
+                    if (currentHash && currentHash.length > 1) {
+                        sessionStorage.setItem('qe_pending_hash', currentHash);
+                    }
+                    
+                    // On page load, check if there's a pending hash to restore
+                    var pendingHash = sessionStorage.getItem('qe_pending_hash');
+                    if (pendingHash && !currentHash) {
+                        sessionStorage.removeItem('qe_pending_hash');
+                        // If user is now logged in (React app would load), redirect with hash
+                        // This script only runs on login page, so we just store it
+                    }
+                    
+                    // Intercept form submission to append hash to redirect URL
+                    document.addEventListener('DOMContentLoaded', function() {
+                        var form = document.getElementById('qe-lms-login-form');
+                        if (form && currentHash) {
+                            // Find the redirect_to hidden field and append the hash
+                            var redirectInput = form.querySelector('input[name=\"redirect_to\"]');
+                            if (redirectInput && redirectInput.value) {
+                                // Store hash for after redirect since fragments don't survive server redirect
+                                sessionStorage.setItem('qe_pending_hash', currentHash);
+                            }
+                        }
+                    });
+                })();
+            </script>
+        ";
+
+        return $styles . $hash_script . '<div class="qe-login-container">' . $login_form . '</div>';
     }
 
     /**

@@ -99,19 +99,20 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
         to: `/courses/${courseId}/tests`, 
         text: t('courses.tests'), 
         icon: ClipboardList,
-        badge: hasQuizzes ? stepsByType.quiz.total : null
+        badge: hasQuizzes ? `${stepsByType.quiz.completed}/${stepsByType.quiz.total}` : null
       });
     }
 
     // Agregar Material de Apoyo si hay PDFs/texto O si es admin
     const materialTotal = (stepsByType.text?.total || 0) + (stepsByType.pdf?.total || 0);
+    const materialCompleted = (stepsByType.text?.completed || 0) + (stepsByType.pdf?.completed || 0);
     const hasMaterial = materialTotal > 0;
     if (hasMaterial || userIsAdmin) {
       items.push({ 
         to: `/courses/${courseId}/material`, 
         text: t('courses.supportMaterial'), 
         icon: FileText,
-        badge: hasMaterial ? materialTotal : null
+        badge: hasMaterial ? `${materialCompleted}/${materialTotal}` : null
       });
     }
 
@@ -123,7 +124,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
         text: t('courses.videosSection'), 
         icon: Video,
         divider: true,
-        badge: hasVideos ? stepsByType.video.total : null
+        badge: hasVideos ? `${stepsByType.video.completed}/${stepsByType.video.total}` : null
       });
     } else if (items.length > 0 && !items[items.length - 1].divider) {
       items[items.length - 1].divider = true;
@@ -210,13 +211,14 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
       {isMobileMenuOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          style={{ top: '52px' }}
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <div 
-        className={`fixed top-0 left-0 h-full lg:relative lg:top-auto lg:left-auto lg:h-full transition-all duration-300 z-50 lg:z-auto shadow-lg lg:shadow-none w-64 ${
+        className={`fixed left-0 h-[calc(100%-52px)] top-[52px] lg:relative lg:top-0 lg:left-auto lg:h-full transition-all duration-300 z-50 lg:z-auto shadow-lg lg:shadow-none w-64 ${
           isCollapsed && 'lg:w-20'
         } ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Save, Plus, Settings, FileQuestion, Clock, CheckCircle, AlertCircle, Trash2, GripVertical, ChevronRight, ArrowLeft, Edit2 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -72,6 +72,7 @@ const UnifiedTestModal = ({
   const [activeTab, setActiveTab] = useState('content'); // 'content' | 'settings' | 'selector'
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const mouseDownOnOverlayRef = useRef(false);
   
   // Question Modal State
   const [questionModal, setQuestionModal] = useState({
@@ -314,7 +315,18 @@ const UnifiedTestModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-16">
+    <div 
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-24"
+      onMouseDown={(e) => {
+        mouseDownOnOverlayRef.current = e.target === e.currentTarget;
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownOnOverlayRef.current) {
+          onClose();
+        }
+        mouseDownOnOverlayRef.current = false;
+      }}
+    >
       <div 
         className="relative w-full max-w-5xl h-[75vh] rounded-xl shadow-2xl overflow-hidden flex flex-col transition-all"
         style={{ backgroundColor: colors.bg }}

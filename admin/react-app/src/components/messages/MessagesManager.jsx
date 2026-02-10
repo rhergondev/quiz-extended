@@ -87,7 +87,7 @@ const QuestionPreview = ({ questionId, pageColors }) => {
 
   return (
     <span 
-      className="text-sm font-medium line-clamp-1" 
+      className="text-sm font-medium block" 
       style={{ color: pageColors.text }} 
       dangerouslySetInnerHTML={{ __html: title }} 
     />
@@ -380,8 +380,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   };
 
   const getStatusInfo = (status) => {
-    if (status === 'unread') return { label: 'Sin leer', color: pageColors.error, bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2', icon: Mail };
-    if (status === 'read') return { label: 'Leído', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe', icon: MailOpen };
+    if (status === 'unread' || status === 'read') return { label: 'Sin leer', color: pageColors.error, bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2', icon: Mail };
     if (status === 'resolved') return { label: 'Resuelto', color: pageColors.success, bgColor: isDarkMode ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5', icon: CheckCircle };
     return { label: status || 'Archivado', color: pageColors.textMuted, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6', icon: Archive };
   };
@@ -401,8 +400,8 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   }, [selectedCourseFilter, coursesWithMessages]);
 
   return (
-    <div className="flex flex-col h-full relative" style={{ backgroundColor: pageColors.bgPage }}>
-      <div className="flex-1 relative overflow-hidden">
+    <div className="flex flex-col h-full relative overflow-hidden" style={{ backgroundColor: pageColors.bgPage, maxHeight: '100%' }}>
+      <div className="flex-1 relative overflow-hidden min-h-0">
         {/* LIST VIEW - Slides out to left when detail is open */}
         <div 
           className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${
@@ -474,7 +473,6 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                 >
                   <option value="all">Todos</option>
                   <option value="unread">Sin leer</option>
-                  <option value="read">Leídos</option>
                   <option value="resolved">Resueltos</option>
                 </select>
               </div>
@@ -580,7 +578,6 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                   >
                     <option value="all">Todos</option>
                     <option value="unread">Sin leer</option>
-                    <option value="read">Leídos</option>
                     <option value="resolved">Resueltos</option>
                   </select>
                   <select 
@@ -607,7 +604,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
               {selectedIds.size > 0 && (
                 <div className="flex items-center gap-2 mr-2 px-3 py-1.5 rounded-lg" style={{ backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe' }}>
                   <span className="text-sm font-medium" style={{ color: pageColors.info }}>{selectedIds.size} sel.</span>
-                  <button onClick={() => handleBatchAction('mark_read')} className="text-xs px-2 py-1 rounded font-medium" style={{ backgroundColor: pageColors.info, color: '#fff' }}>Leídos</button>
+                  <button onClick={() => handleBatchAction('resolve')} className="text-xs px-2 py-1 rounded font-medium" style={{ backgroundColor: pageColors.success, color: '#fff' }}>Resueltos</button>
                   <button onClick={() => handleBatchAction('archive')} className="text-xs px-2 py-1 rounded" style={{ backgroundColor: pageColors.hoverBg, color: pageColors.textMuted }}>Archivar</button>
                 </div>
               )}
@@ -682,7 +679,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                 {messages.map((message) => {
                   const isSelected = selectedMessage?.id === message.id;
                   const isChecked = selectedIds.has(message.id);
-                  const isUnread = message.status === 'unread';
+                  const isUnread = message.status === 'unread' || message.status === 'read';
                   const typeInfo = getTypeInfo(message.type);
                   const statusInfo = getStatusInfo(message.status);
                   const TypeIcon = typeInfo.icon;
@@ -850,7 +847,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
               </div>
 
               {/* Chat Content */}
-              <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4">
+              <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4 min-h-0" style={{ maxHeight: 'calc(100vh - 250px)' }}>
                 {/* Original message */}
                 <div className="flex gap-2 sm:gap-4 max-w-4xl">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)` }}>
@@ -868,21 +865,20 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                 {/* Question card */}
                 {selectedMessage.related_object_id && (
                   <div className="ml-10 sm:ml-14 max-w-2xl p-3 sm:p-4 rounded-xl" style={{ backgroundColor: pageColors.inputBg, border: `1px solid ${pageColors.cardBorder}` }}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <FileQuestion size={16} style={{ color: pageColors.accent }} />
-                      <QuestionPreview questionId={selectedMessage.related_object_id} pageColors={pageColors} />
-                    </div>
-                    {!showQuestionEditor ? (
-                      <button onClick={() => setShowQuestionEditor(true)} className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-sm font-medium w-full justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`, color: '#fff' }}>
-                        <Edit3 size={14} />Editar pregunta
-                      </button>
-                    ) : (
-                      <div className="mt-3">
-                        <button onClick={() => setShowQuestionEditor(false)} className="flex items-center gap-1 text-sm mb-3" style={{ color: pageColors.textMuted }}><ChevronLeft size={16} />Cerrar editor</button>
-                        <div className="rounded-xl overflow-visible" style={{ border: `1px solid ${pageColors.cardBorder}` }}>
-                          <QuestionEditorPanel questionId={selectedMessage.related_object_id} mode="edit" onSave={handleQuestionSave} onCancel={() => setShowQuestionEditor(false)} simpleMode={true} />
-                        </div>
+                    {showQuestionEditor ? (
+                      <div className="rounded-xl overflow-visible" style={{ border: `1px solid ${pageColors.cardBorder}` }}>
+                        <QuestionEditorPanel questionId={selectedMessage.related_object_id} mode="edit" onSave={handleQuestionSave} onCancel={() => setShowQuestionEditor(false)} simpleMode={true} />
                       </div>
+                    ) : (
+                      <>
+                        <div className="flex items-start gap-2 mb-3">
+                          <FileQuestion size={16} className="flex-shrink-0 mt-0.5" style={{ color: pageColors.accent }} />
+                          <QuestionPreview questionId={selectedMessage.related_object_id} pageColors={pageColors} />
+                        </div>
+                        <button onClick={() => setShowQuestionEditor(true)} className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-sm font-medium w-full justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`, color: '#fff' }}>
+                          <Edit3 size={14} />Editar pregunta
+                        </button>
+                      </>
                     )}
                   </div>
                 )}
@@ -910,12 +906,27 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
               </div>
 
               {/* Reply input */}
-              <div className="p-2 sm:p-3 pb-16 flex-shrink-0" style={{ backgroundColor: pageColors.bgCard, borderTop: `1px solid ${pageColors.cardBorder}` }}>
-                <div className="flex gap-2 max-w-4xl mx-auto items-center">
-                  <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Escribe tu respuesta..." rows={1} className="flex-1 px-3 py-2 text-sm rounded-lg resize-none focus:outline-none focus:ring-2" style={{ backgroundColor: pageColors.inputBg, border: `1px solid ${pageColors.cardBorder}`, color: pageColors.text, '--tw-ring-color': pageColors.accent }} />
-                  <button onClick={handleSendReply} disabled={!replyText.trim() || sendingReply} className="px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium disabled:opacity-50" style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`, color: '#fff' }}>
-                    {sendingReply ? <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }} /> : <><Send size={14} /><span className="hidden sm:inline">Enviar</span></>}
-                  </button>
+              <div className="p-2 sm:p-3 flex-shrink-0" style={{ backgroundColor: pageColors.bgCard, borderTop: `1px solid ${pageColors.cardBorder}` }}>
+                <div className="flex flex-col gap-2 max-w-4xl mx-auto">
+                  <div className="flex gap-2 items-end">
+                    <textarea 
+                      value={replyText} 
+                      onChange={(e) => setReplyText(e.target.value)} 
+                      placeholder="Escribe tu respuesta..." 
+                      rows={3} 
+                      maxLength={5000}
+                      className="flex-1 px-3 py-2 text-sm rounded-lg resize-none focus:outline-none focus:ring-2" 
+                      style={{ backgroundColor: pageColors.inputBg, border: `1px solid ${pageColors.cardBorder}`, color: pageColors.text, '--tw-ring-color': pageColors.accent }} 
+                    />
+                    <button onClick={handleSendReply} disabled={!replyText.trim() || sendingReply} className="px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium disabled:opacity-50" style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`, color: '#fff' }}>
+                      {sendingReply ? <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }} /> : <><Send size={14} /><span className="hidden sm:inline">Enviar</span></>}
+                    </button>
+                  </div>
+                  {replyText.length > 4500 && (
+                    <span className="text-xs text-right" style={{ color: replyText.length >= 5000 ? pageColors.error : pageColors.textMuted }}>
+                      {replyText.length}/5000 caracteres
+                    </span>
+                  )}
                 </div>
               </div>
             </>

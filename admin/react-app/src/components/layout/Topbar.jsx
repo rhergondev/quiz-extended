@@ -167,9 +167,9 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
       }}
       className="w-full"
     >
-      <div className="flex items-center justify-between px-4 sm:px-10 py-2 w-full max-w-full">
+      <div className="flex items-center justify-between px-3 sm:px-4 lg:px-10 py-2 w-full max-w-full">
         {/* Left: Hamburger (mobile only, course routes only) + Logo */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {isInCourseRoute && (
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -200,11 +200,11 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
               <img 
                 src={currentLogo} 
                 alt="Campus" 
-                className="h-8 max-w-[180px] object-contain"
+                className="h-7 sm:h-8 max-w-[120px] sm:max-w-[180px] object-contain"
               />
             ) : (
               <h1 
-                className="text-2xl font-bold m-0"
+                className="text-xl sm:text-2xl font-bold m-0"
                 style={{ color: topbarColors.text }}
               >
                 Campus
@@ -213,8 +213,8 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
           </a>
         </div>
 
-        {/* Navigation Menu - Centered (hidden on mobile) */}
-        <nav className="hidden md:flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
+        {/* Navigation Menu - Centered (hidden on small screens, icons only on tablet) */}
+        <nav className="hidden lg:flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
           {/* Quick Menu Dropdown - Only show when in course route */}
           {isInCourseRoute && (
           <div className="relative" ref={dropdownRef}>
@@ -385,9 +385,113 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
           })}
         </nav>
 
-        {/* Right Section: Dark Mode Toggle, Admin, User Icon, Logout - Hidden on mobile */}
-        <div className="hidden md:flex items-center gap-3 relative z-10">
-          {/* Dark Mode Toggle */}
+        {/* Right Section: Icons-only nav for mobile/tablet + Dark Mode + User + Logout */}
+        <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 relative z-10">
+          {/* Mobile/Tablet: Show essential icons when in course route (rest is in sidebar) */}
+          {isInCourseRoute && (
+            <div className="flex lg:hidden items-center gap-1">
+              {/* Notifications and messages with badges */}
+              {courseMenuItems.filter(item => item.badge !== undefined).map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end
+                  className="flex items-center justify-center p-2 rounded-lg transition-all duration-200 outline-none focus:outline-none"
+                  style={({ isActive }) => ({
+                    backgroundColor: isActive ? `${topbarColors.accent}20` : 'transparent',
+                    color: isActive ? topbarColors.accent : topbarColors.text,
+                  })}
+                  title={item.text}
+                >
+                  <div className="relative">
+                    <item.icon className="w-5 h-5" />
+                    {item.badge > 0 && (
+                      <span 
+                        className="absolute -top-2 -right-2 min-w-[16px] h-[16px] flex items-center justify-center text-[9px] font-bold rounded-full"
+                        style={{ 
+                          backgroundColor: accent,
+                          color: '#ffffff'
+                        }}
+                      >
+                        {item.badge > 99 ? '99+' : item.badge}
+                      </span>
+                    )}
+                  </div>
+                </NavLink>
+              ))}
+              {/* Admin only: Statistics and Students */}
+              {isAdmin && courseId && (
+                <>
+                  <NavLink
+                    to={`/courses/${courseId}/statistics`}
+                    className="flex items-center justify-center p-2 rounded-lg transition-all duration-200 outline-none focus:outline-none"
+                    style={({ isActive }) => ({
+                      backgroundColor: isActive ? `${topbarColors.accent}20` : 'transparent',
+                      color: isActive ? topbarColors.accent : topbarColors.text,
+                    })}
+                    title={t('courses.statistics')}
+                  >
+                    <BarChart3 className="w-5 h-5" />
+                  </NavLink>
+                  <NavLink
+                    to={`/courses/${courseId}/students`}
+                    className="flex items-center justify-center p-2 rounded-lg transition-all duration-200 outline-none focus:outline-none"
+                    style={({ isActive }) => ({
+                      backgroundColor: isActive ? `${topbarColors.accent}20` : 'transparent',
+                      color: isActive ? topbarColors.accent : topbarColors.text,
+                    })}
+                    title={t('courses.students.title')}
+                  >
+                    <Users className="w-5 h-5" />
+                  </NavLink>
+                </>
+              )}
+            </div>
+          )}
+          
+          {/* Mobile/Tablet: Show global nav icons (only when NOT in course route) */}
+          {!isInCourseRoute && (
+            <div className="flex lg:hidden items-center gap-1">
+              <NavLink
+                to="/courses"
+                className="flex items-center justify-center p-2 rounded-lg transition-all duration-200"
+                style={({ isActive }) => ({
+                  backgroundColor: isActive ? `${topbarColors.accent}20` : 'transparent',
+                  color: isActive ? topbarColors.accent : topbarColors.text,
+                })}
+                title={t('sidebar.studyPlanner')}
+              >
+                <BookOpen className="w-5 h-5" />
+              </NavLink>
+              <NavLink
+                to="/books"
+                className="flex items-center justify-center p-2 rounded-lg transition-all duration-200"
+                style={({ isActive }) => ({
+                  backgroundColor: isActive ? `${topbarColors.accent}20` : 'transparent',
+                  color: isActive ? topbarColors.accent : topbarColors.text,
+                })}
+                title={t('sidebar.books')}
+              >
+                <Book className="w-5 h-5" />
+              </NavLink>
+              <a
+                href={homeUrl}
+                className="flex items-center justify-center p-2 rounded-lg transition-all duration-200"
+                style={{ 
+                  backgroundColor: 'transparent',
+                  color: topbarColors.text
+                }}
+                title={t('sidebar.exitCampus')}
+              >
+                <Home className="w-5 h-5" />
+              </a>
+            </div>
+          )}
+          
+          {/* Separator for mobile - only show if there are items before */}
+          <div className="w-px h-5 lg:hidden" style={{ backgroundColor: `${topbarColors.text}20` }} />
+          
+          {/* Dark Mode Toggle - Always visible */}
           <button
             onClick={toggleDarkMode}
             className="flex items-center justify-center p-2 rounded-lg transition-all duration-200 outline-none focus:outline-none"
@@ -406,10 +510,10 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
             {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
 
-          {/* User Icon - Clickable to Account (no name/email) */}
+          {/* User Icon - Desktop only */}
           <a
             href={`${homeUrl}/mi-cuenta/edit-account/`}
-            className="flex items-center justify-center p-2 rounded-lg transition-all duration-200 outline-none focus:outline-none"
+            className="hidden lg:flex items-center justify-center p-2 rounded-lg transition-all duration-200 outline-none focus:outline-none"
             style={{ 
               backgroundColor: 'transparent',
               color: topbarColors.text
@@ -422,14 +526,14 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
             }}
             title={t('sidebar.myAccount')}
           >
-            <User className="w-6 h-6" />
+            <User className="w-5 h-5 sm:w-6 sm:h-6" />
           </a>
 
-          {/* Logout - Icon Only */}
+          {/* Logout - Desktop only */}
           {logoutUrl && (
             <a
               href={logoutUrl}
-              className="flex items-center justify-center p-2 rounded-lg transition-all duration-200 outline-none focus:outline-none"
+              className="hidden lg:flex items-center justify-center p-2 rounded-lg transition-all duration-200 outline-none focus:outline-none"
               style={{ 
                 backgroundColor: isDarkMode ? accent : topbarColors.activeBg,
                 color: isDarkMode ? secondaryBackground : '#ffffff'

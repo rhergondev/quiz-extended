@@ -9,7 +9,7 @@
  * @version 1.0.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { X, Video, Save, AlertCircle } from 'lucide-react';
@@ -46,6 +46,7 @@ const VideoModal = ({
 
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  const mouseDownOnOverlayRef = useRef(false);
 
   useEffect(() => {
     if (isOpen && video && mode === 'edit') {
@@ -139,7 +140,15 @@ const VideoModal = ({
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         zIndex: 100000
       }}
-      onClick={onClose}
+      onMouseDown={(e) => {
+        mouseDownOnOverlayRef.current = e.target === e.currentTarget;
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownOnOverlayRef.current) {
+          onClose();
+        }
+        mouseDownOnOverlayRef.current = false;
+      }}
     >
       <div
         style={{ 

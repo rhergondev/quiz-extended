@@ -366,7 +366,7 @@ const QuestionEditorPanel = ({
       >
         <div>
             <h3 className="text-lg font-bold tracking-tight" style={{ color: pageColors.text }}>{panelTitle}</h3>
-             {mode === 'edit' && <p className="text-sm font-normal mt-0.5" style={{ color: pageColors.textMuted }}>{getQuestionTitle(formData)}</p>}
+             {mode === 'edit' && !simpleMode && <p className="text-sm font-normal mt-0.5" style={{ color: pageColors.textMuted }}>{getQuestionTitle(formData)}</p>}
         </div>
         <div className="flex items-center gap-4">
             <button 
@@ -391,16 +391,17 @@ const QuestionEditorPanel = ({
           </div>
         )}
         
-        <input 
-          type="text" 
+        <textarea 
           value={formData.title || ''} 
           onChange={(e) => handleFieldChange('title', e.target.value)} 
           placeholder={t('questions.fields.title')}
-          className="w-full text-xl font-bold focus:outline-none border-b pb-3"
+          rows={2}
+          className="w-full text-lg font-bold focus:outline-none focus:ring-2 rounded-lg p-3 resize-none"
           style={{
-            backgroundColor: 'transparent',
-            borderColor: pageColors.cardBorder,
-            color: pageColors.text
+            backgroundColor: pageColors.inputBg,
+            border: isDarkMode ? '1px solid rgba(255,255,255,0.2)' : '1px solid #d1d5db',
+            color: pageColors.text,
+            '--tw-ring-color': pageColors.accent
           }}
         />
 

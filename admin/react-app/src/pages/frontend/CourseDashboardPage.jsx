@@ -8,6 +8,7 @@ import CoursePageTemplate from '../../components/course/CoursePageTemplate';
 import { getMyRankingStatus } from '../../api/services/courseRankingService';
 import { getCalendarNotes } from '../../api/services/calendarNotesService';
 import { getCourseLessons } from '../../api/services/courseLessonService';
+import { getCourseProgress } from '../../api/services/studentProgressService';
 import { ClipboardList, FileText, Video, Trophy, TrendingUp, Award, Users, ToggleLeft, ToggleRight, Calendar, ExternalLink } from 'lucide-react';
 
 const CourseDashboardPage = () => {
@@ -25,6 +26,7 @@ const CourseDashboardPage = () => {
   const [liveClassLoading, setLiveClassLoading] = useState(true);
   const [lessons, setLessons] = useState([]);
   const [lessonsLoading, setLessonsLoading] = useState(true);
+  const [progressData, setProgressData] = useState(null);
 
   // Dark mode aware colors (same pattern as SupportMaterialPage)
   const pageColors = {
@@ -85,6 +87,15 @@ const CourseDashboardPage = () => {
           console.error('Error loading lessons:', error);
           setLessonsLoading(false);
         });
+      
+      // Fetch course progress for completed counts
+      getCourseProgress(courseIdInt)
+        .then(progress => {
+          setProgressData(progress);
+        })
+        .catch(error => {
+          console.error('Error loading progress:', error);
+        });
     }
   }, [courseId]);
 
@@ -111,9 +122,12 @@ const CourseDashboardPage = () => {
     return types;
   }, [lessons]);
 
-  // Componente de Donut Chart mejorado
-  const DonutChart = ({ total, icon: Icon, label, color }) => {
+  // Componente de Donut Chart mejorado con progreso
+  const DonutChart = ({ completed, total, icon: Icon, label, color }) => {
     const radius = 45;
+    const circumference = 2 * Math.PI * radius;
+    const percentage = total > 0 ? (completed / total) * 100 : 0;
+    const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
     return (
       <div className="flex flex-col items-center justify-center py-4">
@@ -128,12 +142,25 @@ const CourseDashboardPage = () => {
               strokeWidth="8"
               fill="none"
             />
+            {/* Progress circle */}
+            <circle
+              cx="55"
+              cy="55"
+              r={radius}
+              stroke={color}
+              strokeWidth="8"
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              style={{ transition: 'stroke-dashoffset 0.5s ease-in-out' }}
+            />
           </svg>
           {/* Center content */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <Icon size={20} style={{ color }} className="mb-1" />
-            <span className="text-xl font-bold" style={{ color: pageColors.text }}>
-              {total}
+            <Icon size={18} style={{ color }} className="mb-0.5" />
+            <span className="text-lg font-bold" style={{ color: pageColors.text }}>
+              {completed}/{total}
             </span>
           </div>
         </div>
@@ -177,35 +204,46 @@ const CourseDashboardPage = () => {
     </div>
   );
 
-  // Calcular qué tipos de contenido están disponibles
+  // Calcular qué tipos de contenido están disponibles (usando datos de progreso del API)
   const availableContentTypes = useMemo(() => {
     const types = [];
+    const apiSteps = progressData?.steps_by_type || {};
     
-    if ((stepsByType.quiz?.total || 0) > 0) {
+    // Usar datos del API si están disponibles, si no usar los calculados localmente
+    const quizData = apiSteps.quiz || stepsByType.quiz || { total: 0, completed: 0 };
+    const textData = apiSteps.text || stepsByType.text || { total: 0, completed: 0 };
+    const pdfData = apiSteps.pdf || stepsByType.pdf || { total: 0, completed: 0 };
+    const videoData = apiSteps.video || stepsByType.video || { total: 0, completed: 0 };
+    
+    if ((quizData.total || 0) > 0) {
       types.push({
         type: 'quiz',
-        total: stepsByType.quiz.total,
+        total: quizData.total,
+        completed: quizData.completed || 0,
         icon: ClipboardList,
         label: t('courses.tests'),
         color: pageColors.primary
       });
     }
     
-    const materialTotal = (stepsByType.text?.total || 0) + (stepsByType.pdf?.total || 0);
+    const materialTotal = (textData.total || 0) + (pdfData.total || 0);
+    const materialCompleted = (textData.completed || 0) + (pdfData.completed || 0);
     if (materialTotal > 0) {
       types.push({
         type: 'material',
         total: materialTotal,
+        completed: materialCompleted,
         icon: FileText,
         label: t('courses.supportMaterial'),
         color: '#10b981'
       });
     }
     
-    if ((stepsByType.video?.total || 0) > 0) {
+    if ((videoData.total || 0) > 0) {
       types.push({
         type: 'video',
-        total: stepsByType.video.total,
+        total: videoData.total,
+        completed: videoData.completed || 0,
         icon: Video,
         label: t('courses.videosSection'),
         color: '#8b5cf6'
@@ -213,7 +251,7 @@ const CourseDashboardPage = () => {
     }
     
     return types;
-  }, [stepsByType, t, pageColors.primary]);
+  }, [stepsByType, progressData, t, pageColors.primary]);
 
   if (loading) {
     return (
@@ -394,6 +432,7 @@ const CourseDashboardPage = () => {
                   {availableContentTypes.map((contentType) => (
                     <DonutChart
                       key={contentType.type}
+                      completed={contentType.completed}
                       total={contentType.total}
                       icon={contentType.icon}
                       label={contentType.label}

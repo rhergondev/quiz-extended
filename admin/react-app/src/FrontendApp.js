@@ -1,5 +1,5 @@
-import React, { lazy, Suspense } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { HashRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ScoreFormatProvider } from './contexts/ScoreFormatContext';
@@ -53,6 +53,27 @@ const LazyLoadSpinner = () => (
   </div>
 );
 
+// Component to restore pending hash after login redirect
+// This handles the case when user clicks email link, logs in, and needs to be redirected to messages
+const PendingHashRestorer = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  useEffect(() => {
+    const pendingHash = sessionStorage.getItem('qe_pending_hash');
+    if (pendingHash && location.pathname === '/') {
+      sessionStorage.removeItem('qe_pending_hash');
+      // Parse the hash to get the path (e.g., "#/messages?messageId=123" -> "/messages?messageId=123")
+      const hashPath = pendingHash.startsWith('#') ? pendingHash.substring(1) : pendingHash;
+      if (hashPath && hashPath !== '/') {
+        navigate(hashPath, { replace: true });
+      }
+    }
+  }, [navigate, location.pathname]);
+  
+  return null;
+};
+
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const isLoggedIn = window.qe_data?.user?.id > 0;
@@ -92,6 +113,7 @@ function FrontendApp() {
       <ScoreFormatProvider>
         <MessagesProvider enablePolling={true} pollingInterval={30000}>
           <Router>
+            <PendingHashRestorer />
             <Suspense fallback={<LazyLoadSpinner />}>
               <Routes>
                 {/* Public Routes */}

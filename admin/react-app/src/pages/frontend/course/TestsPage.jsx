@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
@@ -103,6 +103,7 @@ const TestsPage = () => {
     isOpen: false,
     lesson: null
   });
+  const deleteModalOverlayRef = useRef(false);
 
   // Ordering mode state
   const [isOrderingMode, setIsOrderingMode] = useState(false);
@@ -1937,7 +1938,15 @@ const TestsPage = () => {
               backgroundColor: 'rgba(0, 0, 0, 0.5)',
               zIndex: 999999
             }}
-            onClick={handleCloseDeleteThemeModal}
+            onMouseDown={(e) => {
+              deleteModalOverlayRef.current = e.target === e.currentTarget;
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget && deleteModalOverlayRef.current) {
+                handleCloseDeleteThemeModal();
+              }
+              deleteModalOverlayRef.current = false;
+            }}
           >
             <div
               className="relative w-full max-w-md rounded-xl shadow-2xl overflow-hidden"
