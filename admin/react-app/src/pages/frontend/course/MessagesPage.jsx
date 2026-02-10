@@ -85,6 +85,30 @@ const MessagesPage = () => {
   const [relatedQuestion, setRelatedQuestion] = useState(null);
   const [loadingQuestion, setLoadingQuestion] = useState(false);
   const [showQuestion, setShowQuestion] = useState(false);
+  const [parentMessage, setParentMessage] = useState(null);
+  const [loadingParent, setLoadingParent] = useState(false);
+
+  // Load parent message when a reply is selected
+  useEffect(() => {
+    const loadParent = async () => {
+      if (selectedMessage?.parent_id) {
+        setLoadingParent(true);
+        try {
+          const config = getApiConfig();
+          const response = await makeApiRequest(`${config.endpoints.custom_api}/messages/${selectedMessage.id}/parent`);
+          setParentMessage(response.data?.data?.parent || null);
+        } catch (err) {
+          console.error('Error loading parent message:', err);
+          setParentMessage(null);
+        } finally {
+          setLoadingParent(false);
+        }
+      } else {
+        setParentMessage(null);
+      }
+    };
+    loadParent();
+  }, [selectedMessage]);
 
   // Load related question when message is selected
   useEffect(() => {
@@ -363,13 +387,77 @@ const MessagesPage = () => {
 
                 {/* Message Content */}
                 <div className="flex-1 overflow-y-auto p-6">
-                  <div className="max-w-3xl mx-auto">
-                    {/* Message bubble */}
+                  <div className="max-w-3xl mx-auto space-y-4">
+                    
+                    {/* Loading parent indicator */}
+                    {loadingParent && (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: `${pageColors.accent}30`, borderTopColor: pageColors.accent }} />
+                      </div>
+                    )}
+
+                    {/* Original message (parent) - shown first if exists */}
+                    {parentMessage && (
+                      <div className="flex gap-4">
+                        <div 
+                          className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center" 
+                          style={{ backgroundColor: pageColors.primary }}
+                        >
+                          <User size={16} className="text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-medium" style={{ color: pageColors.primary }}>
+                              {t('messages.you') || 'Tú'}
+                            </span>
+                            <span className="text-xs" style={{ color: pageColors.textMuted }}>
+                              {new Date(parentMessage.created_at).toLocaleString('es-ES', {
+                                day: 'numeric',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                          <div 
+                            className="rounded-2xl rounded-tl-sm p-4" 
+                            style={{ 
+                              backgroundColor: isDarkMode ? `${pageColors.primary}20` : `${pageColors.primary}10`,
+                              border: `1px solid ${isDarkMode ? `${pageColors.primary}40` : `${pageColors.primary}25`}`,
+                            }}
+                          >
+                            <div 
+                              className="text-sm prose prose-sm max-w-none leading-relaxed" 
+                              style={{ color: pageColors.text }} 
+                              dangerouslySetInnerHTML={{ __html: cleanMessageContent(parentMessage.message, parentMessage.subject) }} 
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Reply/Response from admin */}
                     <div className="flex gap-4">
-                      <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)` }}>
+                      <div 
+                        className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center" 
+                        style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)` }}
+                      >
                         <User size={16} className="text-white" />
                       </div>
                       <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-medium" style={{ color: pageColors.accent }}>
+                            {selectedMessage.sender_name || t('messages.system')}
+                          </span>
+                          <span className="text-xs" style={{ color: pageColors.textMuted }}>
+                            {new Date(selectedMessage.created_at).toLocaleString('es-ES', {
+                              day: 'numeric',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
                         <div 
                           className="rounded-2xl rounded-tl-sm p-4" 
                           style={{ 

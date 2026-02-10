@@ -87,6 +87,24 @@ class QE_Messages_API extends QE_API_Base
         );
 
         // ============================================================
+        // GET PARENT MESSAGE - Student gets parent of a thread
+        // ============================================================
+
+        register_rest_route($this->namespace, '/messages/(?P<id>\d+)/parent', [
+            'methods' => WP_REST_Server::READABLE,
+            'callback' => [$this, 'get_message_parent'],
+            'permission_callback' => [$this, 'check_permissions'],
+            'args' => [
+                'id' => [
+                    'required' => true,
+                    'validate_callback' => function ($param) {
+                        return is_numeric($param);
+                    }
+                ]
+            ]
+        ]);
+
+        // ============================================================
         // MARK AS READ - Student marks message as read
         // ============================================================
 
@@ -823,6 +841,60 @@ class QE_Messages_API extends QE_API_Base
         } catch (Exception $e) {
             $this->log_error('Exception in get_user_inbox', ['message' => $e->getMessage()]);
             return $this->error_response('internal_error', 'Error al obtener los mensajes.', 500);
+        }
+    }
+
+    // ============================================================
+    // GET MESSAGE PARENT (STUDENT SIDE)
+    // ============================================================
+
+    /**
+     * Get parent message of a thread (for students to see their original message)
+     */
+    public function get_message_parent($request)
+    {
+        try {
+            global $wpdb;
+            $table_name = $this->get_table('messages');
+            $message_id = absint($request['id']);
+            $user_id = get_current_user_id();
+
+            // First, get the message to find its parent_id
+            $message = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$table_name} WHERE id = %d AND recipient_id = %d",
+                $message_id,
+                $user_id
+            ), ARRAY_A);
+
+            if (!$message) {
+                return $this->error_response('not_found', 'Mensaje no encontrado.', 404);
+            }
+
+            if (empty($message['parent_id'])) {
+                return $this->success_response(['parent' => null]);
+            }
+
+            // Get the parent message (user must be sender OR recipient of parent)
+            $parent = $wpdb->get_row($wpdb->prepare(
+                "SELECT m.*, COALESCE(u.display_name, 'Sistema') as sender_name
+                 FROM {$table_name} m
+                 LEFT JOIN {$wpdb->users} u ON m.sender_id = u.ID
+                 WHERE m.id = %d AND (m.sender_id = %d OR m.recipient_id = %d)",
+                $message['parent_id'],
+                $user_id,
+                $user_id
+            ), ARRAY_A);
+
+            if (!$parent) {
+                // Parent exists but user doesn't have access
+                return $this->success_response(['parent' => null]);
+            }
+
+            return $this->success_response(['parent' => $parent]);
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in get_message_parent', ['message' => $e->getMessage()]);
+            return $this->error_response('internal_error', 'Error al obtener el mensaje.', 500);
         }
     }
 
