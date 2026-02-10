@@ -1159,7 +1159,7 @@
     "moveUp": "Move up",
     "moveDown": "Move down",
     "iosFallback": "For a better experience, open the PDF in a new tab or download it",
-    "safariPdfNote": "If the PDF doesn't display correctly, use the buttons below",
+    "safariPdfNote": "Safari cannot display embedded PDFs. Open in a new tab or download the file.",
     "errors": {
       "titleRequired": "Title is required",
       "pdfRequired": "You must select a PDF file",

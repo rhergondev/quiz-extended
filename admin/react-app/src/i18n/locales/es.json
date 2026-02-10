@@ -1163,7 +1163,7 @@
     "moveUp": "Mover arriba",
     "moveDown": "Mover abajo",
     "iosFallback": "Para una mejor experiencia, abre el PDF en una nueva pestaña o descárgalo",
-    "safariPdfNote": "Si el PDF no se muestra correctamente, usa los botones de abajo",
+    "safariPdfNote": "Safari no puede mostrar PDFs embebidos. Abre en nueva pestaña o descarga el archivo.",
     "errors": {
       "titleRequired": "El título es requerido",
       "pdfRequired": "Debe seleccionar un archivo PDF",
