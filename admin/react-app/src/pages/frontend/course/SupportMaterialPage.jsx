@@ -57,9 +57,17 @@ const SupportMaterialPage = () => {
     return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   }, []);
 
-  // Show PDF fallback (buttons instead of iframe) on mobile/tablet OR touch devices
-  // PDFs in iframes don't work well on most mobile browsers
-  const showPDFFallback = isMobileOrTablet || isTouchDevice;
+  // Detect Safari browser (has issues with PDF iframes)
+  const isSafari = useMemo(() => {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent.toLowerCase();
+    // Safari but NOT Chrome (Chrome also includes Safari in UA)
+    return ua.includes('safari') && !ua.includes('chrome') && !ua.includes('chromium');
+  }, []);
+
+  // Show PDF fallback (buttons instead of iframe) on mobile/tablet, touch devices, OR Safari
+  // PDFs in iframes don't work well on most mobile browsers and Safari
+  const showPDFFallback = isMobileOrTablet || isTouchDevice || isSafari;
 
   // Admin functionality
   const userIsAdmin = isUserAdmin();
@@ -1130,55 +1138,112 @@ const SupportMaterialPage = () => {
                 </div>
               </div>
 
-              {/* PDF Content - With mobile/tablet fallback */}
+              {/* PDF Content - With mobile/tablet/Safari fallback */}
               <div className="flex-1 overflow-hidden relative">
                 {getPDFUrl(selectedPDF) ? (
                   showPDFFallback ? (
-                    // Mobile/Tablet Fallback: Show preview message with open/download buttons
-                    <div 
-                      className="flex flex-col items-center justify-center h-full p-6 text-center"
-                      style={{ backgroundColor: getColor('secondaryBackground', '#f8f9fa') }}
-                    >
-                      <div 
-                        className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center mb-6"
-                        style={{ backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.text}10` }}
+                    // Safari/Mobile/Tablet: Use <object> with fallback buttons
+                    // <object> works better than iframe in Safari for PDFs
+                    isSafari && !isMobileOrTablet ? (
+                      <object
+                        data={getPDFUrl(selectedPDF)}
+                        type="application/pdf"
+                        className="w-full h-full"
+                        style={{ minHeight: '100%' }}
                       >
-                        <FileText size={40} style={{ color: pageColors.accent }} />
-                      </div>
-                      <h3 className="text-lg sm:text-xl font-semibold mb-2" style={{ color: pageColors.text }}>
-                        {selectedPDF.title}
-                      </h3>
-                      <p className="text-sm mb-6 max-w-sm" style={{ color: pageColors.textMuted }}>
-                        {t('supportMaterial.iosFallback')}
-                      </p>
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <a
-                          href={getPDFUrl(selectedPDF)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all"
-                          style={{ 
-                            backgroundColor: pageColors.buttonBg,
-                            color: pageColors.buttonText
-                          }}
+                        {/* Fallback content if object fails */}
+                        <div 
+                          className="flex flex-col items-center justify-center h-full p-6 text-center"
+                          style={{ backgroundColor: getColor('secondaryBackground', '#f8f9fa') }}
                         >
-                          <ExternalLink size={18} />
-                          {t('common.openInNewTab')}
-                        </a>
-                        <a
-                          href={getPDFUrl(selectedPDF)}
-                          download
-                          className="px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all"
-                          style={{ 
-                            backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.text}10`,
-                            color: pageColors.text
-                          }}
+                          <div 
+                            className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center mb-6"
+                            style={{ backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.text}10` }}
+                          >
+                            <FileText size={40} style={{ color: pageColors.accent }} />
+                          </div>
+                          <h3 className="text-lg sm:text-xl font-semibold mb-2" style={{ color: pageColors.text }}>
+                            {selectedPDF.title}
+                          </h3>
+                          <p className="text-sm mb-6 max-w-sm" style={{ color: pageColors.textMuted }}>
+                            {t('supportMaterial.safariPdfNote') || 'Tu navegador no puede mostrar el PDF directamente. Usa los botones para verlo.'}
+                          </p>
+                          <div className="flex flex-col sm:flex-row gap-3">
+                            <a
+                              href={getPDFUrl(selectedPDF)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all"
+                              style={{ 
+                                backgroundColor: pageColors.buttonBg,
+                                color: pageColors.buttonText
+                              }}
+                            >
+                              <ExternalLink size={18} />
+                              {t('common.openInNewTab')}
+                            </a>
+                            <a
+                              href={getPDFUrl(selectedPDF)}
+                              download
+                              className="px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all"
+                              style={{ 
+                                backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.text}10`,
+                                color: pageColors.text
+                              }}
+                            >
+                              <Download size={18} />
+                              {t('common.download')}
+                            </a>
+                          </div>
+                        </div>
+                      </object>
+                    ) : (
+                      // Mobile/Tablet Fallback: Show preview message with open/download buttons
+                      <div 
+                        className="flex flex-col items-center justify-center h-full p-6 text-center"
+                        style={{ backgroundColor: getColor('secondaryBackground', '#f8f9fa') }}
+                      >
+                        <div 
+                          className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center mb-6"
+                          style={{ backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.text}10` }}
                         >
-                          <Download size={18} />
-                          {t('common.download')}
-                        </a>
+                          <FileText size={40} style={{ color: pageColors.accent }} />
+                        </div>
+                        <h3 className="text-lg sm:text-xl font-semibold mb-2" style={{ color: pageColors.text }}>
+                          {selectedPDF.title}
+                        </h3>
+                        <p className="text-sm mb-6 max-w-sm" style={{ color: pageColors.textMuted }}>
+                          {t('supportMaterial.iosFallback')}
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <a
+                            href={getPDFUrl(selectedPDF)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all"
+                            style={{ 
+                              backgroundColor: pageColors.buttonBg,
+                              color: pageColors.buttonText
+                            }}
+                          >
+                            <ExternalLink size={18} />
+                            {t('common.openInNewTab')}
+                          </a>
+                          <a
+                            href={getPDFUrl(selectedPDF)}
+                            download
+                            className="px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all"
+                            style={{ 
+                              backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.text}10`,
+                              color: pageColors.text
+                            }}
+                          >
+                            <Download size={18} />
+                            {t('common.download')}
+                          </a>
+                        </div>
                       </div>
-                    </div>
+                    )
                   ) : (
                     // Standard iframe for desktop browsers
                     <iframe
