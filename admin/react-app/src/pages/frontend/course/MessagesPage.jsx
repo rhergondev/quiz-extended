@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { 
   MessageSquare, Mail, MailOpen, Trash2, ChevronLeft, 
   Inbox, AlertCircle, Clock, Check, RefreshCw, User, Eye,
-  FileQuestion, ChevronDown, ChevronUp, CheckCircle, XCircle
+  FileQuestion, ChevronDown, ChevronUp, CheckCircle, XCircle, Send
 } from 'lucide-react';
 
 // Hooks & Context
@@ -396,89 +396,45 @@ const MessagesPage = () => {
                       </div>
                     )}
 
-                    {/* Original message (parent) - shown first if exists */}
+                    {/* 1. Original message (parent) - user's feedback/question - RIGHT SIDE */}
                     {parentMessage && (
-                      <div className="flex gap-4">
-                        <div 
-                          className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center" 
-                          style={{ backgroundColor: pageColors.primary }}
-                        >
-                          <User size={16} className="text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-medium" style={{ color: pageColors.primary }}>
-                              {t('messages.you') || 'Tú'}
-                            </span>
-                            <span className="text-xs" style={{ color: pageColors.textMuted }}>
-                              {new Date(parentMessage.created_at).toLocaleString('es-ES', {
-                                day: 'numeric',
-                                month: 'short',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
-                          </div>
+                      <div className="flex gap-3 justify-end max-w-4xl ml-auto">
+                        <div className="max-w-[85%]">
                           <div 
-                            className="rounded-2xl rounded-tl-sm p-4" 
+                            className="rounded-2xl rounded-tr-sm p-4" 
                             style={{ 
-                              backgroundColor: isDarkMode ? `${pageColors.primary}20` : `${pageColors.primary}10`,
-                              border: `1px solid ${isDarkMode ? `${pageColors.primary}40` : `${pageColors.primary}25`}`,
+                              background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`,
+                              color: '#fff',
+                              boxShadow: '0 2px 12px rgba(59, 130, 246, 0.2)'
                             }}
                           >
                             <div 
-                              className="text-sm prose prose-sm max-w-none leading-relaxed" 
-                              style={{ color: pageColors.text }} 
+                              className="text-sm prose prose-sm prose-invert max-w-none leading-relaxed break-words" 
                               dangerouslySetInnerHTML={{ __html: cleanMessageContent(parentMessage.message, parentMessage.subject) }} 
                             />
                           </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Reply/Response from admin */}
-                    <div className="flex gap-4">
-                      <div 
-                        className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center" 
-                        style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)` }}
-                      >
-                        <User size={16} className="text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-medium" style={{ color: pageColors.accent }}>
-                            {selectedMessage.sender_name || t('messages.system')}
-                          </span>
-                          <span className="text-xs" style={{ color: pageColors.textMuted }}>
-                            {new Date(selectedMessage.created_at).toLocaleString('es-ES', {
+                          <p className="text-xs mt-2 mr-3 text-right" style={{ color: pageColors.textMuted }}>
+                            {t('messages.you') || 'Tú'} • {new Date(parentMessage.created_at).toLocaleString('es-ES', {
                               day: 'numeric',
                               month: 'short',
                               hour: '2-digit',
                               minute: '2-digit'
                             })}
-                          </span>
+                          </p>
                         </div>
                         <div 
-                          className="rounded-2xl rounded-tl-sm p-4" 
-                          style={{ 
-                            backgroundColor: pageColors.bgCard, 
-                            border: `1px solid ${pageColors.cardBorder}`, 
-                            boxShadow: pageColors.shadowSm 
-                          }}
+                          className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center" 
+                          style={{ background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)` }}
                         >
-                          <div 
-                            className="text-sm prose prose-sm max-w-none leading-relaxed" 
-                            style={{ color: pageColors.text }} 
-                            dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedMessage.message, selectedMessage.subject) }} 
-                          />
+                          <Send size={14} className="text-white" />
                         </div>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Related Question Viewer */}
+                    {/* 2. Related Question Viewer - centered between messages */}
                     {selectedMessage.related_object_id && (
                       <div 
-                        className="mt-4 ml-14 rounded-xl overflow-hidden"
+                        className="mx-4 sm:mx-8 rounded-xl overflow-hidden"
                         style={{ 
                           backgroundColor: pageColors.inputBg, 
                           border: `1px solid ${pageColors.cardBorder}` 
@@ -581,6 +537,40 @@ const MessagesPage = () => {
                         )}
                       </div>
                     )}
+
+                    {/* 3. Reply/Response from admin - LEFT SIDE */}
+                    <div className="flex gap-3 max-w-4xl">
+                      <div 
+                        className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center" 
+                        style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)` }}
+                      >
+                        <User size={16} className="text-white" />
+                      </div>
+                      <div className="max-w-[85%]">
+                        <div 
+                          className="rounded-2xl rounded-tl-sm p-4" 
+                          style={{ 
+                            backgroundColor: pageColors.bgCard, 
+                            border: `1px solid ${pageColors.cardBorder}`, 
+                            boxShadow: pageColors.shadowSm 
+                          }}
+                        >
+                          <div 
+                            className="text-sm prose prose-sm max-w-none leading-relaxed break-words" 
+                            style={{ color: pageColors.text }} 
+                            dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedMessage.message, selectedMessage.subject) }} 
+                          />
+                        </div>
+                        <p className="text-xs mt-2 ml-3" style={{ color: pageColors.textMuted }}>
+                          {parentMessage ? (t('messages.adminResponse') || 'Respuesta') : (selectedMessage.sender_name || t('messages.system'))} • {new Date(selectedMessage.created_at).toLocaleString('es-ES', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
 
                     {/* Info note */}
                     <div 

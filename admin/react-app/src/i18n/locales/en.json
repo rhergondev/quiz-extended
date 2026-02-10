@@ -117,7 +117,11 @@
     "yesterday": "Yesterday",
     "markAsRead": "Mark as read",
     "delete": "Delete",
-    "loadMore": "Load more messages"
+    "loadMore": "Load more messages",
+    "you": "Your original message",
+    "yourOriginalMessage": "Your original message",
+    "adminResponse": "Response",
+    "contactSupport": "This message is read-only. To respond, use the feedback feature in the quiz questions."
   },
   "courses": {
     "title": "Courses",

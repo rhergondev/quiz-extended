@@ -122,7 +122,11 @@
     "yesterday": "Ayer",
     "markAsRead": "Marcar como leído",
     "delete": "Eliminar",
-    "loadMore": "Cargar más mensajes"
+    "loadMore": "Cargar más mensajes",
+    "you": "Tu mensaje original",
+    "yourOriginalMessage": "Tu mensaje original",
+    "adminResponse": "Respuesta",
+    "contactSupport": "Este mensaje es de solo lectura. Para responder, usa la función de feedback en las preguntas del cuestionario."
   },
   "dashboard": {
     "title": "Panel del LMS",
