@@ -34,6 +34,7 @@ import useMessages from '../../hooks/useMessages';
 import { useSearchInput, useFilterDebounce } from '../../api/utils/debounceUtils';
 import { makeApiRequest } from '../../api/services/baseService';
 import { getApiConfig } from '../../api/config/apiConfig';
+import { updateQuestion } from '../../api/services/questionService';
 import SendMessageModal from './SendMessageModal';
 import QuestionEditorPanel from '../questions/QuestionEditorPanel';
 import { useTaxonomyOptions } from '../../hooks/useTaxonomyOptions.js';
@@ -360,7 +361,21 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
     }
   }, [replyText, selectedMessage, handleStatusChange, fetchReplies]);
 
-  const handleQuestionSave = useCallback(async () => { setShowQuestionEditor(false); }, []);
+  const handleQuestionSave = useCallback(async (questionData) => {
+    if (!selectedMessage?.related_object_id) {
+      console.error('No question ID available to update');
+      return;
+    }
+    try {
+      await updateQuestion(selectedMessage.related_object_id, questionData);
+      toast.success('Pregunta actualizada correctamente');
+      setShowQuestionEditor(false);
+    } catch (err) {
+      console.error('Error updating question:', err);
+      toast.error(`Error al guardar: ${err.message || 'Error desconocido'}`);
+      throw err; // Re-throw so QuestionEditorPanel can handle it
+    }
+  }, [selectedMessage]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
