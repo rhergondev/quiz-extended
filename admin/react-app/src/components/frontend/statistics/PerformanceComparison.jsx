@@ -81,7 +81,7 @@ const PerformanceComparison = ({
       icon: Users,
     },
     {
-      label: 'Top 10%',
+      label: 'Top 20%',
       value: comparisonData.topPerformers,
       color: colors.accent,
       icon: Award,

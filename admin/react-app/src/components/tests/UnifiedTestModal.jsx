@@ -85,6 +85,7 @@ const UnifiedTestModal = ({
   const [formData, setFormData] = useState({
     title: '', // Lesson Step Title
     description: '', // Quiz Content
+    difficulty_level: 'medium', // easy | medium | hard
     // Settings (Defaults hardcoded hidden)
     passing_score: '5.0',
     time_limit: '', // Automatico
@@ -119,6 +120,7 @@ const UnifiedTestModal = ({
       setFormData({
         title: '',
         description: '',
+        difficulty_level: 'medium',
         passing_score: '5.0',
         time_limit: '',
         max_attempts: '',
@@ -142,12 +144,10 @@ const UnifiedTestModal = ({
             setFormData({
               title: stepTitle,
               description: quiz.content?.rendered || quiz.content || '',
-              // Enforce defaults even on edit, or read from saved?
-              // User asked for Defaults: Approved=5, Time=Auto, Attempts=Unlimited, Random=True, Results=True
-              // So we ignore saved meta for these fields and enforce the business logic defaults
-              passing_score: '5.0', 
-              time_limit: '', 
-              max_attempts: '', 
+              difficulty_level: meta._difficulty_level || 'medium',
+              passing_score: '5.0',
+              time_limit: '',
+              max_attempts: '',
               randomize: true,
               show_results: true,
             });
@@ -190,6 +190,7 @@ const UnifiedTestModal = ({
         qe_course: courseId ? [parseInt(courseId)] : [], 
         meta: {
           _course_id: courseId,
+          _difficulty_level: formData.difficulty_level,
           _passing_score: formData.passing_score,
           _time_limit: formData.time_limit,
           _max_attempts: formData.max_attempts,
@@ -215,23 +216,7 @@ const UnifiedTestModal = ({
       }
 
       // 3. Calculate test metadata for display
-      // Calculate average difficulty from selected questions
-      const calculateAverageDifficulty = () => {
-        if (selectedQuestions.length === 0) return 'medium';
-        
-        const difficultyValues = { easy: 1, medium: 2, hard: 3 };
-        const reverseDifficultyMap = { 1: 'easy', 2: 'medium', 3: 'hard' };
-        
-        const sum = selectedQuestions.reduce((acc, q) => {
-          const difficulty = q.meta?._difficulty_level || 'medium';
-          return acc + (difficultyValues[difficulty] || 2);
-        }, 0);
-        
-        const average = Math.round(sum / selectedQuestions.length);
-        return reverseDifficultyMap[average] || 'medium';
-      };
-      
-      const difficulty = calculateAverageDifficulty();
+      const difficulty = formData.difficulty_level;
       const questionCount = selectedQuestions.length;
       // Calculate time limit: half the number of questions (same logic as QuizGeneratorPage)
       const timeLimit = questionCount > 0 ? Math.max(1, Math.ceil(questionCount / 2)) : null;
@@ -362,26 +347,45 @@ const UnifiedTestModal = ({
                 ) : (
                   /* CONTENT FORM */
                   <div className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase mb-1" style={{ color: colors.textMuted }}>
-                        Título del Test
-                      </label>
-                      <input 
-                        type="text" 
-                        value={formData.title}
-                        onChange={e => setFormData({...formData, title: e.target.value})}
-                        className="w-full text-sm font-medium p-2 rounded-lg focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                        placeholder="Ej: Evaluación Final del Módulo 1"
-                        style={{ 
-                          border: `2px solid ${colors.border}`, 
-                          color: colors.text, 
-                          backgroundColor: isDarkMode ? '#1f2937' : '#ffffff' 
-                        }}
-                        autoFocus
-                      />
+                    <div className="flex items-end gap-3">
+                      <div className="flex-1">
+                        <label className="block text-[10px] font-bold uppercase mb-1" style={{ color: colors.textMuted }}>
+                          Título del Test
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.title}
+                          onChange={e => setFormData({...formData, title: e.target.value})}
+                          className="w-full text-sm font-medium p-2 rounded-lg focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+                          placeholder="Ej: Evaluación Final del Módulo 1"
+                          style={{
+                            border: `2px solid ${colors.border}`,
+                            color: colors.text,
+                            backgroundColor: isDarkMode ? '#1f2937' : '#ffffff'
+                          }}
+                          autoFocus
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase mb-1" style={{ color: colors.textMuted }}>
+                          Dificultad
+                        </label>
+                        <select
+                          value={formData.difficulty_level}
+                          onChange={e => setFormData({...formData, difficulty_level: e.target.value})}
+                          className="text-sm font-medium p-2 rounded-lg focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+                          style={{
+                            border: `2px solid ${colors.border}`,
+                            color: formData.difficulty_level === 'easy' ? '#10b981' : formData.difficulty_level === 'hard' ? '#ef4444' : '#f59e0b',
+                            backgroundColor: isDarkMode ? '#1f2937' : '#ffffff'
+                          }}
+                        >
+                          <option value="easy">Fácil</option>
+                          <option value="medium">Media</option>
+                          <option value="hard">Difícil</option>
+                        </select>
+                      </div>
                     </div>
-
-
 
                     <div>
                       <div className="flex items-center justify-between mb-2">

@@ -30,6 +30,7 @@ import TestsPage from './pages/frontend/course/TestsPage';
 import CourseStatisticsPage from './pages/frontend/course/CourseStatisticsPage';
 import CourseStudentsPage from './pages/frontend/course/CourseStudentsPage';
 import SelfPacedTestsPage from './pages/frontend/course/SelfPacedTestsPage';
+import LiveClassesPage from './pages/frontend/course/LiveClassesPage';
 import MessagesPage from './pages/frontend/course/MessagesPage';
 import NotificationsPage from './pages/frontend/NotificationsPage';
 
@@ -148,6 +149,7 @@ function FrontendApp() {
                   <Route path="courses/:courseId/lessons" element={<CourseLessonsPage />} />
                   <Route path="courses/:courseId/material" element={<SupportMaterialPage />} />
                   <Route path="courses/:courseId/videos" element={<VideosPage />} />
+                  <Route path="courses/:courseId/live-classes" element={<LiveClassesPage />} />
                   <Route path="courses/:courseId/statistics" element={<CourseStatisticsPage />} />
                   <Route path="courses/:courseId/students" element={<CourseStudentsPage />} />
                   <Route path="courses/:courseId/messages" element={<MessagesPage />} />

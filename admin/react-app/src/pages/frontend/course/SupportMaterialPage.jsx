@@ -9,7 +9,7 @@ import useCourses from '../../../hooks/useCourses';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
 import { updateLessonOrderMap } from '../../../api/services/courseService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
-import { ChevronRight, ChevronDown, ChevronUp, FileText, File, X, ChevronLeft, Check, Circle, FolderOpen, Plus, Edit2, Trash2, AlertTriangle, ArrowUpDown, ExternalLink, Download } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, FileText, File, X, ChevronLeft, Check, CheckCircle, Circle, FolderOpen, Plus, Edit2, Trash2, AlertTriangle, ArrowUpDown, ExternalLink, Download } from 'lucide-react';
 import { isUserAdmin } from '../../../utils/userUtils';
 import { toast } from 'react-toastify';
 import SupportMaterialModal from '../../../components/supportMaterial/SupportMaterialModal';
@@ -872,28 +872,38 @@ const SupportMaterialPage = () => {
                       {/* Material Steps - expandido */}
                       {isExpanded && (
                         <div>
-                          {lesson.materialSteps.map((step, index) => (
+                          {lesson.materialSteps.map((step, index) => {
+                            const originalStepIndex = (lesson.meta?._lesson_steps || []).findIndex(s =>
+                              s.type === step.type && s.title === step.title && JSON.stringify(s.data) === JSON.stringify(step.data)
+                            );
+                            const stepCompleted = isCompleted(lesson.id, 'step', lesson.id, originalStepIndex);
+
+                            return (
                             <div key={step.id || index}>
                               {/* Separador horizontal - full width for first item, with margin for others */}
-                              <div 
+                              <div
                                 className={index > 0 ? "mx-6" : ""}
-                                style={{ 
-                                  height: '2px', 
+                                style={{
+                                  height: '2px',
                                   backgroundColor: 'rgba(156, 163, 175, 0.2)'
                                 }}
                               />
-                              <div 
+                              <div
                                 className="flex items-center gap-3 px-4 sm:px-6 py-4 transition-colors duration-150"
                                 onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor = isDarkMode 
-                                    ? 'rgba(255,255,255,0.05)' 
+                                  e.currentTarget.style.backgroundColor = isDarkMode
+                                    ? 'rgba(255,255,255,0.05)'
                                     : `${getColor('primary', '#1a202c')}03`;
                                 }}
                                 onMouseLeave={(e) => {
                                   e.currentTarget.style.backgroundColor = 'transparent';
                                 }}
                               >
-                                <File size={18} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
+                                {stepCompleted ? (
+                                  <CheckCircle size={18} style={{ color: '#10b981' }} className="flex-shrink-0" />
+                                ) : (
+                                  <Circle size={18} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
+                                )}
                                 <span 
                                   className="text-sm font-medium flex-1 truncate"
                                   style={{ color: pageColors.text }}
@@ -965,7 +975,8 @@ const SupportMaterialPage = () => {
                                 </button>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                       

@@ -183,7 +183,7 @@ const MessagesPage = () => {
   const getTypeInfo = (type) => {
     if (type === 'question_feedback') return { icon: MessageCircle, label: 'Duda', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' };
     if (type === 'question_challenge') return { icon: Flag, label: 'Impugnación', color: pageColors.error, bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2' };
-    if (type === 'admin_reply') return { icon: Send, label: 'Respuesta', color: pageColors.primary, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff' };
+    if (type === 'admin_reply') return { icon: Send, label: 'Respuesta', color: isDarkMode ? '#93c5fd' : pageColors.primary, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff' };
     if (type?.startsWith('admin_')) return { icon: Mail, label: 'Aviso', color: pageColors.accent, bgColor: isDarkMode ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7' };
     return { icon: Mail, label: 'Mensaje', color: pageColors.textMuted, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6' };
   };
@@ -510,8 +510,10 @@ const MessagesPage = () => {
                         {/* Toggle header */}
                         <button
                           onClick={() => setShowQuestion(!showQuestion)}
-                          className="w-full flex items-center justify-between p-3 sm:p-4 transition-all"
+                          className="w-full flex items-center justify-between p-3 sm:p-4 transition-all rounded-xl"
                           style={{ color: pageColors.text }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = pageColors.hoverBg; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                         >
                           <div className="flex items-center gap-2">
                             <FileQuestion size={16} style={{ color: pageColors.accent }} />
@@ -537,7 +539,7 @@ const MessagesPage = () => {
                                 Enunciado
                               </p>
                               <div
-                                className="text-sm leading-relaxed prose prose-sm max-w-none break-words"
+                                className={`text-sm leading-relaxed prose prose-sm max-w-none break-words ${isDarkMode ? 'prose-invert' : ''}`}
                                 style={{ color: pageColors.text, overflowWrap: 'anywhere' }}
                                 dangerouslySetInnerHTML={{ __html: relatedQuestion.title?.rendered || relatedQuestion.title || '' }}
                               />
@@ -594,7 +596,7 @@ const MessagesPage = () => {
                                   Explicación
                                 </p>
                                 <div
-                                  className="text-sm leading-relaxed prose prose-sm max-w-none break-words"
+                                  className={`text-sm leading-relaxed prose prose-sm max-w-none break-words ${isDarkMode ? 'prose-invert' : ''}`}
                                   style={{ color: pageColors.text, overflowWrap: 'anywhere' }}
                                   dangerouslySetInnerHTML={{ __html: relatedQuestion.content.rendered }}
                                 />

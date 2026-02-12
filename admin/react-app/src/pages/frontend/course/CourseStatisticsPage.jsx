@@ -20,6 +20,7 @@ import {
   Target, 
   AlertCircle, 
   BarChart2,
+  BarChart3,
   Trophy,
   Zap,
   CheckCircle,
@@ -362,7 +363,7 @@ const CourseStatisticsPage = () => {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                   {/* Nota Media */}
                   {(() => {
-                    const top10Cutoff = rankingStatistics?.top_10_cutoff_without_risk;
+                    const top10Cutoff = rankingStatistics?.top_20_cutoff_without_risk;
                     const userScore = computedStats?.avgScore || 0;
                     const hasTop10Data = top10Cutoff !== undefined && top10Cutoff !== null && top10Cutoff > 0;
                     const isInTop10 = hasTop10Data && userScore >= top10Cutoff;
@@ -389,16 +390,29 @@ const CourseStatisticsPage = () => {
                           )}
                         </div>
                         <div className="p-3">
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold" style={{ color: isInTop10 ? '#22c55e' : pageColors.text }}>
-                              {computedStats ? formatScore(computedStats.avgScore) : '-'}
-                            </span>
-                            <span className="text-xs" style={{ color: pageColors.textMuted }}>
-                              / {isPercentage ? '100' : '10'}
-                            </span>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-2xl font-bold" style={{ color: isInTop10 ? '#22c55e' : pageColors.text }}>
+                                {computedStats ? formatScore(computedStats.avgScore) : '-'}
+                              </span>
+                              <span className="text-xs" style={{ color: pageColors.textMuted }}>
+                                / {isPercentage ? '100' : '10'}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => setIsRankingOpen(true)}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg border transition-all duration-200 hover:shadow-md"
+                              style={{
+                                backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.accent}10`,
+                                borderColor: isDarkMode ? `${pageColors.accent}40` : `${pageColors.accent}30`,
+                              }}
+                              title={t('statistics.ranking')}
+                            >
+                              <BarChart3 size={14} style={{ color: pageColors.accent }} />
+                            </button>
                           </div>
                           
-                          {/* Top 10% Cutoff info - compact */}
+                          {/* Top 20% Cutoff info - compact */}
                           {hasTop10Data ? (
                             <div 
                               className="flex items-center gap-1.5 mt-2 px-2 py-1 rounded text-xs"
@@ -410,14 +424,14 @@ const CourseStatisticsPage = () => {
                                 <>
                                   <CheckCircle size={12} style={{ color: isDarkMode ? '#86efac' : '#16a34a' }} />
                                   <span style={{ color: isDarkMode ? '#86efac' : '#166534' }}>
-                                    ✓ Top 10%
+                                    ✓ Top 20%
                                   </span>
                                 </>
                               ) : (
                                 <>
                                   <Target size={12} style={{ color: isDarkMode ? '#fcd34d' : '#d97706' }} />
                                   <span style={{ color: isDarkMode ? '#fcd34d' : '#92400e' }}>
-                                    Corte: <strong>{formatScore(top10Cutoff)}</strong>
+                                    Nota de corte: <strong>{formatScore(top10Cutoff)}</strong>
                                   </span>
                                 </>
                               )}
@@ -617,7 +631,7 @@ const CourseStatisticsPage = () => {
                     <div className="flex items-center gap-2">
                       <BookOpen size={14} className="text-white" />
                       <span className="text-xs font-bold uppercase tracking-wider text-white">
-                        {t('statistics.performanceByLesson', 'Rendimiento por Tema')}
+                        {t('statistics.performanceByLesson', 'Rendimiento temas')}
                       </span>
                     </div>
                     <button
@@ -1069,35 +1083,35 @@ const CourseStatisticsPage = () => {
                         const scoreColor = getScoreColor(lesson.avg_score);
                         
                         return (
-                          <div 
-                            key={lesson.lesson_id} 
+                          <div
+                            key={lesson.lesson_id}
                             className="rounded-lg overflow-hidden border transition-all duration-200 hover:shadow-md"
-                            style={{ 
+                            style={{
                               backgroundColor: pageColors.cardBg,
-                              borderColor: pageColors.border
+                              borderColor: `${scoreColor}40`
                             }}
                           >
-                            <div 
+                            <div
                             className="px-3 py-1.5"
-                            style={{ backgroundColor: scoreColor }}
+                            style={{ backgroundColor: `${scoreColor}10` }}
                           >
                             <div className="flex justify-between items-center">
                               <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
-                                <span 
+                                <span
                                   className="text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                                  style={{ backgroundColor: 'rgba(255,255,255,0.25)' }}
+                                  style={{ backgroundColor: `${scoreColor}20`, color: scoreColor }}
                                 >
                                   {index + 1}
                                 </span>
-                                <span className="font-bold text-xs text-white truncate">
+                                <span className="font-bold text-xs truncate" style={{ color: pageColors.text }}>
                                   {lesson.lesson_title}
                                 </span>
                               </div>
                               <div className="flex items-baseline gap-1 flex-shrink-0">
-                                <span className="font-bold text-sm text-white">
+                                <span className="font-bold text-sm" style={{ color: scoreColor }}>
                                   {formatScore(lessonScore)}
                                 </span>
-                                <span className="text-xs text-white opacity-80">
+                                <span className="text-xs" style={{ color: pageColors.textMuted }}>
                                   / {isPercentage ? '100' : '10'}
                                 </span>
                               </div>

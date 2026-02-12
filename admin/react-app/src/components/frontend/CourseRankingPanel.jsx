@@ -363,6 +363,28 @@ export const CourseRankingSlidePanel = () => {
                                                 </div>
                                             </div>
                                         </div>
+
+                                        {/* Nota de corte (Top 20%) */}
+                                        {(statistics?.top_20_cutoff_without_risk > 0 || statistics?.top_20_cutoff_with_risk > 0) && (
+                                            <div
+                                                className="mx-3 mt-3 px-3 py-2 rounded-lg flex items-center justify-center gap-3 text-xs"
+                                                style={{
+                                                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : `${primaryColor}08`,
+                                                    border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : `${primaryColor}15`}`
+                                                }}
+                                            >
+                                                <span className="font-semibold" style={{ color: isDarkMode ? pageColors.accent : primaryColor }}>
+                                                    Nota de corte (Top 20%)
+                                                </span>
+                                                <span style={{ color: pageColors.text }}>
+                                                    {formatScore(statistics?.top_20_cutoff_without_risk || 0)}
+                                                </span>
+                                                <span style={{ color: pageColors.textMuted }}>/</span>
+                                                <span style={{ color: pageColors.text }}>
+                                                    {formatScore(statistics?.top_20_cutoff_with_risk || 0)}
+                                                </span>
+                                            </div>
+                                        )}
                                         </div>
                                     </div>
 

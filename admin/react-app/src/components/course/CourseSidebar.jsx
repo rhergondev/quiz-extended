@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next';
 import {
   BookOpen, FileText, ChevronLeft, ChevronRight, X,
   Calendar, ClipboardList, Video, BarChart3, Sparkles, Clock, FolderOpen, History,
-  User, LogOut, Home, Sun, Moon
+  User, LogOut, Home, Sun, Moon, Radio
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getCourseProgress } from '../../api/services/studentProgressService';
+import { getCalendarNotes } from '../../api/services/calendarNotesService';
 import useCourse from '../../hooks/useCourse';
 import { isUserAdmin } from '../../utils/userUtils';
 
@@ -21,6 +22,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
   });
   const [currentCourseId, setCurrentCourseId] = useState(courseId);
   const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
+  const [nextLiveClass, setNextLiveClass] = useState(null);
   const { t } = useTranslation();
   const { getColor, isDarkMode, toggleDarkMode } = useTheme();
 
@@ -83,60 +85,85 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
     return () => window.removeEventListener('courseProgressUpdated', handleProgressUpdate);
   }, [courseId, currentCourseId, hasLoadedInitial]);
 
+  // Fetch next live class
+  useEffect(() => {
+    if (!courseId) return;
+    getCalendarNotes(courseId)
+      .then(notes => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const upcoming = notes
+          .filter(n => n.type === 'live_class')
+          .filter(n => new Date(n.note_date) >= today)
+          .sort((a, b) => new Date(a.note_date) - new Date(b.note_date));
+        setNextLiveClass(upcoming[0] || null);
+      })
+      .catch(() => setNextLiveClass(null));
+  }, [courseId]);
+
   // Menu items with stats (Dashboard and Statistics moved to header)
   const menuItems = useMemo(() => {
     const stepsByType = courseProgress?.steps_by_type || {};
     const userIsAdmin = isUserAdmin();
-    
+
     const items = [
       { to: `/courses/${courseId}/study-planner`, text: t('courses.studyPlanner'), icon: Calendar, divider: true },
     ];
 
-    // Agregar Tests si hay quizzes O si es admin
+    // Tests
     const hasQuizzes = stepsByType.quiz?.total > 0;
     if (hasQuizzes || userIsAdmin) {
-      items.push({ 
-        to: `/courses/${courseId}/tests`, 
-        text: t('courses.tests'), 
+      items.push({
+        to: `/courses/${courseId}/tests`,
+        text: t('courses.tests'),
         icon: ClipboardList,
         badge: hasQuizzes ? `${stepsByType.quiz.completed}/${stepsByType.quiz.total}` : null
       });
     }
 
-    // Agregar Material de Apoyo si hay PDFs/texto O si es admin
+    // Generador de Tests y Tests a tu ritmo
+    items.push(
+      { to: `/courses/${courseId}/test-generator`, text: t('courses.testGenerator'), icon: Sparkles },
+      { to: `/courses/${courseId}/self-paced-tests`, text: t('courses.selfPacedTests'), icon: Clock, divider: true }
+    );
+
+    // Material de Apoyo
     const materialTotal = (stepsByType.text?.total || 0) + (stepsByType.pdf?.total || 0);
     const materialCompleted = (stepsByType.text?.completed || 0) + (stepsByType.pdf?.completed || 0);
     const hasMaterial = materialTotal > 0;
     if (hasMaterial || userIsAdmin) {
-      items.push({ 
-        to: `/courses/${courseId}/material`, 
-        text: t('courses.supportMaterial'), 
+      items.push({
+        to: `/courses/${courseId}/material`,
+        text: t('courses.supportMaterial'),
         icon: FileText,
-        badge: hasMaterial ? `${materialCompleted}/${materialTotal}` : null
+        badge: hasMaterial ? `${materialCompleted}/${materialTotal}` : null,
+        divider: true
       });
     }
 
-    // Agregar Videos si hay videos O si es admin
+    // Videoclases
     const hasVideos = stepsByType.video?.total > 0;
     if (hasVideos || userIsAdmin) {
-      items.push({ 
-        to: `/courses/${courseId}/videos`, 
-        text: t('courses.videosSection'), 
+      items.push({
+        to: `/courses/${courseId}/videos`,
+        text: t('courses.videoClasses'),
         icon: Video,
-        divider: true,
-        badge: hasVideos ? `${stepsByType.video.completed}/${stepsByType.video.total}` : null
+        badge: hasVideos ? `${stepsByType.video.completed}/${stepsByType.video.total}` : null,
+        divider: true
       });
-    } else if (items.length > 0 && !items[items.length - 1].divider) {
-      items[items.length - 1].divider = true;
     }
 
-    items.push(
-      { to: `/courses/${courseId}/test-generator`, text: t('courses.testGenerator'), icon: Sparkles },
-      { to: `/courses/${courseId}/self-paced-tests`, text: t('courses.selfPacedTests'), icon: Clock }
-    );
+    // Clases en directo (solo si hay una próxima)
+    if (nextLiveClass) {
+      items.push({
+        to: `/courses/${courseId}/live-classes`,
+        text: t('courses.liveClasses'),
+        icon: Radio
+      });
+    }
 
     return items;
-  }, [courseId, courseProgress, t]);
+  }, [courseId, courseProgress, nextLiveClass, t]);
 
   // Colores del sidebar según el modo
   const primary = getColor('primary', '#3b82f6');

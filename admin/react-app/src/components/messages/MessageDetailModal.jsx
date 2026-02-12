@@ -26,7 +26,7 @@ const MessageDetailModal = ({ message, onClose, onStatusChange, updating }) => {
     const types = {
       question_feedback: {
         icon: MessageCircle,
-        label: 'Feedback',
+        label: 'Duda',
         color: 'text-blue-600',
         bgColor: 'bg-blue-100'
       },

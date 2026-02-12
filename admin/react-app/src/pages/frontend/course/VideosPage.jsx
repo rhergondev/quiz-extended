@@ -13,7 +13,7 @@ import { updateLessonOrderMap } from '../../../api/services/courseService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import LessonModal from '../../../components/lessons/LessonModal';
 import VideoModal from '../../../components/videos/VideoModal';
-import { ChevronDown, ChevronUp, ChevronRight, Video, Play, X, ChevronLeft, Check, Circle, Film, Plus, Trash2, AlertTriangle, Edit2, ArrowUpDown } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, Video, Play, X, ChevronLeft, Check, CheckCircle, Circle, Film, Plus, Trash2, AlertTriangle, Edit2, ArrowUpDown } from 'lucide-react';
 
 const VideosPage = () => {
   const { t } = useTranslation();
@@ -852,29 +852,37 @@ const VideosPage = () => {
                         <div>
                           {lesson.videoSteps.map((step, index) => {
                             const duration = getVideoDuration(step);
-                            
+                            const originalStepIndex = (lesson.meta?._lesson_steps || []).findIndex(s =>
+                              s.type === step.type && s.title === step.title && JSON.stringify(s.data) === JSON.stringify(step.data)
+                            );
+                            const stepCompleted = isCompleted(lesson.id, 'step', lesson.id, originalStepIndex);
+
                             return (
                               <div key={step.id || index}>
                                 {/* Separador horizontal - full width for first item, with margin for others */}
-                                <div 
+                                <div
                                   className={index > 0 ? "mx-6" : ""}
-                                  style={{ 
-                                    height: '2px', 
+                                  style={{
+                                    height: '2px',
                                     backgroundColor: 'rgba(156, 163, 175, 0.2)'
                                   }}
                                 />
-                                <div 
+                                <div
                                   className="flex items-center gap-3 px-4 sm:px-6 py-4 transition-colors duration-150"
                                   onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = isDarkMode 
-                                      ? 'rgba(255,255,255,0.05)' 
+                                    e.currentTarget.style.backgroundColor = isDarkMode
+                                      ? 'rgba(255,255,255,0.05)'
                                       : `${getColor('primary', '#1a202c')}03`;
                                   }}
                                   onMouseLeave={(e) => {
                                     e.currentTarget.style.backgroundColor = 'transparent';
                                   }}
                                 >
-                                  <Play size={18} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
+                                  {stepCompleted ? (
+                                    <CheckCircle size={18} style={{ color: '#10b981' }} className="flex-shrink-0" />
+                                  ) : (
+                                    <Circle size={18} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
+                                  )}
                                   <div className="flex flex-col flex-1 min-w-0">
                                     <span 
                                       className="text-sm font-medium truncate"

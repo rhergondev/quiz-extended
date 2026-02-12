@@ -215,7 +215,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
         </div>
 
         {/* Navigation Menu - Centered (hidden on small screens, icons only on tablet) */}
-        <nav className="hidden lg:flex items-center gap-1 xl:gap-2 absolute left-1/2 transform -translate-x-1/2">
+        <nav className="hidden lg:flex items-center gap-1 xl:gap-3 absolute left-1/2 transform -translate-x-1/2 whitespace-nowrap">
           {/* Quick Menu Dropdown - Only show when in course route */}
           {isInCourseRoute && (
           <div className="relative" ref={dropdownRef}>

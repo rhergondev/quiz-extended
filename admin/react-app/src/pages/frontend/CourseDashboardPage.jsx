@@ -9,7 +9,8 @@ import { getMyRankingStatus } from '../../api/services/courseRankingService';
 import { getCalendarNotes } from '../../api/services/calendarNotesService';
 import { getCourseLessons } from '../../api/services/courseLessonService';
 import { getCourseProgress } from '../../api/services/studentProgressService';
-import { ClipboardList, FileText, Video, Trophy, TrendingUp, Award, Users, ToggleLeft, ToggleRight, Calendar, ExternalLink } from 'lucide-react';
+import { ClipboardList, FileText, Video, Trophy, TrendingUp, Award, Users, ToggleLeft, ToggleRight, Calendar, ExternalLink, BarChart3 } from 'lucide-react';
+import { CourseRankingProvider, CourseRankingSlidePanel } from '../../components/frontend/CourseRankingPanel';
 
 const CourseDashboardPage = () => {
   const { t } = useTranslation();
@@ -22,6 +23,7 @@ const CourseDashboardPage = () => {
   const [rankingStatus, setRankingStatus] = useState(null);
   const [rankingLoading, setRankingLoading] = useState(true);
   const [showWithRisk, setShowWithRisk] = useState(false);
+  const [isRankingOpen, setIsRankingOpen] = useState(false);
   const [nextLiveClass, setNextLiveClass] = useState(null);
   const [liveClassLoading, setLiveClassLoading] = useState(true);
   const [lessons, setLessons] = useState([]);
@@ -356,14 +358,25 @@ const CourseDashboardPage = () => {
                     </p>
                   </div>
 
-                  <div 
+                  <div
                     className="pt-4 border-t flex items-center justify-center gap-2"
                     style={{ borderColor: pageColors.border }}
                   >
                     <Users size={14} style={{ color: pageColors.textMuted }} />
-                    <span className="text-xs" style={{ color: pageColors.textMuted }}>
+                    <span className="text-xs flex-1" style={{ color: pageColors.textMuted }}>
                       {rankingStatus.completed_quizzes}/{rankingStatus.total_quizzes} {t('ranking.quizzesCompleted')}
                     </span>
+                    <button
+                      onClick={() => setIsRankingOpen(true)}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg border transition-all duration-200 hover:shadow-md"
+                      style={{
+                        backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.accent}10`,
+                        borderColor: isDarkMode ? `${pageColors.accent}40` : `${pageColors.accent}30`,
+                      }}
+                      title={t('statistics.ranking')}
+                    >
+                      <BarChart3 size={14} style={{ color: pageColors.accent }} />
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -554,6 +567,16 @@ const CourseDashboardPage = () => {
           </div>
         </div>
       </div>
+
+      <CourseRankingProvider
+        courseId={courseId}
+        courseName={courseName}
+        isOpen={isRankingOpen}
+        onOpen={() => setIsRankingOpen(true)}
+        onClose={() => setIsRankingOpen(false)}
+      >
+        <CourseRankingSlidePanel />
+      </CourseRankingProvider>
     </CoursePageTemplate>
   );
 };
