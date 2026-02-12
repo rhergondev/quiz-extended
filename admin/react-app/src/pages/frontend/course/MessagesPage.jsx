@@ -19,10 +19,10 @@ import { makeApiRequest } from '../../../api/services/baseService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import MessagesManager from '../../../components/messages/MessagesManager';
 
-// Helper to strip the (Curso: ...) metadata prefix from message content
+// Helper to strip metadata prefixes from message content (supports old and new format)
 const cleanMessageContent = (content) => {
   if (!content) return '';
-  return content.replace(/^\(Curso:[^)]+\)\s*/i, '').replace(/<p>\s*<\/p>/gi, '').trim();
+  return content.replace(/\(Curso:[^)]+\)\s*/gi, '').replace(/\(Lección:[^)]+\)\s*/gi, '').replace(/\(Pregunta ID:[^)]+\)\s*/gi, '').replace(/<p>\s*<\/p>/gi, '').trim();
 };
 
 const MessagesPage = () => {

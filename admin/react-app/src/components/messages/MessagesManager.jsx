@@ -43,10 +43,10 @@ import useLessons from '../../hooks/useLessons';
 import useCourses from '../../hooks/useCourses';
 import { toast } from 'react-toastify';
 
-// Helper to strip the (Curso: ...) metadata prefix from message content
+// Helper to strip metadata prefixes from message content (supports old and new format)
 const cleanMessageContent = (content) => {
   if (!content) return '';
-  return content.replace(/^\(Curso:[^)]+\)\s*/i, '').replace(/<p>\s*<\/p>/gi, '').trim();
+  return content.replace(/\(Curso:[^)]+\)\s*/gi, '').replace(/\(Lección:[^)]+\)\s*/gi, '').replace(/\(Pregunta ID:[^)]+\)\s*/gi, '').replace(/<p>\s*<\/p>/gi, '').trim();
 };
 
 // Component to fetch and display question title
