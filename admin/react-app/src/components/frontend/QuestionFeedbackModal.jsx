@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Send, Loader, MessageSquareWarning, CheckCircle, AlertTriangle, BookOpen, FileText } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, Send, Loader, MessageSquareWarning, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
 import { messageService } from '../../api/services/messageService';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -13,15 +14,13 @@ const normalizeTitle = (title) => {
   return String(title);
 };
 
-const QuestionFeedbackModal = ({ 
-  question, 
-  initialFeedbackType = 'feedback', 
+const QuestionFeedbackModal = ({
+  question,
+  initialFeedbackType = 'feedback',
   onClose,
-  // Context props for better admin feedback tracking
+  // Context for course-based message filtering
   courseId = null,
   courseName = null,
-  lessonId = null,
-  lessonTitle = null
 }) => {
   const [feedbackType, setFeedbackType] = useState(initialFeedbackType);
   const [message, setMessage] = useState('');
@@ -40,24 +39,15 @@ const QuestionFeedbackModal = ({
   const textPrimary = isDarkMode ? getColor('textPrimary', '#f9fafb') : primaryColor;
   const textSecondary = getColor('textSecondary', '#6b7280');
 
-  // Normalize titles - handle both string and {rendered, raw} objects
   const questionTitle = normalizeTitle(question?.title);
   const normalizedCourseName = normalizeTitle(courseName);
-  const normalizedLessonTitle = normalizeTitle(lessonTitle);
 
-  // Build context string for admin visibility (plain text format)
-  const buildContextMessage = () => {
-    let context = '';
+  // Build context prefix — course name for admin filtering, followed by user message for subject display
+  const buildContextPrefix = () => {
     if (normalizedCourseName || courseId) {
-      context += `(Curso: ${normalizedCourseName || `ID ${courseId}`}) `;
+      return `(Curso: ${normalizedCourseName || `ID ${courseId}`}) `;
     }
-    if (normalizedLessonTitle || lessonId) {
-      context += `(Lección: ${normalizedLessonTitle || `ID ${lessonId}`}) `;
-    }
-    if (context) {
-      context += `(Pregunta ID: ${question?.id})\n\n`;
-    }
-    return context;
+    return '';
   };
 
   const handleSubmit = async (e) => {
@@ -72,8 +62,8 @@ const QuestionFeedbackModal = ({
     setSuccess(false);
 
     try {
-      // Prepend context to message for admin visibility
-      const contextPrefix = buildContextMessage();
+      // Context prefix goes first so the backend subject (first 200 chars) includes course info for filtering
+      const contextPrefix = buildContextPrefix();
       const fullMessage = contextPrefix + message.trim();
 
       await messageService.submitFeedback({
@@ -120,112 +110,70 @@ const QuestionFeedbackModal = ({
   const typeStyles = getTypeStyles();
   const TypeIcon = typeStyles.icon;
 
-  return (
+  return createPortal(
     <>
-      {/* Overlay with blur */}
-      <div 
-        className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm"
+      {/* Overlay with blur - z-[10000] to sit above TopBar (z-9999), portaled to body */}
+      <div
+        className="fixed inset-0 bg-black/60 z-[10000] backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div 
-          className="rounded-2xl shadow-2xl max-w-lg w-full pointer-events-auto overflow-hidden"
+      <div className="fixed inset-0 z-[10000] flex items-center justify-center px-4 py-10 pointer-events-none">
+        <div
+          className="rounded-2xl shadow-2xl max-w-lg w-full max-h-[calc(100vh-5rem)] overflow-y-auto pointer-events-auto"
           style={{ 
             backgroundColor: bgCard,
             border: `1px solid ${borderSubtle}`
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header with gradient */}
-          <div 
-            className="relative p-6"
-            style={{ 
-              background: isDarkMode 
+          {/* Compact header */}
+          <div
+            className="flex items-center justify-between px-5 py-3"
+            style={{
+              background: isDarkMode
                 ? `linear-gradient(135deg, ${primaryColor}20 0%, ${accentColor}10 100%)`
                 : `linear-gradient(135deg, ${primaryColor}10 0%, ${accentColor}08 100%)`
             }}
           >
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-4">
-                <div 
-                  className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm"
-                  style={{ 
-                    backgroundColor: typeStyles.bgColor,
-                    border: `1px solid ${typeStyles.iconColor}30`
-                  }}
-                >
-                  <TypeIcon size={24} style={{ color: typeStyles.iconColor }} />
-                </div>
-                <div>
-                  <h3 
-                    className="text-xl font-bold"
-                    style={{ color: textPrimary }}
-                  >
-                    {feedbackType === 'challenge' 
-                      ? t('quizzes.feedbackModal.titleChallenge')
-                      : t('quizzes.feedbackModal.titleFeedback')
-                    }
-                  </h3>
-                  <p 
-                    className="text-sm mt-0.5"
-                    style={{ color: textSecondary }}
-                  >
-                    {t('quizzes.feedbackModal.question')} #{question?.id}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-lg transition-all"
-                style={{ 
-                  color: textSecondary,
-                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
+            <div className="flex items-center gap-3">
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{
+                  backgroundColor: typeStyles.bgColor,
+                  border: `1px solid ${typeStyles.iconColor}30`
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
-                }}
-                aria-label={t('quizzes.feedbackModal.close')}
               >
-                <X size={22} />
-              </button>
-            </div>
-
-            {/* Context info badges */}
-            {(normalizedCourseName || normalizedLessonTitle) && (
-              <div className="flex flex-wrap gap-2 mt-4">
-                {normalizedCourseName && (
-                  <div 
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                    style={{ 
-                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
-                      color: textPrimary,
-                      border: `1px solid ${borderSubtle}`
-                    }}
-                  >
-                    <BookOpen size={14} style={{ color: primaryColor }} />
-                    <span className="truncate max-w-[180px]">{normalizedCourseName}</span>
-                  </div>
-                )}
-                {normalizedLessonTitle && (
-                  <div 
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                    style={{ 
-                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
-                      color: textPrimary,
-                      border: `1px solid ${borderSubtle}`
-                    }}
-                  >
-                    <FileText size={14} style={{ color: accentColor }} />
-                    <span className="truncate max-w-[180px]">{normalizedLessonTitle}</span>
-                  </div>
-                )}
+                <TypeIcon size={18} style={{ color: typeStyles.iconColor }} />
               </div>
-            )}
+              <h3
+                className="text-base font-bold"
+                style={{ color: textPrimary }}
+              >
+                {feedbackType === 'challenge'
+                  ? t('quizzes.feedbackModal.titleChallenge')
+                  : t('quizzes.feedbackModal.titleFeedback')
+                }
+              </h3>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg transition-all flex-shrink-0"
+              style={{
+                color: textSecondary,
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+              }}
+              aria-label={t('quizzes.feedbackModal.close')}
+            >
+              <X size={20} />
+            </button>
           </div>
           
           {/* Content */}
@@ -346,6 +294,7 @@ const QuestionFeedbackModal = ({
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     rows={5}
+                    maxLength={5000}
                     className="w-full px-4 py-3 rounded-xl transition-all focus:outline-none resize-none"
                     style={{
                       backgroundColor: bgSubtle,
@@ -446,7 +395,8 @@ const QuestionFeedbackModal = ({
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.querySelector('.qe-lms-app') || document.body
   );
 };
 

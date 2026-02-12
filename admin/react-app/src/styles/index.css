@@ -186,3 +186,26 @@ body.qe-quiz-focus-mode #qe-topbar {
 .explanation-content u {
   text-decoration: underline;
 }
+
+/* ===================================
+   MESSAGES TABLE - Responsive Grid
+   =================================== */
+.qe-msg-grid {
+  grid-template-columns: 40px 1fr 1.5fr 100px 100px;
+}
+
+@media (min-width: 1024px) {
+  .qe-msg-grid {
+    grid-template-columns: 40px 1fr 1.5fr 100px 100px 140px;
+  }
+}
+
+.qe-msg-grid-user {
+  grid-template-columns: 1fr 1.5fr 100px 100px;
+}
+
+@media (min-width: 1024px) {
+  .qe-msg-grid-user {
+    grid-template-columns: 1fr 1.5fr 100px 100px 140px;
+  }
+}

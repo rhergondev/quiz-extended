@@ -56,6 +56,14 @@ const QuestionEditorPanel = ({
   const [formData, setFormData] = useState({});
   const quillRef = useRef(null);
   
+  const titleRef = useRef(null);
+
+  const autoResizeTextarea = useCallback((el) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }, []);
+
   const [showNewCategoryForm, setShowNewCategoryForm] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [creatingCategory, setCreatingCategory] = useState(false);
@@ -142,6 +150,11 @@ const QuestionEditorPanel = ({
     fetchQuestionData();
   }, [questionId, mode, resetForm]);
   
+  // Auto-resize title textarea when content changes (e.g. after data load)
+  useEffect(() => {
+    autoResizeTextarea(titleRef.current);
+  }, [formData.title, autoResizeTextarea]);
+
   // 🔥 FIX: Sincronizar ReactQuill cuando cambia formData.explanation solo si hay contenido real
   useEffect(() => {
     // Solo actualizar si hay contenido Y el editor está listo
@@ -391,17 +404,19 @@ const QuestionEditorPanel = ({
           </div>
         )}
         
-        <textarea 
-          value={formData.title || ''} 
-          onChange={(e) => handleFieldChange('title', e.target.value)} 
+        <textarea
+          ref={titleRef}
+          value={formData.title || ''}
+          onChange={(e) => { handleFieldChange('title', e.target.value); autoResizeTextarea(e.target); }}
           placeholder={t('questions.fields.title')}
-          rows={2}
+          rows={1}
           className="w-full text-lg font-bold focus:outline-none focus:ring-2 rounded-lg p-3 resize-none"
           style={{
             backgroundColor: pageColors.inputBg,
             border: isDarkMode ? '1px solid rgba(255,255,255,0.2)' : '1px solid #d1d5db',
             color: pageColors.text,
-            '--tw-ring-color': pageColors.accent
+            '--tw-ring-color': pageColors.accent,
+            overflow: 'hidden'
           }}
         />
 

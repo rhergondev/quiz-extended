@@ -188,7 +188,7 @@ abstract class QE_API_Base
                 }
 
                 // Check max length
-                if (isset($config['maxLength']) && strlen($value) > $config['maxLength']) {
+                if (isset($config['maxLength']) && mb_strlen($value, 'UTF-8') > $config['maxLength']) {
                     return new WP_Error(
                         'invalid_param',
                         sprintf(__('Parameter must be at most %d characters.', 'quiz-extended'), $config['maxLength'])

@@ -43,22 +43,10 @@ import useLessons from '../../hooks/useLessons';
 import useCourses from '../../hooks/useCourses';
 import { toast } from 'react-toastify';
 
-// Helper to remove metadata and duplicated subject from message
-const cleanMessageContent = (content, subject = '') => {
+// Helper to strip the (Curso: ...) metadata prefix from message content
+const cleanMessageContent = (content) => {
   if (!content) return '';
-  
-  // 1. Remove metadata pattern: (Curso: ...) (Lección: ...) (Pregunta ID: ...)
-  let cleaned = content.replace(/(\(Curso:[^)]+\)\s*\(Lección:[^)]+\)\s*\(Pregunta ID:[^)]+\))/gi, '');
-  
-  // 2. Remove subject if it appears at the start (ignoring tags/whitespace)
-  if (subject) {
-    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const subjectPattern = new RegExp(`^\\s*(?:<[^>]+>\\s*)*${escapeRegExp(subject.trim())}\\s*(?:<\\/[^>]+>\\s*)*`, 'i');
-    cleaned = cleaned.replace(subjectPattern, '');
-  }
-
-  // 3. Cleanup empty tags/whitespace
-  return cleaned.replace(/<p>\s*<\/p>/gi, '').trim();
+  return content.replace(/^\(Curso:[^)]+\)\s*/i, '').replace(/<p>\s*<\/p>/gi, '').trim();
 };
 
 // Component to fetch and display question title
@@ -333,7 +321,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
       const payload = {
         original_message_id: selectedMessage.id,
         recipient_id: selectedMessage.sender_id,
-        subject: `Re: ${selectedMessage.subject}`,
+        subject: `Re: ${selectedMessage.subject}`.substring(0, 200),
         message: replyText,
         type: 'reply'
       };
@@ -425,7 +413,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
         >
           {/* HEADER BAR */}
           <div 
-            className="px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 flex-shrink-0"
+            className={`px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 flex-shrink-0${courseMode ? ' sm:justify-end' : ''}`}
             style={{ 
               backgroundColor: pageColors.bgCard,
               borderBottom: `1px solid ${pageColors.cardBorder}`
@@ -494,8 +482,9 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
             )}
 
             {/* Desktop: Left - Course Selector */}
+            {!courseMode && (
             <div className="hidden sm:flex items-center gap-3">
-              {!courseMode && coursesWithMessages.length > 0 && (
+              {coursesWithMessages.length > 0 && (
                 <div className="flex gap-1 p-1 rounded-lg" style={{ backgroundColor: pageColors.inputBg }}>
                   <button 
                     onClick={() => setSelectedCourseFilter(null)} 
@@ -546,73 +535,72 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                   )}
                 </div>
               )}
-              {!courseMode && coursesWithMessages.length === 0 && !loadingCourses && (
+              {coursesWithMessages.length === 0 && !loadingCourses && (
                 <div className="flex items-center gap-2 text-sm" style={{ color: pageColors.textMuted }}>
                   <Inbox size={16} />
                   <span>Bandeja de entrada</span>
                 </div>
               )}
             </div>
+            )}
 
             {/* Desktop: Center - Search and Filters */}
+            {!courseMode && (
             <div className="hidden sm:flex items-center gap-3 flex-1 max-w-xl mx-4">
-              {!courseMode && (
-                <>
-                  <div className="relative flex-1">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: pageColors.textMuted }} />
-                    <input 
-                      type="text" 
-                      value={searchValue} 
-                      onChange={(e) => handleSearchChange(e.target.value)} 
-                      placeholder="Buscar mensajes..." 
-                      className="w-full pl-10 pr-10 py-2 text-sm rounded-lg focus:outline-none focus:ring-2 transition-all" 
-                      style={{ 
-                        backgroundColor: pageColors.inputBg, 
-                        border: `1px solid ${pageColors.cardBorder}`,
-                        color: pageColors.text,
-                        '--tw-ring-color': pageColors.accent
-                      }} 
-                    />
-                    {searchValue && (
-                      <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-black/5" style={{ color: pageColors.textMuted }}>
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
+              <div className="relative flex-1">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: pageColors.textMuted }} />
+                <input
+                  type="text"
+                  value={searchValue}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Buscar mensajes..."
+                  className="w-full pl-10 pr-10 py-2 text-sm rounded-lg focus:outline-none focus:ring-2 transition-all"
+                  style={{
+                    backgroundColor: pageColors.inputBg,
+                    border: `1px solid ${pageColors.cardBorder}`,
+                    color: pageColors.text,
+                    '--tw-ring-color': pageColors.accent
+                  }}
+                />
+                {searchValue && (
+                  <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-black/5" style={{ color: pageColors.textMuted }}>
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
 
-                  <select 
-                    value={filters.status} 
-                    onChange={(e) => updateFilter('status', e.target.value)} 
-                    className="text-sm px-3 py-2 rounded-lg focus:outline-none focus:ring-2 transition-all" 
-                    style={{ 
-                      backgroundColor: pageColors.inputBg, 
-                      border: `1px solid ${pageColors.cardBorder}`,
-                      color: pageColors.text,
-                      '--tw-ring-color': pageColors.accent
-                    }}
-                  >
-                    <option value="all">Todos</option>
-                    <option value="unread">Sin leer</option>
-                    <option value="resolved">Resueltos</option>
-                  </select>
-                  <select 
-                    value={filters.type} 
-                    onChange={(e) => updateFilter('type', e.target.value)} 
-                    className="text-sm px-3 py-2 rounded-lg focus:outline-none focus:ring-2 transition-all" 
-                    style={{ 
-                      backgroundColor: pageColors.inputBg, 
-                      border: `1px solid ${pageColors.cardBorder}`,
-                      color: pageColors.text,
-                      '--tw-ring-color': pageColors.accent
-                    }}
-                  >
-                    <option value="all">Todos los tipos</option>
-                    <option value="question_feedback">Dudas</option>
-                    <option value="question_challenge">Impugnaciones</option>
-                  </select>
-                </>
-              )}
+              <select
+                value={filters.status}
+                onChange={(e) => updateFilter('status', e.target.value)}
+                className="text-sm px-3 py-2 rounded-lg focus:outline-none focus:ring-2 transition-all"
+                style={{
+                  backgroundColor: pageColors.inputBg,
+                  border: `1px solid ${pageColors.cardBorder}`,
+                  color: pageColors.text,
+                  '--tw-ring-color': pageColors.accent
+                }}
+              >
+                <option value="all">Todos</option>
+                <option value="unread">Sin leer</option>
+                <option value="resolved">Resueltos</option>
+              </select>
+              <select
+                value={filters.type}
+                onChange={(e) => updateFilter('type', e.target.value)}
+                className="text-sm px-3 py-2 rounded-lg focus:outline-none focus:ring-2 transition-all"
+                style={{
+                  backgroundColor: pageColors.inputBg,
+                  border: `1px solid ${pageColors.cardBorder}`,
+                  color: pageColors.text,
+                  '--tw-ring-color': pageColors.accent
+                }}
+              >
+                <option value="all">Todos los tipos</option>
+                <option value="question_feedback">Dudas</option>
+                <option value="question_challenge">Impugnaciones</option>
+              </select>
             </div>
+            )}
 
             {/* Desktop: Right - Actions */}
             <div className="hidden sm:flex items-center gap-2">
@@ -659,10 +647,9 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
               }}
             >
               {/* Table Header - Hidden on mobile */}
-              <div 
-                className="hidden md:grid gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wider flex-shrink-0"
-                style={{ 
-                  gridTemplateColumns: '40px 1fr 1.5fr 100px 100px 140px',
+              <div
+                className="hidden md:grid qe-msg-grid gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wider flex-shrink-0"
+                style={{
                   backgroundColor: pageColors.inputBg,
                   color: pageColors.textMuted,
                   borderBottom: `1px solid ${pageColors.cardBorder}`
@@ -673,7 +660,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                 <div>Mensaje</div>
                 <div>Tipo</div>
                 <div>Estado</div>
-                <div className="flex items-center gap-1"><Clock size={12} />Fecha</div>
+                <div className="hidden lg:flex items-center gap-1"><Clock size={12} />Fecha</div>
               </div>
 
               {/* Table Body */}
@@ -702,10 +689,9 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                   return (
                     <React.Fragment key={message.id}>
                       {/* Desktop Row */}
-                      <div 
-                        className="hidden md:grid gap-4 px-4 py-3 items-center cursor-pointer transition-all duration-150"
-                        style={{ 
-                          gridTemplateColumns: '40px 1fr 1.5fr 100px 100px 140px',
+                      <div
+                        className="hidden md:grid qe-msg-grid gap-4 px-4 py-3 items-center cursor-pointer transition-all duration-150"
+                        style={{
                           backgroundColor: 'transparent',
                           borderBottom: `1px solid ${pageColors.cardBorder}`,
                         }}
@@ -729,7 +715,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                         </div>
                         <div className="min-w-0">
                           <p className={`text-sm truncate ${isUnread ? 'font-medium' : ''}`} style={{ color: pageColors.text }}>
-                            {cleanMessageContent(message.message, message.subject) ? cleanMessageContent(message.message, message.subject).replace(/<[^>]*>/g, '').substring(0, 100) : '(Sin mensaje)'}
+                            {cleanMessageContent(message.message) ? cleanMessageContent(message.message).replace(/<[^>]*>/g, '').substring(0, 100) : '(Sin mensaje)'}
                           </p>
                         </div>
                         <div>
@@ -742,7 +728,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                             <StatusIcon size={12} />{statusInfo.label}
                           </span>
                         </div>
-                        <div className="text-xs" style={{ color: pageColors.textMuted }}>
+                        <div className="hidden lg:block text-xs" style={{ color: pageColors.textMuted }}>
                           {formatTableDate(message.created_at)}
                         </div>
                       </div>
@@ -781,7 +767,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                             
                             {/* Message preview */}
                             <p className={`text-sm line-clamp-2 mb-2 ${isUnread ? 'font-medium' : ''}`} style={{ color: isUnread ? pageColors.text : pageColors.textMuted }}>
-                              {cleanMessageContent(message.message, message.subject) ? cleanMessageContent(message.message, message.subject).replace(/<[^>]*>/g, '').substring(0, 120) : '(Sin mensaje)'}
+                              {cleanMessageContent(message.message) ? cleanMessageContent(message.message).replace(/<[^>]*>/g, '').substring(0, 120) : '(Sin mensaje)'}
                             </p>
                             
                             {/* Tags row */}
@@ -871,7 +857,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="rounded-2xl rounded-tl-sm p-3 sm:p-4" style={{ backgroundColor: pageColors.bgCard, border: `1px solid ${pageColors.cardBorder}`, boxShadow: pageColors.shadowSm }}>
-                      <div className="text-sm prose prose-sm max-w-none leading-relaxed break-words" style={{ color: pageColors.text }} dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedMessage.message, selectedMessage.subject) }} />
+                      <div className="text-sm prose prose-sm max-w-none leading-relaxed break-words" style={{ color: pageColors.text }} dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedMessage.message) }} />
                     </div>
                     <p className="text-xs mt-1.5 sm:mt-2 ml-2 sm:ml-3" style={{ color: pageColors.textMuted }}>{formatFullDate(selectedMessage.created_at)}</p>
                   </div>

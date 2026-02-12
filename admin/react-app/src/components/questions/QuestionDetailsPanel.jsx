@@ -244,7 +244,7 @@ const QuestionDetailsPanel = ({
                 ) : (
                   <Circle className="w-5 h-5 flex-shrink-0" style={{ color: pageColors.textMuted }} />
                 )}
-                <span style={{ color: pageColors.text }}>
+                <span style={{ color: pageColors.text, whiteSpace: 'pre-wrap' }}>
                   {option.text || t('questions.details.optionLabel', { number: index + 1 })}
                 </span>
               </div>

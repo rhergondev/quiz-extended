@@ -11,11 +11,9 @@ const ReviewedQuestion = ({
   result, 
   index, 
   displayIndex,
-  // Context props for feedback modal
+  // Context for course-based message filtering
   courseId = null,
   courseName = null,
-  lessonId = null,
-  lessonTitle = null
 }) => {
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [feedbackType, setFeedbackType] = useState('feedback');
@@ -482,8 +480,6 @@ const ReviewedQuestion = ({
           onClose={() => setIsFeedbackModalOpen(false)}
           courseId={courseId}
           courseName={courseName}
-          lessonId={lessonId}
-          lessonTitle={lessonTitle}
         />
       )}
     </>

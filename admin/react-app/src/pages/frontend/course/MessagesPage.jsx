@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { 
-  MessageSquare, Mail, MailOpen, Trash2, ChevronLeft, 
-  Inbox, AlertCircle, Clock, Check, RefreshCw, User, Eye,
-  FileQuestion, ChevronDown, ChevronUp, CheckCircle, XCircle, Send
+import {
+  MessageSquare, Mail, MailOpen, ChevronLeft,
+  Inbox, Clock, RefreshCw, User,
+  FileQuestion, ChevronDown, ChevronUp, CheckCircle, XCircle, Send,
+  Flag, MessageCircle, Archive, ArrowRight
 } from 'lucide-react';
 
 // Hooks & Context
@@ -18,34 +19,21 @@ import { makeApiRequest } from '../../../api/services/baseService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import MessagesManager from '../../../components/messages/MessagesManager';
 
-// Helper to remove metadata and duplicated subject from message
-const cleanMessageContent = (content, subject = '') => {
+// Helper to strip the (Curso: ...) metadata prefix from message content
+const cleanMessageContent = (content) => {
   if (!content) return '';
-  
-  // 1. Remove metadata pattern: (Curso: ...) (Lección: ...) (Pregunta ID: ...)
-  let cleaned = content.replace(/(\(Curso:[^)]+\)\s*\(Lección:[^)]+\)\s*\(Pregunta ID:[^)]+\))/gi, '');
-  
-  // 2. Remove subject if it appears at the start (ignoring tags/whitespace)
-  if (subject) {
-    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const subjectPattern = new RegExp(`^\\s*(?:<[^>]+>\\s*)*${escapeRegExp(subject.trim())}\\s*(?:<\\/[^>]+>\\s*)*`, 'i');
-    cleaned = cleaned.replace(subjectPattern, '');
-  }
-
-  // 3. Cleanup empty tags/whitespace
-  return cleaned.replace(/<p>\s*<\/p>/gi, '').trim();
+  return content.replace(/^\(Curso:[^)]+\)\s*/i, '').replace(/<p>\s*<\/p>/gi, '').trim();
 };
 
 const MessagesPage = () => {
   const { t } = useTranslation();
   const { courseId } = useParams();
-  const navigate = useNavigate();
   const { getColor, isDarkMode } = useTheme();
   const { course, loading: courseLoading } = useCourse(courseId);
   const courseName = course?.title?.rendered || course?.title || '';
 
   // Check if user is admin
-  const isAdmin = window.qe_data?.user?.capabilities?.manage_options === true || 
+  const isAdmin = window.qe_data?.user?.capabilities?.manage_options === true ||
                   window.qe_data?.user?.is_admin === true;
 
   // pageColors pattern - unified with admin MessagesManager
@@ -66,29 +54,26 @@ const MessagesPage = () => {
     shadowSm: isDarkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.05)',
     cardBorder: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
   }), [getColor, isDarkMode]);
-  
+
   // Messages from global context
   const {
     messages,
     loading,
-    error,
-    pagination,
     computed,
     updateMessageStatus,
-    deleteMessage,
     fetchMessages
   } = useMessagesContext();
 
   // State
   const [selectedMessage, setSelectedMessage] = useState(null);
-  const [deletingId, setDeletingId] = useState(null);
   const [relatedQuestion, setRelatedQuestion] = useState(null);
   const [loadingQuestion, setLoadingQuestion] = useState(false);
   const [showQuestion, setShowQuestion] = useState(false);
   const [parentMessage, setParentMessage] = useState(null);
+  const [threadMessages, setThreadMessages] = useState([]);
   const [loadingParent, setLoadingParent] = useState(false);
 
-  // Load parent message when a reply is selected
+  // Load parent message and full thread when a reply is selected
   useEffect(() => {
     const loadParent = async () => {
       if (selectedMessage?.parent_id) {
@@ -96,15 +81,19 @@ const MessagesPage = () => {
         try {
           const config = getApiConfig();
           const response = await makeApiRequest(`${config.endpoints.custom_api}/messages/${selectedMessage.id}/parent`);
-          setParentMessage(response.data?.data?.parent || null);
+          const data = response.data?.data || response.data || {};
+          setParentMessage(data.parent || null);
+          setThreadMessages(data.thread_messages || []);
         } catch (err) {
           console.error('Error loading parent message:', err);
           setParentMessage(null);
+          setThreadMessages([]);
         } finally {
           setLoadingParent(false);
         }
       } else {
         setParentMessage(null);
+        setThreadMessages([]);
       }
     };
     loadParent();
@@ -140,7 +129,7 @@ const MessagesPage = () => {
     }
   }, [messages, selectedMessage]);
 
-  // Select a message and mark as read
+  // Select a message — mark as read silently (updates badge/counter) but don't change displayed status
   const handleSelectMessage = useCallback((message) => {
     setSelectedMessage(message);
     if (message.status === 'unread') {
@@ -153,26 +142,13 @@ const MessagesPage = () => {
     setSelectedMessage(null);
   }, []);
 
-  // Delete a message
-  const handleDeleteMessage = useCallback(async (messageId) => {
-    setDeletingId(messageId);
-    try {
-      await deleteMessage(messageId);
-      if (selectedMessage?.id === messageId) {
-        setSelectedMessage(null);
-      }
-    } finally {
-      setDeletingId(null);
-    }
-  }, [deleteMessage, selectedMessage]);
-
-  // Format date for table
+  // Format date - relative for mobile cards
   const formatTableDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now - date;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) {
       return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     } else if (diffDays === 1) {
@@ -203,7 +179,33 @@ const MessagesPage = () => {
     );
   }
 
-  // User view - simplified table layout similar to admin
+  // --- Helper functions matching admin MessagesManager ---
+  const getTypeInfo = (type) => {
+    if (type === 'question_feedback') return { icon: MessageCircle, label: 'Duda', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' };
+    if (type === 'question_challenge') return { icon: Flag, label: 'Impugnación', color: pageColors.error, bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2' };
+    if (type === 'admin_reply') return { icon: Send, label: 'Respuesta', color: pageColors.primary, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff' };
+    if (type?.startsWith('admin_')) return { icon: Mail, label: 'Aviso', color: pageColors.accent, bgColor: isDarkMode ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7' };
+    return { icon: Mail, label: 'Mensaje', color: pageColors.textMuted, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6' };
+  };
+
+  // Non-admin status: show what the admin set. Messages with parent_id are admin replies = "Respondido"
+  const getStatusInfo = (status, message = null) => {
+    // If message is an admin reply (has parent_id), the reply itself IS the resolution
+    if (message?.parent_id) return { label: 'Respondido', color: pageColors.success, bgColor: isDarkMode ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5', icon: CheckCircle };
+    if (status === 'resolved') return { label: 'Resuelto', color: pageColors.success, bgColor: isDarkMode ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5', icon: CheckCircle };
+    if (status === 'unread') return { label: 'Nuevo', color: pageColors.accent, bgColor: isDarkMode ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7', icon: Mail };
+    if (status === 'read') return { label: 'Leído', color: pageColors.textMuted, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6', icon: MailOpen };
+    return { label: status || 'Archivado', color: pageColors.textMuted, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6', icon: Archive };
+  };
+
+  const formatFullDate = (dateString) => new Date(dateString).toLocaleString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  const formatDesktopDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
+  // User view - table layout matching admin MessagesManager
   return (
     <CoursePageTemplate
       courseId={courseId}
@@ -212,18 +214,18 @@ const MessagesPage = () => {
       icon={MessageSquare}
       loading={courseLoading}
     >
-      <div className="flex flex-col relative" style={{ backgroundColor: pageColors.bgPage, height: 'calc(100vh - 52px)', maxHeight: 'calc(100vh - 52px)' }}>
-        <div className="flex-1 relative overflow-hidden min-h-0">
+      <div className="flex flex-col relative" style={{ backgroundColor: pageColors.bgPage, height: 'calc(100dvh - 52px)', maxHeight: 'calc(100dvh - 52px)', overflow: 'hidden' }}>
+        <div className="flex-1 relative overflow-hidden min-h-0" style={{ overflowX: 'hidden' }}>
           {/* LIST VIEW - Slides out to left when detail is open */}
-          <div 
+          <div
             className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${
               isPanelOpen ? '-translate-x-full' : 'translate-x-0'
             }`}
           >
             {/* HEADER BAR */}
-            <div 
+            <div
               className="px-4 py-3 flex items-center justify-between flex-shrink-0"
-              style={{ 
+              style={{
                 backgroundColor: pageColors.bgCard,
                 borderBottom: `1px solid ${pageColors.cardBorder}`
               }}
@@ -233,7 +235,7 @@ const MessagesPage = () => {
                 <Inbox size={16} />
                 <span className="font-medium">{t('header.messages')}</span>
                 {computed.unreadMessages > 0 && (
-                  <span 
+                  <span
                     className="px-2 py-0.5 text-xs font-bold rounded-full text-white"
                     style={{ backgroundColor: pageColors.error }}
                   >
@@ -243,12 +245,12 @@ const MessagesPage = () => {
               </div>
 
               {/* Right: Refresh */}
-              <button 
+              <button
                 onClick={() => fetchMessages?.()}
                 disabled={loading}
                 className="p-2 rounded-lg transition-all duration-200"
-                style={{ 
-                  backgroundColor: pageColors.inputBg, 
+                style={{
+                  backgroundColor: pageColors.inputBg,
                   border: `1px solid ${pageColors.cardBorder}`,
                   color: pageColors.textMuted
                 }}
@@ -257,21 +259,20 @@ const MessagesPage = () => {
               </button>
             </div>
 
-            {/* TABLE */}
-            <div className="flex-1 overflow-hidden p-4">
-              <div 
+            {/* TABLE / MOBILE CARDS */}
+            <div className="flex-1 overflow-hidden p-2 sm:p-4">
+              <div
                 className="h-full rounded-xl overflow-hidden flex flex-col"
-                style={{ 
+                style={{
                   backgroundColor: pageColors.bgCard,
                   border: `1px solid ${pageColors.cardBorder}`,
                   boxShadow: pageColors.shadow
                 }}
               >
-                {/* Table Header */}
-                <div 
-                  className="grid gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wider flex-shrink-0"
-                  style={{ 
-                    gridTemplateColumns: '1fr 1.5fr 120px',
+                {/* Table Header - Hidden on mobile */}
+                <div
+                  className="hidden md:grid qe-msg-grid-user gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wider flex-shrink-0"
+                  style={{
                     backgroundColor: pageColors.inputBg,
                     color: pageColors.textMuted,
                     borderBottom: `1px solid ${pageColors.cardBorder}`
@@ -279,7 +280,9 @@ const MessagesPage = () => {
                 >
                   <div>Remitente</div>
                   <div>Mensaje</div>
-                  <div className="flex items-center gap-1"><Clock size={12} />Fecha</div>
+                  <div>Tipo</div>
+                  <div>Estado</div>
+                  <div className="hidden lg:flex items-center gap-1"><Clock size={12} />Fecha</div>
                 </div>
 
                 {/* Table Body */}
@@ -299,37 +302,105 @@ const MessagesPage = () => {
                   )}
                   {messages.map((message) => {
                     const isUnread = message.status === 'unread';
+                    const typeInfo = getTypeInfo(message.type);
+                    const statusInfo = getStatusInfo(message.status, message);
+                    const TypeIcon = typeInfo.icon;
+                    const StatusIcon = statusInfo.icon;
                     return (
-                      <div 
-                        key={message.id}
-                        className="grid gap-4 px-4 py-3 items-center cursor-pointer transition-all duration-150"
-                        style={{ 
-                          gridTemplateColumns: '1fr 1.5fr 120px',
-                          backgroundColor: 'transparent',
-                          borderBottom: `1px solid ${pageColors.cardBorder}`,
-                        }}
-                        onClick={() => handleSelectMessage(message)}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = pageColors.hoverBg; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: pageColors.inputBg }}>
-                            <User size={14} style={{ color: pageColors.textMuted }} />
+                      <React.Fragment key={message.id}>
+                        {/* Desktop Row */}
+                        <div
+                          className="hidden md:grid qe-msg-grid-user gap-4 px-4 py-3 items-center cursor-pointer transition-all duration-150"
+                          style={{
+                            backgroundColor: 'transparent',
+                            borderBottom: `1px solid ${pageColors.cardBorder}`,
+                          }}
+                          onClick={() => handleSelectMessage(message)}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = pageColors.hoverBg; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: pageColors.inputBg }}>
+                              <User size={14} style={{ color: pageColors.textMuted }} />
+                            </div>
+                            <span className={`text-sm truncate ${isUnread ? 'font-semibold' : ''}`} style={{ color: isUnread ? pageColors.text : pageColors.textMuted }}>
+                              {message.sender_name || t('messages.system')}
+                            </span>
+                            {isUnread && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pageColors.error }} />}
                           </div>
-                          <span className={`text-sm truncate ${isUnread ? 'font-semibold' : ''}`} style={{ color: isUnread ? pageColors.text : pageColors.textMuted }}>
-                            {message.sender_name || t('messages.system')}
-                          </span>
-                          {isUnread && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pageColors.error }} />}
+                          <div className="min-w-0">
+                            <p className={`text-sm truncate ${isUnread ? 'font-medium' : ''}`} style={{ color: pageColors.text }}>
+                              {cleanMessageContent(message.message) ? cleanMessageContent(message.message).replace(/<[^>]*>/g, '').substring(0, 100) : '(Sin mensaje)'}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium" style={{ backgroundColor: typeInfo.bgColor, color: typeInfo.color }}>
+                              <TypeIcon size={12} />{typeInfo.label}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium" style={{ backgroundColor: statusInfo.bgColor, color: statusInfo.color }}>
+                              <StatusIcon size={12} />{statusInfo.label}
+                            </span>
+                          </div>
+                          <div className="hidden lg:block text-xs" style={{ color: pageColors.textMuted }}>
+                            {formatDesktopDate(message.created_at)}
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className={`text-sm truncate ${isUnread ? 'font-medium' : ''}`} style={{ color: pageColors.text }}>
-                            {cleanMessageContent(message.message, message.subject) ? cleanMessageContent(message.message, message.subject).replace(/<[^>]*>/g, '').substring(0, 100) : '(Sin mensaje)'}
-                          </p>
+
+                        {/* Mobile Card */}
+                        <div
+                          className="md:hidden p-3 cursor-pointer transition-all duration-150 active:scale-[0.99]"
+                          style={{
+                            backgroundColor: 'transparent',
+                            borderBottom: `1px solid ${pageColors.cardBorder}`,
+                          }}
+                          onClick={() => handleSelectMessage(message)}
+                        >
+                          <div className="flex items-start gap-3">
+                            {/* Avatar with unread indicator */}
+                            <div className="relative flex-shrink-0">
+                              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: pageColors.inputBg }}>
+                                <User size={16} style={{ color: pageColors.textMuted }} />
+                              </div>
+                              {isUnread && (
+                                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full border-2" style={{ backgroundColor: pageColors.error, borderColor: pageColors.bgCard }} />
+                              )}
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              {/* Header row: sender + date */}
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <span className={`text-sm truncate ${isUnread ? 'font-semibold' : 'font-medium'}`} style={{ color: pageColors.text }}>
+                                  {message.sender_name || t('messages.system')}
+                                </span>
+                                <span className="text-xs flex-shrink-0" style={{ color: pageColors.textMuted }}>
+                                  {formatTableDate(message.created_at)}
+                                </span>
+                              </div>
+
+                              {/* Message preview */}
+                              <p className={`text-sm line-clamp-2 mb-2 ${isUnread ? 'font-medium' : ''}`} style={{ color: isUnread ? pageColors.text : pageColors.textMuted }}>
+                                {cleanMessageContent(message.message) ? cleanMessageContent(message.message).replace(/<[^>]*>/g, '').substring(0, 120) : '(Sin mensaje)'}
+                              </p>
+
+                              {/* Tags row */}
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: typeInfo.bgColor, color: typeInfo.color }}>
+                                  <TypeIcon size={10} />{typeInfo.label}
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: statusInfo.bgColor, color: statusInfo.color }}>
+                                  <StatusIcon size={10} />{statusInfo.label}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Arrow indicator */}
+                            <ArrowRight size={16} className="flex-shrink-0 mt-3" style={{ color: pageColors.textMuted, opacity: 0.5 }} />
+                          </div>
                         </div>
-                        <div className="text-xs" style={{ color: pageColors.textMuted }}>
-                          {formatTableDate(message.created_at)}
-                        </div>
-                      </div>
+                      </React.Fragment>
                     );
                   })}
                 </div>
@@ -338,7 +409,7 @@ const MessagesPage = () => {
           </div>
 
           {/* DETAIL PANEL - Slides in from right */}
-          <div 
+          <div
             className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${
               isPanelOpen ? 'translate-x-0' : 'translate-x-full'
             }`}
@@ -346,108 +417,104 @@ const MessagesPage = () => {
           >
             {selectedMessage && (
               <>
-                {/* Detail Header */}
-                <div 
-                  className="px-4 py-3 flex items-center justify-between flex-shrink-0"
-                  style={{ 
+                {/* Detail Header - matching admin style with badges */}
+                <div
+                  className="px-3 sm:px-4 py-3 flex items-center justify-between flex-shrink-0"
+                  style={{
                     backgroundColor: pageColors.bgCard,
                     borderBottom: `1px solid ${pageColors.cardBorder}`
                   }}
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <button 
-                      onClick={handleClosePanel} 
-                      className="p-2 rounded-lg transition-all mr-2" 
+                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                    <button
+                      onClick={handleClosePanel}
+                      className="p-2 rounded-lg transition-all flex-shrink-0"
                       style={{ backgroundColor: pageColors.inputBg, color: pageColors.text }}
                     >
                       <ChevronLeft size={18} />
                     </button>
-                    <div 
-                      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" 
+                    <div
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0"
                       style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)` }}
                     >
-                      <User size={16} className="text-white" />
+                      <User size={14} className="text-white sm:hidden" />
+                      <User size={16} className="text-white hidden sm:block" />
                     </div>
-                    <div className="min-w-0">
-                      <span className="font-bold text-sm block truncate" style={{ color: pageColors.text }}>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 min-w-0 flex-1">
+                      <span className="font-bold text-sm truncate" style={{ color: pageColors.text }}>
                         {selectedMessage.sender_name || t('messages.system')}
                       </span>
-                      <span className="text-xs" style={{ color: pageColors.textMuted }}>
-                        {new Date(selectedMessage.created_at).toLocaleString('es-ES', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {(() => { const ti = getTypeInfo(selectedMessage.type); const TI = ti.icon; return <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0" style={{ backgroundColor: ti.bgColor, color: ti.color }}><TI size={10} />{ti.label}</span>; })()}
+                        {(() => { const si = getStatusInfo(selectedMessage.status, selectedMessage); return <span className="text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0" style={{ backgroundColor: si.bgColor, color: si.color }}>{si.label}</span>; })()}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Message Content */}
-                <div className="flex-1 overflow-y-auto p-6">
-                  <div className="max-w-3xl mx-auto space-y-4">
-                    
-                    {/* Loading parent indicator */}
-                    {loadingParent && (
-                      <div className="flex items-center justify-center py-4">
-                        <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: `${pageColors.accent}30`, borderTopColor: pageColors.accent }} />
-                      </div>
-                    )}
+                {/* Chat Content - matching admin thread layout */}
+                <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4 min-h-0">
 
-                    {/* 1. Original message (parent) - user's feedback/question - RIGHT SIDE */}
-                    {parentMessage && (
-                      <div className="flex gap-3 justify-end max-w-4xl ml-auto">
-                        <div className="max-w-[85%]">
-                          <div 
-                            className="rounded-2xl rounded-tr-sm p-4" 
-                            style={{ 
-                              background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`,
-                              color: '#fff',
-                              boxShadow: '0 2px 12px rgba(59, 130, 246, 0.2)'
-                            }}
-                          >
-                            <div 
-                              className="text-sm prose prose-sm prose-invert max-w-none leading-relaxed break-words" 
-                              dangerouslySetInnerHTML={{ __html: cleanMessageContent(parentMessage.message, parentMessage.subject) }} 
-                            />
-                          </div>
-                          <p className="text-xs mt-2 mr-3 text-right" style={{ color: pageColors.textMuted }}>
-                            {t('messages.you') || 'Tú'} • {new Date(parentMessage.created_at).toLocaleString('es-ES', {
-                              day: 'numeric',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </p>
-                        </div>
-                        <div 
-                          className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center" 
-                          style={{ background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)` }}
-                        >
-                          <Send size={14} className="text-white" />
-                        </div>
-                      </div>
-                    )}
+                  {/* Loading parent indicator */}
+                  {loadingParent && (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: `${pageColors.accent}30`, borderTopColor: pageColors.accent }} />
+                    </div>
+                  )}
 
-                    {/* 2. Related Question Viewer - centered between messages */}
-                    {selectedMessage.related_object_id && (
-                      <div 
-                        className="mx-4 sm:mx-8 rounded-xl overflow-hidden"
-                        style={{ 
-                          backgroundColor: pageColors.inputBg, 
-                          border: `1px solid ${pageColors.cardBorder}` 
+                  {/* 1. Original message - LEFT side (matching admin layout) */}
+                  {parentMessage ? (
+                    // Parent exists: show user's original message on LEFT
+                    <div className="flex gap-2 sm:gap-4 max-w-4xl">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)` }}>
+                        <User size={14} className="text-white sm:hidden" />
+                        <User size={16} className="text-white hidden sm:block" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="rounded-2xl rounded-tl-sm p-3 sm:p-4" style={{ backgroundColor: pageColors.bgCard, border: `1px solid ${pageColors.cardBorder}`, boxShadow: pageColors.shadowSm }}>
+                          <div className="text-sm prose prose-sm max-w-none leading-relaxed break-words" style={{ color: pageColors.text, wordBreak: 'break-word', overflowWrap: 'anywhere' }} dangerouslySetInnerHTML={{ __html: cleanMessageContent(parentMessage.message) }} />
+                        </div>
+                        <p className="text-xs mt-1.5 sm:mt-2 ml-2 sm:ml-3" style={{ color: pageColors.textMuted }}>
+                          {t('messages.you') || 'Tú'} • {formatFullDate(parentMessage.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    // No parent: show selectedMessage as the original on LEFT
+                    <div className="flex gap-2 sm:gap-4 max-w-4xl">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)` }}>
+                        <User size={14} className="text-white sm:hidden" />
+                        <User size={16} className="text-white hidden sm:block" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="rounded-2xl rounded-tl-sm p-3 sm:p-4" style={{ backgroundColor: pageColors.bgCard, border: `1px solid ${pageColors.cardBorder}`, boxShadow: pageColors.shadowSm }}>
+                          <div className="text-sm prose prose-sm max-w-none leading-relaxed break-words" style={{ color: pageColors.text, wordBreak: 'break-word', overflowWrap: 'anywhere' }} dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedMessage.message) }} />
+                        </div>
+                        <p className="text-xs mt-1.5 sm:mt-2 ml-2 sm:ml-3" style={{ color: pageColors.textMuted }}>
+                          {selectedMessage.sender_name || t('messages.system')} • {formatFullDate(selectedMessage.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2. Question card - indented, matching admin */}
+                  {selectedMessage.related_object_id && (
+                    <div className="ml-10 sm:ml-14 max-w-2xl">
+                      <div
+                        className="rounded-xl overflow-hidden"
+                        style={{
+                          backgroundColor: pageColors.inputBg,
+                          border: `1px solid ${pageColors.cardBorder}`
                         }}
                       >
                         {/* Toggle header */}
                         <button
                           onClick={() => setShowQuestion(!showQuestion)}
-                          className="w-full flex items-center justify-between p-4 transition-all"
+                          className="w-full flex items-center justify-between p-3 sm:p-4 transition-all"
                           style={{ color: pageColors.text }}
                         >
                           <div className="flex items-center gap-2">
-                            <FileQuestion size={18} style={{ color: pageColors.accent }} />
+                            <FileQuestion size={16} style={{ color: pageColors.accent }} />
                             <span className="font-medium text-sm">
                               {loadingQuestion ? 'Cargando pregunta...' : 'Ver pregunta relacionada'}
                             </span>
@@ -457,21 +524,21 @@ const MessagesPage = () => {
 
                         {/* Question content */}
                         {showQuestion && relatedQuestion && (
-                          <div className="p-4 pt-0 space-y-4">
+                          <div className="p-3 sm:p-4 pt-0 space-y-4">
                             {/* Question title/enunciado */}
-                            <div 
-                              className="p-4 rounded-xl"
-                              style={{ 
-                                backgroundColor: pageColors.bgCard, 
-                                border: `1px solid ${pageColors.cardBorder}` 
+                            <div
+                              className="p-3 sm:p-4 rounded-xl"
+                              style={{
+                                backgroundColor: pageColors.bgCard,
+                                border: `1px solid ${pageColors.cardBorder}`
                               }}
                             >
                               <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: pageColors.textMuted }}>
                                 Enunciado
                               </p>
-                              <div 
-                                className="text-sm leading-relaxed prose prose-sm max-w-none"
-                                style={{ color: pageColors.text }}
+                              <div
+                                className="text-sm leading-relaxed prose prose-sm max-w-none break-words"
+                                style={{ color: pageColors.text, overflowWrap: 'anywhere' }}
                                 dangerouslySetInnerHTML={{ __html: relatedQuestion.title?.rendered || relatedQuestion.title || '' }}
                               />
                             </div>
@@ -484,14 +551,14 @@ const MessagesPage = () => {
                                 </p>
                                 <div className="space-y-2">
                                   {relatedQuestion.meta._question_options.map((option, index) => (
-                                    <div 
+                                    <div
                                       key={index}
                                       className="flex items-start gap-3 p-3 rounded-lg"
-                                      style={{ 
-                                        backgroundColor: option.isCorrect 
+                                      style={{
+                                        backgroundColor: option.isCorrect
                                           ? (isDarkMode ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5')
                                           : pageColors.bgCard,
-                                        border: `1px solid ${option.isCorrect 
+                                        border: `1px solid ${option.isCorrect
                                           ? (isDarkMode ? 'rgba(16, 185, 129, 0.3)' : '#a7f3d0')
                                           : pageColors.cardBorder}`
                                       }}
@@ -503,9 +570,9 @@ const MessagesPage = () => {
                                           <XCircle size={16} style={{ color: pageColors.textMuted }} />
                                         )}
                                       </div>
-                                      <span 
-                                        className="text-sm"
-                                        style={{ color: option.isCorrect ? pageColors.success : pageColors.text }}
+                                      <span
+                                        className="text-sm break-words"
+                                        style={{ color: option.isCorrect ? pageColors.success : pageColors.text, overflowWrap: 'anywhere' }}
                                         dangerouslySetInnerHTML={{ __html: option.text || '' }}
                                       />
                                     </div>
@@ -516,9 +583,9 @@ const MessagesPage = () => {
 
                             {/* Explanation */}
                             {relatedQuestion.content?.rendered && (
-                              <div 
-                                className="p-4 rounded-xl"
-                                style={{ 
+                              <div
+                                className="p-3 sm:p-4 rounded-xl"
+                                style={{
                                   backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.1)' : '#eff6ff',
                                   border: `1px solid ${isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#bfdbfe'}`
                                 }}
@@ -526,9 +593,9 @@ const MessagesPage = () => {
                                 <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: pageColors.info }}>
                                   Explicación
                                 </p>
-                                <div 
-                                  className="text-sm leading-relaxed prose prose-sm max-w-none"
-                                  style={{ color: pageColors.text }}
+                                <div
+                                  className="text-sm leading-relaxed prose prose-sm max-w-none break-words"
+                                  style={{ color: pageColors.text, overflowWrap: 'anywhere' }}
                                   dangerouslySetInnerHTML={{ __html: relatedQuestion.content.rendered }}
                                 />
                               </div>
@@ -536,54 +603,56 @@ const MessagesPage = () => {
                           </div>
                         )}
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    {/* 3. Reply/Response from admin - LEFT SIDE */}
-                    <div className="flex gap-3 max-w-4xl">
-                      <div 
-                        className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center" 
-                        style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)` }}
-                      >
-                        <User size={16} className="text-white" />
-                      </div>
-                      <div className="max-w-[85%]">
-                        <div 
-                          className="rounded-2xl rounded-tl-sm p-4" 
-                          style={{ 
-                            backgroundColor: pageColors.bgCard, 
-                            border: `1px solid ${pageColors.cardBorder}`, 
-                            boxShadow: pageColors.shadowSm 
-                          }}
-                        >
-                          <div 
-                            className="text-sm prose prose-sm max-w-none leading-relaxed break-words" 
-                            style={{ color: pageColors.text }} 
-                            dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedMessage.message, selectedMessage.subject) }} 
-                          />
+                  {/* 3. Admin replies - RIGHT side blue bubbles (all thread messages) */}
+                  {parentMessage && threadMessages.length > 0 ? (
+                    threadMessages.map((reply) => (
+                      <div key={reply.id} className="flex gap-2 sm:gap-4 justify-end max-w-4xl ml-auto">
+                        <div className="max-w-[85%] sm:max-w-[80%]">
+                          <div className="rounded-2xl rounded-tr-sm p-3 sm:p-4" style={{ background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`, color: '#fff', boxShadow: '0 2px 12px rgba(59, 130, 246, 0.2)' }}>
+                            <div className="text-sm prose prose-sm prose-invert max-w-none leading-relaxed break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }} dangerouslySetInnerHTML={{ __html: cleanMessageContent(reply.message) }} />
+                          </div>
+                          <p className="text-xs mt-1.5 sm:mt-2 mr-2 sm:mr-3 text-right" style={{ color: pageColors.textMuted }}>
+                            {reply.sender_name || (t('messages.adminResponse') || 'Respuesta')} • {formatFullDate(reply.created_at)}
+                          </p>
                         </div>
-                        <p className="text-xs mt-2 ml-3" style={{ color: pageColors.textMuted }}>
-                          {parentMessage ? (t('messages.adminResponse') || 'Respuesta') : (selectedMessage.sender_name || t('messages.system'))} • {new Date(selectedMessage.created_at).toLocaleString('es-ES', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)` }}>
+                          <Send size={12} className="text-white sm:hidden" />
+                          <Send size={14} className="text-white hidden sm:block" />
+                        </div>
+                      </div>
+                    ))
+                  ) : parentMessage && (
+                    // Fallback: show selectedMessage as single reply if no thread_messages
+                    <div className="flex gap-2 sm:gap-4 justify-end max-w-4xl ml-auto">
+                      <div className="max-w-[85%] sm:max-w-[80%]">
+                        <div className="rounded-2xl rounded-tr-sm p-3 sm:p-4" style={{ background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`, color: '#fff', boxShadow: '0 2px 12px rgba(59, 130, 246, 0.2)' }}>
+                          <div className="text-sm prose prose-sm prose-invert max-w-none leading-relaxed break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }} dangerouslySetInnerHTML={{ __html: cleanMessageContent(selectedMessage.message) }} />
+                        </div>
+                        <p className="text-xs mt-1.5 sm:mt-2 mr-2 sm:mr-3 text-right" style={{ color: pageColors.textMuted }}>
+                          {t('messages.adminResponse') || 'Respuesta'} • {formatFullDate(selectedMessage.created_at)}
                         </p>
                       </div>
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)` }}>
+                        <Send size={12} className="text-white sm:hidden" />
+                        <Send size={14} className="text-white hidden sm:block" />
+                      </div>
                     </div>
+                  )}
 
-                    {/* Info note */}
-                    <div 
-                      className="mt-6 p-4 rounded-xl text-center"
-                      style={{ 
-                        backgroundColor: pageColors.inputBg, 
-                        border: `1px solid ${pageColors.cardBorder}` 
-                      }}
-                    >
-                      <p className="text-sm" style={{ color: pageColors.textMuted }}>
-                        {t('messages.contactSupport') || 'Para responder a este mensaje, contacta al soporte del curso.'}
-                      </p>
-                    </div>
+                  {/* Info note */}
+                  <div
+                    className="mt-4 p-3 sm:p-4 rounded-xl text-center"
+                    style={{
+                      backgroundColor: pageColors.inputBg,
+                      border: `1px solid ${pageColors.cardBorder}`
+                    }}
+                  >
+                    <p className="text-sm" style={{ color: pageColors.textMuted }}>
+                      {t('messages.contactSupport') || 'Para responder a este mensaje, contacta al soporte del curso.'}
+                    </p>
                   </div>
                 </div>
               </>

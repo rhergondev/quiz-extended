@@ -157,15 +157,16 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
   };
 
   return (
-    <header 
+    <header
       id="qe-topbar"
-      style={{ 
+      style={{
         backgroundColor: secondaryBackground,
         borderBottom: `1px solid ${topbarColors.text}33`,
         position: 'relative',
-        zIndex: 9999
+        zIndex: 9999,
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)'
       }}
-      className="w-full"
+      className="w-full overflow-hidden"
     >
       <div className="flex items-center justify-between px-3 sm:px-4 lg:px-10 py-2 w-full max-w-full">
         {/* Left: Hamburger (mobile only, course routes only) + Logo */}
@@ -214,7 +215,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
         </div>
 
         {/* Navigation Menu - Centered (hidden on small screens, icons only on tablet) */}
-        <nav className="hidden lg:flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
+        <nav className="hidden lg:flex items-center gap-1 xl:gap-2 absolute left-1/2 transform -translate-x-1/2">
           {/* Quick Menu Dropdown - Only show when in course route */}
           {isInCourseRoute && (
           <div className="relative" ref={dropdownRef}>
@@ -306,7 +307,8 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                 <a
                   key={item.to}
                   href={item.to}
-                  className="flex items-center gap-2 px-4 py-2 transition-all duration-200 font-medium outline-none focus:outline-none"
+                  title={item.text}
+                  className="flex items-center gap-1 xl:gap-2 px-2 xl:px-4 py-2 transition-all duration-200 font-medium outline-none focus:outline-none"
                   style={{
                     backgroundColor: 'transparent',
                     color: topbarColors.text,
@@ -317,7 +319,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                   onMouseLeave={(e) => handleLinkHover(e, false, false)}
                 >
                   <item.icon className="w-5 h-5" />
-                  <span>{item.text}</span>
+                  <span className="hidden xl:inline">{item.text}</span>
                 </a>
               );
             }
@@ -329,7 +331,8 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                   href={item.to}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 transition-all duration-200 font-medium outline-none focus:outline-none"
+                  title={item.text}
+                  className="flex items-center gap-1 xl:gap-2 px-2 xl:px-4 py-2 transition-all duration-200 font-medium outline-none focus:outline-none"
                   style={{
                     backgroundColor: 'transparent',
                     color: topbarColors.text,
@@ -340,7 +343,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                   onMouseLeave={(e) => handleLinkHover(e, false, false)}
                 >
                   <item.icon className="w-5 h-5" />
-                  <span>{item.text}</span>
+                  <span className="hidden xl:inline">{item.text}</span>
                 </a>
               );
             }
@@ -350,7 +353,8 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                 key={item.to}
                 to={item.to}
                 end
-                className="flex items-center gap-2 px-4 py-2 transition-all duration-200 font-medium outline-none focus:outline-none"
+                title={item.text}
+                className="flex items-center gap-1 xl:gap-2 px-2 xl:px-4 py-2 transition-all duration-200 font-medium outline-none focus:outline-none"
                 style={({ isActive }) => getLinkStyle(isActive)}
                 onMouseEnter={(e) => {
                   const isActive = e.currentTarget.getAttribute('aria-current') === 'page';
@@ -366,9 +370,9 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                     <div className="relative">
                       <item.icon className="w-5 h-5" />
                       {item.badge > 0 && (
-                        <span 
+                        <span
                           className="absolute -top-2 -right-2 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold rounded-full"
-                          style={{ 
+                          style={{
                             backgroundColor: accent,
                             color: '#ffffff'
                           }}
@@ -377,7 +381,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
                         </span>
                       )}
                     </div>
-                    <span>{item.text}</span>
+                    <span className="hidden xl:inline">{item.text}</span>
                   </>
                 )}
               </NavLink>

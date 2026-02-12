@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { CheckCircle, XCircle, MinusCircle, Award, Menu, X, Trophy, Target, Clock, ChevronLeft } from 'lucide-react';
+import { CheckCircle, XCircle, MinusCircle, Menu, X, Trophy, Target, Clock, ChevronLeft } from 'lucide-react';
 import ReviewedQuestion from './ReviewedQuestion';
 import ResultsSidebar from './ResultsSidebar';
 import { useTranslation } from 'react-i18next';
@@ -8,17 +7,15 @@ import { useScoreFormat } from '../../contexts/ScoreFormatContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const QuizResults = ({ 
-  result, 
-  quizTitle, 
-  questions, 
+  result,
+  quizTitle,
+  questions,
   noPadding = false,
   difficulty = null,
   onBack = null,
   // Context props for feedback modal
   courseId = null,
   courseName = null,
-  lessonId = null,
-  lessonTitle = null
 }) => {
   const { t } = useTranslation();
   const { formatScore } = useScoreFormat();
@@ -51,7 +48,7 @@ const QuizResults = ({
     );
   }
 
-  const { detailed_results, score, score_with_risk, average_score, average_score_with_risk } = result;
+  const { detailed_results, score, score_with_risk } = result;
 
   // === ESTADÍSTICAS PARA "CON RIESGO" (score_with_risk) ===
   // En esta vista, las preguntas contestadas con riesgo se evalúan normalmente
@@ -68,20 +65,6 @@ const QuizResults = ({
   const answeredWithRiskCount = detailed_results?.filter(r => r.is_risked && r.answer_given !== null).length || 0;
   const unansweredWithoutRisk = reallyUnanswered + answeredWithRiskCount;
   
-  // Total de preguntas
-  const totalQuestions = detailed_results?.length || 0;
-
-  // Debug log para verificar datos de riesgo
-  console.log('QuizResults - detailed_results:', detailed_results);
-  console.log('QuizResults - stats sin riesgo:', { correctAnswersWithoutRisk, incorrectAnswersWithoutRisk, unansweredWithoutRisk });
-  console.log('QuizResults - stats con riesgo:', { correctAnswersWithRisk, incorrectAnswersWithRisk, unansweredWithRisk });
-  console.log('QuizResults - is_risked values:', detailed_results?.map(r => ({ question_id: r.question_id, is_risked: r.is_risked, answer_given: r.answer_given, is_correct: r.is_correct })));
-
-  const averageScore = average_score ?? null;
-  const averageScoreWithRisk = average_score_with_risk ?? null;
-  
-  const percentil = averageScore !== null ? (score - averageScore).toFixed(2) : null;
-  const percentilWithRisk = averageScoreWithRisk !== null ? (score_with_risk - averageScoreWithRisk).toFixed(2) : null;
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden" style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}>
@@ -148,7 +131,7 @@ const QuizResults = ({
           <main className={`flex-1 w-full lg:w-auto overflow-y-auto ${noPadding ? 'px-4 sm:px-6 lg:px-4 py-4 lg:py-4 pb-24 lg:pb-12' : 'px-4 lg:pr-4 py-4 lg:pb-8 pb-24'}`}>
         {/* Barra de info: Botón volver, Dificultad y Tiempo */}
         {(onBack || difficulty || result?.duration_seconds) && (
-          <div 
+          <div
             className={`flex items-center justify-between mb-4 ${noPadding ? 'mt-4' : ''}`}
           >
             {/* Lado izquierdo: Botón volver + Dificultad */}
@@ -158,7 +141,7 @@ const QuizResults = ({
                 <button
                   onClick={onBack}
                   className="p-1.5 rounded-full transition-all"
-                  style={{ 
+                  style={{
                     backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : `${pageColors.text}10`,
                   }}
                   title={t('common.back')}
@@ -166,7 +149,7 @@ const QuizResults = ({
                   <ChevronLeft size={20} style={{ color: pageColors.text }} />
                 </button>
               )}
-              
+
               {/* Dificultad */}
               {difficulty && (() => {
               const difficultyColors = {
@@ -184,9 +167,9 @@ const QuizResults = ({
                   <span className="text-sm" style={{ color: pageColors.textMuted }}>
                     {t('quizzes.results.difficultyLevel')}:
                   </span>
-                  <div 
+                  <div
                     className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-                    style={{ 
+                    style={{
                       backgroundColor: `${difficultyColors[difficulty]}15`,
                     }}
                   >
@@ -199,7 +182,7 @@ const QuizResults = ({
               );
             })()}
             </div>
-            
+
             {/* Tiempo */}
             {result?.duration_seconds && (
               <div className="flex items-center gap-2">
@@ -338,8 +321,6 @@ const QuizResults = ({
                 displayIndex={index + 1}
                 courseId={courseId}
                 courseName={courseName}
-                lessonId={lessonId}
-                lessonTitle={lessonTitle}
               />
             ))}
           </div>

@@ -287,7 +287,7 @@ class QE_Messages_API extends QE_API_Base
 
             // Determine type - subject is now just the user's message
             $type = 'question_' . $feedback_type;
-            $subject = $message; // Simple: just show the user's message as subject
+            $subject = mb_substr($message, 0, 200); // Truncate to match maxLength validation
 
             // Insert message
             $message_id = $this->db_insert('messages', [
@@ -797,32 +797,66 @@ class QE_Messages_API extends QE_API_Base
             $offset = ($page - 1) * $per_page;
             $status = $request->get_param('status');
 
-            // Build WHERE clause
-            $where = ['recipient_id = %d'];
-            $params = [$user_id];
+            // Thread deduplication: for messages sharing the same parent_id (same thread),
+            // only show the latest one. Standalone messages (parent_id=0) are always included.
+            // This prevents multiple admin replies from cluttering the student's inbox.
 
+            // Build status filter
+            $status_filter = '';
+            $status_params = [];
             if ($status) {
-                $where[] = 'status = %s';
-                $params[] = $status;
+                $status_filter = 'AND status = %s';
+                $status_params = [$status];
             }
 
-            $where_clause = implode(' AND ', $where);
+            // Subquery to get IDs of messages to show:
+            // - All standalone messages (parent_id = 0)
+            // - Only the latest message per thread (MAX(id) grouped by parent_id)
+            $dedup_query = "
+                SELECT id FROM {$table_name}
+                WHERE recipient_id = %d AND parent_id = 0 {$status_filter}
+                UNION
+                SELECT MAX(id) FROM {$table_name}
+                WHERE recipient_id = %d AND parent_id > 0 {$status_filter}
+                GROUP BY parent_id
+            ";
+            $dedup_params = array_merge([$user_id], $status_params, [$user_id], $status_params);
 
-            // Get total count
-            $count_query = "SELECT COUNT(*) FROM {$table_name} WHERE {$where_clause}";
-            $total = $wpdb->get_var($wpdb->prepare($count_query, $params));
+            // Get total count of deduplicated messages
+            $count_query = "SELECT COUNT(*) FROM ({$dedup_query}) AS deduped";
+            $total = $wpdb->get_var($wpdb->prepare($count_query, $dedup_params));
 
-            // Get messages
-            $query = "SELECT m.*, 
-                     COALESCE(u.display_name, 'Sistema') as sender_name
+            // Get deduplicated messages with thread_count
+            $query = "SELECT m.*,
+                     COALESCE(u.display_name, 'Sistema') as sender_name,
+                     CASE
+                       WHEN m.parent_id > 0 THEN (
+                         SELECT COUNT(*) FROM {$table_name} t
+                         WHERE t.parent_id = m.parent_id AND t.recipient_id = m.recipient_id
+                       )
+                       ELSE 0
+                     END as thread_count
                      FROM {$table_name} m
                      LEFT JOIN {$wpdb->users} u ON m.sender_id = u.ID
-                     WHERE {$where_clause}
-                     ORDER BY created_at DESC
+                     WHERE m.id IN ({$dedup_query})
+                     ORDER BY m.created_at DESC
                      LIMIT %d OFFSET %d";
 
-            $query_params = array_merge($params, [$per_page, $offset]);
+            $query_params = array_merge($dedup_params, [$per_page, $offset]);
             $messages = $wpdb->get_results($wpdb->prepare($query, $query_params), ARRAY_A);
+
+            // Convert numeric fields
+            foreach ($messages as &$message) {
+                $message['id'] = (int) $message['id'];
+                $message['sender_id'] = (int) $message['sender_id'];
+                $message['recipient_id'] = (int) $message['recipient_id'];
+                $message['parent_id'] = (int) $message['parent_id'];
+                $message['thread_count'] = (int) ($message['thread_count'] ?? 0);
+                if ($message['related_object_id']) {
+                    $message['related_object_id'] = (int) $message['related_object_id'];
+                }
+            }
+            unset($message);
 
             // Calculate pagination
             $total_pages = ceil($total / $per_page);
@@ -849,7 +883,7 @@ class QE_Messages_API extends QE_API_Base
     // ============================================================
 
     /**
-     * Get parent message of a thread (for students to see their original message)
+     * Get parent message and full thread (for students to see their original message + all replies)
      */
     public function get_message_parent($request)
     {
@@ -871,7 +905,7 @@ class QE_Messages_API extends QE_API_Base
             }
 
             if (empty($message['parent_id'])) {
-                return $this->success_response(['parent' => null]);
+                return $this->success_response(['parent' => null, 'thread_messages' => []]);
             }
 
             // Get the parent message (user must be sender OR recipient of parent)
@@ -886,11 +920,37 @@ class QE_Messages_API extends QE_API_Base
             ), ARRAY_A);
 
             if (!$parent) {
-                // Parent exists but user doesn't have access
-                return $this->success_response(['parent' => null]);
+                return $this->success_response(['parent' => null, 'thread_messages' => []]);
             }
 
-            return $this->success_response(['parent' => $parent]);
+            // Get ALL messages in this thread (same parent_id, sent to this user)
+            // Ordered chronologically so the detail panel can show the full conversation
+            $thread_messages = $wpdb->get_results($wpdb->prepare(
+                "SELECT m.*, COALESCE(u.display_name, 'Sistema') as sender_name
+                 FROM {$table_name} m
+                 LEFT JOIN {$wpdb->users} u ON m.sender_id = u.ID
+                 WHERE m.parent_id = %d AND m.recipient_id = %d
+                 ORDER BY m.created_at ASC",
+                $message['parent_id'],
+                $user_id
+            ), ARRAY_A);
+
+            // Convert numeric fields
+            foreach ($thread_messages as &$tm) {
+                $tm['id'] = (int) $tm['id'];
+                $tm['sender_id'] = (int) $tm['sender_id'];
+                $tm['recipient_id'] = (int) $tm['recipient_id'];
+                $tm['parent_id'] = (int) $tm['parent_id'];
+                if ($tm['related_object_id']) {
+                    $tm['related_object_id'] = (int) $tm['related_object_id'];
+                }
+            }
+            unset($tm);
+
+            return $this->success_response([
+                'parent' => $parent,
+                'thread_messages' => $thread_messages
+            ]);
 
         } catch (Exception $e) {
             $this->log_error('Exception in get_message_parent', ['message' => $e->getMessage()]);

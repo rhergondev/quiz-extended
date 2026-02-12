@@ -1349,8 +1349,9 @@ const TestsPage = () => {
         >
           {selectedTest && (
             <div className="h-full flex flex-col">
-              {/* Header Compacto con Breadcrumbs Integrados */}
-              <div 
+              {/* Header Compacto con Breadcrumbs Integrados - hidden during quiz, results, or attempt review */}
+              {!viewingAttemptId && !isQuizRunning && !quizResults && (
+              <div
                 className="flex items-center justify-between px-4 py-2 sm:py-1.5 border-b flex-shrink-0 gap-2"
                 style={{ 
                   backgroundColor: pageColors.bgCard,
@@ -1455,6 +1456,7 @@ const TestsPage = () => {
                   </button>
                 </div>
               </div>
+              )}
 
               {/* Test Content */}
               <div className="flex-1 overflow-y-auto">
@@ -1511,8 +1513,6 @@ const TestsPage = () => {
                         onBack={handleBackFromAttemptView}
                         courseId={courseId}
                         courseName={courseName}
-                        lessonId={selectedLesson?.id}
-                        lessonTitle={selectedLesson?.title}
                       />
                     </div>
                   ) : null
@@ -1886,8 +1886,6 @@ const TestsPage = () => {
                       onBack={handleCloseResults}
                       courseId={courseId}
                       courseName={courseName}
-                      lessonId={selectedLesson?.id}
-                      lessonTitle={selectedLesson?.title}
                     />
                   </div>
                 )}
