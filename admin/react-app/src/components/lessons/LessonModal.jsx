@@ -6,7 +6,8 @@ import { uploadMedia, validateFile } from '../../api/services/mediaService';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
 import {
   X, Plus, Trash2, GripVertical, Video, FileText, Download, Save,
-  HelpCircle, AlertCircle, UploadCloud, CheckCircle, Search, Edit2, ExternalLink
+  HelpCircle, AlertCircle, UploadCloud, CheckCircle, Search, Edit2, ExternalLink,
+  Eye, EyeOff, Calendar
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -47,6 +48,9 @@ const LessonModal = ({
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
 
+  // Sentinel date for hidden lessons
+  const HIDDEN_DATE = '9999-12-31';
+
   // State
   const [formData, setFormData] = useState({
     title: '',
@@ -55,6 +59,7 @@ const LessonModal = ({
     description: '',
     lessonOrder: '1',
     completionCriteria: 'view_all',
+    startDate: '',
     steps: []
   });
   const [errors, setErrors] = useState({});
@@ -101,6 +106,7 @@ const LessonModal = ({
         description: lesson.meta?._lesson_description || '',
         lessonOrder: lesson.meta?._lesson_order?.toString() || '1',
         completionCriteria: lesson.meta?._completion_criteria || 'view_all',
+        startDate: lesson.meta?._start_date || '',
         // Ensure each step has a unique ID for proper deletion/editing
         steps: (lesson.meta?._lesson_steps || []).map((step, index) => ({
           ...step,
@@ -119,6 +125,7 @@ const LessonModal = ({
         description: '',
         lessonOrder: '1',
         completionCriteria: 'view_all',
+        startDate: '',
         steps: []
       });
       setAssignedQuizIds([]);
@@ -198,6 +205,7 @@ const LessonModal = ({
         description: formData.description,
         lessonOrder: parseInt(formData.lessonOrder),
         completionCriteria: formData.completionCriteria,
+        startDate: formData.startDate,
         steps: formData.steps.map(({ id, ...restOfStep }) => restOfStep),
         assignedQuizIds: assignedQuizIds,
       };
@@ -210,6 +218,7 @@ const LessonModal = ({
           description: '',
           lessonOrder: '1',
           completionCriteria: 'view_all',
+          startDate: '',
           steps: []
         });
         setAssignedQuizIds([]);
@@ -469,6 +478,116 @@ const LessonModal = ({
                     style={{ ...inputStyle, resize: 'vertical' }}
                     disabled={isViewMode}
                   />
+                </div>
+
+                {/* Visibility & Unlock Date */}
+                <div
+                  style={{
+                    padding: '14px',
+                    borderRadius: '8px',
+                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                    border: `1px solid ${pageColors.inputBorder}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '14px'
+                  }}
+                >
+                  {/* Visibility Toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {formData.startDate !== HIDDEN_DATE ? (
+                        <Eye size={16} style={{ color: '#10b981' }} />
+                      ) : (
+                        <EyeOff size={16} style={{ color: '#ef4444' }} />
+                      )}
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: '500', color: pageColors.text }}>
+                          {t('supportMaterial.visibility')}
+                        </div>
+                        <div style={{ fontSize: '12px', color: pageColors.textMuted }}>
+                          {formData.startDate !== HIDDEN_DATE
+                            ? t('supportMaterial.visibleDescription')
+                            : t('supportMaterial.hiddenDescription')
+                          }
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange('startDate', formData.startDate !== HIDDEN_DATE ? HIDDEN_DATE : '')}
+                      disabled={isViewMode}
+                      style={{
+                        position: 'relative',
+                        width: '44px',
+                        height: '24px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        backgroundColor: formData.startDate !== HIDDEN_DATE ? '#10b981' : '#9ca3af',
+                        cursor: isViewMode ? 'not-allowed' : 'pointer',
+                        transition: 'background-color 0.2s',
+                        flexShrink: 0,
+                        opacity: isViewMode ? 0.6 : 1
+                      }}
+                    >
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: '2px',
+                          left: formData.startDate !== HIDDEN_DATE ? '22px' : '2px',
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          backgroundColor: '#ffffff',
+                          transition: 'left 0.2s',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                        }}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Unlock Date - only when visible */}
+                  {formData.startDate !== HIDDEN_DATE && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                        <Calendar size={14} style={{ color: pageColors.textMuted }} />
+                        <label style={{ fontSize: '14px', fontWeight: '500', color: pageColors.text, margin: 0 }}>
+                          {t('supportMaterial.unlockDate')}
+                        </label>
+                      </div>
+                      <input
+                        type="date"
+                        value={formData.startDate || ''}
+                        onChange={(e) => handleInputChange('startDate', e.target.value || '')}
+                        style={{
+                          ...inputStyle,
+                          padding: '8px 12px',
+                        }}
+                        disabled={isViewMode}
+                      />
+                      <div style={{ fontSize: '12px', color: pageColors.textMuted, marginTop: '4px' }}>
+                        {t('supportMaterial.unlockDateDescription')}
+                      </div>
+                      {formData.startDate && (
+                        <button
+                          type="button"
+                          onClick={() => handleInputChange('startDate', '')}
+                          disabled={isViewMode}
+                          style={{
+                            marginTop: '6px',
+                            padding: '4px 10px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            backgroundColor: 'transparent',
+                            border: `1px solid ${pageColors.inputBorder}`,
+                            color: pageColors.textMuted,
+                            cursor: isViewMode ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          {t('supportMaterial.clearDate')}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Order & Completion Criteria - Hidden in compact mode */}

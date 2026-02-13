@@ -21,7 +21,7 @@ import QuizResults from '../../../components/frontend/QuizResults';
 import LessonModal from '../../../components/lessons/LessonModal';
 import UnifiedTestModal from '../../../components/tests/UnifiedTestModal';
 import { CourseRankingProvider, CourseRankingTrigger, CourseRankingSlidePanel } from '../../../components/frontend/CourseRankingPanel';
-import { ChevronDown, ChevronUp, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, XCircle, Loader, Trophy, Plus, Edit2, Trash2, AlertTriangle, ArrowUpDown } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, EyeOff, XCircle, Loader, Trophy, Plus, Edit2, Trash2, AlertTriangle, ArrowUpDown, Lock } from 'lucide-react';
 
 const TestsPage = () => {
   const { t } = useTranslation();
@@ -402,19 +402,70 @@ const TestsPage = () => {
     }
   }, [location.state, lessons]);
 
+  // Sentinel date: content is explicitly hidden by admin
+  const HIDDEN_DATE = '9999-12-31';
+
+  // Helper: check if a quiz step is hidden (sentinel date)
+  const isTestHidden = (step) => step.start_date === HIDDEN_DATE;
+
+  // Helper: check if a quiz step is locked by date (excludes sentinel)
+  const isTestLocked = (step) => {
+    if (!step.start_date || step.start_date === HIDDEN_DATE) return false;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const unlockDate = new Date(step.start_date);
+    unlockDate.setHours(0, 0, 0, 0);
+    return unlockDate > now;
+  };
+
+  // Helper: format unlock date for display
+  const formatUnlockDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  // Lesson-level helpers (reads from meta._start_date)
+  const isLessonHidden = (lesson) => lesson.meta?._start_date === HIDDEN_DATE;
+
+  const isLessonLocked = (lesson) => {
+    const startDate = lesson.meta?._start_date;
+    if (!startDate || startDate === HIDDEN_DATE) return false;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const unlock = new Date(startDate);
+    unlock.setHours(0, 0, 0, 0);
+    return unlock > now;
+  };
+
   // Create flat array of all quiz steps for navigation
+  // For non-admins, exclude hidden/locked lessons AND hidden/locked tests
   const allTestSteps = useMemo(() => {
-    return lessons.flatMap(lesson => 
-      lesson.quizSteps.map(step => ({
-        step,
-        lesson,
-        // Store original step index in the lesson for progress tracking
-        originalStepIndex: (lesson.meta?._lesson_steps || []).findIndex(s => 
-          s.type === step.type && s.title === step.title && JSON.stringify(s.data) === JSON.stringify(step.data)
-        )
-      }))
-    );
-  }, [lessons]);
+    return lessons
+      .filter(lesson => {
+        if (userIsAdmin) return true;
+        if (isLessonHidden(lesson)) return false;
+        if (isLessonLocked(lesson)) return false;
+        return true;
+      })
+      .flatMap(lesson =>
+        lesson.quizSteps
+          .filter(step => {
+            if (userIsAdmin) return true;
+            if (isTestHidden(step)) return false;
+            if (isTestLocked(step)) return false;
+            return true;
+          })
+          .map(step => ({
+            step,
+            lesson,
+            originalStepIndex: (lesson.meta?._lesson_steps || []).findIndex(s =>
+              s.type === step.type && s.title === step.title && JSON.stringify(s.data) === JSON.stringify(step.data)
+            )
+          }))
+      );
+  }, [lessons, userIsAdmin]);
 
   const toggleLesson = (lessonId) => {
     setExpandedLessons(prev => {
@@ -979,12 +1030,25 @@ const TestsPage = () => {
                     borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
                   }}
                 >
-                  {displayLessons.map((lesson, lessonIndex) => {
+                  {displayLessons
+                    .filter(lesson => {
+                      if (userIsAdmin) return true;
+                      if (isLessonHidden(lesson)) return false;
+                      if (isLessonLocked(lesson)) return false;
+                      return true;
+                    })
+                    .map((lesson, lessonIndex, filteredLessons) => {
                     const isExpanded = expandedLessons.has(lesson.id);
-                    const testsCount = lesson.quizSteps.length;
+                    // For non-admins, only count visible & unlocked tests
+                    const visibleQuizSteps = userIsAdmin
+                      ? lesson.quizSteps
+                      : lesson.quizSteps.filter(s => !isTestHidden(s) && !isTestLocked(s));
+                    const testsCount = visibleQuizSteps.length;
                     const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
                     const isFirst = lessonIndex === 0;
-                    const isLast = lessonIndex === displayLessons.length - 1;
+                    const isLast = lessonIndex === filteredLessons.length - 1;
+                    const lessonHidden = isLessonHidden(lesson);
+                    const lessonLocked = isLessonLocked(lesson);
 
                     return (
                       <div key={lesson.id} id={`lesson-${lesson.id}`}>
@@ -1029,10 +1093,43 @@ const TestsPage = () => {
                                 </button>
                               </div>
                             )}
-                            <ClipboardList size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
-                            <span className="font-semibold text-left truncate" style={{ color: pageColors.text }}>
-                              {lessonTitle}
-                            </span>
+                            {lessonHidden ? (
+                              <EyeOff size={20} style={{ color: '#ef4444' }} className="flex-shrink-0" />
+                            ) : lessonLocked ? (
+                              <Lock size={20} style={{ color: pageColors.accent }} className="flex-shrink-0" />
+                            ) : (
+                              <ClipboardList size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
+                            )}
+                            <span
+                              className="font-semibold text-left truncate"
+                              style={{ color: pageColors.text, opacity: (lessonHidden || lessonLocked) ? 0.6 : 1 }}
+                              dangerouslySetInnerHTML={{ __html: lessonTitle }}
+                            />
+                            {/* Admin: Lesson visibility badges */}
+                            {userIsAdmin && lessonHidden && (
+                              <span
+                                className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
+                                style={{
+                                  backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                                  color: '#ef4444'
+                                }}
+                              >
+                                <EyeOff size={10} />
+                                <span className="hidden sm:inline">{t('supportMaterial.hiddenBadge')}</span>
+                              </span>
+                            )}
+                            {userIsAdmin && lessonLocked && (
+                              <span
+                                className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
+                                style={{
+                                  backgroundColor: `${pageColors.accent}15`,
+                                  color: pageColors.accent
+                                }}
+                              >
+                                <Calendar size={10} />
+                                <span className="hidden sm:inline">{formatUnlockDate(lesson.meta?._start_date)}</span>
+                              </span>
+                            )}
                           </div>
                           
                           {/* Badge count + Expand/Collapse Button + Admin Actions */}
@@ -1145,15 +1242,24 @@ const TestsPage = () => {
                         {/* Quiz Steps */}
                         {isExpanded && (
                           <div>
-                            {lesson.quizSteps.map((step, stepIndex) => {
-                              const originalStepIndex = (lesson.meta?._lesson_steps || []).findIndex(s => 
+                            {lesson.quizSteps
+                              .filter(step => {
+                                if (userIsAdmin) return true;
+                                if (isTestHidden(step)) return false;
+                                if (isTestLocked(step)) return false;
+                                return true;
+                              })
+                              .map((step, stepIndex) => {
+                              const originalStepIndex = (lesson.meta?._lesson_steps || []).findIndex(s =>
                                 s.type === step.type && s.title === step.title && JSON.stringify(s.data) === JSON.stringify(step.data)
                               );
                               const isCompleted = isQuizCompleted(lesson, originalStepIndex);
-                              const difficulty = step.data?.difficulty || 'medium'; // Get difficulty
+                              const stepHidden = isTestHidden(step);
+                              const stepLocked = isTestLocked(step);
+                              const difficulty = step.data?.difficulty || 'medium';
                               const timeLimit = step.data?.time_limit || null;
-                              const startDate = step.data?.start_date || null; // 🆕 Get start date
-                              const questionCount = step.data?.question_count || null; // 🆕 Get question count
+                              const startDate = step.data?.start_date || null;
+                              const questionCount = step.data?.question_count || null;
                               
                               // Format start date
                               const formatStartDate = (dateString) => {
@@ -1193,10 +1299,15 @@ const TestsPage = () => {
                                   
                                   <div
                                     className="px-4 sm:px-6 py-4 flex items-center justify-between transition-all duration-200"
+                                    style={{ opacity: (stepHidden || stepLocked) ? 0.6 : 1 }}
                                   >
                                     <div className="flex items-center gap-3 flex-1 mr-2 overflow-hidden">
                                       {isCompleted ? (
                                         <CheckCircle size={18} style={{ color: '#10b981' }} className="flex-shrink-0" />
+                                      ) : stepLocked ? (
+                                        <Lock size={18} style={{ color: pageColors.accent }} className="flex-shrink-0" />
+                                      ) : stepHidden ? (
+                                        <EyeOff size={18} style={{ color: '#ef4444' }} className="flex-shrink-0" />
                                       ) : (
                                         <Circle size={18} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
                                       )}
@@ -1250,6 +1361,36 @@ const TestsPage = () => {
                                     </div>
                                     {/* Action buttons */}
                                     <div className="flex items-center gap-2 flex-shrink-0">
+                                      {/* Admin: Status badges for locked/hidden tests */}
+                                      {userIsAdmin && (stepHidden || stepLocked) && (
+                                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                                          {stepHidden && (
+                                            <span
+                                              className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
+                                              style={{
+                                                backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                                                color: '#ef4444'
+                                              }}
+                                            >
+                                              <EyeOff size={10} />
+                                              <span className="hidden sm:inline">{t('supportMaterial.hiddenBadge')}</span>
+                                            </span>
+                                          )}
+                                          {stepLocked && (
+                                            <span
+                                              className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
+                                              style={{
+                                                backgroundColor: `${pageColors.accent}15`,
+                                                color: pageColors.accent
+                                              }}
+                                            >
+                                              <Calendar size={10} />
+                                              <span className="hidden sm:inline">{formatUnlockDate(step.start_date)}</span>
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+
                                       {/* Admin: Edit and Delete Buttons */}
                                       {userIsAdmin && (
                                         <div className="flex items-center gap-2 flex-shrink-0">
@@ -1290,28 +1431,30 @@ const TestsPage = () => {
                                         </div>
                                       )}
 
-                                      {/* Available Button - same style as CourseCard */}
-                                      <button
-                                        onClick={() => handleOpenTest(step, lesson)}
-                                        className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex-shrink-0"
-                                        style={{ 
-                                          backgroundColor: pageColors.buttonBg,
-                                          color: pageColors.buttonText
-                                        }}
-                                        onMouseEnter={(e) => {
-                                          if (isDarkMode) {
-                                            e.currentTarget.style.filter = 'brightness(1.15)';
-                                          } else {
-                                            e.currentTarget.style.backgroundColor = pageColors.buttonHoverBg;
-                                          }
-                                        }}
-                                        onMouseLeave={(e) => {
-                                          e.currentTarget.style.filter = 'none';
-                                          e.currentTarget.style.backgroundColor = pageColors.buttonBg;
-                                        }}
-                                      >
-                                        {t('tests.available')}
-                                      </button>
+                                      {/* Available Button */}
+                                      {(!stepLocked || userIsAdmin) && (
+                                        <button
+                                          onClick={() => handleOpenTest(step, lesson)}
+                                          className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex-shrink-0"
+                                          style={{
+                                            backgroundColor: pageColors.buttonBg,
+                                            color: pageColors.buttonText
+                                          }}
+                                          onMouseEnter={(e) => {
+                                            if (isDarkMode) {
+                                              e.currentTarget.style.filter = 'brightness(1.15)';
+                                            } else {
+                                              e.currentTarget.style.backgroundColor = pageColors.buttonHoverBg;
+                                            }
+                                          }}
+                                          onMouseLeave={(e) => {
+                                            e.currentTarget.style.filter = 'none';
+                                            e.currentTarget.style.backgroundColor = pageColors.buttonBg;
+                                          }}
+                                        >
+                                          {t('tests.available')}
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -1321,7 +1464,7 @@ const TestsPage = () => {
                         )}
                         
                         {/* Separador entre lecciones */}
-                        {lessonIndex < lessons.length - 1 && (
+                        {!isLast && (
                           <div 
                             style={{ 
                               height: '2px', 

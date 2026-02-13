@@ -13,7 +13,7 @@ import { updateLessonOrderMap } from '../../../api/services/courseService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import LessonModal from '../../../components/lessons/LessonModal';
 import VideoModal from '../../../components/videos/VideoModal';
-import { ChevronDown, ChevronUp, ChevronRight, Video, Play, X, ChevronLeft, Check, CheckCircle, Circle, Film, Plus, Trash2, AlertTriangle, Edit2, ArrowUpDown } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, Video, Play, X, ChevronLeft, Check, CheckCircle, Circle, Film, Plus, Trash2, AlertTriangle, Edit2, ArrowUpDown, Lock, EyeOff, Calendar } from 'lucide-react';
 
 const VideosPage = () => {
   const { t } = useTranslation();
@@ -343,22 +343,73 @@ const VideosPage = () => {
     }
   };
 
+  // Sentinel date: content is explicitly hidden by admin
+  const HIDDEN_DATE = '9999-12-31';
+
+  // Helper: check if a video step is hidden (sentinel date)
+  const isVideoHidden = (step) => step.start_date === HIDDEN_DATE;
+
+  // Helper: check if a video step is locked by date (excludes sentinel)
+  const isVideoLocked = (step) => {
+    if (!step.start_date || step.start_date === HIDDEN_DATE) return false;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const unlockDate = new Date(step.start_date);
+    unlockDate.setHours(0, 0, 0, 0);
+    return unlockDate > now;
+  };
+
+  // Helper: format unlock date for display
+  const formatUnlockDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  // Lesson-level helpers (reads from meta._start_date)
+  const isLessonHidden = (lesson) => lesson.meta?._start_date === HIDDEN_DATE;
+
+  const isLessonLocked = (lesson) => {
+    const startDate = lesson.meta?._start_date;
+    if (!startDate || startDate === HIDDEN_DATE) return false;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const unlock = new Date(startDate);
+    unlock.setHours(0, 0, 0, 0);
+    return unlock > now;
+  };
+
   // Use orderingLessons when in ordering mode, otherwise use lessons
   const displayLessons = isOrderingMode ? orderingLessons : lessons;
 
   // Create flat array of all video steps for navigation
+  // For non-admins, exclude hidden/locked lessons AND hidden/locked videos
   const allVideoSteps = useMemo(() => {
-    return lessons.flatMap(lesson => 
-      lesson.videoSteps.map(step => ({
-        step,
-        lesson,
-        // Store original step index in the lesson for progress tracking
-        originalStepIndex: (lesson.meta?._lesson_steps || []).findIndex(s => 
-          s.type === step.type && s.title === step.title && JSON.stringify(s.data) === JSON.stringify(step.data)
-        )
-      }))
-    );
-  }, [lessons]);
+    return lessons
+      .filter(lesson => {
+        if (userIsAdmin) return true;
+        if (isLessonHidden(lesson)) return false;
+        if (isLessonLocked(lesson)) return false;
+        return true;
+      })
+      .flatMap(lesson =>
+        lesson.videoSteps
+          .filter(step => {
+            if (userIsAdmin) return true;
+            if (isVideoHidden(step)) return false;
+            if (isVideoLocked(step)) return false;
+            return true;
+          })
+          .map(step => ({
+            step,
+            lesson,
+            originalStepIndex: (lesson.meta?._lesson_steps || []).findIndex(s =>
+              s.type === step.type && s.title === step.title && JSON.stringify(s.data) === JSON.stringify(step.data)
+            )
+          }))
+      );
+  }, [lessons, userIsAdmin]);
 
   const toggleLesson = (lessonId) => {
     setExpandedLessons(prev => {
@@ -677,12 +728,25 @@ const VideosPage = () => {
                   borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
                 }}
               >
-                {displayLessons.map((lesson, lessonIndex) => {
+                {displayLessons
+                  .filter(lesson => {
+                    if (userIsAdmin) return true;
+                    if (isLessonHidden(lesson)) return false;
+                    if (isLessonLocked(lesson)) return false;
+                    return true;
+                  })
+                  .map((lesson, lessonIndex, filteredLessons) => {
                   const isExpanded = expandedLessons.has(lesson.id);
-                  const videoCount = lesson.videoSteps.length;
+                  // For non-admins, only count visible & unlocked videos
+                  const visibleVideoSteps = userIsAdmin
+                    ? lesson.videoSteps
+                    : lesson.videoSteps.filter(s => !isVideoHidden(s) && !isVideoLocked(s));
+                  const videoCount = visibleVideoSteps.length;
                   const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
                   const isFirst = lessonIndex === 0;
-                  const isLast = lessonIndex === displayLessons.length - 1;
+                  const isLast = lessonIndex === filteredLessons.length - 1;
+                  const lessonHidden = isLessonHidden(lesson);
+                  const lessonLocked = isLessonLocked(lesson);
 
                   return (
                     <div 
@@ -730,12 +794,43 @@ const VideosPage = () => {
                             </div>
                           )}
                           {/* Icon + Title */}
-                          <Video size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
-                          <span 
+                          {lessonHidden ? (
+                            <EyeOff size={20} style={{ color: '#ef4444' }} className="flex-shrink-0" />
+                          ) : lessonLocked ? (
+                            <Lock size={20} style={{ color: pageColors.accent }} className="flex-shrink-0" />
+                          ) : (
+                            <Video size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
+                          )}
+                          <span
                             className="font-semibold text-left truncate"
-                            style={{ color: pageColors.text }}
+                            style={{ color: pageColors.text, opacity: (lessonHidden || lessonLocked) ? 0.6 : 1 }}
                             dangerouslySetInnerHTML={{ __html: lessonTitle }}
                           />
+                          {/* Admin: Lesson visibility badges */}
+                          {userIsAdmin && lessonHidden && (
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
+                              style={{
+                                backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                                color: '#ef4444'
+                              }}
+                            >
+                              <EyeOff size={10} />
+                              <span className="hidden sm:inline">{t('supportMaterial.hiddenBadge')}</span>
+                            </span>
+                          )}
+                          {userIsAdmin && lessonLocked && (
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
+                              style={{
+                                backgroundColor: `${pageColors.accent}15`,
+                                color: pageColors.accent
+                              }}
+                            >
+                              <Calendar size={10} />
+                              <span className="hidden sm:inline">{formatUnlockDate(lesson.meta?._start_date)}</span>
+                            </span>
+                          )}
                         </div>
                         
                         {/* Badge count + Admin Actions + Expand/Collapse Button */}
@@ -850,12 +945,21 @@ const VideosPage = () => {
                       {/* Video Steps - expandido */}
                       {isExpanded && (
                         <div>
-                          {lesson.videoSteps.map((step, index) => {
+                          {lesson.videoSteps
+                            .filter(step => {
+                              if (userIsAdmin) return true;
+                              if (isVideoHidden(step)) return false;
+                              if (isVideoLocked(step)) return false;
+                              return true;
+                            })
+                            .map((step, index) => {
                             const duration = getVideoDuration(step);
                             const originalStepIndex = (lesson.meta?._lesson_steps || []).findIndex(s =>
                               s.type === step.type && s.title === step.title && JSON.stringify(s.data) === JSON.stringify(step.data)
                             );
                             const stepCompleted = isCompleted(lesson.id, 'step', lesson.id, originalStepIndex);
+                            const isLocked = isVideoLocked(step);
+                            const isHidden = isVideoHidden(step);
 
                             return (
                               <div key={step.id || index}>
@@ -869,6 +973,9 @@ const VideosPage = () => {
                                 />
                                 <div
                                   className="flex items-center gap-3 px-4 sm:px-6 py-4 transition-colors duration-150"
+                                  style={{
+                                    opacity: (isLocked || isHidden) ? 0.6 : 1
+                                  }}
                                   onMouseEnter={(e) => {
                                     e.currentTarget.style.backgroundColor = isDarkMode
                                       ? 'rgba(255,255,255,0.05)'
@@ -880,11 +987,15 @@ const VideosPage = () => {
                                 >
                                   {stepCompleted ? (
                                     <CheckCircle size={18} style={{ color: '#10b981' }} className="flex-shrink-0" />
+                                  ) : isLocked ? (
+                                    <Lock size={18} style={{ color: pageColors.accent }} className="flex-shrink-0" />
+                                  ) : isHidden ? (
+                                    <EyeOff size={18} style={{ color: '#ef4444' }} className="flex-shrink-0" />
                                   ) : (
                                     <Circle size={18} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
                                   )}
                                   <div className="flex flex-col flex-1 min-w-0">
-                                    <span 
+                                    <span
                                       className="text-sm font-medium truncate"
                                       style={{ color: pageColors.text }}
                                     >
@@ -896,6 +1007,37 @@ const VideosPage = () => {
                                       </span>
                                     )}
                                   </div>
+
+                                  {/* Admin: Status badges for locked/hidden videos */}
+                                  {userIsAdmin && (isLocked || isHidden) && (
+                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                      {isHidden && (
+                                        <span
+                                          className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
+                                          style={{
+                                            backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                                            color: '#ef4444'
+                                          }}
+                                        >
+                                          <EyeOff size={10} />
+                                          <span className="hidden sm:inline">{t('supportMaterial.hiddenBadge')}</span>
+                                        </span>
+                                      )}
+                                      {isLocked && (
+                                        <span
+                                          className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
+                                          style={{
+                                            backgroundColor: `${pageColors.accent}15`,
+                                            color: pageColors.accent
+                                          }}
+                                        >
+                                          <Calendar size={10} />
+                                          <span className="hidden sm:inline">{formatUnlockDate(step.start_date)}</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+
                                   {/* Admin: Edit and Delete Buttons */}
                                   {userIsAdmin && (
                                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -935,28 +1077,30 @@ const VideosPage = () => {
                                       </button>
                                     </div>
                                   )}
-                                  {/* Available Button - same style as CourseCard */}
-                                  <button
-                                    onClick={() => handleOpenVideo(step, lesson)}
-                                    className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex-shrink-0"
-                                    style={{ 
-                                      backgroundColor: pageColors.buttonBg,
-                                      color: pageColors.buttonText
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      if (isDarkMode) {
-                                        e.currentTarget.style.filter = 'brightness(1.15)';
-                                      } else {
-                                        e.currentTarget.style.backgroundColor = pageColors.buttonHoverBg;
-                                      }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.currentTarget.style.filter = 'none';
-                                      e.currentTarget.style.backgroundColor = pageColors.buttonBg;
-                                    }}
-                                  >
-                                    {t('videos.available')}
-                                  </button>
+                                  {/* Available Button */}
+                                  {(!isLocked || userIsAdmin) && (
+                                    <button
+                                      onClick={() => handleOpenVideo(step, lesson)}
+                                      className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex-shrink-0"
+                                      style={{
+                                        backgroundColor: pageColors.buttonBg,
+                                        color: pageColors.buttonText
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        if (isDarkMode) {
+                                          e.currentTarget.style.filter = 'brightness(1.15)';
+                                        } else {
+                                          e.currentTarget.style.backgroundColor = pageColors.buttonHoverBg;
+                                        }
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.filter = 'none';
+                                        e.currentTarget.style.backgroundColor = pageColors.buttonBg;
+                                      }}
+                                    >
+                                      {t('videos.available')}
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -965,7 +1109,7 @@ const VideosPage = () => {
                       )}
                       
                       {/* Separador entre lecciones */}
-                      {lessonIndex < lessons.length - 1 && (
+                      {!isLast && (
                         <div 
                           style={{ 
                             height: '2px', 

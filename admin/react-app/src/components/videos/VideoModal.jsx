@@ -12,7 +12,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { X, Video, Save, AlertCircle } from 'lucide-react';
+import { X, Video, Save, AlertCircle, Eye, EyeOff, Calendar } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const VideoModal = ({
@@ -25,6 +25,8 @@ const VideoModal = ({
 }) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
+
+  const HIDDEN_DATE = '9999-12-31';
 
   const pageColors = {
     background: getColor('background', '#ffffff'),
@@ -41,25 +43,30 @@ const VideoModal = ({
   const [formData, setFormData] = useState({
     title: '',
     video_url: '',
-    duration: ''
+    duration: '',
+    start_date: ''
   });
 
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const mouseDownOnOverlayRef = useRef(false);
 
+  const isVisible = formData.start_date !== HIDDEN_DATE;
+
   useEffect(() => {
     if (isOpen && video && mode === 'edit') {
       setFormData({
         title: video.title || '',
         video_url: video.data?.video_url || video.data?.url || '',
-        duration: video.data?.duration || ''
+        duration: video.data?.duration || '',
+        start_date: video.start_date || ''
       });
     } else if (isOpen && mode === 'create') {
       setFormData({
         title: '',
         video_url: '',
-        duration: ''
+        duration: '',
+        start_date: ''
       });
     }
     setErrors({});
@@ -106,6 +113,7 @@ const VideoModal = ({
       const videoData = {
         type: 'video',
         title: formData.title.trim(),
+        start_date: formData.start_date || '',
         data: {
           video_url: formData.video_url.trim(),
           url: formData.video_url.trim(), // Keep both for compatibility
@@ -345,6 +353,119 @@ const VideoModal = ({
               <span style={{ fontSize: '12px', marginTop: '4px', display: 'block', color: pageColors.textMuted }}>
                 {t('videos.durationHelp')}
               </span>
+            </div>
+
+            {/* Visibility & Unlock Date */}
+            <div
+              style={{
+                padding: '14px',
+                borderRadius: '8px',
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                border: `1px solid ${pageColors.inputBorder}`,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px'
+              }}
+            >
+              {/* Visibility Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {isVisible ? (
+                    <Eye size={16} style={{ color: '#10b981' }} />
+                  ) : (
+                    <EyeOff size={16} style={{ color: '#ef4444' }} />
+                  )}
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: '500', color: pageColors.text }}>
+                      {t('supportMaterial.visibility')}
+                    </div>
+                    <div style={{ fontSize: '12px', color: pageColors.textMuted }}>
+                      {isVisible
+                        ? t('supportMaterial.visibleDescription')
+                        : t('supportMaterial.hiddenDescription')
+                      }
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleFieldChange('start_date', isVisible ? HIDDEN_DATE : '')}
+                  style={{
+                    position: 'relative',
+                    width: '44px',
+                    height: '24px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    backgroundColor: isVisible ? '#10b981' : '#9ca3af',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                    flexShrink: 0
+                  }}
+                >
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '2px',
+                      left: isVisible ? '22px' : '2px',
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '50%',
+                      backgroundColor: '#ffffff',
+                      transition: 'left 0.2s',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                    }}
+                  />
+                </button>
+              </div>
+
+              {/* Unlock Date - only when visible */}
+              {isVisible && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                    <Calendar size={14} style={{ color: pageColors.textMuted }} />
+                    <label style={{ fontSize: '14px', fontWeight: '500', color: pageColors.text, margin: 0 }}>
+                      {t('supportMaterial.unlockDate')}
+                    </label>
+                  </div>
+                  <input
+                    type="date"
+                    value={formData.start_date || ''}
+                    onChange={(e) => handleFieldChange('start_date', e.target.value || '')}
+                    style={{
+                      width: '100%',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      backgroundColor: pageColors.inputBg,
+                      border: `1px solid ${pageColors.inputBorder}`,
+                      color: pageColors.text,
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <div style={{ fontSize: '12px', color: pageColors.textMuted, marginTop: '4px' }}>
+                    {t('supportMaterial.unlockDateDescription')}
+                  </div>
+                  {formData.start_date && (
+                    <button
+                      type="button"
+                      onClick={() => handleFieldChange('start_date', '')}
+                      style={{
+                        marginTop: '6px',
+                        padding: '4px 10px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        backgroundColor: 'transparent',
+                        border: `1px solid ${pageColors.inputBorder}`,
+                        color: pageColors.textMuted,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {t('supportMaterial.clearDate')}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

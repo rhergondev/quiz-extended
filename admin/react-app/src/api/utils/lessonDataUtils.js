@@ -155,7 +155,7 @@ export const transformLessonDataForApi = (lessonData) => {
   }
 
   // 🔥 Start date for lesson visibility
-  const startDateValue = lessonData.startDate || lessonData.meta?._start_date;
+  const startDateValue = lessonData.startDate ?? lessonData.meta?._start_date;
   if (startDateValue !== undefined) {
     // Validate YYYY-MM-DD format or allow empty string
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -221,7 +221,7 @@ const sanitizeLessonSteps = (steps) => {
       order: sanitizeInteger(step.order, index + 1, 1),
       title: sanitizeString(step.title),
       start_date: sanitizeString(step.start_date || ''),
-      data: step.data && typeof step.data === 'object' ? step.data : {} 
+      data: step.data && typeof step.data === 'object' ? step.data : {}
     };
   }).filter(step => step !== null);
 };

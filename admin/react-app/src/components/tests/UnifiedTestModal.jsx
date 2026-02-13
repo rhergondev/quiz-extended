@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Save, Plus, Settings, FileQuestion, Clock, CheckCircle, AlertCircle, Trash2, GripVertical, ChevronRight, ArrowLeft, Edit2 } from 'lucide-react';
+import { X, Save, Plus, Settings, FileQuestion, Clock, CheckCircle, AlertCircle, Trash2, GripVertical, ChevronRight, ArrowLeft, Edit2, Eye, EyeOff, Calendar } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'react-toastify';
 import { DndContext, closestCenter } from '@dnd-kit/core';
@@ -57,6 +57,8 @@ const SortableQuestionItem = ({ question, onRemove, onEdit, colors }) => {
   );
 };
 
+const HIDDEN_DATE = '9999-12-31';
+
 const UnifiedTestModal = ({
   isOpen,
   onClose,
@@ -92,6 +94,7 @@ const UnifiedTestModal = ({
     max_attempts: '', // Ilimitados
     randomize: true, // Siempre aleatorio
     show_results: true, // Siempre mostrar resultados
+    start_date: '', // Visibility control
   });
   
   const [selectedQuestions, setSelectedQuestions] = useState([]); // Array of question objects
@@ -126,6 +129,7 @@ const UnifiedTestModal = ({
         max_attempts: '',
         randomize: true,
         show_results: true,
+        start_date: '',
       });
       setSelectedQuestions([]);
       
@@ -150,6 +154,7 @@ const UnifiedTestModal = ({
               max_attempts: '',
               randomize: true,
               show_results: true,
+              start_date: test.start_date || '',
             });
             
             // Fetch questions
@@ -159,7 +164,7 @@ const UnifiedTestModal = ({
               setSelectedQuestions(questions);
             }
           } else {
-             setFormData(prev => ({ ...prev, title: stepTitle }));
+             setFormData(prev => ({ ...prev, title: stepTitle, start_date: test.start_date || '' }));
           }
         } catch (error) {
           console.error('Error loading test data:', error);
@@ -226,6 +231,7 @@ const UnifiedTestModal = ({
       await onSave({
         type: 'quiz',
         title: formData.title,
+        start_date: formData.start_date,
         data: {
           quiz_id: resultQuizId,
           difficulty: difficulty,
@@ -385,6 +391,105 @@ const UnifiedTestModal = ({
                           <option value="hard">Difícil</option>
                         </select>
                       </div>
+                    </div>
+
+                    {/* Visibility & Unlock Date */}
+                    <div
+                      className="rounded-lg border flex flex-col gap-3"
+                      style={{
+                        padding: '12px',
+                        borderColor: colors.border,
+                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
+                      }}
+                    >
+                      {/* Visibility Toggle */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {formData.start_date !== HIDDEN_DATE ? (
+                            <Eye size={14} style={{ color: '#10b981' }} />
+                          ) : (
+                            <EyeOff size={14} style={{ color: '#ef4444' }} />
+                          )}
+                          <div>
+                            <div className="text-xs font-medium" style={{ color: colors.text }}>
+                              Visibilidad
+                            </div>
+                            <div className="text-[10px]" style={{ color: colors.textMuted }}>
+                              {formData.start_date !== HIDDEN_DATE
+                                ? 'Los estudiantes pueden ver este test'
+                                : 'Oculto para los estudiantes'
+                              }
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, start_date: formData.start_date === HIDDEN_DATE ? '' : HIDDEN_DATE })}
+                          style={{
+                            position: 'relative',
+                            width: '36px',
+                            height: '20px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            backgroundColor: formData.start_date !== HIDDEN_DATE ? '#10b981' : '#9ca3af',
+                            cursor: 'pointer',
+                            transition: 'background-color 0.2s',
+                            flexShrink: 0
+                          }}
+                        >
+                          <span
+                            style={{
+                              position: 'absolute',
+                              top: '2px',
+                              left: formData.start_date !== HIDDEN_DATE ? '18px' : '2px',
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              backgroundColor: '#ffffff',
+                              transition: 'left 0.2s',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                            }}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Unlock Date - only when visible */}
+                      {formData.start_date !== HIDDEN_DATE && (
+                        <div>
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <Calendar size={11} style={{ color: colors.textMuted }} />
+                            <label className="text-[10px] font-bold uppercase" style={{ color: colors.textMuted }}>
+                              Fecha de desbloqueo
+                            </label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="date"
+                              value={formData.start_date && formData.start_date !== HIDDEN_DATE ? formData.start_date.split('T')[0] : ''}
+                              onChange={e => setFormData({ ...formData, start_date: e.target.value || '' })}
+                              className="flex-1 text-xs p-1.5 rounded-md outline-none"
+                              style={{
+                                border: `1px solid ${colors.border}`,
+                                color: colors.text,
+                                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff'
+                              }}
+                            />
+                            {formData.start_date && formData.start_date !== HIDDEN_DATE && (
+                              <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, start_date: '' })}
+                                className="text-[10px] px-2 py-1 rounded bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                style={{ color: colors.textMuted, border: `1px solid ${colors.border}` }}
+                              >
+                                Quitar
+                              </button>
+                            )}
+                          </div>
+                          <div className="text-[10px] mt-1" style={{ color: colors.textMuted }}>
+                            Opcional. El test será visible a partir de esta fecha.
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div>

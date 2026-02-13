@@ -12,7 +12,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { X, FileText, File, Save, AlertCircle, UploadCloud, CheckCircle, Trash2 } from 'lucide-react';
+import { X, FileText, File, Save, AlertCircle, UploadCloud, CheckCircle, Trash2, Eye, EyeOff, Calendar, Lock } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
 import { uploadMedia, validateFile } from '../../api/services/mediaService';
@@ -31,12 +31,18 @@ const SupportMaterialModal = ({
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
 
+  // Sentinel date used to mark a material as hidden
+  const HIDDEN_DATE = '9999-12-31';
+
   // Form state
   const [formData, setFormData] = useState({
     type: 'pdf',
     title: '',
+    start_date: '',
     data: {}
   });
+  // Visibility is derived from start_date: HIDDEN_DATE = hidden, anything else = visible
+  const isVisible = formData.start_date !== HIDDEN_DATE;
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -63,17 +69,28 @@ const SupportMaterialModal = ({
       setFormData({
         type: material.type || 'pdf',
         title: material.title || '',
+        start_date: material.start_date || '',
         data: material.data || {}
       });
     } else {
       setFormData({
         type: 'pdf',
         title: '',
+        start_date: '',
         data: {}
       });
     }
     setErrors({});
   }, [material, mode, isOpen]);
+
+  // Format date for input (YYYY-MM-DD)
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
 
   // Handle field change
   const handleFieldChange = (field, value) => {
@@ -204,7 +221,7 @@ const SupportMaterialModal = ({
   // Handle submit
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validate()) return;
 
     setIsSaving(true);
@@ -536,6 +553,120 @@ const SupportMaterialModal = ({
                   </div>
                 </button>
               </div>
+            </div>
+
+            {/* Visibility & Unlock Date */}
+            <div
+              style={{
+                padding: '14px',
+                borderRadius: '8px',
+                backgroundColor: pageColors.secondaryBg,
+                border: `1px solid ${pageColors.border}`,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px'
+              }}
+            >
+              {/* Visibility Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {isVisible ? (
+                    <Eye size={16} style={{ color: '#10b981' }} />
+                  ) : (
+                    <EyeOff size={16} style={{ color: '#ef4444' }} />
+                  )}
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: '500', color: pageColors.text }}>
+                      {t('supportMaterial.visibility')}
+                    </div>
+                    <div style={{ fontSize: '12px', color: pageColors.textMuted }}>
+                      {isVisible
+                        ? t('supportMaterial.visibleDescription')
+                        : t('supportMaterial.hiddenDescription')
+                      }
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleFieldChange('start_date', isVisible ? HIDDEN_DATE : '')}
+                  style={{
+                    position: 'relative',
+                    width: '44px',
+                    height: '24px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    backgroundColor: isVisible ? '#10b981' : '#9ca3af',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                    flexShrink: 0
+                  }}
+                >
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '2px',
+                      left: isVisible ? '22px' : '2px',
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '50%',
+                      backgroundColor: '#ffffff',
+                      transition: 'left 0.2s',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                    }}
+                  />
+                </button>
+              </div>
+
+              {/* Unlock Date - disabled when hidden */}
+              {isVisible && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                    <Calendar size={14} style={{ color: pageColors.textMuted }} />
+                    <label style={{ fontSize: '14px', fontWeight: '500', color: pageColors.text, margin: 0 }}>
+                      {t('supportMaterial.unlockDate')}
+                    </label>
+                  </div>
+                  <input
+                    type="date"
+                    value={formatDateForInput(formData.start_date)}
+                    onChange={(e) => handleFieldChange('start_date', e.target.value || '')}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      backgroundColor: pageColors.inputBg,
+                      border: `1px solid ${pageColors.inputBorder}`,
+                      color: pageColors.text,
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <div style={{ fontSize: '12px', color: pageColors.textMuted, marginTop: '4px' }}>
+                    {t('supportMaterial.unlockDateDescription')}
+                  </div>
+                  {formData.start_date && (
+                    <button
+                      type="button"
+                      onClick={() => handleFieldChange('start_date', '')}
+                      style={{
+                        marginTop: '6px',
+                        padding: '4px 10px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        backgroundColor: 'transparent',
+                        border: `1px solid ${pageColors.border}`,
+                        color: pageColors.textMuted,
+                        cursor: 'pointer',
+                        transition: 'opacity 0.2s'
+                      }}
+                    >
+                      {t('supportMaterial.clearDate')}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* PDF Upload */}

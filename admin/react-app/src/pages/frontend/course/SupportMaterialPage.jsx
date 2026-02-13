@@ -9,7 +9,7 @@ import useCourses from '../../../hooks/useCourses';
 import { getCourseLessons } from '../../../api/services/courseLessonService';
 import { updateLessonOrderMap } from '../../../api/services/courseService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
-import { ChevronRight, ChevronDown, ChevronUp, FileText, File, X, ChevronLeft, Check, CheckCircle, Circle, FolderOpen, Plus, Edit2, Trash2, AlertTriangle, ArrowUpDown, ExternalLink, Download } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, FileText, File, X, ChevronLeft, Check, CheckCircle, Circle, FolderOpen, Plus, Edit2, Trash2, AlertTriangle, ArrowUpDown, ExternalLink, Download, Lock, EyeOff, Calendar } from 'lucide-react';
 import { isUserAdmin } from '../../../utils/userUtils';
 import { toast } from 'react-toastify';
 import SupportMaterialModal from '../../../components/supportMaterial/SupportMaterialModal';
@@ -236,18 +236,25 @@ const SupportMaterialPage = () => {
       let updatedSteps;
       
       if (materialModalState.mode === 'create') {
-        // Add new material
+        // Add new material (_visible is already inside data from the modal)
         updatedSteps = [
           ...currentSteps,
           {
             ...materialData,
+            start_date: materialData.start_date || '',
             order: currentSteps.length
           }
         ];
       } else {
         // Edit existing material
         updatedSteps = currentSteps.map((step, idx) =>
-          idx === materialModalState.materialIndex ? { ...materialData, order: step.order } : step
+          idx === materialModalState.materialIndex
+            ? {
+                ...materialData,
+                start_date: materialData.start_date || '',
+                order: step.order
+              }
+            : step
         );
       }
       
@@ -386,22 +393,83 @@ const SupportMaterialPage = () => {
     }
   };
 
+  // Sentinel date: material is explicitly hidden by admin
+  const HIDDEN_DATE = '9999-12-31';
+
+  // Helper: check if a material step is locked by date (excludes sentinel)
+  const isMaterialLocked = (step) => {
+    if (!step.start_date || step.start_date === HIDDEN_DATE) return false;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const unlockDate = new Date(step.start_date);
+    unlockDate.setHours(0, 0, 0, 0);
+    return unlockDate > now;
+  };
+
+  // Helper: check if a material step is hidden (sentinel date)
+  const isMaterialHidden = (step) => {
+    return step.start_date === HIDDEN_DATE;
+  };
+
+  // Helper: format unlock date for display
+  const formatUnlockDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  // Lesson-level helpers (same logic, reads from meta._start_date)
+  const isLessonHidden = (lesson) => {
+    return lesson.meta?._start_date === HIDDEN_DATE;
+  };
+
+  const isLessonLocked = (lesson) => {
+    const startDate = lesson.meta?._start_date;
+    if (!startDate || startDate === HIDDEN_DATE) return false;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const unlock = new Date(startDate);
+    unlock.setHours(0, 0, 0, 0);
+    return unlock > now;
+  };
+
   // Use orderingLessons when in ordering mode, otherwise use lessons
   const displayLessons = isOrderingMode ? orderingLessons : lessons;
 
   // Create flat array of all material steps for navigation
+  // For non-admins, exclude hidden/locked lessons AND hidden/locked materials
   const allMaterialSteps = useMemo(() => {
-    return lessons.flatMap(lesson => 
-      lesson.materialSteps.map(step => ({
-        step,
-        lesson,
-        // Store original step index in the lesson for progress tracking
-        originalStepIndex: (lesson.meta?._lesson_steps || []).findIndex(s => 
-          s.type === step.type && s.title === step.title && JSON.stringify(s.data) === JSON.stringify(step.data)
-        )
-      }))
-    );
-  }, [lessons]);
+    return lessons
+      .filter(lesson => {
+        if (userIsAdmin) return true;
+        if (isLessonHidden(lesson)) return false;
+        if (isLessonLocked(lesson)) return false;
+        return true;
+      })
+      .flatMap(lesson =>
+        lesson.materialSteps
+          .filter(step => {
+            if (userIsAdmin) return true;
+            if (step.start_date === HIDDEN_DATE) return false;
+            if (step.start_date) {
+              const now = new Date();
+              now.setHours(0, 0, 0, 0);
+              const unlock = new Date(step.start_date);
+              unlock.setHours(0, 0, 0, 0);
+              if (unlock > now) return false;
+            }
+            return true;
+          })
+          .map(step => ({
+            step,
+            lesson,
+            originalStepIndex: (lesson.meta?._lesson_steps || []).findIndex(s =>
+              s.type === step.type && s.title === step.title && JSON.stringify(s.data) === JSON.stringify(step.data)
+            )
+          }))
+      );
+  }, [lessons, userIsAdmin]);
 
   const toggleLesson = (lessonId) => {
     setExpandedLessons(prev => {
@@ -698,12 +766,26 @@ const SupportMaterialPage = () => {
                   borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
                 }}
               >
-                {displayLessons.map((lesson, lessonIndex) => {
+                {displayLessons
+                  .filter(lesson => {
+                    // Non-admin users: hide lessons that are hidden or date-locked
+                    if (userIsAdmin) return true;
+                    if (isLessonHidden(lesson)) return false;
+                    if (isLessonLocked(lesson)) return false;
+                    return true;
+                  })
+                  .map((lesson, lessonIndex, filteredLessons) => {
                   const isExpanded = expandedLessons.has(lesson.id);
-                  const materialCount = lesson.materialSteps.length;
+                  // For non-admins, only count visible & unlocked materials
+                  const visibleMaterialSteps = userIsAdmin
+                    ? lesson.materialSteps
+                    : lesson.materialSteps.filter(s => !isMaterialHidden(s) && !isMaterialLocked(s));
+                  const materialCount = visibleMaterialSteps.length;
                   const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
                   const isFirst = lessonIndex === 0;
-                  const isLast = lessonIndex === displayLessons.length - 1;
+                  const isLast = lessonIndex === filteredLessons.length - 1;
+                  const lessonHidden = isLessonHidden(lesson);
+                  const lessonLocked = isLessonLocked(lesson);
 
                   return (
                     <div 
@@ -727,8 +809,8 @@ const SupportMaterialPage = () => {
                                 }}
                                 disabled={isFirst || isUpdatingOrder}
                                 className="p-0.5 rounded transition-all disabled:opacity-30"
-                                style={{ 
-                                  color: isFirst ? pageColors.textMuted : pageColors.accent 
+                                style={{
+                                  color: isFirst ? pageColors.textMuted : pageColors.accent
                                 }}
                                 title={t('supportMaterial.moveUp')}
                               >
@@ -741,8 +823,8 @@ const SupportMaterialPage = () => {
                                 }}
                                 disabled={isLast || isUpdatingOrder}
                                 className="p-0.5 rounded transition-all disabled:opacity-30"
-                                style={{ 
-                                  color: isLast ? pageColors.textMuted : pageColors.accent 
+                                style={{
+                                  color: isLast ? pageColors.textMuted : pageColors.accent
                                 }}
                                 title={t('supportMaterial.moveDown')}
                               >
@@ -751,12 +833,43 @@ const SupportMaterialPage = () => {
                             </div>
                           )}
                           {/* Icon + Title */}
-                          <FileText size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
-                          <span 
+                          {lessonHidden ? (
+                            <EyeOff size={20} style={{ color: '#ef4444' }} className="flex-shrink-0" />
+                          ) : lessonLocked ? (
+                            <Lock size={20} style={{ color: pageColors.accent }} className="flex-shrink-0" />
+                          ) : (
+                            <FileText size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
+                          )}
+                          <span
                             className="font-semibold text-left truncate"
-                            style={{ color: pageColors.text }}
+                            style={{ color: pageColors.text, opacity: (lessonHidden || lessonLocked) ? 0.6 : 1 }}
                             dangerouslySetInnerHTML={{ __html: lessonTitle }}
                           />
+                          {/* Admin: Lesson visibility badges */}
+                          {userIsAdmin && lessonHidden && (
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
+                              style={{
+                                backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                                color: '#ef4444'
+                              }}
+                            >
+                              <EyeOff size={10} />
+                              <span className="hidden sm:inline">{t('supportMaterial.hiddenBadge')}</span>
+                            </span>
+                          )}
+                          {userIsAdmin && lessonLocked && (
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
+                              style={{
+                                backgroundColor: `${pageColors.accent}15`,
+                                color: pageColors.accent
+                              }}
+                            >
+                              <Calendar size={10} />
+                              <span className="hidden sm:inline">{formatUnlockDate(lesson.meta?._start_date)}</span>
+                            </span>
+                          )}
                         </div>
                         
                         {/* Badge count + Admin Actions + Expand/Collapse Button */}
@@ -872,11 +985,21 @@ const SupportMaterialPage = () => {
                       {/* Material Steps - expandido */}
                       {isExpanded && (
                         <div>
-                          {lesson.materialSteps.map((step, index) => {
+                          {lesson.materialSteps
+                            .filter(step => {
+                              // Non-admin users: hide materials that are hidden or date-locked
+                              if (userIsAdmin) return true;
+                              if (isMaterialHidden(step)) return false;
+                              if (isMaterialLocked(step)) return false;
+                              return true;
+                            })
+                            .map((step, index) => {
                             const originalStepIndex = (lesson.meta?._lesson_steps || []).findIndex(s =>
                               s.type === step.type && s.title === step.title && JSON.stringify(s.data) === JSON.stringify(step.data)
                             );
                             const stepCompleted = isCompleted(lesson.id, 'step', lesson.id, originalStepIndex);
+                            const isLocked = isMaterialLocked(step);
+                            const isHidden = isMaterialHidden(step);
 
                             return (
                             <div key={step.id || index}>
@@ -890,6 +1013,9 @@ const SupportMaterialPage = () => {
                               />
                               <div
                                 className="flex items-center gap-3 px-4 sm:px-6 py-4 transition-colors duration-150"
+                                style={{
+                                  opacity: (isLocked || isHidden) ? 0.6 : 1
+                                }}
                                 onMouseEnter={(e) => {
                                   e.currentTarget.style.backgroundColor = isDarkMode
                                     ? 'rgba(255,255,255,0.05)'
@@ -901,15 +1027,49 @@ const SupportMaterialPage = () => {
                               >
                                 {stepCompleted ? (
                                   <CheckCircle size={18} style={{ color: '#10b981' }} className="flex-shrink-0" />
+                                ) : isLocked ? (
+                                  <Lock size={18} style={{ color: pageColors.accent }} className="flex-shrink-0" />
+                                ) : isHidden ? (
+                                  <EyeOff size={18} style={{ color: '#ef4444' }} className="flex-shrink-0" />
                                 ) : (
                                   <Circle size={18} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
                                 )}
-                                <span 
+                                <span
                                   className="text-sm font-medium flex-1 truncate"
                                   style={{ color: pageColors.text }}
                                 >
                                   {step.title}
                                 </span>
+
+                                {/* Admin: Status badges for locked/hidden materials */}
+                                {userIsAdmin && (isLocked || isHidden) && (
+                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    {isHidden && (
+                                      <span
+                                        className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
+                                        style={{
+                                          backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                                          color: '#ef4444'
+                                        }}
+                                      >
+                                        <EyeOff size={10} />
+                                        <span className="hidden sm:inline">{t('supportMaterial.hiddenBadge')}</span>
+                                      </span>
+                                    )}
+                                    {isLocked && (
+                                      <span
+                                        className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
+                                        style={{
+                                          backgroundColor: `${pageColors.accent}15`,
+                                          color: pageColors.accent
+                                        }}
+                                      >
+                                        <Calendar size={10} />
+                                        <span className="hidden sm:inline">{formatUnlockDate(step.start_date)}</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
 
                                 {/* Admin: Edit and Delete Buttons */}
                                 {userIsAdmin && (
@@ -952,27 +1112,29 @@ const SupportMaterialPage = () => {
                                 )}
 
                                 {/* Available Button - same style as CourseCard */}
-                                <button
-                                  onClick={() => handleOpenPDF(step, lesson)}
-                                  className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex-shrink-0"
-                                  style={{ 
-                                    backgroundColor: pageColors.buttonBg,
-                                    color: pageColors.buttonText
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    if (isDarkMode) {
-                                      e.currentTarget.style.filter = 'brightness(1.15)';
-                                    } else {
-                                      e.currentTarget.style.backgroundColor = pageColors.buttonHoverBg;
-                                    }
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.filter = 'none';
-                                    e.currentTarget.style.backgroundColor = pageColors.buttonBg;
-                                  }}
-                                >
-                                  {t('supportMaterial.available')}
-                                </button>
+                                {(!isLocked || userIsAdmin) && (
+                                  <button
+                                    onClick={() => handleOpenPDF(step, lesson)}
+                                    className="py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md flex-shrink-0"
+                                    style={{
+                                      backgroundColor: pageColors.buttonBg,
+                                      color: pageColors.buttonText
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (isDarkMode) {
+                                        e.currentTarget.style.filter = 'brightness(1.15)';
+                                      } else {
+                                        e.currentTarget.style.backgroundColor = pageColors.buttonHoverBg;
+                                      }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.filter = 'none';
+                                      e.currentTarget.style.backgroundColor = pageColors.buttonBg;
+                                    }}
+                                  >
+                                    {t('supportMaterial.available')}
+                                  </button>
+                                )}
                               </div>
                             </div>
                             );
@@ -981,7 +1143,7 @@ const SupportMaterialPage = () => {
                       )}
                       
                       {/* Separador entre lecciones */}
-                      {lessonIndex < lessons.length - 1 && (
+                      {!isLast && (
                         <div 
                           style={{ 
                             height: '2px', 

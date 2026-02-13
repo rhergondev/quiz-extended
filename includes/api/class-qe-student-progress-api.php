@@ -737,12 +737,31 @@ class QE_Student_Progress_API extends QE_API_Base
             }
 
             // Count total steps by type across all lessons
+            $today = gmdate('Y-m-d');
             foreach ($lesson_ids as $lesson_id) {
+                // Skip entire lesson if hidden (sentinel date) or not yet unlocked
+                $lesson_start_date = get_post_meta($lesson_id, '_start_date', true);
+                if ($lesson_start_date === '9999-12-31') {
+                    continue;
+                }
+                if (!empty($lesson_start_date) && $lesson_start_date > $today) {
+                    continue;
+                }
+
                 $steps = get_post_meta($lesson_id, '_lesson_steps', true);
                 if (is_array($steps)) {
                     // Re-index array to ensure numeric keys starting from 0
                     $steps = array_values($steps);
                     foreach ($steps as $index => $step) {
+                        // Skip steps that are hidden (sentinel date) or not yet unlocked
+                        $step_start_date = isset($step['start_date']) ? $step['start_date'] : '';
+                        if ($step_start_date === '9999-12-31') {
+                            continue;
+                        }
+                        if (!empty($step_start_date) && $step_start_date > $today) {
+                            continue;
+                        }
+
                         $step_type = isset($step['type']) ? $step['type'] : 'text';
 
                         // Ensure step type exists in stats
