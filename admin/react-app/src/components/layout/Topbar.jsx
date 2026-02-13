@@ -166,7 +166,7 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
         zIndex: 9999,
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)'
       }}
-      className="w-full overflow-hidden"
+      className="w-full"
     >
       <div className="flex items-center justify-between px-3 sm:px-4 lg:px-10 py-2 w-full max-w-full">
         {/* Left: Hamburger (mobile only, course routes only) + Logo */}
