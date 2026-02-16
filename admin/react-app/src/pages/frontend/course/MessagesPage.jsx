@@ -59,6 +59,7 @@ const MessagesPage = () => {
   const {
     messages,
     loading,
+    pagination,
     computed,
     updateMessageStatus,
     fetchMessages
@@ -72,6 +73,18 @@ const MessagesPage = () => {
   const [parentMessage, setParentMessage] = useState(null);
   const [threadMessages, setThreadMessages] = useState([]);
   const [loadingParent, setLoadingParent] = useState(false);
+
+  // TEMPORARY: Show all messages for non-admin users
+  // TODO: Backend needs to add course_id field to messages or provide a course filter endpoint
+  const filteredMessages = useMemo(() => {
+    console.log('📬 MessagesPage: Showing all messages (no course filter available):', messages.length);
+    return messages;
+  }, [messages]);
+
+  // Count unread messages in filtered set
+  const filteredUnreadCount = useMemo(() => {
+    return filteredMessages.filter(msg => msg.status === 'unread').length;
+  }, [filteredMessages]);
 
   // Load parent message and full thread when a reply is selected
   useEffect(() => {
@@ -122,12 +135,12 @@ const MessagesPage = () => {
     setShowQuestion(false);
   }, [selectedMessage]);
 
-  // Reset selected message when messages change
+  // Reset selected message when filtered messages change
   useEffect(() => {
-    if (selectedMessage && !messages.find(m => m.id === selectedMessage.id)) {
+    if (selectedMessage && !filteredMessages.find(m => m.id === selectedMessage.id)) {
       setSelectedMessage(null);
     }
-  }, [messages, selectedMessage]);
+  }, [filteredMessages, selectedMessage]);
 
   // Select a message — mark as read silently (updates badge/counter) but don't change displayed status
   const handleSelectMessage = useCallback((message) => {
@@ -174,7 +187,9 @@ const MessagesPage = () => {
         icon={MessageSquare}
         loading={courseLoading}
       >
-        <MessagesManager initialSearch={title ? `(Curso: ${title})` : ''} courseMode={true} />
+        <div className="flex flex-col relative" style={{ backgroundColor: pageColors.bgPage, height: 'calc(100dvh - 84px)', maxHeight: 'calc(100dvh - 84px)', overflow: 'hidden' }}>
+          <MessagesManager initialSearch={title ? `(Curso: ${title})` : ''} courseMode={true} />
+        </div>
       </CoursePageTemplate>
     );
   }
@@ -214,7 +229,7 @@ const MessagesPage = () => {
       icon={MessageSquare}
       loading={courseLoading}
     >
-      <div className="flex flex-col relative" style={{ backgroundColor: pageColors.bgPage, height: 'calc(100dvh - 52px)', maxHeight: 'calc(100dvh - 52px)', overflow: 'hidden' }}>
+      <div className="flex flex-col relative" style={{ backgroundColor: pageColors.bgPage, height: 'calc(100dvh - 68px)', maxHeight: 'calc(100dvh - 68px)', overflow: 'hidden' }}>
         <div className="flex-1 relative overflow-hidden min-h-0" style={{ overflowX: 'hidden' }}>
           {/* LIST VIEW - Slides out to left when detail is open */}
           <div
@@ -234,12 +249,12 @@ const MessagesPage = () => {
               <div className="flex items-center gap-2 text-sm" style={{ color: pageColors.textMuted }}>
                 <Inbox size={16} />
                 <span className="font-medium">{t('header.messages')}</span>
-                {computed.unreadMessages > 0 && (
+                {filteredUnreadCount > 0 && (
                   <span
                     className="px-2 py-0.5 text-xs font-bold rounded-full text-white"
                     style={{ backgroundColor: pageColors.error }}
                   >
-                    {computed.unreadMessages} sin leer
+                    {filteredUnreadCount} sin leer
                   </span>
                 )}
               </div>
@@ -286,13 +301,13 @@ const MessagesPage = () => {
                 </div>
 
                 {/* Table Body */}
-                <div className="flex-1 overflow-y-auto">
-                  {isLoading && messages.length === 0 && (
+                <div className="flex-1 overflow-y-auto pb-4">
+                  {isLoading && filteredMessages.length === 0 && (
                     <div className="flex items-center justify-center h-32">
                       <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: `${pageColors.accent}30`, borderTopColor: pageColors.accent }} />
                     </div>
                   )}
-                  {!isLoading && messages.length === 0 && (
+                  {!isLoading && filteredMessages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-48">
                       <Inbox size={40} style={{ color: pageColors.textMuted, opacity: 0.3 }} />
                       <p className="text-sm mt-3" style={{ color: pageColors.textMuted }}>
@@ -300,7 +315,7 @@ const MessagesPage = () => {
                       </p>
                     </div>
                   )}
-                  {messages.map((message) => {
+                  {filteredMessages.map((message) => {
                     const isUnread = message.status === 'unread';
                     const typeInfo = getTypeInfo(message.type);
                     const statusInfo = getStatusInfo(message.status, message);
@@ -403,6 +418,32 @@ const MessagesPage = () => {
                       </React.Fragment>
                     );
                   })}
+                  {/* Load More */}
+                  {pagination.hasMore && (
+                    <div className="flex justify-center py-4">
+                      <button
+                        onClick={() => fetchMessages(false)}
+                        disabled={loading}
+                        className="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200"
+                        style={{
+                          backgroundColor: pageColors.inputBg,
+                          border: `1px solid ${pageColors.cardBorder}`,
+                          color: pageColors.text
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = pageColors.hoverBg; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = pageColors.inputBg; }}
+                      >
+                        {loading ? (
+                          <span className="flex items-center gap-2">
+                            <RefreshCw size={14} className="animate-spin" />
+                            Cargando...
+                          </span>
+                        ) : (
+                          `Cargar más mensajes (${filteredMessages.length} visibles de ${pagination.total} totales)`
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

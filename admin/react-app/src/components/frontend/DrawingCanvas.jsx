@@ -205,4 +205,5 @@ const DrawingCanvas = ({ isActive, isDrawingEnabled, tool, color, lineWidth, onC
   );
 };
 
-export default DrawingCanvas;
+// 🔥 FIX: Memoize DrawingCanvas to prevent unnecessary re-renders
+export default React.memo(DrawingCanvas);

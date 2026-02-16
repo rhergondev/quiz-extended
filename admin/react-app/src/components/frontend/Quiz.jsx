@@ -16,6 +16,10 @@ import useQuizAutosave from '../../hooks/useQuizAutosave';
 import quizAutosaveService from '../../api/services/quizAutosaveService';
 import QuizRecoveryModal from '../quizzes/QuizRecoveryModal';
 
+// 🔥 Module-level guards to prevent React Strict Mode double mounting issues
+const activeQuizAttempts = new Map(); // Map<quizKey, attemptId>
+const activeSubmissions = new Set(); // Set<attemptId>
+
 const Quiz = ({ 
   quizId, 
   lessonId = null,
@@ -177,18 +181,30 @@ const Quiz = ({
     };
   }, [quizState, hasMoreQuestions, questionsLoading, loadMore, questionsContainerRef]);
 
+  // 🔥 Ref to prevent double quiz start in React Strict Mode
+  const attemptStartedRef = useRef(false);
+
   useEffect(() => {
     const fetchAndStartQuiz = async () => {
+      // 🔥 FIX: Simple ref-based guard for React Strict Mode
+      if (attemptStartedRef.current) {
+        console.log('⚠️ Quiz attempt already started by this component, skipping');
+        return;
+      }
+
+      attemptStartedRef.current = true;
+      const quizKey = `${quizId}-${lessonId || 'no-lesson'}`;
+
       setStartTime(Date.now());
-      
+
       if (customQuiz) {
         setQuizInfo(customQuiz);
         const ids = customQuiz.meta?._quiz_question_ids || [];
-        setQuestionIds(ids); // Set IDs, let hook handle loading
+        setQuestionIds(ids);
         setAttemptId('custom-attempt');
         return;
       }
-      
+
       if (!quizId) return;
 
       console.log('🚀 Starting Quiz Attempt:', { quizId, lessonId });
@@ -196,7 +212,7 @@ const Quiz = ({
       try {
         // Check for autosave
         const savedProgress = await quizAutosaveService.getQuizAutosave(quizId);
-        
+
         if (savedProgress) {
           setAutosaveData(savedProgress);
           setShowRecoveryModal(true);
@@ -207,21 +223,22 @@ const Quiz = ({
         // Load quiz data
         const quizData = await getQuiz(quizId);
         setQuizInfo(quizData);
-        
+
         const ids = quizData.meta?._quiz_question_ids || [];
-        
-        // Set question IDs - useQuizQuestions hook will handle lazy loading
         setQuestionIds(ids);
 
         // Start attempt
         const attemptResponse = await startQuizAttempt(quizId, lessonId);
         if (attemptResponse.attempt_id) {
           setAttemptId(attemptResponse.attempt_id);
+          activeQuizAttempts.set(quizKey, attemptResponse.attempt_id); // 🔥 Store for submission cleanup
+          console.log('✅ Quiz attempt started:', attemptResponse.attempt_id);
         } else {
           throw new Error("Failed to get a valid attempt ID.");
         }
       } catch (error) {
         console.error("Error fetching or starting quiz:", error);
+        activeQuizAttempts.delete(quizKey); // Clear on error
         setQuizState('error');
       }
     };
@@ -382,10 +399,20 @@ const Quiz = ({
   };
 
   const handleSubmit = useCallback(async () => {
+      console.log('🔥 handleSubmit called', { attemptId, timestamp: new Date().toISOString() });
+
       if (!attemptId) {
           setQuizState('error');
           return;
       }
+
+      // 🔥 FIX: Guard against double submission
+      if (activeSubmissions.has(attemptId)) {
+          console.warn('⚠️ Submission already in progress, ignoring duplicate call');
+          return;
+      }
+
+      activeSubmissions.add(attemptId); // Mark as submitting
       setQuizState('submitting');
 
       // 🔥 FIX: Use questionIds directly instead of trying to load all questions
@@ -439,16 +466,33 @@ const Quiz = ({
 
           setQuizResult(result);
           setQuizState('submitted');
-          
+
+          // 🔥 Cleanup: Remove from active attempts and submissions
+          const quizKey = `${quizId}-${lessonId || 'no-lesson'}`;
+          activeQuizAttempts.delete(quizKey);
+          activeSubmissions.delete(attemptId);
+          console.log('✅ Quiz completed, cleaned up guards');
+
           // Pasar los resultados al callback para que el padre los maneje
+          console.log('📞 Calling onQuizComplete callback', {
+            hasCallback: !!onQuizComplete,
+            callbackType: typeof onQuizComplete,
+            resultScore: result?.score,
+            questionsCount: fullQuestions?.length
+          });
+
           if (onQuizComplete && typeof onQuizComplete === 'function') {
             onQuizComplete(result, fullQuestions, quizInfo);
+            console.log('✅ onQuizComplete callback executed successfully');
+          } else {
+            console.warn('⚠️ onQuizComplete callback not available or not a function');
           }
       } catch (error) {
           console.error('❌ Error submitting quiz:', error);
+          activeSubmissions.delete(attemptId); // Clear guard on error to allow retry
           setQuizState('error');
       }
-  }, [attemptId, quizQuestions, questionIds, userAnswers, riskedAnswers, customQuiz, startTime, quizId, clearAutosave, onQuizComplete, quizInfo]);
+  }, [attemptId, quizQuestions, questionIds, userAnswers, riskedAnswers, customQuiz, startTime, quizId, lessonId, clearAutosave, onQuizComplete, quizInfo]);
 
   if (quizState === 'loading' || (questionsLoading && quizQuestions.length === 0)) {
     return <div className="text-center p-8">{t('quizzes.quiz.loadingQuiz')}</div>;

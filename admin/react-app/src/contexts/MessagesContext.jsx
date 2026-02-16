@@ -27,6 +27,7 @@ export const MessagesProvider = ({ children, enablePolling = true, pollingInterv
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0); // ✅ Actual unread count from API
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -125,6 +126,9 @@ export const MessagesProvider = ({ children, enablePolling = true, pollingInterv
       setMessages(prev => reset ? data : [...prev, ...data]);
       initialFetchDoneRef.current = true;
 
+      // Fetch unread count separately to get accurate total
+      fetchUnreadCount();
+
     } catch (err) {
       console.error('❌ Error fetching messages:', err);
       if (mountedRef.current) {
@@ -136,6 +140,37 @@ export const MessagesProvider = ({ children, enablePolling = true, pollingInterv
       }
     }
   }, [pagination]);
+
+  // --- FETCH UNREAD COUNT ---
+  const fetchUnreadCount = useCallback(async () => {
+    if (!mountedRef.current) return;
+
+    try {
+      const config = getApiConfig();
+      const queryParams = new URLSearchParams({
+        status: 'unread',
+        per_page: '1', // We only need the header count, not the data
+        page: '1'
+      });
+
+      const endpoint = isAdmin ? 'messages' : 'messages/inbox';
+      const url = `${config.endpoints.custom_api}/${endpoint}?${queryParams}`;
+
+      const response = await makeApiRequest(url);
+
+      if (!mountedRef.current) return;
+
+      // Get the total unread count from the header
+      const totalUnread = response.headers['X-WP-Total'];
+      const count = totalUnread ? parseInt(totalUnread, 10) : 0;
+
+      setUnreadCount(count);
+
+    } catch (err) {
+      console.error('❌ Error fetching unread count:', err);
+      // Don't update count on error, keep previous value
+    }
+  }, [isAdmin]);
 
   // --- UPDATE MESSAGE STATUS ---
   const updateMessageStatus = useCallback(async (messageId, status) => {
@@ -174,6 +209,9 @@ export const MessagesProvider = ({ children, enablePolling = true, pollingInterv
         window.jQuery(document).trigger('qe-message-status-changed');
       }
 
+      // Update unread count after status change
+      fetchUnreadCount();
+
       return updatedMessage;
 
     } catch (err) {
@@ -186,7 +224,7 @@ export const MessagesProvider = ({ children, enablePolling = true, pollingInterv
         setUpdating(false);
       }
     }
-  }, [fetchMessages, isAdmin]);
+  }, [fetchMessages, fetchUnreadCount, isAdmin]);
 
   // --- DELETE MESSAGE ---
   const deleteMessage = useCallback(async (messageId) => {
@@ -258,10 +296,10 @@ export const MessagesProvider = ({ children, enablePolling = true, pollingInterv
   // --- COMPUTED VALUES ---
   const computed = useMemo(() => ({
     totalMessages: pagination.total,
-    unreadMessages: messages.filter(m => m.status === 'unread').length,
+    unreadMessages: unreadCount, // ✅ Use actual count from API, not filtered from paginated messages
     feedbackMessages: messages.filter(m => m.type === 'question_feedback').length,
     challengeMessages: messages.filter(m => m.type === 'question_challenge').length
-  }), [messages, pagination.total]);
+  }), [messages, pagination.total, unreadCount]);
 
   const value = {
     messages,

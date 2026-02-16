@@ -148,7 +148,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   const { courses: availableCourses } = useCourses({ autoFetch: true, perPage: 100 });
 
   const { 
-    messages, loading, computed, updateMessageStatus, fetchMessages, requestNotificationPermission
+    messages, loading, computed, pagination, updateMessageStatus, fetchMessages, requestNotificationPermission
   } = useMessages({
     search: searchValue,
     status: filters.status !== 'all' ? filters.status : null,
@@ -293,7 +293,9 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
     setSelectedMessage(null);
     setReplies([]);
     setReplyText('');
-  }, []);
+    // Refresh messages list to update status/count
+    fetchMessages(true);
+  }, [fetchMessages]);
 
   const handleStatusChange = useCallback(async (messageId, newStatus) => {
     try {
@@ -664,7 +666,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
               </div>
 
               {/* Table Body */}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto pb-4">
                 {loading && messages.length === 0 && (
                   <div className="flex items-center justify-center h-32">
                     <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: `${pageColors.accent}30`, borderTopColor: pageColors.accent }} />
@@ -788,6 +790,32 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                     </React.Fragment>
                   );
                 })}
+                {/* Load More */}
+                {pagination.hasMore && (
+                  <div className="flex justify-center py-4">
+                    <button
+                      onClick={() => fetchMessages(false)}
+                      disabled={loading}
+                      className="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200"
+                      style={{
+                        backgroundColor: pageColors.inputBg,
+                        border: `1px solid ${pageColors.cardBorder}`,
+                        color: pageColors.text
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = pageColors.hoverBg; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = pageColors.inputBg; }}
+                    >
+                      {loading ? (
+                        <span className="flex items-center gap-2">
+                          <RefreshCw size={14} className="animate-spin" />
+                          Cargando...
+                        </span>
+                      ) : (
+                        `Cargar más mensajes (${messages.length} de ${pagination.total})`
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -42,6 +42,34 @@ const useUserInbox = (options = {}) => {
     };
   }, []);
 
+  // --- FETCH UNREAD COUNT ---
+  const fetchUnreadCount = useCallback(async () => {
+    if (!mountedRef.current) return;
+
+    try {
+      const config = getApiConfig();
+      const params = new URLSearchParams({
+        status: 'unread',
+        per_page: '1', // Only need the header count
+        page: '1'
+      });
+
+      const url = `${config.endpoints.custom_api}/messages/inbox?${params}`;
+      const response = await makeApiRequest(url);
+
+      if (!mountedRef.current) return;
+
+      // Get total unread from header
+      const totalUnread = response.headers['X-WP-Total'];
+      const count = totalUnread ? parseInt(totalUnread, 10) : 0;
+
+      setUnreadCount(count);
+
+    } catch (err) {
+      console.error('❌ Error fetching unread count:', err);
+    }
+  }, []);
+
   // --- FETCH MESSAGES ---
   const fetchMessages = useCallback(async (showLoading = true) => {
     if (!mountedRef.current) return;
@@ -49,12 +77,12 @@ const useUserInbox = (options = {}) => {
     if (showLoading) {
       setLoading(true);
     }
-    
+
     setError(null);
 
     try {
       const config = getApiConfig();
-      
+
       const params = new URLSearchParams({
         per_page: '50',
         orderby: 'created_at',
@@ -68,7 +96,7 @@ const useUserInbox = (options = {}) => {
       }
 
       const url = `${config.endpoints.custom_api}/messages/inbox?${params}`;
-      
+
       console.log('📬 Fetching user inbox:', url);
 
       const response = await makeApiRequest(url);
@@ -76,16 +104,15 @@ const useUserInbox = (options = {}) => {
       if (!mountedRef.current) return;
 
       const fetchedMessages = response.data?.data || [];
-      
+
       setMessages(fetchedMessages);
 
-      // Count unread
-      const unread = fetchedMessages.filter(m => m.status === 'unread').length;
-      setUnreadCount(unread);
+      // ✅ Fetch actual unread count from API instead of counting from paginated results
+      fetchUnreadCount();
 
       lastFetchRef.current = Date.now();
 
-      console.log(`✅ Loaded ${fetchedMessages.length} messages (${unread} unread)`);
+      console.log(`✅ Loaded ${fetchedMessages.length} messages`);
 
     } catch (err) {
       console.error('❌ Error fetching inbox:', err);
@@ -97,7 +124,7 @@ const useUserInbox = (options = {}) => {
         setLoading(false);
       }
     }
-  }, [filter]);
+  }, [filter, fetchUnreadCount]);
 
   // --- MARK AS READ ---
   const markAsRead = useCallback(async (messageId) => {
@@ -120,8 +147,8 @@ const useUserInbox = (options = {}) => {
         )
       );
 
-      // Update unread count
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      // ✅ Fetch actual unread count from API
+      fetchUnreadCount();
 
       console.log('✅ Message marked as read');
 
@@ -129,7 +156,7 @@ const useUserInbox = (options = {}) => {
       console.error('❌ Error marking message as read:', err);
       throw err;
     }
-  }, []);
+  }, [fetchUnreadCount]);
 
   // --- MARK ALL AS READ ---
   const markAllAsRead = useCallback(async () => {
@@ -161,11 +188,8 @@ const useUserInbox = (options = {}) => {
       // Update local state - remove message
       setMessages(prev => prev.filter(msg => msg.id !== messageId));
 
-      // Update unread count if was unread
-      const deletedMessage = messages.find(m => m.id === messageId);
-      if (deletedMessage && deletedMessage.status === 'unread') {
-        setUnreadCount(prev => Math.max(0, prev - 1));
-      }
+      // ✅ Fetch actual unread count from API
+      fetchUnreadCount();
 
       console.log('✅ Message deleted');
 
@@ -173,7 +197,7 @@ const useUserInbox = (options = {}) => {
       console.error('❌ Error deleting message:', err);
       throw err;
     }
-  }, [messages]);
+  }, [fetchUnreadCount]);
 
   // --- POLLING ---
   const startPolling = useCallback(() => {

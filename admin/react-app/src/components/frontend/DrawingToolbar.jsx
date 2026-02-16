@@ -164,4 +164,5 @@ const DrawingToolbar = ({
   );
 };
 
-export default DrawingToolbar;
+// 🔥 FIX: Memoize DrawingToolbar to prevent unnecessary re-renders
+export default React.memo(DrawingToolbar);

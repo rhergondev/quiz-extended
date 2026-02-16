@@ -106,7 +106,7 @@ export const deleteFn = async (courseId, options = {}) => {
 export { deleteFn as delete };
 
 /**
- * Duplicate existing course
+ * Duplicate existing course (shallow - metadata only)
  * Compatible with useResource hook
  * @param {number} courseId - Course ID to duplicate
  * @returns {Promise<Object>} Duplicated course
@@ -114,7 +114,7 @@ export { deleteFn as delete };
 export const duplicate = async (courseId) => {
   try {
     const originalCourse = await getOne(courseId);
-    
+
     if (!originalCourse) {
       throw new Error('Course not found');
     }
@@ -135,14 +135,74 @@ export const duplicate = async (courseId) => {
       endDate: ''
     };
 
-    console.log('📋 Duplicating course:', courseId);
+    console.log('📋 Duplicating course (shallow):', courseId);
     const duplicated = await create(duplicateData);
     console.log('✅ Course duplicated:', duplicated.id);
-    
+
     return duplicated;
 
   } catch (error) {
     console.error(`❌ Error duplicating course ${courseId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Deep duplicate course with all content (lessons, quizzes, questions, PDFs)
+ * Excludes: enrollments, user progress, attempts, rankings
+ * @param {number} courseId - Course ID to duplicate
+ * @param {string} customTitle - Optional custom title for the duplicated course
+ * @returns {Promise<Object>} Duplicated course with statistics
+ */
+export const duplicateDeep = async (courseId, customTitle = null) => {
+  try {
+    const config = window.qe_data || {};
+
+    if (!config.nonce) {
+      throw new Error('WordPress configuration not found');
+    }
+
+    // Use our custom QE API endpoint, not the WordPress REST API
+    const baseUrl = config.api_url || `${window.location.origin}/wp-json`;
+    const url = `${baseUrl}/qe/v1/courses/${courseId}/duplicate`;
+
+    const requestBody = {};
+    if (customTitle) {
+      requestBody.title = customTitle;
+    }
+
+    console.log('📋 Deep duplicating course:', courseId, 'URL:', url);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-WP-Nonce': config.nonce,
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || `API Error ${response.status}: ${response.statusText}`
+      );
+    }
+
+    const result = await response.json();
+
+    console.log('✅ Course deep duplicated successfully:', {
+      original: courseId,
+      duplicated: result.data.course_id,
+      lessons: result.data.lessons_count,
+      quizzes: result.data.quizzes_count
+    });
+
+    return result.data;
+
+  } catch (error) {
+    console.error(`❌ Error deep duplicating course ${courseId}:`, error);
     throw error;
   }
 };

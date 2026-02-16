@@ -592,4 +592,5 @@ const Question = ({
   );
 };
 
-export default Question;
+// 🔥 FIX: Memoize Question component to prevent unnecessary re-renders
+export default React.memo(Question);

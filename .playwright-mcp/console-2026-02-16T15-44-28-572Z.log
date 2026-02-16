@@ -1,0 +1,2 @@
+[   36339ms] [ERROR] Access to font at 'https://lanuevaweb.de/uniforme/wp-content/uploads/elementor/google-fonts/fonts/montserrat-4e656f04.woff2' from origin 'http://localhost:8000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://localhost:8000/lms-home/#/courses/850/messages:0
+[   36339ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://lanuevaweb.de/uniforme/wp-content/uploads/elementor/google-fonts/fonts/montserrat-4e656f04.woff2:0

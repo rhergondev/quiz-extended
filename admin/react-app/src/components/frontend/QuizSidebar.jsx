@@ -305,4 +305,5 @@ const QuizSidebar = ({
   );
 };
 
-export default QuizSidebar;
+// 🔥 FIX: Memoize QuizSidebar to prevent unnecessary re-renders
+export default React.memo(QuizSidebar);

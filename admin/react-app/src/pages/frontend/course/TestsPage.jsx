@@ -24,6 +24,12 @@ import { CourseRankingProvider, CourseRankingTrigger, CourseRankingSlidePanel } 
 import { ChevronDown, ChevronUp, ChevronRight, ClipboardList, CheckCircle, Circle, Clock, Award, X, ChevronLeft, ChevronRight as ChevronRightNav, Play, Check, HelpCircle, Target, Calendar, Eye, EyeOff, XCircle, Loader, Trophy, Plus, Edit2, Trash2, AlertTriangle, ArrowUpDown, Lock } from 'lucide-react';
 
 const TestsPage = () => {
+  // 🐛 DEBUG: Track renders
+  const renderCount = useRef(0);
+  renderCount.current++;
+
+  // Will log state values after they're initialized below
+
   const { t } = useTranslation();
   const { courseId } = useParams();
   const location = useLocation();
@@ -67,7 +73,8 @@ const TestsPage = () => {
   const [resultsQuizInfo, setResultsQuizInfo] = useState(null);
   const [isQuizFocusMode, setIsQuizFocusMode] = useState(false); // 🎯 Focus mode: hide all UI when quiz is running
   const [isRankingOpen, setIsRankingOpen] = useState(false); // 🏆 Ranking panel state
-  
+  const [currentQuizState, setCurrentQuizState] = useState('loading'); // 🔄 Track quiz loading state to prevent duplicate overlays
+
   // 🆕 Estado para vista de intento previo
   const [viewingAttemptId, setViewingAttemptId] = useState(null);
   
@@ -78,6 +85,16 @@ const TestsPage = () => {
   const [drawingTool, setDrawingTool] = useState('pen');
   const [drawingColor, setDrawingColor] = useState('#000000');
   const [drawingLineWidth, setDrawingLineWidth] = useState(2);
+
+  // 🐛 DEBUG: Log state on each render
+  console.log(`📄 TestsPage Render #${renderCount.current}`, {
+    isQuizRunning,
+    hasQuizResults: !!quizResults,
+    quizResultsScore: quizResults?.score,
+    hasQuizToStart: !!quizToStart,
+    isQuizFocusMode,
+    viewingAttemptId
+  });
 
   // Admin functionality
   const userIsAdmin = isUserAdmin();
@@ -156,6 +173,32 @@ const TestsPage = () => {
     perPage: 5, 
     autoFetch: false // No auto-fetch, lo haremos cuando quizId cambie
   });
+
+  // 🔥 FIX: Create stable wrappers for hook callbacks using refs
+  // This prevents infinite re-renders by ensuring callback references don't change
+  const refetchAttemptsRef = useRef(refetchAttempts);
+  const markCompleteRef = useRef(markComplete);
+  const fetchCompletedContentRef = useRef(fetchCompletedContent);
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    refetchAttemptsRef.current = refetchAttempts;
+    markCompleteRef.current = markComplete;
+    fetchCompletedContentRef.current = fetchCompletedContent;
+  }, [refetchAttempts, markComplete, fetchCompletedContent]);
+
+  // Create stable wrapper functions
+  const stableRefetchAttempts = useCallback((...args) => {
+    return refetchAttemptsRef.current?.(...args);
+  }, []);
+
+  const stableMarkComplete = useCallback((...args) => {
+    return markCompleteRef.current?.(...args);
+  }, []);
+
+  const stableFetchCompletedContent = useCallback((...args) => {
+    return fetchCompletedContentRef.current?.(...args);
+  }, []);
 
   // Refetch cuando cambia el quizId
   React.useEffect(() => {
@@ -525,44 +568,85 @@ const TestsPage = () => {
     }
   };
 
-  const handleQuizComplete = async (result, questions, quizInfo) => {
+  // 🔥 FIX: Store all dependencies in refs to create a completely stable callback
+  const quizIdRef = useRef(quizId);
+  const quizToStartRef = useRef(quizToStart);
+  const selectedLessonRef = useRef(selectedLesson);
+  const allTestStepsRef = useRef(allTestSteps);
+  const courseIdRef = useRef(courseId);
+
+  useEffect(() => {
+    quizIdRef.current = quizId;
+    quizToStartRef.current = quizToStart;
+    selectedLessonRef.current = selectedLesson;
+    allTestStepsRef.current = allTestSteps;
+    courseIdRef.current = courseId;
+  }, [quizId, quizToStart, selectedLesson, allTestSteps, courseId]);
+
+  // 🔥 FIX: Completely stable callback - no dependencies, uses refs for latest values
+  const handleQuizComplete = useCallback(async (result, questions, quizInfo) => {
+    console.log('🎯 TestsPage: handleQuizComplete called', {
+      hasResult: !!result,
+      resultScore: result?.score,
+      questionsCount: questions?.length,
+      quizInfoTitle: quizInfo?.title
+    });
+
     // Guardar los resultados para mostrarlos
     setQuizResults(result);
     setResultsQuestions(questions);
     setResultsQuizInfo(quizInfo);
-    
-    // Refrescar historial de intentos para que aparezca el nuevo
-    if (quizId) {
-      setTimeout(() => refetchAttempts(1), 500); // Pequeño delay para que el backend guarde
+
+    console.log('✅ TestsPage: Results state set', {
+      isQuizRunningBefore: isQuizRunning,
+      willSetToFalse: true
+    });
+
+    // Refreschar historial de intentos para que aparezca el nuevo
+    if (quizIdRef.current) {
+      setTimeout(() => stableRefetchAttempts(1), 500); // Pequeño delay para que el backend guarde
     }
-    
+
     // Marcar el quiz como completado
-    if (quizToStart?.id && selectedLesson) {
+    if (quizToStartRef.current?.id && selectedLessonRef.current) {
       try {
-        const currentIndex = getCurrentStepIndex();
+        const currentIndex = allTestStepsRef.current.findIndex(item =>
+          item.step === selectedTest && item.lesson.id === selectedLessonRef.current.id
+        );
+
         if (currentIndex !== -1) {
-          const { originalStepIndex } = allTestSteps[currentIndex];
-          await markComplete(selectedLesson.id, 'step', selectedLesson.id, originalStepIndex);
-          
+          const { originalStepIndex } = allTestStepsRef.current[currentIndex];
+          await stableMarkComplete(selectedLessonRef.current.id, 'step', selectedLessonRef.current.id, originalStepIndex);
+
           // Refreschar contenido completado
-          await fetchCompletedContent();
-          
+          await stableFetchCompletedContent();
+
           // Disparar evento para actualizar el sidebar
-          window.dispatchEvent(new CustomEvent('courseProgressUpdated', { detail: { courseId } }));
-          
+          window.dispatchEvent(new CustomEvent('courseProgressUpdated', { detail: { courseId: courseIdRef.current } }));
+
           // Cambiar a vista de resultados (no cerrar el viewer)
           setIsQuizRunning(false);
           setIsQuizFocusMode(false); // 🎯 Deactivate focus mode
+          console.log('✅ TestsPage: Quiz marked complete, states updated');
         }
       } catch (error) {
-        console.error('Error marking quiz as complete:', error);
+        console.error('❌ TestsPage: Error marking quiz as complete:', error);
+        // Still set states even if marking fails
+        setIsQuizRunning(false);
+        setIsQuizFocusMode(false);
       }
     } else {
       // Si no hay test para marcar, solo cambiar la vista
       setIsQuizRunning(false);
       setIsQuizFocusMode(false); // 🎯 Deactivate focus mode
+      console.log('✅ TestsPage: No test to mark, states updated');
     }
-  };
+
+    console.log('🏁 TestsPage: handleQuizComplete finished', {
+      isQuizRunningAfter: false,
+      quizResultsSet: !!result
+    });
+  }, [stableRefetchAttempts, stableMarkComplete, stableFetchCompletedContent]); // Only stable wrappers as deps
 
   const handleCloseResults = () => {
     // Limpiar resultados y volver a la lista de tests
@@ -575,16 +659,74 @@ const TestsPage = () => {
     setIsQuizFocusMode(false); // 🎯 Deactivate focus mode
   };
 
-  const handleExitQuiz = () => {
+  // 🔥 FIX: Memoize callbacks to prevent infinite re-renders in Quiz component
+  const handleExitQuiz = useCallback(() => {
     // Salir del quiz y volver a la vista de info (el progreso ya se guarda automáticamente con autosave)
     setIsQuizRunning(false);
     setQuizToStart(null);
     setIsQuizFocusMode(false);
-  };
+  }, []);
 
-  const handleClearCanvas = () => {
+  const handleClearCanvas = useCallback(() => {
     // Canvas clearing logic handled by DrawingCanvas component
-  };
+  }, []);
+
+  // 🔄 Handle quiz state changes to manage loading overlay in parent
+  const handleQuizStateChange = useCallback((newState) => {
+    console.log('📊 TestsPage: Quiz state changed to:', newState);
+    setCurrentQuizState(newState);
+  }, []);
+
+  // 🔄 Reset quiz state to 'loading' when a new quiz is started
+  useEffect(() => {
+    if (quizToStart) {
+      console.log('🆕 TestsPage: New quiz starting, resetting state to loading');
+      setCurrentQuizState('loading');
+    }
+  }, [quizToStart]);
+
+  // 🐛 DEBUG: Track callback reference stability
+  const prevCallbacksRef = useRef({});
+  useEffect(() => {
+    const callbacks = {
+      handleQuizComplete,
+      handleExitQuiz,
+      handleClearCanvas,
+      handleQuizStateChange,
+      stableRefetchAttempts,
+      stableMarkComplete,
+      stableFetchCompletedContent,
+      setDrawingTool,
+      setDrawingColor,
+      setDrawingLineWidth,
+      setIsDrawingMode,
+      setIsDrawingEnabled,
+      setShowDrawingToolbar
+    };
+
+    const changes = {};
+    let hasChanges = false;
+
+    Object.keys(callbacks).forEach(key => {
+      const prev = prevCallbacksRef.current[key];
+      const current = callbacks[key];
+      if (prev !== current) {
+        changes[key] = {
+          changed: true,
+          wasDefined: prev !== undefined,
+          isDefined: current !== undefined
+        };
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges && renderCount.current > 1) {
+      console.log(`🚨 TestsPage: CALLBACK REFERENCES CHANGED in render #${renderCount.current}:`, changes);
+      console.warn('⚠️ Unstable callbacks detected in TestsPage! This will cause infinite re-renders in Quiz.');
+    }
+
+    prevCallbacksRef.current = callbacks;
+  });
 
   // Navigation functions
   const getCurrentStepIndex = () => {
@@ -1995,8 +2137,8 @@ const TestsPage = () => {
                     </div>
                   </div>
                 ) : !quizResults ? (
-                  // Mostrar Quiz component
-                  quizToStart && (
+                  // Mostrar Quiz component (solo si NO está en Focus Mode)
+                  quizToStart && !isQuizFocusMode && (
                     <Quiz
                       quizId={quizToStart.id}
                       lessonId={selectedLesson?.id}
@@ -2193,15 +2335,17 @@ const TestsPage = () => {
     )}
     
     {/* 🎯 FOCUS MODE: Full-screen Quiz overlay */}
-    {isQuizFocusMode && quizToStart && (
-      <div 
+    {isQuizFocusMode && quizToStart && !quizResults && (
+      <div
+        key={`quiz-focus-${quizToStart.id}`}
         className="fixed inset-0 z-[9999] flex flex-col pt-10"
-        style={{ 
+        style={{
           backgroundColor: getColor('background', '#ffffff')
         }}
       >
         <div className="w-full flex-1 overflow-hidden">
           <Quiz
+            key={`quiz-${quizToStart.id}-${selectedLesson?.id || 'no-lesson'}`}
             quizId={quizToStart.id}
             lessonId={selectedLesson?.id}
             onQuizComplete={handleQuizComplete}

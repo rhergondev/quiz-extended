@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader, AlertTriangle, Inbox, Menu, X, BookOpen, FileText, Home, Sun, Moon, User, LogOut, Book, Plus } from 'lucide-react';
+import { Loader, AlertTriangle, Inbox, Menu, X, BookOpen, FileText, Home, Sun, Moon, User, LogOut, Book, Plus, CheckCircle, XCircle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useCourses from '../../hooks/useCourses';
 import CompactCourseCard from '../../components/frontend/CompactCourseCard';
@@ -23,7 +23,9 @@ const CoursesPage = () => {
   const userIsAdmin = isUserAdmin();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUpdatingOrder, setIsUpdatingOrder] = useState(false);
-  
+  const [duplicatingCourseId, setDuplicatingCourseId] = useState(null);
+  const [duplicationToast, setDuplicationToast] = useState(null); // { type: 'success' | 'error', message: string }
+
   const homeUrl = window.qe_data?.home_url || '';
   const logoutUrl = window.qe_data?.logout_url;
 
@@ -31,7 +33,7 @@ const CoursesPage = () => {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [mode, setMode] = useState('view'); // 'view', 'create', 'edit'
-  
+
   // Local courses state for optimistic order updates
   const [localCourses, setLocalCourses] = useState(null);
 
@@ -60,6 +62,17 @@ const CoursesPage = () => {
       setLocalCourses(null);
     }
   }, [courses, loading]);
+
+  // Auto-dismiss duplication toast
+  useEffect(() => {
+    if (duplicationToast) {
+      const timer = setTimeout(() => {
+        setDuplicationToast(null);
+      }, 5000); // 5 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [duplicationToast]);
 
   const sortedCourses = useMemo(() => {
     const coursesToSort = localCourses || courses;
@@ -129,6 +142,47 @@ const CoursesPage = () => {
     } catch (error) {
       console.error('Error deleting course:', error);
       throw error;
+    }
+  };
+
+  const handleDuplicateCourse = async (course) => {
+    if (duplicatingCourseId) return; // Prevent multiple simultaneous duplications
+
+    const confirmDuplicate = window.confirm(
+      `¿Duplicar el curso "${course.title?.rendered || course.title}"?\n\n` +
+      'Se duplicará TODO el contenido:\n' +
+      '✓ Lecciones\n' +
+      '✓ Cuestionarios\n' +
+      '✓ Preguntas\n' +
+      '✓ PDFs y materiales\n\n' +
+      '✗ NO se duplicarán usuarios ni progreso'
+    );
+
+    if (!confirmDuplicate) return;
+
+    setDuplicatingCourseId(course.id);
+    setDuplicationToast(null);
+
+    try {
+      const result = await courseService.duplicateDeep(course.id);
+
+      setDuplicationToast({
+        type: 'success',
+        message: `Curso duplicado exitosamente: ${result.lessons_count} lecciones, ${result.quizzes_count} cuestionarios`
+      });
+
+      // Refresh course list
+      setLocalCourses(null);
+      coursesHook.refresh();
+
+    } catch (error) {
+      console.error('Error duplicating course:', error);
+      setDuplicationToast({
+        type: 'error',
+        message: `Error al duplicar el curso: ${error.message}`
+      });
+    } finally {
+      setDuplicatingCourseId(null);
     }
   };
 
@@ -258,14 +312,16 @@ const CoursesPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {sortedCourses.map((course, index) => (
           <div key={course.id} className="w-full flex justify-center">
-            <CompactCourseCard 
-              course={course} 
+            <CompactCourseCard
+              course={course}
               onEdit={userIsAdmin ? handleEditCourse : null}
+              onDuplicate={userIsAdmin ? handleDuplicateCourse : null}
               onMoveLeft={userIsAdmin ? handleMoveUp : null}
               onMoveRight={userIsAdmin ? handleMoveDown : null}
               isFirst={index === 0}
               isLast={index === sortedCourses.length - 1}
               isUpdating={isUpdatingOrder}
+              isDuplicating={duplicatingCourseId === course.id}
             />
           </div>
         ))}
@@ -533,6 +589,39 @@ const CoursesPage = () => {
           onDelete={handleDelete}
           getCourse={getCourseById}
         />
+      )}
+
+      {/* Duplication Toast Notification */}
+      {duplicationToast && (
+        <div
+          className="fixed bottom-6 right-6 z-50 max-w-md rounded-lg shadow-2xl p-4 flex items-start gap-3 animate-slideInRight"
+          style={{
+            backgroundColor: duplicationToast.type === 'success'
+              ? getColor('accent', '#10b981')
+              : '#ef4444',
+            border: `2px solid ${duplicationToast.type === 'success' ? '#059669' : '#dc2626'}`
+          }}
+        >
+          {duplicationToast.type === 'success' ? (
+            <CheckCircle className="w-6 h-6 flex-shrink-0" style={{ color: '#ffffff' }} />
+          ) : (
+            <XCircle className="w-6 h-6 flex-shrink-0" style={{ color: '#ffffff' }} />
+          )}
+          <div className="flex-1">
+            <p className="font-semibold text-white text-sm">
+              {duplicationToast.type === 'success' ? 'Duplicación Exitosa' : 'Error en Duplicación'}
+            </p>
+            <p className="text-white text-xs mt-1 opacity-90">
+              {duplicationToast.message}
+            </p>
+          </div>
+          <button
+            onClick={() => setDuplicationToast(null)}
+            className="text-white hover:bg-white hover:bg-opacity-20 rounded p-1 transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
       )}
     </div>
   );

@@ -1,19 +1,21 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { BookOpen, ClipboardList, Video, FileText, Edit, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, ClipboardList, Video, FileText, Edit, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useStudentProgress from '../../hooks/useStudentProgress';
 
-const CompactCourseCard = ({ 
-  course, 
+const CompactCourseCard = ({
+  course,
   onEdit,
+  onDuplicate,
   // Props de ordenación (solo para admin)
   onMoveLeft,
   onMoveRight,
   isFirst = false,
   isLast = false,
-  isUpdating = false
+  isUpdating = false,
+  isDuplicating = false
 }) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
@@ -93,8 +95,8 @@ const CompactCourseCard = ({
         border: `2px solid ${cardColors.borderColor}`
       }}
     >
-      {/* Admin Controls: Order + Edit */}
-      {(onEdit || onMoveLeft || onMoveRight) && (
+      {/* Admin Controls: Order + Edit + Duplicate */}
+      {(onEdit || onDuplicate || onMoveLeft || onMoveRight) && (
         <div className="absolute top-2 right-2 z-10 flex gap-1">
           {/* Botón mover izquierda */}
           {onMoveLeft && (
@@ -102,9 +104,9 @@ const CompactCourseCard = ({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (!isFirst && !isUpdating) onMoveLeft(course);
+                if (!isFirst && !isUpdating && !isDuplicating) onMoveLeft(course);
               }}
-              disabled={isFirst || isUpdating}
+              disabled={isFirst || isUpdating || isDuplicating}
               className="p-2 rounded-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
                 backgroundColor: 'rgba(0,0,0,0.6)',
@@ -115,16 +117,16 @@ const CompactCourseCard = ({
               <ChevronLeft size={16} />
             </button>
           )}
-          
+
           {/* Botón mover derecha */}
           {onMoveRight && (
             <button
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (!isLast && !isUpdating) onMoveRight(course);
+                if (!isLast && !isUpdating && !isDuplicating) onMoveRight(course);
               }}
-              disabled={isLast || isUpdating}
+              disabled={isLast || isUpdating || isDuplicating}
               className="p-2 rounded-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
                 backgroundColor: 'rgba(0,0,0,0.6)',
@@ -135,16 +137,37 @@ const CompactCourseCard = ({
               <ChevronRight size={16} />
             </button>
           )}
-          
+
+          {/* Botón duplicar */}
+          {onDuplicate && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!isDuplicating && !isUpdating) onDuplicate(course);
+              }}
+              disabled={isDuplicating || isUpdating}
+              className="p-2 rounded-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: isDuplicating ? 'rgba(245,158,11,0.8)' : 'rgba(0,0,0,0.6)',
+                color: '#ffffff'
+              }}
+              title={isDuplicating ? 'Duplicando...' : 'Duplicar curso completo'}
+            >
+              <Copy size={16} className={isDuplicating ? 'animate-pulse' : ''} />
+            </button>
+          )}
+
           {/* Botón editar */}
           {onEdit && (
             <button
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onEdit(course);
+                if (!isDuplicating && !isUpdating) onEdit(course);
               }}
-              className="p-2 rounded-lg backdrop-blur-sm transition-all duration-200 hover:scale-110"
+              disabled={isDuplicating || isUpdating}
+              className="p-2 rounded-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
                 backgroundColor: 'rgba(0,0,0,0.6)',
                 color: '#ffffff'

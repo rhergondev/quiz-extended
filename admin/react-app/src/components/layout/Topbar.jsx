@@ -1,27 +1,33 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { BookOpen, FileText, User, LogOut, Home, Sun, Moon, Menu, Bell, MessageSquare, BarChart3, Building2, ChevronDown, CreditCard, Book, Settings, Users } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useMessagesContextSafe } from '../../contexts/MessagesContext';
 import { getUnreadNotificationCount } from '../../api/services/notificationsService';
+import useCourse from '../../hooks/useCourse';
 
 const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, courseId }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { getColor, isDarkMode, toggleDarkMode } = useTheme();
-  
+
   // Dropdown state
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
-  
+
   // Unread notifications count
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   // Check if user is admin
-  const isAdmin = window.qe_data?.user?.capabilities?.manage_options === true || 
+  const isAdmin = window.qe_data?.user?.capabilities?.manage_options === true ||
                   window.qe_data?.user?.is_admin === true;
+
+  // Get course info if in course route (call hook conditionally but safely)
+  const shouldFetchCourse = isInCourseRoute && courseId;
+  const { course } = useCourse(shouldFetchCourse ? courseId : null);
+  const courseName = course?.title?.rendered || course?.title || '';
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -86,6 +92,9 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
 
   // Get unread messages count from context (safe - returns null if no provider)
   const messagesContext = useMessagesContextSafe();
+
+  // TEMPORARY: Show all unread messages (no course filter)
+  // TODO: Backend needs to add course_id to messages or provide filtered endpoint
   const unreadCount = messagesContext?.computed?.unreadMessages || 0;
 
   const userName = window.qe_data?.user?.name;

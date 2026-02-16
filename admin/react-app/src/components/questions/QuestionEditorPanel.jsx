@@ -212,7 +212,7 @@ const QuestionEditorPanel = ({
       ...prev,
       options: prev.options.map((opt, i) => ({
         ...opt,
-        isCorrect: prev.type === 'multiple_choice' ? (i === index ? !opt.isCorrect : opt.isCorrect) : (i === index)
+        isCorrect: i === index
       }))
     }));
   };

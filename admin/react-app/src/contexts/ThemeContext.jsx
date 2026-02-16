@@ -279,16 +279,15 @@ export const ThemeProvider = ({ children }) => {
     setTheme(newTheme);
   }, []);
 
-  // Toggle modo oscuro y persistir en localStorage
+  // 🔥 FIX: Toggle modo oscuro - removed isDarkMode dependency to prevent infinite re-renders
   const toggleDarkMode = useCallback(() => {
-    console.log('toggleDarkMode called, current isDarkMode:', isDarkMode);
     setIsDarkMode(prev => {
       const newValue = !prev;
-      console.log('Setting isDarkMode to:', newValue);
+      console.log('toggleDarkMode: setting to', newValue);
       localStorage.setItem('qe_dark_mode', String(newValue));
       return newValue;
     });
-  }, [isDarkMode]);
+  }, []); // No dependencies needed - uses functional setter
 
   // Establecer modo oscuro directamente y persistir
   const setDarkMode = useCallback((value) => {
@@ -296,7 +295,7 @@ export const ThemeProvider = ({ children }) => {
     setIsDarkMode(value);
   }, []);
 
-  // Sincronizar con el modo de WordPress (resetea la preferencia manual)
+  // 🔥 FIX: Sincronizar con el modo de WordPress - use state getter to avoid dependency
   const syncWithWordPress = useCallback(() => {
     const wpDarkMode = detectWordPressDarkMode();
     if (wpDarkMode !== null) {
@@ -305,8 +304,10 @@ export const ThemeProvider = ({ children }) => {
       setIsDarkMode(wpDarkMode);
       return wpDarkMode;
     }
-    return isDarkMode;
-  }, [isDarkMode]);
+    // Use functional setter to get current value without dependency
+    setIsDarkMode(current => current);
+    return null;
+  }, []);
 
   // Verificar si el usuario tiene una preferencia diferente a WordPress
   const hasCustomPreference = useCallback(() => {
