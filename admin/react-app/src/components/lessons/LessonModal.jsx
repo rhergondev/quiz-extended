@@ -75,7 +75,11 @@ const LessonModal = ({
   const [assignedQuizIds, setAssignedQuizIds] = useState([]);
   const [loadedAssignedQuizzes, setLoadedAssignedQuizzes] = useState([]);
   const [loadingAssignedQuizzes, setLoadingAssignedQuizzes] = useState(false);
-  
+
+  // Track mousedown to prevent closing on text selection drag
+  const overlayRef = useRef(null);
+  const mouseDownTargetRef = useRef(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -340,9 +344,22 @@ const LessonModal = ({
     color: pageColors.text,
   };
 
+  const handleOverlayMouseDown = (e) => {
+    mouseDownTargetRef.current = e.target;
+  };
+
+  const handleOverlayClick = (e) => {
+    // Only close if both mousedown and click happened on the overlay
+    if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+      onClose();
+    }
+    mouseDownTargetRef.current = null;
+  };
+
   return createPortal(
     <>
       <div
+        ref={overlayRef}
         style={{
           position: 'fixed',
           inset: 0,
@@ -354,9 +371,8 @@ const LessonModal = ({
           backgroundColor: pageColors.overlay,
           overflowY: 'auto',
         }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose();
-        }}
+        onMouseDown={handleOverlayMouseDown}
+        onClick={handleOverlayClick}
       >
         <div
           style={{
@@ -1062,7 +1078,10 @@ const StepModal = ({ isOpen, onClose, onSave, step, mode, stepTypes, pageColors,
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
   const quillRef = useRef(null);
-  
+
+  // Track mousedown to prevent closing on text selection drag
+  const stepOverlayMouseDownRef = useRef(null);
+
   // Quiz search state
   const [quizSearchQuery, setQuizSearchQuery] = useState('');
   const [selectedQuiz, setSelectedQuiz] = useState(null);
@@ -1238,6 +1257,18 @@ const StepModal = ({ isOpen, onClose, onSave, step, mode, stepTypes, pageColors,
     onClose();
   };
 
+  const handleStepOverlayMouseDown = (e) => {
+    stepOverlayMouseDownRef.current = e.target;
+  };
+
+  const handleStepOverlayClick = (e) => {
+    // Only close if both mousedown and click happened on the overlay
+    if (stepOverlayMouseDownRef.current === e.target) {
+      onClose();
+    }
+    stepOverlayMouseDownRef.current = null;
+  };
+
   if (!isOpen) return null;
 
   const inputStyle = {
@@ -1261,7 +1292,7 @@ const StepModal = ({ isOpen, onClose, onSave, step, mode, stepTypes, pageColors,
   };
 
   return (
-    <div 
+    <div
       style={{
         position: 'fixed',
         inset: 0,
@@ -1272,7 +1303,11 @@ const StepModal = ({ isOpen, onClose, onSave, step, mode, stepTypes, pageColors,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
       }}
     >
-      <div style={{ position: 'fixed', inset: 0 }} onClick={onClose} />
+      <div
+        style={{ position: 'fixed', inset: 0 }}
+        onMouseDown={handleStepOverlayMouseDown}
+        onClick={handleStepOverlayClick}
+      />
       <div 
         style={{
           position: 'relative',
