@@ -3,12 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Search, Filter, ChevronDown, CheckCircle, Circle, Loader2, X } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useQuestionsAdmin from '../../hooks/useQuestionsAdmin';
-import useLessons from '../../hooks/useLessons';
 import { useTaxonomyOptions } from '../../hooks/useTaxonomyOptions';
-import { getCourseLessons } from '../../api/services/courseLessonService';
+import { makeApiRequest } from '../../api/services/baseService';
+import { getApiConfig } from '../../api/config/apiConfig';
 
-const QuestionSelector = ({ 
-  selectedIds = [], 
+const QuestionSelector = ({
+  selectedIds = [],
   onSelect,
   onToggleQuestion, // New prop to handle object selection directly
   multiSelect = true,
@@ -17,6 +17,9 @@ const QuestionSelector = ({
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
   const [showFilters, setShowFilters] = useState(false);
+  const [topicDropdownOpen, setTopicDropdownOpen] = useState(false);
+  const [topicSearch, setTopicSearch] = useState('');
+  const topicDropdownRef = React.useRef(null);
   
   // Internal selection state for the current session
   const [localSelected, setLocalSelected] = useState(new Set(selectedIds));
@@ -33,9 +36,8 @@ const QuestionSelector = ({
     debounceMs: 300 
   });
   
-  const { options: taxonomyOptions } = useTaxonomyOptions(['qe_category', 'qe_provider', 'qe_topic', 'qe_difficulty']);
-  const { lessons, loading: lessonsLoading } = useLessons({ autoFetch: false });
-  const [filteredLessons, setFilteredLessons] = useState([]);
+  const { options: taxonomyOptions } = useTaxonomyOptions(['qe_category', 'qe_provider']);
+  const [allLessons, setAllLessons] = useState([]);
 
   // Colors
   const colors = useMemo(() => ({
@@ -77,19 +79,70 @@ const QuestionSelector = ({
     }
   };
 
-  // Filter Handling (Simplified from QuestionsManager)
-  // ... (Course/Lesson logic omitted for brevity, keeping simple filters first)
+  // Fetch all lessons globally (auto-paginate)
+  useEffect(() => {
+    const fetchAllLessons = async () => {
+      try {
+        const config = getApiConfig();
+        const baseUrl = `${config.apiUrl}/wp/v2/qe_lesson`;
+        const params = new URLSearchParams({ per_page: '100', _fields: 'id,title', status: 'publish,draft,private' });
+        const firstRes = await makeApiRequest(`${baseUrl}?${params}`);
+        let lessons = Array.isArray(firstRes.data) ? firstRes.data : [];
+        const totalPages = parseInt(firstRes.headers?.['X-WP-TotalPages'] || '1', 10);
+        for (let page = 2; page <= totalPages; page++) {
+          params.set('page', page.toString());
+          const pageRes = await makeApiRequest(`${baseUrl}?${params}`);
+          if (Array.isArray(pageRes.data)) lessons = lessons.concat(pageRes.data);
+        }
+        setAllLessons(lessons.map(l => ({ value: l.id, label: l.title?.rendered || l.title || `Lesson #${l.id}` })));
+      } catch (err) {
+        console.error('Error fetching all lessons:', err);
+      }
+    };
+    fetchAllLessons();
+  }, []);
+
+  // Filter Handling
   const categoryOptions = useMemo(() => taxonomyOptions.qe_category || [], [taxonomyOptions]);
   const providerOptions = useMemo(() => taxonomyOptions.qe_provider || [], [taxonomyOptions]);
-  const topicOptions = useMemo(() => taxonomyOptions.qe_topic || [], [taxonomyOptions]);
-  const difficultyTaxOptions = useMemo(() => taxonomyOptions.qe_difficulty || [], [taxonomyOptions]);
-  
+  const topicOptions = allLessons; // Temas = Lessons
   const difficultyOptions = [
     { value: 'all', label: 'Todas' },
     { value: 'easy', label: 'Fácil' },
     { value: 'medium', label: 'Media' },
     { value: 'hard', label: 'Difícil' },
   ];
+
+  // Filtered topic options for searchable dropdown
+  const filteredTopicOptions = useMemo(() => {
+    const opts = topicOptions.filter(o => o.value !== 'all');
+    if (!topicSearch.trim()) return opts;
+    const term = topicSearch.toLowerCase().trim();
+    return opts.filter(o => o.label.toLowerCase().includes(term));
+  }, [topicOptions, topicSearch]);
+
+  // Close topic dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (topicDropdownRef.current && !topicDropdownRef.current.contains(e.target)) {
+        setTopicDropdownOpen(false);
+      }
+    };
+    if (topicDropdownOpen) {
+      document.addEventListener('mousedown', handleClick);
+      return () => document.removeEventListener('mousedown', handleClick);
+    }
+  }, [topicDropdownOpen]);
+
+  // Get selected topic label
+  const selectedTopicLabel = useMemo(() => {
+    const val = questionsHook.filters?.lessons;
+    if (!val || val === 'all' || val === null) return 'Temas';
+    // lessons filter can be a single ID or array
+    const lessonId = Array.isArray(val) ? val[0] : val;
+    const found = topicOptions.find(o => String(o.value) === String(lessonId));
+    return found ? found.label : 'Temas';
+  }, [questionsHook.filters?.lessons, topicOptions]);
 
   const isLoading = !questionsHook.filters || !questionsHook.computed;
 
@@ -148,8 +201,8 @@ const QuestionSelector = ({
               ))}
             </select>
             <select
-              value={questionsHook.filters?.qe_provider || 'all'}
-              onChange={(e) => questionsHook.updateFilter('qe_provider', e.target.value)}
+              value={questionsHook.filters?.provider || 'all'}
+              onChange={(e) => questionsHook.updateFilter('provider', e.target.value)}
               className="px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
               style={{
                 border: `2px solid ${colors.border}`,
@@ -162,24 +215,92 @@ const QuestionSelector = ({
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
-             <select
-              value={questionsHook.filters?.qe_topic || 'all'}
-              onChange={(e) => questionsHook.updateFilter('qe_topic', e.target.value)}
-              className="px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
-              style={{
-                border: `2px solid ${colors.border}`,
-                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                color: colors.text
-              }}
-            >
-              <option value="all">Temas</option>
-              {topicOptions.filter(o => o.value !== 'all').map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+             {/* Searchable Topic Dropdown */}
+             <div className="relative" ref={topicDropdownRef}>
+              <button
+                type="button"
+                onClick={() => { setTopicDropdownOpen(!topicDropdownOpen); setTopicSearch(''); }}
+                className="w-full px-2 py-2 rounded-lg text-left flex items-center justify-between gap-1 outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                style={{
+                  border: `2px solid ${topicDropdownOpen ? colors.accent : colors.border}`,
+                  backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                  color: questionsHook.filters?.lessons && questionsHook.filters.lessons !== null ? colors.accent : colors.text
+                }}
+              >
+                <span className="truncate text-sm">{selectedTopicLabel}</span>
+                <ChevronDown size={14} className={`flex-shrink-0 transition-transform ${topicDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {topicDropdownOpen && (
+                <div
+                  className="absolute z-50 left-0 right-0 mt-1 rounded-lg shadow-xl overflow-hidden"
+                  style={{
+                    backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                    border: `1px solid ${colors.border}`
+                  }}
+                >
+                  <div className="p-1.5">
+                    <input
+                      type="text"
+                      value={topicSearch}
+                      onChange={e => setTopicSearch(e.target.value)}
+                      placeholder="Buscar tema..."
+                      autoFocus
+                      className="w-full text-sm px-2 py-1.5 rounded outline-none"
+                      style={{
+                        backgroundColor: isDarkMode ? '#111827' : '#f3f4f6',
+                        color: colors.text
+                      }}
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-y-auto">
+                    <button
+                      type="button"
+                      onClick={() => { questionsHook.updateFilter('lessons', null); setTopicDropdownOpen(false); }}
+                      className="w-full text-left px-3 py-1.5 text-sm transition-colors"
+                      style={{ color: colors.textMuted, fontStyle: 'italic', backgroundColor: 'transparent' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = colors.hoverBg; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    >
+                      Todos los temas
+                    </button>
+                    {filteredTopicOptions.length === 0 ? (
+                      <div className="px-3 py-2 text-sm" style={{ color: colors.textMuted }}>
+                        Sin resultados
+                      </div>
+                    ) : (
+                      filteredTopicOptions.map(opt => {
+                        const currentLesson = questionsHook.filters?.lessons;
+                        const currentLessonId = Array.isArray(currentLesson) ? currentLesson[0] : currentLesson;
+                        const isActive = currentLessonId != null && String(currentLessonId) === String(opt.value);
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => { questionsHook.updateFilter('lessons', [opt.value]); setTopicDropdownOpen(false); }}
+                            className="w-full text-left px-3 py-1.5 text-sm transition-colors flex items-center justify-between"
+                            style={{
+                              color: isActive ? colors.accent : colors.text,
+                              fontWeight: isActive ? 600 : 400,
+                              backgroundColor: isActive ? `${colors.accent}15` : 'transparent'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isActive ? `${colors.accent}25` : colors.hoverBg; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isActive ? `${colors.accent}15` : 'transparent'; }}
+                          >
+                            <span className="truncate">{opt.label}</span>
+                            {isActive && (
+                              <CheckCircle size={12} style={{ color: colors.accent, flexShrink: 0 }} />
+                            )}
+                          </button>
+                        );
+                      }))
+                    }
+                  </div>
+                </div>
+              )}
+             </div>
             <select
-              value={questionsHook.filters?.qe_difficulty || 'all'}
-              onChange={(e) => questionsHook.updateFilter('qe_difficulty', e.target.value)}
+              value={questionsHook.filters?.difficulty || 'all'}
+              onChange={(e) => questionsHook.updateFilter('difficulty', e.target.value)}
               className="px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
               style={{
                 border: `2px solid ${colors.border}`,
@@ -187,8 +308,8 @@ const QuestionSelector = ({
                 color: colors.text
               }}
             >
-               <option value="all">Dificultad (Tax)</option>
-              {difficultyTaxOptions.filter(o => o.value !== 'all').map(opt => (
+               <option value="all">Dificultad</option>
+              {difficultyOptions.filter(o => o.value !== 'all').map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
@@ -211,24 +332,39 @@ const QuestionSelector = ({
             {questionsHook.questions.map(question => {
               const isSelected = localSelected.has(question.id);
               const isExcluded = excludedIds.includes(question.id);
-              
+
               if (isExcluded) return null;
 
+              // Compute match indicators when searching
+              const searchTerm = (questionsHook.filters?.search || '').toLowerCase().trim();
+              let matchTags = null;
+              if (searchTerm) {
+                const matches = [];
+                const title = (question.title?.rendered || question.title || '').toLowerCase();
+                const content = (question.content?.rendered || question.content || '').replace(/<[^>]*>/g, '').toLowerCase();
+                const matchingOpts = (question.meta?._question_options || []).filter(o => (o.text || '').toLowerCase().includes(searchTerm));
+
+                if (title.includes(searchTerm)) matches.push('título');
+                if (content.includes(searchTerm)) matches.push('explicación');
+                if (matchingOpts.length > 0) matches.push(matchingOpts.length === 1 ? '1 opción' : `${matchingOpts.length} opciones`);
+                if (matches.length > 0) matchTags = matches;
+              }
+
               return (
-                <div 
+                <div
                   key={question.id}
                   onClick={() => handleToggleSelect(question)}
-                  className={`flex items-start gap-3 p-4 cursor-pointer transition-colors ${isSelected ? '' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
+                  className={`flex items-start gap-3 p-3 cursor-pointer transition-colors ${isSelected ? '' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
                   style={{ backgroundColor: isSelected ? colors.selectedBg : 'transparent' }}
                 >
                   <div className={`mt-0.5 ${isSelected ? 'text-amber-500' : 'text-gray-400 dark:text-gray-600'}`}>
-                    {isSelected ? <CheckCircle size={20} className="text-amber-500" /> : <Circle size={20} />}
+                    {isSelected ? <CheckCircle size={18} className="text-amber-500" /> : <Circle size={18} />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm line-clamp-2 mb-1" style={{ color: colors.text }}>
+                    <p className="font-medium text-sm line-clamp-2 mb-0.5" style={{ color: colors.text }}>
                       {question.title?.rendered || question.title || 'Sin título'}
                     </p>
-                    <div className="flex items-center gap-2 text-xs opacity-70" style={{ color: colors.textMuted }}>
+                    <div className="flex items-center gap-2 text-xs opacity-70 flex-wrap" style={{ color: colors.textMuted }}>
                       <span className="capitalize">{question.type || 'multiple_choice'}</span>
                       {question.difficulty && (
                         <>
@@ -242,6 +378,15 @@ const QuestionSelector = ({
                           </span>
                         </>
                       )}
+                      {matchTags && matchTags.map((tag, i) => (
+                        <span
+                          key={i}
+                          className="text-[9px] font-medium px-1.5 py-0.5 rounded-full leading-none"
+                          style={{ backgroundColor: `${colors.accent}20`, color: colors.accent }}
+                        >
+                          {tag}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </div>

@@ -30,6 +30,11 @@ class QE_Question_Type extends QE_Post_Types_Base
 
         // 🔥 Add custom query filters for REST API
         add_filter('rest_qe_question_query', [$this, 'add_custom_query_filters'], 10, 2);
+
+        // Extend search to include _question_options meta
+        add_filter('posts_join', [$this, 'search_options_join'], 10, 2);
+        add_filter('posts_search', [$this, 'search_options_where'], 10, 2);
+        add_filter('posts_distinct', [$this, 'search_options_distinct'], 10, 2);
     }
 
     /**
@@ -63,6 +68,48 @@ class QE_Question_Type extends QE_Post_Types_Base
                     'taxonomy' => 'qe_category',
                     'field' => 'term_id',
                     'terms' => array_map('absint', $cats),
+                    'operator' => 'IN',
+                ];
+            }
+        }
+
+        // 1b. Handle qe_provider array/comma-separated
+        if ($request->get_param('qe_provider')) {
+            $providers = $request->get_param('qe_provider');
+            if (is_string($providers)) {
+                $providers = explode(',', $providers);
+            }
+
+            if (!empty($providers) && is_array($providers)) {
+                if (!isset($args['tax_query'])) {
+                    $args['tax_query'] = [];
+                }
+
+                $args['tax_query'][] = [
+                    'taxonomy' => 'qe_provider',
+                    'field' => 'term_id',
+                    'terms' => array_map('absint', $providers),
+                    'operator' => 'IN',
+                ];
+            }
+        }
+
+        // 1c. Handle qe_topic array/comma-separated
+        if ($request->get_param('qe_topic')) {
+            $topics = $request->get_param('qe_topic');
+            if (is_string($topics)) {
+                $topics = explode(',', $topics);
+            }
+
+            if (!empty($topics) && is_array($topics)) {
+                if (!isset($args['tax_query'])) {
+                    $args['tax_query'] = [];
+                }
+
+                $args['tax_query'][] = [
+                    'taxonomy' => 'qe_topic',
+                    'field' => 'term_id',
+                    'terms' => array_map('absint', $topics),
                     'operator' => 'IN',
                 ];
             }
@@ -285,6 +332,71 @@ class QE_Question_Type extends QE_Post_Types_Base
         }
 
         return $args;
+    }
+
+    /**
+     * Extend search JOIN to include postmeta for _question_options.
+     * Only applies to qe_question queries with a search term.
+     */
+    public function search_options_join($join, $query)
+    {
+        global $wpdb;
+
+        if (
+            !is_admin()
+            && $query->get('post_type') === 'qe_question'
+            && $query->get('s')
+        ) {
+            $join .= " LEFT JOIN {$wpdb->postmeta} AS qe_opt_meta ON ({$wpdb->posts}.ID = qe_opt_meta.post_id AND qe_opt_meta.meta_key = '_question_options')";
+        }
+
+        return $join;
+    }
+
+    /**
+     * Extend search WHERE to also match _question_options meta value.
+     * WordPress default search covers post_title and post_content;
+     * this adds an OR clause for the serialized options text.
+     */
+    public function search_options_where($search, $query)
+    {
+        global $wpdb;
+
+        if (
+            !is_admin()
+            && $query->get('post_type') === 'qe_question'
+            && $query->get('s')
+        ) {
+            $term = '%' . $wpdb->esc_like($query->get('s')) . '%';
+            $meta_clause = $wpdb->prepare("(qe_opt_meta.meta_value LIKE %s)", $term);
+
+            // Append our meta clause into the existing search block
+            if (!empty($search)) {
+                $search = preg_replace(
+                    '/\)\s*$/',
+                    " OR {$meta_clause})",
+                    $search
+                );
+            }
+        }
+
+        return $search;
+    }
+
+    /**
+     * Add DISTINCT to prevent duplicate rows from the meta JOIN.
+     */
+    public function search_options_distinct($distinct, $query)
+    {
+        if (
+            !is_admin()
+            && $query->get('post_type') === 'qe_question'
+            && $query->get('s')
+        ) {
+            return 'DISTINCT';
+        }
+
+        return $distinct;
     }
 
     /**

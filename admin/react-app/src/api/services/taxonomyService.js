@@ -75,7 +75,8 @@ export const getTaxonomyTerms = async (taxonomy, options = {}) => {
     const {
       perPage = 100,
       search = '',
-      hideEmpty = false
+      hideEmpty = false,
+      fetchAll = false
     } = options;
 
     const queryParams = new URLSearchParams({
@@ -89,14 +90,24 @@ export const getTaxonomyTerms = async (taxonomy, options = {}) => {
     }
 
     const url = `${config.api_url}/wp/v2/${taxonomy}?${queryParams}`;
-    
-    console.log(`🔍 Fetching ${taxonomy} terms:`, url);
 
     const response = await makeApiRequest(url);
-    // 🔥 CORRECCIÓN: El servicio base ya parsea a JSON. Accedemos directamente a la data.
     const terms = await response.json();
+    const totalPages = parseInt(response.headers.get('X-WP-TotalPages') || '1', 10);
 
-    console.log(`✅ Fetched ${terms.length} ${taxonomy} terms`);
+    // Auto-paginate to fetch all terms if there are more pages
+    if (fetchAll && totalPages > 1) {
+      const remaining = [];
+      for (let page = 2; page <= totalPages; page++) {
+        const pageParams = new URLSearchParams(queryParams);
+        pageParams.set('page', page.toString());
+        const pageUrl = `${config.api_url}/wp/v2/${taxonomy}?${pageParams}`;
+        const pageResponse = await makeApiRequest(pageUrl);
+        const pageTerms = await pageResponse.json();
+        remaining.push(...pageTerms);
+      }
+      terms.push(...remaining);
+    }
 
     return terms;
 

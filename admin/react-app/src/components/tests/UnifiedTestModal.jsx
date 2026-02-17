@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Save, Plus, Settings, FileQuestion, Clock, CheckCircle, AlertCircle, Trash2, GripVertical, ChevronRight, ArrowLeft, Edit2, Eye, EyeOff, Calendar } from 'lucide-react';
+import { X, Save, Plus, Settings, FileQuestion, Clock, CheckCircle, AlertCircle, Trash2, GripVertical, ChevronRight, Edit2, Eye, EyeOff, Calendar, Search } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'react-toastify';
 import { DndContext, closestCenter } from '@dnd-kit/core';
@@ -15,14 +15,14 @@ import QuestionSelector from '../questions/QuestionSelector';
 import QuestionModal from '../questions/QuestionModal';
 import { getOne as getQuiz } from '../../api/services/quizService';
 
-// Sortable Item Component with Edit button
+// Sortable Item Component with Edit button and search match tags
 const SortableQuestionItem = ({ question, onRemove, onEdit, colors }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: question.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
-    <div 
-      ref={setNodeRef} 
+    <div
+      ref={setNodeRef}
       style={{...style}}
       className="flex items-center justify-between p-2 mb-1 rounded-lg border bg-transparent border-gray-200 dark:border-gray-700 group hover:border-amber-400/50 transition-colors shadow-sm"
     >
@@ -34,10 +34,26 @@ const SortableQuestionItem = ({ question, onRemove, onEdit, colors }) => {
           <span className="font-medium text-xs truncate leading-none cursor-pointer hover:text-amber-500 transition-colors" onClick={() => onEdit(question)} style={{ color: colors.text }}>
             {question.title?.rendered || question.title}
           </span>
+          {question._matches && (
+            <div className="flex items-center gap-1 flex-wrap">
+              {question._matches.map((m, i) => (
+                <span
+                  key={i}
+                  className="text-[9px] font-medium px-1.5 py-0.5 rounded-full leading-none"
+                  style={{
+                    backgroundColor: `${colors.accent}20`,
+                    color: colors.accent
+                  }}
+                >
+                  {m}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-1 transition-all">
-        <button 
+        <button
           onClick={() => onEdit(question)}
           className="p-1.5 flex items-center justify-center hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md transition-all bg-transparent"
           style={{ color: colors.accent }}
@@ -45,7 +61,7 @@ const SortableQuestionItem = ({ question, onRemove, onEdit, colors }) => {
         >
           <Edit2 size={12} />
         </button>
-        <button 
+        <button
           onClick={() => onRemove(question.id)}
           className="p-1.5 flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-all bg-transparent"
           title="Quitar pregunta"
@@ -69,11 +85,12 @@ const UnifiedTestModal = ({
 }) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
-  
+
   // State
   const [activeTab, setActiveTab] = useState('content'); // 'content' | 'settings' | 'selector'
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isVisible, setIsVisible] = useState(false); // For slide animation
   const mouseDownOnOverlayRef = useRef(false);
   
   // Question Modal State
@@ -98,7 +115,29 @@ const UnifiedTestModal = ({
   });
   
   const [selectedQuestions, setSelectedQuestions] = useState([]); // Array of question objects
-  
+  const [questionSearch, setQuestionSearch] = useState('');
+
+  // Filter assigned questions by search term, with match metadata per question
+  const filteredSelectedQuestions = useMemo(() => {
+    if (!questionSearch.trim()) return selectedQuestions.map(q => ({ ...q, _matches: null }));
+    const term = questionSearch.toLowerCase().trim();
+    return selectedQuestions.reduce((acc, q) => {
+      const title = (q.title?.rendered || q.title || '').toLowerCase();
+      const content = (q.content?.rendered || q.content || '').replace(/<[^>]*>/g, '').toLowerCase();
+      const matchingOptions = (q.meta?._question_options || []).filter(o => (o.text || '').toLowerCase().includes(term));
+
+      const matches = [];
+      if (title.includes(term)) matches.push('título');
+      if (content.includes(term)) matches.push('explicación');
+      if (matchingOptions.length > 0) {
+        matches.push(matchingOptions.length === 1 ? '1 opción' : `${matchingOptions.length} opciones`);
+      }
+
+      if (matches.length > 0) acc.push({ ...q, _matches: matches });
+      return acc;
+    }, []);
+  }, [selectedQuestions, questionSearch]);
+
   // Hooks
   const quizzesHook = useQuizzes({ autoFetch: false });
   const questionsAdminHook = useQuestionsAdmin({ autoFetch: false });
@@ -120,6 +159,7 @@ const UnifiedTestModal = ({
     const loadData = async () => {
       // Reset
       setActiveTab('content');
+      setQuestionSearch('');
       setFormData({
         title: '',
         description: '',
@@ -220,8 +260,23 @@ const UnifiedTestModal = ({
         resultQuizId = newQuiz.id;
       }
 
-      // 3. Calculate test metadata for display
+      // 3. Update difficulty on all assigned questions
       const difficulty = formData.difficulty_level;
+      if (selectedQuestions.length > 0) {
+        await Promise.all(
+          selectedQuestions.map(q => {
+            const currentDifficulty = q.meta?._difficulty_level || q.difficulty;
+            if (currentDifficulty !== difficulty) {
+              return questionsAdminHook.updateQuestion(q.id, {
+                meta: { _difficulty_level: difficulty }
+              });
+            }
+            return Promise.resolve();
+          })
+        );
+      }
+
+      // 4. Calculate test metadata for display
       const questionCount = selectedQuestions.length;
       // Calculate time limit: half the number of questions (same logic as QuizGeneratorPage)
       const timeLimit = questionCount > 0 ? Math.max(1, Math.ceil(questionCount / 2)) : null;
@@ -240,8 +295,8 @@ const UnifiedTestModal = ({
           start_date: new Date().toISOString() // Set current date as start date
         }
       });
-      
-      onClose();
+
+      handleClose();
     } catch (error) {
       console.error('Error saving:', error);
       toast.error('Error al guardar el test');
@@ -303,40 +358,60 @@ const UnifiedTestModal = ({
   // It's hard to get them out without modifying QuestionSelector.
   // I will just open a "Drawer" mode.
   
+  // Slide-in/out animation
+  useEffect(() => {
+    if (isOpen) {
+      // Small delay so the DOM renders at translateX(100%) first, then animates in
+      const timer = setTimeout(() => setIsVisible(true), 10);
+      return () => clearTimeout(timer);
+    } else {
+      setIsVisible(false);
+    }
+  }, [isOpen]);
+
+  const handleClose = () => {
+    setIsVisible(false);
+    setTimeout(onClose, 300); // Wait for slide-out animation
+  };
+
   if (!isOpen) return null;
 
+  // Calculate top offset: WP admin bar + app topbar
+  const wpAdminBar = document.getElementById('wpadminbar');
+  const qeTopbar = document.getElementById('qe-topbar');
+  const topOffset = (wpAdminBar ? wpAdminBar.offsetHeight : 0) + (qeTopbar ? qeTopbar.offsetHeight : 0);
+
   return (
-    <div 
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-24"
-      onMouseDown={(e) => {
-        mouseDownOnOverlayRef.current = e.target === e.currentTarget;
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && mouseDownOnOverlayRef.current) {
-          onClose();
-        }
-        mouseDownOnOverlayRef.current = false;
-      }}
-    >
-      <div 
-        className="relative w-full max-w-5xl h-[75vh] rounded-xl shadow-2xl overflow-hidden flex flex-col transition-all"
-        style={{ backgroundColor: colors.bg }}
+    <div className="fixed left-0 right-0 bottom-0" style={{ zIndex: 10000, top: topOffset }}>
+      {/* Overlay */}
+      <div
+        className="absolute inset-0 transition-opacity duration-300"
+        style={{
+          backgroundColor: 'rgba(0,0,0,0.4)',
+          backdropFilter: 'blur(4px)',
+          WebkitBackdropFilter: 'blur(4px)',
+          opacity: isVisible ? 1 : 0
+        }}
+        onClick={handleClose}
+      />
+
+      {/* Full-page Slide Panel */}
+      <div
+        className="absolute inset-0 w-full shadow-2xl flex flex-col transition-transform duration-300 ease-out"
+        style={{
+          backgroundColor: colors.bg,
+          transform: isVisible ? 'translateX(0)' : 'translateX(100%)'
+        }}
       >
         {/* HEADER */}
-        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: colors.border, backgroundColor: colors.bgCard }}>
-          <div>
-            <h2 className="text-sm font-bold uppercase" style={{ color: colors.text }}>
-              {mode === 'create' ? 'Nuevo Test' : 'Editar Test'}
-            </h2>
-            <p className="text-xs opacity-60" style={{ color: colors.textMuted }}>
-              Configura el contenido y las preguntas
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white">
-              <X size={18} />
-            </button>
-          </div>
+        <div className="flex items-center justify-between px-5 py-2 border-b flex-shrink-0" style={{ borderColor: colors.border, backgroundColor: colors.bgCard }}>
+          <h2 className="text-sm font-bold" style={{ color: colors.text }}>
+            {mode === 'create' ? 'Nuevo Test' : 'Editar Test'}
+            <span className="font-normal ml-2 text-xs" style={{ color: colors.textMuted }}>— Configura el contenido y las preguntas</span>
+          </h2>
+          <button onClick={handleClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" style={{ color: colors.textMuted }}>
+            <X size={18} />
+          </button>
         </div>
 
         {/* BODY */}
@@ -347,7 +422,7 @@ const UnifiedTestModal = ({
              
              {/* No Tabs Needed anymore - Content Only */}
 
-             <div className="flex-1 overflow-y-auto p-4">
+             <div className="flex-1 overflow-y-auto p-5">
                 {isLoading ? (
                   <div className="flex justify-center p-10"><span className="animate-pulse">Cargando...</span></div>
                 ) : (
@@ -514,8 +589,36 @@ const UnifiedTestModal = ({
                         </div>
                       </div>
 
+                      {/* Search within assigned questions */}
+                      {selectedQuestions.length > 0 && (
+                        <div className="relative mb-2">
+                          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: colors.textMuted }} />
+                          <input
+                            type="text"
+                            value={questionSearch}
+                            onChange={e => setQuestionSearch(e.target.value)}
+                            placeholder="Buscar en título, contenido u opciones..."
+                            className="w-full text-xs pl-8 pr-8 py-2 rounded-lg outline-none transition-all focus:ring-2 focus:ring-amber-500/20"
+                            style={{
+                              border: `1px solid ${colors.border}`,
+                              color: colors.text,
+                              backgroundColor: isDarkMode ? '#1f2937' : '#ffffff'
+                            }}
+                          />
+                          {questionSearch && (
+                            <button
+                              onClick={() => setQuestionSearch('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors bg-transparent"
+                              style={{ color: colors.textMuted }}
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      )}
+
                       {selectedQuestions.length === 0 ? (
-                        <div 
+                        <div
                           className="border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center transition-colors group"
                           style={{ borderColor: colors.border }}
                         >
@@ -530,14 +633,20 @@ const UnifiedTestModal = ({
                             <button onClick={() => setActiveTab('selector')} className="text-xs font-bold text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400 hover:underline bg-transparent border-0 p-0 hover:bg-transparent transition-colors">Buscar existentes</button>
                           </div>
                         </div>
+                      ) : questionSearch && filteredSelectedQuestions.length === 0 ? (
+                        <div className="text-center py-4">
+                          <p className="text-xs" style={{ color: colors.textMuted }}>
+                            Sin resultados para "{questionSearch}"
+                          </p>
+                        </div>
                       ) : (
                         <div className="bg-transparent space-y-1">
                           <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            <SortableContext items={selectedQuestions} strategy={verticalListSortingStrategy}>
-                              {selectedQuestions.map((q) => (
-                                <SortableQuestionItem 
-                                  key={q.id} 
-                                  question={q} 
+                            <SortableContext items={questionSearch ? filteredSelectedQuestions : selectedQuestions} strategy={verticalListSortingStrategy}>
+                              {(questionSearch ? filteredSelectedQuestions : selectedQuestions).map((q) => (
+                                <SortableQuestionItem
+                                  key={q.id}
+                                  question={q}
                                   onRemove={(id) => setSelectedQuestions(items => items.filter(i => i.id !== id))}
                                   onEdit={openEditQuestion}
                                   colors={colors}
@@ -556,7 +665,7 @@ const UnifiedTestModal = ({
           {/* RIGHT: SELECTOR DRAWER */}
           {activeTab === 'selector' && (
             <div 
-              className="absolute inset-0 md:static md:w-[320px] lg:w-[350px] flex flex-col border-l shadow-xl z-20 animate-in slide-in-from-right-10 duration-200"
+              className="absolute inset-0 md:static md:w-1/2 flex flex-col border-l shadow-xl z-20 animate-in slide-in-from-right-10 duration-200"
               style={{ backgroundColor: colors.bgCard, borderColor: colors.border }}
             >
               <div className="flex items-center justify-between p-3 border-b" style={{ borderColor: colors.border }}>
@@ -588,13 +697,13 @@ const UnifiedTestModal = ({
         </div>
 
         {/* FOOTER */}
-        <div className="p-3 border-t flex items-center justify-end gap-3" style={{ borderColor: colors.border, backgroundColor: colors.bgCard }}>
+        <div className="px-5 py-4 border-t flex items-center justify-end gap-3 flex-shrink-0" style={{ borderColor: colors.border, backgroundColor: colors.bgCard }}>
            {/* Hint count */}
            <div className="mr-auto text-xs" style={{ color: colors.textMuted }}>
              {selectedQuestions.length} preguntas seleccionadas
            </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="px-4 py-2 rounded-lg text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white"
           >
             Cancelar

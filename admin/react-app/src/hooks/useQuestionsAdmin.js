@@ -56,6 +56,7 @@ export const useQuestionsAdmin = (options = {}) => {
     lessons: null,
     category: 'all',
     provider: 'all',
+    topic: 'all',
     difficulty: 'all',
     status: 'publish,draft,private'
   });
@@ -101,6 +102,7 @@ export const useQuestionsAdmin = (options = {}) => {
         lessons: filters.lessons,
         category: filters.category,
         provider: filters.provider,
+        topic: filters.topic,
         difficulty: filters.difficulty,
         status: filters.status
       });
@@ -156,6 +158,7 @@ export const useQuestionsAdmin = (options = {}) => {
         lessons: filters.lessons,
         category: filters.category,
         provider: filters.provider,
+        topic: filters.topic,
         difficulty: filters.difficulty,
         status: filters.status
       });

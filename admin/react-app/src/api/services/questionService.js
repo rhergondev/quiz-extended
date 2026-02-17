@@ -248,6 +248,7 @@ export const getQuestionsForAdmin = async (options = {}) => {
     lessons = null,
     category = null,
     provider = null,
+    topic = null,
     difficulty = null,
     status = 'publish,draft,private',
     quizId = null,
@@ -298,6 +299,11 @@ export const getQuestionsForAdmin = async (options = {}) => {
   // Provider
   if (provider && provider !== 'all') {
     params.append('qe_provider', provider);
+  }
+
+  // Topic
+  if (topic && topic !== 'all') {
+    params.append('qe_topic', topic);
   }
 
   // Difficulty

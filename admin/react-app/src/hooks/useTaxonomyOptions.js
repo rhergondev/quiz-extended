@@ -30,9 +30,8 @@ export const useTaxonomyOptions = (taxonomies = []) => {
         setError(null);
 
         // Create an array of promises to fetch all taxonomies in parallel
-        // 🔥 CORRECCIÓN: Cambiado hideEmpty a false para obtener todas las categorías.
-        const promises = taxonomies.map(tax => 
-          getTaxonomyTerms(tax, { hideEmpty: false })
+        const promises = taxonomies.map(tax =>
+          getTaxonomyTerms(tax, { hideEmpty: false, fetchAll: true })
         );
         
         const results = await Promise.all(promises);
