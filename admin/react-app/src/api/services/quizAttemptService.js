@@ -8,15 +8,18 @@ import { getApiConfig } from '../config/apiConfig';
  * @param {number|null} lessonId - El ID de la lección (opcional).
  * @returns {Promise<Object>} El objeto del intento, incluyendo el attempt_id.
  */
-export const startQuizAttempt = async (quizId, lessonId = null) => {
+export const startQuizAttempt = async (quizId, lessonId = null, courseId = null) => {
   try {
     const { endpoints } = getApiConfig();
     const url = `${endpoints.custom_api}/quiz-attempts/start`;
-    console.log(`🚀 Starting quiz attempt for quiz ID: ${quizId}, Lesson ID: ${lessonId}`);
-    
+    console.log(`🚀 Starting quiz attempt for quiz ID: ${quizId}, Lesson ID: ${lessonId}, Course ID: ${courseId}`);
+
     const body = { quiz_id: quizId };
     if (lessonId) {
       body.lesson_id = lessonId;
+    }
+    if (courseId) {
+      body.course_id = parseInt(courseId, 10);
     }
 
     const response = await makeApiRequest(url, {

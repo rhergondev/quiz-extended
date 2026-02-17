@@ -1321,6 +1321,7 @@ class QE_Messages_API extends QE_API_Base
                 $quiz_ids = get_posts([
                     'post_type' => 'qe_quiz',
                     'posts_per_page' => -1,
+                    'post_status' => ['publish', 'draft', 'private'],
                     'fields' => 'ids',
                     'meta_query' => [
                         [
@@ -1334,6 +1335,7 @@ class QE_Messages_API extends QE_API_Base
                 $lesson_ids = get_posts([
                     'post_type' => 'qe_lesson',
                     'posts_per_page' => -1,
+                    'post_status' => ['publish', 'draft', 'private'],
                     'fields' => 'ids',
                     'meta_query' => [
                         [
@@ -1347,6 +1349,7 @@ class QE_Messages_API extends QE_API_Base
                     $lesson_quizzes = get_posts([
                         'post_type' => 'qe_quiz',
                         'posts_per_page' => -1,
+                        'post_status' => ['publish', 'draft', 'private'],
                         'fields' => 'ids',
                         'meta_query' => [
                             [
@@ -1369,6 +1372,7 @@ class QE_Messages_API extends QE_API_Base
                     $question_ids_for_quiz = get_posts([
                         'post_type' => 'qe_question',
                         'posts_per_page' => -1,
+                        'post_status' => ['publish', 'draft', 'private'],
                         'fields' => 'ids',
                         'meta_query' => [
                             [
@@ -1720,6 +1724,7 @@ class QE_Messages_API extends QE_API_Base
         $quiz_ids = get_posts([
             'post_type' => 'qe_quiz',
             'posts_per_page' => -1,
+            'post_status' => ['publish', 'draft', 'private'],
             'fields' => 'ids',
             'meta_query' => [
                 [
@@ -1733,6 +1738,7 @@ class QE_Messages_API extends QE_API_Base
         $lesson_ids = get_posts([
             'post_type' => 'qe_lesson',
             'posts_per_page' => -1,
+            'post_status' => ['publish', 'draft', 'private'],
             'fields' => 'ids',
             'meta_query' => [
                 [
@@ -1746,6 +1752,7 @@ class QE_Messages_API extends QE_API_Base
             $lesson_quizzes = get_posts([
                 'post_type' => 'qe_quiz',
                 'posts_per_page' => -1,
+                'post_status' => ['publish', 'draft', 'private'],
                 'fields' => 'ids',
                 'meta_query' => [
                     [
@@ -1769,6 +1776,7 @@ class QE_Messages_API extends QE_API_Base
             $questions = get_posts([
                 'post_type' => 'qe_question',
                 'posts_per_page' => -1,
+                'post_status' => ['publish', 'draft', 'private'],
                 'fields' => 'ids',
                 'meta_query' => [
                     [

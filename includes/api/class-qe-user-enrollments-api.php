@@ -413,6 +413,7 @@ class QE_User_Enrollments_API extends QE_API_Base
             $course_quiz_ids = get_posts([
                 'post_type' => 'qe_quiz',
                 'posts_per_page' => -1,
+                'post_status' => ['publish', 'draft', 'private'],
                 'fields' => 'ids',
                 'meta_query' => [
                     [

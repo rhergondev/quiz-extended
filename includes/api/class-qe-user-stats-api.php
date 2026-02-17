@@ -466,6 +466,7 @@ class QE_User_Stats_API extends QE_API_Base
             'post_type' => 'qe_lesson',
             'post__in' => $lesson_ids,
             'posts_per_page' => -1,
+            'post_status' => ['publish', 'draft', 'private'],
             'orderby' => 'post__in',
             'order' => 'ASC'
         ]);
@@ -808,6 +809,7 @@ class QE_User_Stats_API extends QE_API_Base
                 'post_type' => 'qe_lesson',
                 'include' => $lesson_ids,
                 'posts_per_page' => -1,
+                'post_status' => ['publish', 'draft', 'private'],
                 'fields' => 'ids'
             ]);
 

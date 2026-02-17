@@ -279,15 +279,18 @@ const SupportMaterialPage = () => {
 
   const handleDeleteMaterial = async (lessonId, materialIndex) => {
     if (!window.confirm(t('supportMaterial.deleteConfirm'))) return;
-    
+
     try {
       const lesson = lessons.find(l => l.id === lessonId);
       if (!lesson) throw new Error('Lesson not found');
-      
-      const updatedSteps = (lesson.meta?._lesson_steps || [])
+
+      const allSteps = lesson.meta?._lesson_steps || [];
+      const deletedStep = allSteps[materialIndex];
+
+      const updatedSteps = allSteps
         .filter((_, idx) => idx !== materialIndex)
-        .map((step, idx) => ({ ...step, order: idx })); // Reindex orders
-      
+        .map((step, idx) => ({ ...step, order: idx }));
+
       // Update lesson with all required fields to avoid validation errors
       await lessonsManager.updateLesson(lessonId, {
         title: lesson.title?.rendered || lesson.title,
@@ -296,9 +299,23 @@ const SupportMaterialPage = () => {
           _lesson_steps: updatedSteps
         }
       });
-      
+
+      // Clear the PDF viewer if the deleted step was open
+      if (selectedPDF === deletedStep) {
+        setSelectedPDF(null);
+        setSelectedLesson(null);
+      }
+
+      // Update local state directly — no full refetch needed
+      setLessons(prev => prev.map(l => {
+        if (l.id !== lessonId) return l;
+        const materialSteps = updatedSteps
+          .filter(step => step.type === 'pdf' || step.type === 'text')
+          .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0));
+        return { ...l, meta: { ...l.meta, _lesson_steps: updatedSteps }, materialSteps };
+      }));
+
       toast.success(t('supportMaterial.materialDeleted'));
-      await fetchLessons();
     } catch (error) {
       console.error('Error deleting material:', error);
       toast.error(t('errors.deleteMaterial'));

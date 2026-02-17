@@ -3,8 +3,9 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { BookOpen, FileText, User, LogOut, Home, Sun, Moon, Menu, Bell, MessageSquare, BarChart3, Building2, ChevronDown, CreditCard, Book, Settings, Users } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useMessagesContextSafe } from '../../contexts/MessagesContext';
 import { getUnreadNotificationCount } from '../../api/services/notificationsService';
+import { getApiConfig } from '../../api/config/apiConfig';
+import { makeApiRequest } from '../../api/services/baseService';
 import useCourse from '../../hooks/useCourse';
 
 const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, courseId }) => {
@@ -19,6 +20,9 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
 
   // Unread notifications count
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  // Unread messages count (course-filtered for course view, global otherwise)
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   // Check if user is admin
   const isAdmin = window.qe_data?.user?.capabilities?.manage_options === true ||
@@ -40,62 +44,74 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch unread notifications count
+  // Fetch unread notifications count and course-filtered unread messages count
   useEffect(() => {
-    const fetchUnreadCount = async () => {
-      // courseId puede ser string desde la URL, lo convertimos
-      const parsedCourseId = courseId ? parseInt(courseId, 10) : null;
-      
-      console.log('🔔 Topbar: fetchUnreadCount called', { 
-        courseId, 
-        parsedCourseId, 
-        isInCourseRoute 
-      });
-      
+    const parsedCourseId = courseId ? parseInt(courseId, 10) : null;
+
+    const fetchUnreadNotifications = async () => {
       if (parsedCourseId && isInCourseRoute) {
         try {
-          console.log('🔔 Topbar: Calling getUnreadNotificationCount for course', parsedCourseId);
           const response = await getUnreadNotificationCount(parsedCourseId);
-          console.log('🔔 Topbar: Response from API', response);
-          // API returns { data: { success: true, data: { unread_count: N } } }
           const count = response?.data?.data?.unread_count || response?.data?.unread_count || response?.unread_count || 0;
-          console.log('🔔 Topbar: Setting unreadNotifications to', count);
           setUnreadNotifications(count);
         } catch (error) {
-          console.error('🔔 Topbar: Error fetching unread notifications:', error);
+          console.error('Error fetching unread notifications:', error);
           setUnreadNotifications(0);
         }
-      } else {
-        console.log('🔔 Topbar: Skipping fetch - parsedCourseId:', parsedCourseId, 'isInCourseRoute:', isInCourseRoute);
       }
     };
 
-    fetchUnreadCount();
-
-    // Poll every 30 seconds to update notification count
-    const pollInterval = setInterval(fetchUnreadCount, 30000);
-
-    // Listen for notification read events to update the badge
-    const handleNotificationRead = () => {
-      fetchUnreadCount();
+    const fetchUnreadMessages = async () => {
+      if (parsedCourseId && isInCourseRoute && isAdmin && courseName) {
+        // Admin: filter by course name text search — matches how MessagesManager filters
+        // Messages contain "(Curso: CourseName)" prefix in their content
+        try {
+          const config = getApiConfig();
+          const queryParams = new URLSearchParams({
+            status: 'unread',
+            per_page: '1',
+            page: '1',
+            search: `(Curso: ${courseName})`
+          });
+          const url = `${config.endpoints.custom_api}/messages?${queryParams}`;
+          const response = await makeApiRequest(url);
+          const count = response.headers['X-WP-Total'] ? parseInt(response.headers['X-WP-Total'], 10) : 0;
+          setUnreadMessages(count);
+        } catch (error) {
+          console.error('Error fetching unread messages:', error);
+          setUnreadMessages(0);
+        }
+      }
     };
-    
+
+    const fetchAll = () => {
+      fetchUnreadNotifications();
+      fetchUnreadMessages();
+    };
+
+    fetchAll();
+
+    // Poll every 30 seconds
+    const pollInterval = setInterval(fetchAll, 30000);
+
+    // Listen for notification/message read events to update badges
+    const handleNotificationRead = () => fetchUnreadNotifications();
+    const handleMessageRead = () => fetchUnreadMessages();
+
     window.addEventListener('notificationRead', handleNotificationRead);
     window.addEventListener('notificationsMarkedAllRead', handleNotificationRead);
-    
+    window.addEventListener('qe-message-status-changed', handleMessageRead);
+
     return () => {
       clearInterval(pollInterval);
       window.removeEventListener('notificationRead', handleNotificationRead);
       window.removeEventListener('notificationsMarkedAllRead', handleNotificationRead);
+      window.removeEventListener('qe-message-status-changed', handleMessageRead);
     };
-  }, [courseId, isInCourseRoute]);
+  }, [courseId, isInCourseRoute, isAdmin, courseName]);
 
-  // Get unread messages count from context (safe - returns null if no provider)
-  const messagesContext = useMessagesContextSafe();
-
-  // TEMPORARY: Show all unread messages (no course filter)
-  // TODO: Backend needs to add course_id to messages or provide filtered endpoint
-  const unreadCount = messagesContext?.computed?.unreadMessages || 0;
+  // Use course-filtered unread messages count (fetched above alongside notifications)
+  const unreadCount = unreadMessages;
 
   const userName = window.qe_data?.user?.name;
   const userEmail = window.qe_data?.user?.email;

@@ -165,12 +165,13 @@ const TestsPage = () => {
   const quizId = selectedTest?.data?.quiz_id;
 
   // Hook para obtener ranking y estadísticas del quiz
-  const { ranking, loading: rankingLoading } = useQuizRanking(quizId);
+  const { ranking, loading: rankingLoading } = useQuizRanking(quizId, courseId);
 
   // Hook para obtener los intentos del usuario para este quiz específico (últimos 5)
-  const { attempts: quizAttempts, loading: attemptsLoading, fetchAttempts: refetchAttempts } = useQuizAttempts({ 
-    quizId: quizId, 
-    perPage: 5, 
+  const { attempts: quizAttempts, loading: attemptsLoading, fetchAttempts: refetchAttempts } = useQuizAttempts({
+    quizId: quizId,
+    courseId: courseId,
+    perPage: 5,
     autoFetch: false // No auto-fetch, lo haremos cuando quizId cambie
   });
 
@@ -900,7 +901,7 @@ const TestsPage = () => {
 
   const handleDeleteTest = async (lessonId, testIndex) => {
     if (!window.confirm(t('tests.deleteConfirm'))) return;
-    
+
     try {
       const lesson = lessons.find(l => l.id === lessonId);
       if (!lesson) throw new Error('Lesson not found');
@@ -908,19 +909,31 @@ const TestsPage = () => {
       const currentSteps = lesson.meta?._lesson_steps || [];
       const quizSteps = currentSteps.filter(s => s.type === 'quiz');
       const testToDelete = quizSteps[testIndex];
-      
+
       const updatedSteps = currentSteps.filter(step => step !== testToDelete);
 
       // Update lesson with all required fields
       await lessonsManager.updateLesson(lesson.id, {
         title: lesson.title?.rendered || lesson.title,
-        courseId: lesson.meta?._lesson_course?.[0] || courseId,
+        courseId: lesson.meta?._course_id || courseId,
         meta: {
           _lesson_steps: updatedSteps
         }
       });
 
-      await fetchLessons();
+      // Update local state directly to avoid stale-cache race condition
+      setLessons(prev => prev.map(l => {
+        if (l.id !== lessonId) return l;
+        const newQuizSteps = updatedSteps
+          .filter(s => s.type === 'quiz')
+          .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0));
+        return {
+          ...l,
+          meta: { ...l.meta, _lesson_steps: updatedSteps },
+          quizSteps: newQuizSteps
+        };
+      }));
+
       toast.success(t('tests.testDeleted'));
     } catch (error) {
       console.error('Error deleting test:', error);
@@ -2142,6 +2155,7 @@ const TestsPage = () => {
                     <Quiz
                       quizId={quizToStart.id}
                       lessonId={selectedLesson?.id}
+                      courseId={courseId}
                       onQuizComplete={handleQuizComplete}
                       onExit={handleExitQuiz}
                       isDrawingMode={isDrawingMode}
@@ -2348,6 +2362,7 @@ const TestsPage = () => {
             key={`quiz-${quizToStart.id}-${selectedLesson?.id || 'no-lesson'}`}
             quizId={quizToStart.id}
             lessonId={selectedLesson?.id}
+            courseId={courseId}
             onQuizComplete={handleQuizComplete}
             onExit={handleExitQuiz}
             isDrawingMode={isDrawingMode}

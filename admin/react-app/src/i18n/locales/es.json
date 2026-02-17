@@ -794,7 +794,9 @@
       "continueQuiz": "Continuar",
       "startOver": "Empezar de nuevo",
       "showTimer": "Mostrar temporizador",
-      "hideTimer": "Ocultar temporizador"
+      "hideTimer": "Ocultar temporizador",
+      "quizProgress": "Progreso del Cuestionario",
+      "openMenu": "Abrir menú del cuestionario"
     },
     "exitModal": {
       "title": "Salir del cuestionario",
@@ -1097,6 +1099,8 @@
     "error": "Error al cargar el ranking",
     "noData": "Aún no hay rankings",
     "noDataDescription": "Sé el primero en completar este test",
+    "noTestsYet": "Aún no has realizado ningún test",
+    "completeFirstQuiz": "Completa tu primer test para aparecer en el ranking",
     "avgWithoutRisk": "Media sin riesgo",
     "avgWithRisk": "Media con riesgo",
     "totalUsers": "Participantes",

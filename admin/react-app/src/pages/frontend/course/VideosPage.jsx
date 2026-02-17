@@ -203,8 +203,8 @@ const VideosPage = () => {
         // Find the video step to edit by getting the nth video in the array
         const videoSteps = currentSteps.filter(s => s.type === 'video');
         const targetVideo = videoSteps[videoModalState.videoIndex];
-        
-        updatedSteps = currentSteps.map(step => 
+
+        updatedSteps = currentSteps.map(step =>
           step === targetVideo ? videoData : step
         );
       }
@@ -212,13 +212,25 @@ const VideosPage = () => {
       // Update lesson with all required fields to avoid validation errors
       await lessonsManager.updateLesson(lesson.id, {
         title: lesson.title?.rendered || lesson.title,
-        courseId: lesson.meta?._lesson_course?.[0] || courseId,
+        courseId: lesson.meta?._course_id || courseId,
         meta: {
           _lesson_steps: updatedSteps
         }
       });
 
-      await fetchLessons();
+      // Update local state directly to avoid stale-cache race condition
+      setLessons(prev => prev.map(l => {
+        if (l.id !== videoModalState.lessonId) return l;
+        const newVideoSteps = updatedSteps
+          .filter(s => s.type === 'video')
+          .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0));
+        return {
+          ...l,
+          meta: { ...l.meta, _lesson_steps: updatedSteps },
+          videoSteps: newVideoSteps
+        };
+      }));
+
       toast.success(t('videos.videoSaved'));
       handleCloseVideoModal();
     } catch (error) {
@@ -229,7 +241,7 @@ const VideosPage = () => {
 
   const handleDeleteVideo = async (lessonId, videoIndex) => {
     if (!window.confirm(t('videos.deleteConfirm'))) return;
-    
+
     try {
       const lesson = lessons.find(l => l.id === lessonId);
       if (!lesson) throw new Error('Lesson not found');
@@ -237,19 +249,37 @@ const VideosPage = () => {
       const currentSteps = lesson.meta?._lesson_steps || [];
       const videoSteps = currentSteps.filter(s => s.type === 'video');
       const videoToDelete = videoSteps[videoIndex];
-      
+
       const updatedSteps = currentSteps.filter(step => step !== videoToDelete);
 
       // Update lesson with all required fields to avoid validation errors
       await lessonsManager.updateLesson(lesson.id, {
         title: lesson.title?.rendered || lesson.title,
-        courseId: lesson.meta?._lesson_course?.[0] || courseId,
+        courseId: lesson.meta?._course_id || courseId,
         meta: {
           _lesson_steps: updatedSteps
         }
       });
 
-      await fetchLessons();
+      // Clear selected video if it was the one deleted
+      if (selectedVideo === videoToDelete) {
+        setSelectedVideo(null);
+        setSelectedLesson(null);
+      }
+
+      // Update local state directly to avoid stale-cache race condition
+      setLessons(prev => prev.map(l => {
+        if (l.id !== lessonId) return l;
+        const newVideoSteps = updatedSteps
+          .filter(s => s.type === 'video')
+          .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0));
+        return {
+          ...l,
+          meta: { ...l.meta, _lesson_steps: updatedSteps },
+          videoSteps: newVideoSteps
+        };
+      }));
+
       toast.success(t('videos.videoDeleted'));
     } catch (error) {
       console.error('Error deleting video:', error);

@@ -20,10 +20,11 @@ import QuizRecoveryModal from '../quizzes/QuizRecoveryModal';
 const activeQuizAttempts = new Map(); // Map<quizKey, attemptId>
 const activeSubmissions = new Set(); // Set<attemptId>
 
-const Quiz = ({ 
-  quizId, 
+const Quiz = ({
+  quizId,
   lessonId = null,
-  customQuiz = null, 
+  courseId = null,
+  customQuiz = null,
   onQuizComplete,
   onQuizStateChange,
   onExit,
@@ -228,7 +229,7 @@ const Quiz = ({
         setQuestionIds(ids);
 
         // Start attempt
-        const attemptResponse = await startQuizAttempt(quizId, lessonId);
+        const attemptResponse = await startQuizAttempt(quizId, lessonId, courseId);
         if (attemptResponse.attempt_id) {
           setAttemptId(attemptResponse.attempt_id);
           activeQuizAttempts.set(quizKey, attemptResponse.attempt_id); // 🔥 Store for submission cleanup
@@ -728,7 +729,7 @@ const Quiz = ({
           backgroundColor: getColor('primary', '#3b82f6'),
           color: '#ffffff'
         }}
-        aria-label="Abrir menú del quiz"
+        aria-label={t('quizzes.quiz.openMenu')}
       >
         <Menu className="w-6 h-6" />
       </button>

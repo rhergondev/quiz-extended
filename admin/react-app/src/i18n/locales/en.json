@@ -773,7 +773,9 @@
       "continueQuiz": "Continue",
       "startOver": "Start over",
       "showTimer": "Show timer",
-      "hideTimer": "Hide timer"
+      "hideTimer": "Hide timer",
+      "quizProgress": "Quiz Progress",
+      "openMenu": "Open quiz menu"
     },
     "exitModal": {
       "title": "Exit quiz",
@@ -1093,6 +1095,8 @@
     "error": "Error loading ranking",
     "noData": "No rankings yet",
     "noDataDescription": "Be the first to complete this test",
+    "noTestsYet": "No tests taken yet",
+    "completeFirstQuiz": "Complete your first quiz to appear in the ranking",
     "avgWithoutRisk": "Avg without risk",
     "avgWithRisk": "Avg with risk",
     "totalUsers": "Participants",

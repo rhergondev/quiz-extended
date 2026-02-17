@@ -159,6 +159,7 @@ class QE_Feedback_Rankings_API extends QE_API_Base
     public function get_quiz_ranking(WP_REST_Request $request)
     {
         $quiz_id = (int) $request['quiz_id'];
+        $course_id = $request->get_param('course_id') ? (int) $request->get_param('course_id') : null;
         $current_user_id = get_current_user_id();
 
         // Validate quiz
@@ -169,6 +170,9 @@ class QE_Feedback_Rankings_API extends QE_API_Base
 
         global $wpdb;
         $attempts_table = $this->get_table('quiz_attempts');
+
+        // Optional course filter — keeps rankings scoped to the course where the attempt was taken
+        $course_filter = $course_id ? $wpdb->prepare(' AND course_id = %d', $course_id) : '';
 
         // 1. Get all users ranked by their LATEST attempt (not highest score)
         $all_rankings = $wpdb->get_results($wpdb->prepare(
@@ -183,11 +187,11 @@ class QE_Feedback_Rankings_API extends QE_API_Base
             INNER JOIN (
                 SELECT user_id, MAX(end_time) as latest_time
                 FROM {$attempts_table}
-                WHERE quiz_id = %d AND status = 'completed'
+                WHERE quiz_id = %d AND status = 'completed'{$course_filter}
                 GROUP BY user_id
             ) as latest_attempts ON a.user_id = latest_attempts.user_id AND a.end_time = latest_attempts.latest_time
             INNER JOIN {$wpdb->users} u ON a.user_id = u.ID
-            WHERE a.quiz_id = %d AND a.status = 'completed'
+            WHERE a.quiz_id = %d AND a.status = 'completed'{$course_filter}
             GROUP BY a.user_id
             ORDER BY score_with_risk DESC, a.end_time ASC",
             $quiz_id,
@@ -196,17 +200,17 @@ class QE_Feedback_Rankings_API extends QE_API_Base
 
         // 2. Calculate statistics: average scores with and without risk
         $stats = $wpdb->get_row($wpdb->prepare(
-            "SELECT 
+            "SELECT
                 AVG(a.score) as avg_score_without_risk,
                 AVG(a.score_with_risk) as avg_score_with_risk
             FROM {$attempts_table} a
             INNER JOIN (
                 SELECT user_id, MAX(end_time) as latest_time
                 FROM {$attempts_table}
-                WHERE quiz_id = %d AND status = 'completed'
+                WHERE quiz_id = %d AND status = 'completed'{$course_filter}
                 GROUP BY user_id
             ) as latest_attempts ON a.user_id = latest_attempts.user_id AND a.end_time = latest_attempts.latest_time
-            WHERE a.quiz_id = %d AND a.status = 'completed'",
+            WHERE a.quiz_id = %d AND a.status = 'completed'{$course_filter}",
             $quiz_id,
             $quiz_id
         ));

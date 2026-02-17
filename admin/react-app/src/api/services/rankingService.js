@@ -6,10 +6,11 @@ import { getApiConfig } from '../config/apiConfig';
  * @param {number} quizId - The ID of the quiz.
  * @returns {Promise<Object>} The ranking data including top and relative rankings.
  */
-export const getQuizRanking = async (quizId) => {
+export const getQuizRanking = async (quizId, courseId = null) => {
   try {
     const config = getApiConfig();
-    const url = `${config.endpoints.custom_api}/rankings/quiz/${quizId}`;
+    const params = courseId ? `?course_id=${courseId}` : '';
+    const url = `${config.endpoints.custom_api}/rankings/quiz/${quizId}${params}`;
     console.log(`🚀 Fetching ranking for quiz ID: ${quizId}`);
     
     const response = await makeApiRequest(url);

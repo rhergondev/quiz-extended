@@ -44,6 +44,12 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                         'type' => 'integer',
                         'minimum' => 1,
                         'description' => 'Lesson ID where the quiz is taken'
+                    ],
+                    'course_id' => [
+                        'required' => false,
+                        'type' => 'integer',
+                        'minimum' => 1,
+                        'description' => 'Course context where the quiz is taken — overrides the quiz stored course ID'
                     ]
                 ]
             ]
@@ -534,44 +540,19 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 );
             }
 
-            // Get course ID - primero intentar desde _course_ids (nuevo), luego _course_id (legacy)
-            $course_ids = get_post_meta($quiz_id, '_course_ids', true);
+            // Use course_id from the request if provided (e.g. when the quiz is shared across courses).
+            // This ensures the attempt is stored under the correct course context.
+            $course_id = absint($request->get_param('course_id'));
 
-            // 🔧 DEBUG TEMPORAL
-            error_log("START_QUIZ_ATTEMPT - Quiz ID: $quiz_id");
-            error_log("_course_ids raw: " . print_r($course_ids, true));
-
-            // Si _course_ids está vacío, intentar sincronizar automáticamente
-            if (!is_array($course_ids) || empty($course_ids)) {
-                error_log("_course_ids is empty, attempting auto-sync for quiz $quiz_id");
-
-                // Intentar sincronizar desde las lecciones
-                if (class_exists('QE_Quiz_Course_Sync')) {
-                    $sync_instance = new QE_Quiz_Course_Sync();
-                    // Usar reflexión para llamar al método privado
-                    $reflection = new ReflectionClass($sync_instance);
-                    $method = $reflection->getMethod('rebuild_quiz_course_ids');
-                    $method->setAccessible(true);
-                    $method->invoke($sync_instance, $quiz_id);
-
-                    // Volver a obtener después de la sincronización
-                    $course_ids = get_post_meta($quiz_id, '_course_ids', true);
-                    error_log("After auto-sync, _course_ids: " . print_r($course_ids, true));
+            if (!$course_id) {
+                // Fallback: derive from quiz metadata
+                $course_ids = get_post_meta($quiz_id, '_course_ids', true);
+                if (is_array($course_ids) && !empty($course_ids)) {
+                    $course_id = absint($course_ids[0]);
+                } else {
+                    $course_id = absint(get_post_meta($quiz_id, '_course_id', true));
                 }
-            }
-
-            if (is_array($course_ids) && !empty($course_ids)) {
-                // Usar el primer course_id del array
-                $course_id = absint($course_ids[0]);
-            } else {
-                // Fallback a _course_id legacy
-                $course_id = get_post_meta($quiz_id, '_course_id', true);
-                $course_id = absint($course_id);
-                error_log("Using legacy _course_id: $course_id");
-            }
-
-            error_log("Final course_id used: $course_id");
-            // 🔧 FIN DEBUG            // Check max attempts
+            }            // Check max attempts
             $max_attempts_check = $this->check_max_attempts($user_id, $quiz_id);
             if (is_wp_error($max_attempts_check)) {
                 return $max_attempts_check;
