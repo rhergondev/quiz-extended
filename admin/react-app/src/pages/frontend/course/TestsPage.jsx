@@ -614,7 +614,7 @@ const TestsPage = () => {
     if (quizToStartRef.current?.id && selectedLessonRef.current) {
       try {
         const currentIndex = allTestStepsRef.current.findIndex(item =>
-          item.step === selectedTestRef.current && item.lesson.id === selectedLessonRef.current.id
+          item.step?.id === selectedTestRef.current?.id && item.lesson.id === selectedLessonRef.current.id
         );
 
         if (currentIndex !== -1) {
@@ -734,8 +734,8 @@ const TestsPage = () => {
   // Navigation functions
   const getCurrentStepIndex = () => {
     if (!selectedTest || !selectedLesson) return -1;
-    return allTestSteps.findIndex(item => 
-      item.step === selectedTest && item.lesson.id === selectedLesson.id
+    return allTestSteps.findIndex(item =>
+      item.step?.id === selectedTest?.id && item.lesson.id === selectedLesson.id
     );
   };
 
