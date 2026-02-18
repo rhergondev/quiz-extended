@@ -76,7 +76,9 @@ class QE_Course_Ranking_API extends QE_API_Base
     {
         $course_id = (int) $request->get_param('course_id');
         $with_risk = $request->get_param('with_risk') === 'true' || $request->get_param('with_risk') === true;
-        $page = max(1, (int) $request->get_param('page', 1));
+        $page_param = $request->get_param('page');
+        $page_explicit = $page_param !== null;
+        $page = max(1, (int) ($page_param ?? 1));
         $per_page = min(50, max(1, (int) $request->get_param('per_page', 10)));
 
         $current_user_id = get_current_user_id();
@@ -279,12 +281,12 @@ class QE_Course_Ranking_API extends QE_API_Base
             }
         }
 
-        // If user found, calculate which page they're on and adjust page if needed
+        // Calculate which page the current user appears on
         $user_page = null;
         if ($current_user_position) {
             $user_page = ceil($current_user_position / $per_page);
-            // If page not specified or is 1, go to user's page
-            if ($page === 1 && $user_page > 1) {
+            // Only auto-jump to user's page when no explicit page param was sent (initial load)
+            if (!$page_explicit && $user_page > 1) {
                 $page = $user_page;
             }
         }

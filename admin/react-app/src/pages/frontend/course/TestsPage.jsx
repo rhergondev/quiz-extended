@@ -1482,7 +1482,7 @@ const TestsPage = () => {
                                       ) : (
                                         <button
                                           onClick={(e) => { e.stopPropagation(); handleToggleListItem(lesson, originalStepIndex); }}
-                                          className="flex-shrink-0 p-1 transition-transform hover:scale-110"
+                                          className="flex-shrink-0 p-1 bg-transparent transition-transform hover:scale-110"
                                           title={isCompleted ? 'Marcar como no completado' : 'Marcar como completado'}
                                         >
                                           {isCompleted ? (
