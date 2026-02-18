@@ -5,7 +5,7 @@ import {
   MessageSquare, Mail, MailOpen, ChevronLeft,
   Inbox, Clock, RefreshCw, User,
   FileQuestion, ChevronDown, ChevronUp, CheckCircle, XCircle, Send,
-  Flag, MessageCircle, Archive, ArrowRight
+  Flag, MessageCircle, Archive, ArrowRight, Video
 } from 'lucide-react';
 
 // Hooks & Context
@@ -22,7 +22,30 @@ import MessagesManager from '../../../components/messages/MessagesManager';
 // Helper to strip metadata prefixes from message content (supports old and new format)
 const cleanMessageContent = (content) => {
   if (!content) return '';
-  return content.replace(/\(Curso:[^)]+\)\s*/gi, '').replace(/\(Lección:[^)]+\)\s*/gi, '').replace(/\(Pregunta ID:[^)]+\)\s*/gi, '').replace(/<p>\s*<\/p>/gi, '').trim();
+  return content
+    .replace(/\(Curso:[^)]+\)\s*/gi, '')
+    .replace(/\(Lección:[^)]+\)\s*/gi, '')
+    .replace(/\(Pregunta ID:[^)]+\)\s*/gi, '')
+    .replace(/\(Video:[^)]+\)\s*/gi, '')
+    .replace(/<p>\s*<\/p>/gi, '')
+    .trim();
+};
+
+// Extract raw video URL from (Video: URL) metadata prefix
+const extractVideoUrl = (content) => {
+  if (!content) return null;
+  const match = content.match(/\(Video:\s*([^)]+)\)/i);
+  return match ? match[1].trim() : null;
+};
+
+// Convert video URL to embeddable iframe format
+const convertToEmbedUrl = (url) => {
+  if (!url) return null;
+  const vimeoMatch = url.match(/(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(\d+)/);
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  if (youtubeMatch) return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+  return url;
 };
 
 const MessagesPage = () => {
@@ -112,10 +135,11 @@ const MessagesPage = () => {
     loadParent();
   }, [selectedMessage]);
 
-  // Load related question when message is selected
+  // Load related question when message is selected (skip for video_feedback type)
   useEffect(() => {
     const loadQuestion = async () => {
-      if (selectedMessage?.related_object_id) {
+      const effectiveType = parentMessage?.type || selectedMessage?.type;
+      if (selectedMessage?.related_object_id && effectiveType !== 'video_feedback') {
         setLoadingQuestion(true);
         try {
           const config = getApiConfig();
@@ -133,7 +157,7 @@ const MessagesPage = () => {
     };
     loadQuestion();
     setShowQuestion(false);
-  }, [selectedMessage]);
+  }, [selectedMessage, parentMessage]);
 
   // Reset selected message when filtered messages change
   useEffect(() => {
@@ -198,6 +222,7 @@ const MessagesPage = () => {
   const getTypeInfo = (type) => {
     if (type === 'question_feedback') return { icon: MessageCircle, label: 'Duda', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' };
     if (type === 'question_challenge') return { icon: Flag, label: 'Impugnación', color: pageColors.error, bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2' };
+    if (type === 'video_feedback') return { icon: Video, label: 'Duda (Video)', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' };
     if (type === 'admin_reply') return { icon: Send, label: 'Respuesta', color: isDarkMode ? '#93c5fd' : pageColors.primary, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff' };
     if (type?.startsWith('admin_')) return { icon: Mail, label: 'Aviso', color: pageColors.accent, bgColor: isDarkMode ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7' };
     return { icon: Mail, label: 'Mensaje', color: pageColors.textMuted, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6' };
@@ -538,8 +563,43 @@ const MessagesPage = () => {
                     </div>
                   )}
 
-                  {/* 2. Question card - indented, matching admin */}
-                  {selectedMessage.related_object_id && (
+                  {/* 2a. Video embed - for video_feedback type (selectedMessage or its parent) */}
+                  {(() => {
+                    // Determine effective type: if viewing a reply, check parent type
+                    const effectiveType = parentMessage?.type || selectedMessage.type;
+                    if (effectiveType !== 'video_feedback') return null;
+                    // Extract video URL from the original message content
+                    const rawContent = parentMessage?.message || selectedMessage.message;
+                    const videoUrl = extractVideoUrl(rawContent);
+                    const embedUrl = videoUrl ? convertToEmbedUrl(videoUrl) : null;
+                    if (!embedUrl) return null;
+                    return (
+                      <div className="ml-10 sm:ml-14 max-w-2xl">
+                        <div
+                          className="rounded-xl overflow-hidden p-3 sm:p-4"
+                          style={{ backgroundColor: pageColors.inputBg, border: `1px solid ${pageColors.cardBorder}` }}
+                        >
+                          <div className="flex items-center gap-2 mb-3">
+                            <Video size={15} style={{ color: pageColors.accent }} />
+                            <span className="font-medium text-sm" style={{ color: pageColors.text }}>Video de la duda</span>
+                          </div>
+                          <div className="rounded-lg overflow-hidden" style={{ aspectRatio: '16/9', backgroundColor: '#000' }}>
+                            <iframe
+                              src={embedUrl}
+                              className="w-full h-full border-0"
+                              title="Video"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 2b. Question card - anything with related_object_id that is not a video message */}
+                  {selectedMessage.related_object_id &&
+                   (parentMessage?.type || selectedMessage.type) !== 'video_feedback' && (
                     <div className="ml-10 sm:ml-14 max-w-2xl">
                       <div
                         className="rounded-xl overflow-hidden"

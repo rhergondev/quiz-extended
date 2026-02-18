@@ -1,9 +1,9 @@
 // admin/react-app/src/components/messages/MessagesManager.jsx
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useParams, useLocation } from 'react-router-dom';
-import { 
-  MessageSquare, 
+import {
+  MessageSquare,
   Mail,
   MailOpen,
   Flag,
@@ -25,7 +25,8 @@ import {
   ChevronLeft,
   Plus,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Video
 } from 'lucide-react';
 
 import { useTranslation } from 'react-i18next';
@@ -46,7 +47,49 @@ import { toast } from 'react-toastify';
 // Helper to strip metadata prefixes from message content (supports old and new format)
 const cleanMessageContent = (content) => {
   if (!content) return '';
-  return content.replace(/\(Curso:[^)]+\)\s*/gi, '').replace(/\(Lección:[^)]+\)\s*/gi, '').replace(/\(Pregunta ID:[^)]+\)\s*/gi, '').replace(/<p>\s*<\/p>/gi, '').trim();
+  return content
+    .replace(/\(Curso:[^)]+\)\s*/gi, '')
+    .replace(/\(Lección:[^)]+\)\s*/gi, '')
+    .replace(/\(Pregunta ID:[^)]+\)\s*/gi, '')
+    .replace(/\(Video:[^)]+\)\s*/gi, '')
+    .replace(/<p>\s*<\/p>/gi, '')
+    .trim();
+};
+
+// Extract raw video URL embedded in message content as (Video: URL)
+const extractVideoUrl = (content) => {
+  if (!content) return null;
+  const match = content.match(/\(Video:\s*([^)]+)\)/i);
+  return match ? match[1].trim() : null;
+};
+
+// Convert video URL to embeddable format (Vimeo, YouTube, etc.)
+const convertToEmbedUrl = (url) => {
+  if (!url) return null;
+  const vimeoRegex = /(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(\d+)/;
+  const vimeoMatch = url.match(vimeoRegex);
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/;
+  const youtubeMatch = url.match(youtubeRegex);
+  if (youtubeMatch) return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+  return url;
+};
+
+// Video embed preview component
+const VideoPreview = ({ videoUrl }) => {
+  const embedUrl = convertToEmbedUrl(videoUrl);
+  if (!embedUrl) return null;
+  return (
+    <div className="rounded-lg overflow-hidden" style={{ aspectRatio: '16/9', backgroundColor: '#000' }}>
+      <iframe
+        src={embedUrl}
+        className="w-full h-full border-0"
+        title="Video"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
+    </div>
+  );
 };
 
 // Component to fetch and display question title
@@ -75,10 +118,10 @@ const QuestionPreview = ({ questionId, pageColors }) => {
   if (!title) return <span className="text-sm font-medium" style={{ color: pageColors.text }}>Cargando pregunta...</span>;
 
   return (
-    <span 
-      className="text-sm font-medium block" 
-      style={{ color: pageColors.text }} 
-      dangerouslySetInnerHTML={{ __html: title }} 
+    <span
+      className="text-sm font-medium break-words"
+      style={{ color: pageColors.text, display: 'block', wordBreak: 'break-word', overflowWrap: 'anywhere' }}
+      dangerouslySetInnerHTML={{ __html: title }}
     />
   );
 };
@@ -123,6 +166,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [showQuestionEditor, setShowQuestionEditor] = useState(false);
+  const chatScrollRef = useRef(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [batchLoading, setBatchLoading] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -381,6 +425,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   const getTypeInfo = (type) => {
     if (type === 'question_feedback') return { icon: MessageCircle, label: 'Duda', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' };
     if (type === 'question_challenge') return { icon: Flag, label: 'Impugnación', color: pageColors.error, bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2' };
+    if (type === 'video_feedback') return { icon: Video, label: 'Duda (Video)', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' };
     return { icon: Mail, label: 'Mensaje', color: pageColors.textMuted, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6' };
   };
 
@@ -600,6 +645,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                 <option value="all">Todos los tipos</option>
                 <option value="question_feedback">Dudas</option>
                 <option value="question_challenge">Impugnaciones</option>
+                <option value="video_feedback">Dudas de Video</option>
               </select>
             </div>
             )}
@@ -876,7 +922,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
               </div>
 
               {/* Chat Content */}
-              <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4 min-h-0" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+              <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4 min-h-0" style={{ maxHeight: 'calc(100vh - 250px)' }}>
                 {/* Original message */}
                 <div className="flex gap-2 sm:gap-4 max-w-4xl">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)` }}>
@@ -891,8 +937,8 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                   </div>
                 </div>
 
-                {/* Question card */}
-                {selectedMessage.related_object_id && (
+                {/* Question card - only for explicit question message types */}
+                {selectedMessage.related_object_id && (selectedMessage.type === 'question_feedback' || selectedMessage.type === 'question_challenge') && (
                   <div className="ml-10 sm:ml-14 max-w-2xl p-3 sm:p-4 rounded-xl" style={{ backgroundColor: pageColors.inputBg, border: `1px solid ${pageColors.cardBorder}` }}>
                     {showQuestionEditor ? (
                       <div className="rounded-xl overflow-visible" style={{ border: `1px solid ${pageColors.cardBorder}` }}>
@@ -902,15 +948,32 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                       <>
                         <div className="flex items-start gap-2 mb-3">
                           <FileQuestion size={16} className="flex-shrink-0 mt-0.5" style={{ color: pageColors.accent }} />
-                          <QuestionPreview questionId={selectedMessage.related_object_id} pageColors={pageColors} />
+                          <div className="min-w-0 flex-1">
+                            <QuestionPreview questionId={selectedMessage.related_object_id} pageColors={pageColors} />
+                          </div>
                         </div>
-                        <button onClick={() => setShowQuestionEditor(true)} className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-sm font-medium w-full justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`, color: '#fff' }}>
+                        <button onClick={() => { const st = chatScrollRef.current?.scrollTop; setShowQuestionEditor(true); requestAnimationFrame(() => { if (chatScrollRef.current) chatScrollRef.current.scrollTop = st; }); }} className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-sm font-medium w-full justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.primary}, ${pageColors.primary}dd)`, color: '#fff' }}>
                           <Edit3 size={14} />Editar pregunta
                         </button>
                       </>
                     )}
                   </div>
                 )}
+
+                {/* Video embed - only for video_feedback type */}
+                {selectedMessage.type === 'video_feedback' && (() => {
+                  const videoUrl = extractVideoUrl(selectedMessage.message);
+                  if (!videoUrl) return null;
+                  return (
+                    <div className="ml-10 sm:ml-14 max-w-2xl p-3 sm:p-4 rounded-xl" style={{ backgroundColor: pageColors.inputBg, border: `1px solid ${pageColors.cardBorder}` }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Video size={16} className="flex-shrink-0" style={{ color: pageColors.accent }} />
+                        <span className="text-sm font-medium" style={{ color: pageColors.text }}>Video de la duda</span>
+                      </div>
+                      <VideoPreview videoUrl={videoUrl} />
+                    </div>
+                  );
+                })()}
 
                 {/* Loading */}
                 {loadingReplies && <div className="flex justify-center py-4"><div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: `${pageColors.accent}30`, borderTopColor: pageColors.accent }} /></div>}

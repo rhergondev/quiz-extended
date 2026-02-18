@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { X, Plus, Trash2, Save, Eye, AlertCircle, ChevronDown } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import '../../styles/quill-explanation.css';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { uploadMedia } from '../../api/services/mediaService';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
@@ -16,7 +17,31 @@ import QuizSelector from '../questions/QuizSelector';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getTaxonomyTerms, createTaxonomyTerm } from '../../api/services/taxonomyService';
 
-const QuestionModal = ({ 
+/**
+ * Normalize HTML so Quill can render line breaks properly.
+ * Quill expects <p> blocks — standalone <br> or plain \n get collapsed.
+ */
+const normalizeHtmlForQuill = (html) => {
+  if (!html || typeof html !== 'string') return '';
+  let result = html.trim();
+
+  // If content has no <p> tags at all, wrap lines in <p> blocks
+  if (!/<p[\s>]/i.test(result)) {
+    // Split on <br> variants and \n, wrap each in <p>
+    result = result
+      .split(/<br\s*\/?>\s*|\n/)
+      .map(line => `<p>${line || '<br>'}</p>`)
+      .join('');
+    return result;
+  }
+
+  // Replace <br> tags that sit between </p> and <p> (stray breaks between paragraphs)
+  result = result.replace(/<\/p>\s*(<br\s*\/?>)+\s*<p/gi, '</p><p><br></p><p');
+
+  return result;
+};
+
+const QuestionModal = ({
   isOpen, 
   onClose, 
   question = null, 
@@ -81,6 +106,14 @@ const QuestionModal = ({
   const [creatingCategory, setCreatingCategory] = useState(false);
 
   const quillRef = useRef(null);
+  const quillInitialized = useRef(false);
+  const titleRef = useRef(null);
+
+  const autoResizeTextarea = useCallback((el) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }, []);
 
   const questionTypes = [
     { value: 'multiple_choice', label: 'Opción Múltiple' },
@@ -215,7 +248,9 @@ const QuestionModal = ({
             category: question.qe_category?.[0] || '', // Usar ID de taxonomía
             points: question.meta?._points?.toString() || '1',
             pointsIncorrect: question.meta?._points_incorrect?.toString() || '0',
-            explanation: question.content || question.meta?._explanation || '',
+            explanation: normalizeHtmlForQuill(
+              (typeof question.content === 'object' ? question.content?.rendered || question.content?.raw : question.content) || question.meta?._explanation || ''
+            ),
             quizIds: quizIds,
             lessonId: question.meta?._question_lesson?.toString() || '',
             courseId: question.meta?._course_id?.toString() || '',
@@ -243,8 +278,27 @@ const QuestionModal = ({
       });
     }
     setErrors({});
-  }, [question, mode, isOpen, parentQuizId]);
+    quillInitialized.current = false; // Reset so Quill gets re-initialized
+    // Auto-resize title after data loads
+    setTimeout(() => autoResizeTextarea(titleRef.current), 0);
+  }, [question, mode, isOpen, parentQuizId, autoResizeTextarea]);
 
+  // Set Quill content directly via its API to preserve blank lines.
+  // ReactQuill's value prop parses HTML through Quill's clipboard module
+  // which strips empty <p> tags. Using the editor's clipboard.dangerouslyPasteHTML
+  // or setting innerHTML directly bypasses that limitation.
+  useEffect(() => {
+    if (quillInitialized.current) return;
+    if (!quillRef.current || !formData.explanation) return;
+
+    const editor = quillRef.current.getEditor();
+    if (!editor) return;
+
+    const cleanHtml = formData.explanation.replace(/<\/p>\s+<p/gi, '</p><p');
+    editor.root.innerHTML = cleanHtml;
+    editor.update('silent');
+    quillInitialized.current = true;
+  }, [formData.explanation]);
 
   const handleFieldChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -468,12 +522,13 @@ const QuestionModal = ({
             <label className="block text-xs font-bold uppercase mb-1" style={{ color: pageColors.text }}>
               Título de la Pregunta *
             </label>
-            <input
-              type="text"
+            <textarea
+              ref={titleRef}
               value={formData.title}
-              onChange={(e) => handleFieldChange('title', e.target.value)}
+              onChange={(e) => { handleFieldChange('title', e.target.value); autoResizeTextarea(e.target); }}
               placeholder="Escribe el enunciado de la pregunta..."
               disabled={isReadOnly}
+              rows={1}
               style={{
                 width: '100%',
                 padding: '8px 10px',
@@ -482,7 +537,11 @@ const QuestionModal = ({
                 backgroundColor: pageColors.inputBg,
                 color: pageColors.text,
                 fontSize: '14px',
-                outline: 'none'
+                outline: 'none',
+                resize: 'none',
+                overflow: 'hidden',
+                lineHeight: '1.4',
+                fontFamily: 'inherit'
               }}
             />
             {errors.title && (
@@ -929,7 +988,7 @@ const QuestionModal = ({
             <ReactQuill
               ref={quillRef}
               theme="snow"
-              value={formData.explanation}
+              defaultValue=""
               onChange={(value) => handleFieldChange('explanation', value)}
               modules={quillModules}
             />

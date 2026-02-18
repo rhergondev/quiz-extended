@@ -13,7 +13,8 @@ import { updateLessonOrderMap } from '../../../api/services/courseService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import LessonModal from '../../../components/lessons/LessonModal';
 import VideoModal from '../../../components/videos/VideoModal';
-import { ChevronDown, ChevronUp, ChevronRight, Video, Play, X, ChevronLeft, Check, CheckCircle, Circle, Film, Plus, Trash2, AlertTriangle, Edit2, ArrowUpDown, Lock, EyeOff, Calendar } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, Video, Play, X, ChevronLeft, Check, CheckCircle, Circle, Film, Plus, Trash2, AlertTriangle, Edit2, ArrowUpDown, Lock, EyeOff, Calendar, MessageSquare } from 'lucide-react';
+import VideoFeedbackModal from '../../../components/frontend/VideoFeedbackModal';
 
 const VideosPage = () => {
   const { t } = useTranslation();
@@ -39,6 +40,7 @@ const VideosPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [selectedLesson, setSelectedLesson] = useState(null);
+  const [feedbackModalData, setFeedbackModalData] = useState({ isOpen: false, step: null, lesson: null });
 
   // Admin functionality
   const userIsAdmin = isUserAdmin();
@@ -550,6 +552,22 @@ const VideosPage = () => {
     }
   };
 
+  // Toggle completion for a step directly from the list
+  const handleToggleListItem = async (lesson, originalStepIndex) => {
+    try {
+      const completed = isCompleted(lesson.id, 'step', lesson.id, originalStepIndex);
+      if (completed) {
+        await unmarkComplete(lesson.id, 'step', lesson.id, originalStepIndex);
+      } else {
+        await markComplete(lesson.id, 'step', lesson.id, originalStepIndex);
+      }
+      await fetchCompletedContent();
+      window.dispatchEvent(new CustomEvent('courseProgressUpdated', { detail: { courseId } }));
+    } catch (error) {
+      console.error('Error toggling step completion:', error);
+    }
+  };
+
   // Check if current step is completed
   const isCurrentStepCompleted = () => {
     if (!selectedLesson || !selectedVideo) return false;
@@ -1015,14 +1033,22 @@ const VideosPage = () => {
                                     e.currentTarget.style.backgroundColor = 'transparent';
                                   }}
                                 >
-                                  {stepCompleted ? (
-                                    <CheckCircle size={18} style={{ color: '#10b981' }} className="flex-shrink-0" />
-                                  ) : isLocked ? (
+                                  {isLocked ? (
                                     <Lock size={18} style={{ color: pageColors.accent }} className="flex-shrink-0" />
                                   ) : isHidden ? (
                                     <EyeOff size={18} style={{ color: '#ef4444' }} className="flex-shrink-0" />
                                   ) : (
-                                    <Circle size={18} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleToggleListItem(lesson, originalStepIndex); }}
+                                      className="flex-shrink-0 p-1 transition-transform hover:scale-110"
+                                      title={stepCompleted ? 'Marcar como no completado' : 'Marcar como completado'}
+                                    >
+                                      {stepCompleted ? (
+                                        <CheckCircle size={28} style={{ color: '#10b981' }} />
+                                      ) : (
+                                        <Circle size={28} style={{ color: pageColors.textMuted }} />
+                                      )}
+                                    </button>
                                   )}
                                   <div className="flex flex-col flex-1 min-w-0">
                                     <span
@@ -1107,6 +1133,27 @@ const VideosPage = () => {
                                       </button>
                                     </div>
                                   )}
+                                  {/* Doubt Button - non-admin only, visible non-locked videos */}
+                                  {!userIsAdmin && !isLocked && !isHidden && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setFeedbackModalData({ isOpen: true, step, lesson });
+                                      }}
+                                      className="p-2 rounded-lg transition-all flex-shrink-0"
+                                      style={{ backgroundColor: `${pageColors.accent}15` }}
+                                      title={t('quizzes.feedbackModal.titleFeedback')}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = `${pageColors.accent}25`;
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = `${pageColors.accent}15`;
+                                      }}
+                                    >
+                                      <MessageSquare size={16} style={{ color: pageColors.accent }} />
+                                    </button>
+                                  )}
+
                                   {/* Available Button */}
                                   {(!isLocked || userIsAdmin) && (
                                     <button
@@ -1456,6 +1503,16 @@ const VideosPage = () => {
             </div>
           </div>
         </div>
+      )}
+      {/* Video Feedback Modal */}
+      {feedbackModalData.isOpen && (
+        <VideoFeedbackModal
+          step={feedbackModalData.step}
+          lesson={feedbackModalData.lesson}
+          courseId={courseId}
+          courseName={courseName}
+          onClose={() => setFeedbackModalData({ isOpen: false, step: null, lesson: null })}
+        />
       )}
     </CoursePageTemplate>
   );

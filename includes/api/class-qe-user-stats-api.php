@@ -460,16 +460,31 @@ class QE_User_Stats_API extends QE_API_Base
             return $this->success_response(['lessons' => []]);
         }
 
-        // Obtener los posts de las lecciones usando los IDs
-        // IMPORTANTE: orderby => 'post__in' respeta el orden del array _lesson_ids
-        $lessons = get_posts([
-            'post_type' => 'qe_lesson',
-            'post__in' => $lesson_ids,
+        // Apply _lesson_order_map sorting if available (same logic as class-qe-course-lessons-api.php)
+        $lesson_order_map = get_post_meta($course_id, '_lesson_order_map', true);
+        $query_args = [
+            'post_type'      => 'qe_lesson',
+            'post__in'       => $lesson_ids,
             'posts_per_page' => -1,
-            'post_status' => ['publish', 'draft', 'private'],
-            'orderby' => 'post__in',
-            'order' => 'ASC'
-        ]);
+            'post_status'    => ['publish', 'draft', 'private'],
+        ];
+
+        if (is_array($lesson_order_map) && !empty($lesson_order_map)) {
+            usort($lesson_ids, function ($a, $b) use ($lesson_order_map) {
+                $order_a = isset($lesson_order_map[(string) $a]) ? $lesson_order_map[(string) $a] : 9999;
+                $order_b = isset($lesson_order_map[(string) $b]) ? $lesson_order_map[(string) $b] : 9999;
+                return $order_a - $order_b;
+            });
+            $query_args['post__in'] = $lesson_ids;
+            $query_args['orderby'] = 'post__in';
+        } else {
+            // Fallback: respect menu_order (legacy ordering)
+            $query_args['orderby'] = 'menu_order';
+            $query_args['order']   = 'ASC';
+        }
+
+        // Obtener los posts de las lecciones usando los IDs
+        $lessons = get_posts($query_args);
 
         if (empty($lessons)) {
             return $this->success_response(['lessons' => []]);

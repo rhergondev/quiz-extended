@@ -32,6 +32,27 @@ const submitFeedback = async (data) => {
   }
 };
 
+/**
+ * Envía una duda sobre un video.
+ */
+const submitVideoFeedback = async (data) => {
+  try {
+    const { endpoints } = getApiConfig();
+    const url = `${endpoints.custom_api}/feedback/video`;
+
+    const response = await makeApiRequest(url, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+
+    return response.data.data;
+  } catch (error) {
+    console.error('Error al enviar el feedback de video:', error);
+    throw error;
+  }
+};
+
 export const messageService = {
   submitFeedback,
+  submitVideoFeedback,
 };

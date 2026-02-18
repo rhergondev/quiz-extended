@@ -37,6 +37,21 @@ class QE_Messages_API extends QE_API_Base
             ]
         );
 
+        // Student submits a doubt about a video
+        $this->register_secure_route(
+            '/feedback/video',
+            WP_REST_Server::CREATABLE,
+            'submit_video_feedback',
+            [
+                'validation_schema' => [
+                    'lesson_id' => ['required' => true, 'type' => 'integer'],
+                    'video_title' => ['required' => true, 'type' => 'string', 'maxLength' => 200],
+                    'video_url' => ['required' => true, 'type' => 'string', 'maxLength' => 500],
+                    'message' => ['required' => true, 'type' => 'string', 'maxLength' => 5000]
+                ]
+            ]
+        );
+
         // ============================================================
         // ADMIN TO STUDENTS - Send messages
         // ============================================================
@@ -327,6 +342,73 @@ class QE_Messages_API extends QE_API_Base
 
         } catch (Exception $e) {
             $this->log_error('Exception in submit_question_feedback', ['message' => $e->getMessage()]);
+            return $this->error_response('internal_error', 'Ocurrió un error inesperado.', 500);
+        }
+    }
+
+    /**
+     * Submit a doubt about a specific video.
+     */
+    public function submit_video_feedback($request)
+    {
+        try {
+            $user_id = get_current_user_id();
+            $lesson_id = $request->get_param('lesson_id');
+            $video_title = sanitize_text_field($request->get_param('video_title'));
+            $video_url = esc_url_raw($request->get_param('video_url'));
+            $message = $request->get_param('message');
+
+            // Validate lesson exists
+            $lesson = get_post($lesson_id);
+            if (!$lesson || 'qe_lesson' !== $lesson->post_type) {
+                return $this->error_response('not_found', 'La lección no existe.', 404);
+            }
+
+            // Embed video metadata as HTML comment for frontend parsing
+            $video_meta = wp_json_encode([
+                'title' => $video_title,
+                'url' => $video_url
+            ]);
+            $full_message = '<!--video:' . $video_meta . '-->' . $message;
+
+            $subject = mb_substr($message, 0, 200);
+
+            $message_id = $this->db_insert('messages', [
+                'sender_id' => $user_id,
+                'recipient_id' => 0,
+                'related_object_id' => $lesson_id,
+                'type' => 'video_feedback',
+                'subject' => $subject,
+                'message' => $full_message,
+                'status' => 'unread',
+                'created_at' => current_time('mysql'),
+            ], ['%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s']);
+
+            if (!$message_id) {
+                return $this->error_response('db_error', 'No se pudo enviar tu mensaje.', 500);
+            }
+
+            delete_transient('qe_unread_messages_count');
+
+            $this->send_email_notification([
+                'feedback_type' => 'video_feedback',
+                'question_id' => 0,
+                'user_id' => $user_id,
+                'message' => $message,
+                'message_id' => $message_id
+            ]);
+
+            $this->log_info('Video feedback submitted', [
+                'message_id' => $message_id,
+                'user_id' => $user_id,
+                'lesson_id' => $lesson_id,
+                'video_title' => $video_title
+            ]);
+
+            return $this->success_response(['message_id' => $message_id, 'status' => 'success']);
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in submit_video_feedback', ['message' => $e->getMessage()]);
             return $this->error_response('internal_error', 'Ocurrió un error inesperado.', 500);
         }
     }
@@ -1084,14 +1166,30 @@ class QE_Messages_API extends QE_API_Base
                 $params[] = $type;
             }
 
-            // Filter by course - get question IDs that belong to this course
+            // Filter by course - get question IDs and lesson IDs that belong to this course
             if ($course_id) {
                 $course_question_ids = $this->get_question_ids_for_course((int) $course_id);
+                $course_lesson_ids = get_posts([
+                    'post_type' => 'qe_lesson',
+                    'posts_per_page' => -1,
+                    'post_status' => ['publish', 'draft', 'private'],
+                    'fields' => 'ids',
+                    'meta_query' => [['key' => '_course_id', 'value' => (int) $course_id]]
+                ]);
+
+                $conditions = [];
                 if (!empty($course_question_ids)) {
-                    $ids_placeholder = implode(',', array_map('intval', $course_question_ids));
-                    $where[] = "related_object_id IN ({$ids_placeholder})";
+                    $q_ids = implode(',', array_map('intval', $course_question_ids));
+                    $conditions[] = "(type IN ('question_feedback','question_challenge') AND related_object_id IN ({$q_ids}))";
+                }
+                if (!empty($course_lesson_ids)) {
+                    $l_ids = implode(',', array_map('intval', $course_lesson_ids));
+                    $conditions[] = "(type = 'video_feedback' AND related_object_id IN ({$l_ids}))";
+                }
+
+                if (!empty($conditions)) {
+                    $where[] = '(' . implode(' OR ', $conditions) . ')';
                 } else {
-                    // No questions for this course, return empty
                     return $this->success_response(['data' => []]);
                 }
             }

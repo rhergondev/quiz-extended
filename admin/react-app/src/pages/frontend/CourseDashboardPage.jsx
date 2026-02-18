@@ -255,6 +255,9 @@ const CourseDashboardPage = () => {
     return types;
   }, [stepsByType, progressData, t, pageColors.primary]);
 
+  // Overall progress percentage from API
+  const progressPercentage = progressData?.percentage || 0;
+
   if (loading) {
     return (
       <div 
@@ -292,7 +295,7 @@ const CourseDashboardPage = () => {
             {/* Header */}
             <div 
               className="px-4 py-3"
-              style={{ backgroundColor: pageColors.primary }}
+              style={{ backgroundColor: isDarkMode ? pageColors.accent : pageColors.primary }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -428,7 +431,7 @@ const CourseDashboardPage = () => {
             {/* Header */}
             <div 
               className="px-4 py-3"
-              style={{ backgroundColor: pageColors.primary }}
+              style={{ backgroundColor: isDarkMode ? pageColors.accent : pageColors.primary }}
             >
               <div className="flex items-center gap-2">
                 <Award size={18} className="text-white" />
@@ -440,6 +443,8 @@ const CourseDashboardPage = () => {
             
             {/* Content */}
             <div className="p-4">
+              
+
               {availableContentTypes.length > 0 ? (
                 <div className="flex flex-wrap justify-center gap-2">
                   {availableContentTypes.map((contentType) => (
@@ -464,6 +469,35 @@ const CourseDashboardPage = () => {
                   </p>
                 </div>
               )}
+              {/* Progress Bar (same as CompactCourseCard) */}
+              <div className="p-4 pb-0">
+                <div className="flex justify-between items-center mb-2">
+                  <span 
+                    className="text-sm font-semibold"
+                    style={{ color: pageColors.textMuted }}
+                  >
+                    {t('courses.progress')}
+                  </span>
+                  <span 
+                    className="text-lg font-bold"
+                    style={{ color: pageColors.text }}
+                  >
+                    {progressPercentage}%
+                  </span>
+                </div>
+                <div 
+                  className="rounded-full h-3 overflow-hidden"
+                  style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : `${pageColors.primary}15` }}
+                >
+                  <div 
+                    className="h-full transition-all duration-500 rounded-full"
+                    style={{ 
+                      width: `${progressPercentage}%`,
+                      backgroundColor: pageColors.primary
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -478,7 +512,7 @@ const CourseDashboardPage = () => {
             {/* Header */}
             <div 
               className="px-4 py-3"
-              style={{ backgroundColor: '#0891B2' }}
+              style={{ backgroundColor: isDarkMode ? pageColors.accent : pageColors.primary }}
             >
               <div className="flex items-center gap-2">
                 <Video size={18} className="text-white" />

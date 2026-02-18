@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getCourseRanking, getMyRankingStatus } from '../api/services/courseRankingService';
 
 export const useCourseRanking = (courseId) => {
@@ -10,17 +10,19 @@ export const useCourseRanking = (courseId) => {
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 0,
-        perPage: 10, // Changed to 10 per page for panel view
+        perPage: 10,
         totalUsers: 0,
         userPage: null
     });
     const [withRisk, setWithRisk] = useState(false);
     const [myStatus, setMyStatus] = useState(null);
     const [statisticsLoaded, setStatisticsLoaded] = useState(false);
+    const requestIdRef = useRef(0);
 
     const fetchRanking = useCallback(async (page = null, loadStatistics = false) => {
         if (!courseId) return;
 
+        const requestId = ++requestIdRef.current;
         setLoading(true);
         setError(null);
 
@@ -31,34 +33,39 @@ export const useCourseRanking = (courseId) => {
                 withRisk
             });
 
+            // Ignore stale responses from superseded requests
+            if (requestId !== requestIdRef.current) return;
+
             if (result.success) {
                 setRanking(result.data.ranking || []);
-                
-                // Solo actualizar estadísticas en la primera carga o cuando se solicite explícitamente
+
                 if (loadStatistics || !statisticsLoaded) {
                     setStatistics(result.data.statistics || null);
                     setStatisticsLoaded(true);
                 }
-                
+
                 setMyStats(result.data.my_stats || null);
-                
-                // Convert snake_case from API to camelCase
+
+                // Only update metadata from API, keep currentPage from local navigation state
                 const apiPagination = result.data.pagination || {};
-                setPagination({
-                    currentPage: apiPagination.current_page || 1,
+                setPagination(prev => ({
+                    ...prev,
                     totalPages: apiPagination.total_pages || 0,
-                    perPage: apiPagination.per_page || 10,
+                    perPage: apiPagination.per_page || prev.perPage,
                     totalUsers: apiPagination.total_users || 0,
                     userPage: apiPagination.user_page || null
-                });
+                }));
             } else {
                 setError(result.message || 'Failed to load ranking');
             }
         } catch (err) {
+            if (requestId !== requestIdRef.current) return;
             console.error('Error fetching course ranking:', err);
             setError(err.message || 'An error occurred while loading the ranking');
         } finally {
-            setLoading(false);
+            if (requestId === requestIdRef.current) {
+                setLoading(false);
+            }
         }
     }, [courseId, pagination.currentPage, pagination.perPage, withRisk, statisticsLoaded]);
 
@@ -78,40 +85,52 @@ export const useCourseRanking = (courseId) => {
     const toggleRisk = useCallback(() => {
         setWithRisk(prev => !prev);
         setPagination(prev => ({ ...prev, currentPage: 1 }));
-        // No resetear statisticsLoaded para evitar recargar estadísticas
     }, []);
 
+    // All navigation functions use functional setPagination so they never
+    // capture stale closure values and have stable (empty) deps.
     const goToPage = useCallback((page) => {
-        if (page >= 1 && page <= pagination.totalPages) {
-            setPagination(prev => ({ ...prev, currentPage: page }));
-        }
-    }, [pagination.totalPages]);
+        setPagination(prev => {
+            if (page < 1 || (prev.totalPages > 0 && page > prev.totalPages)) return prev;
+            if (page === prev.currentPage) return prev;
+            return { ...prev, currentPage: page };
+        });
+    }, []);
 
     const nextPage = useCallback(() => {
-        if (pagination.currentPage < pagination.totalPages) {
-            goToPage(pagination.currentPage + 1);
-        }
-    }, [pagination.currentPage, pagination.totalPages, goToPage]);
+        setPagination(prev => {
+            if (prev.currentPage >= prev.totalPages) return prev;
+            return { ...prev, currentPage: prev.currentPage + 1 };
+        });
+    }, []);
 
     const prevPage = useCallback(() => {
-        if (pagination.currentPage > 1) {
-            goToPage(pagination.currentPage - 1);
-        }
-    }, [pagination.currentPage, goToPage]);
+        setPagination(prev => {
+            if (prev.currentPage <= 1) return prev;
+            return { ...prev, currentPage: prev.currentPage - 1 };
+        });
+    }, []);
 
     const firstPage = useCallback(() => {
-        goToPage(1);
-    }, [goToPage]);
+        setPagination(prev => {
+            if (prev.currentPage === 1) return prev;
+            return { ...prev, currentPage: 1 };
+        });
+    }, []);
 
     const lastPage = useCallback(() => {
-        goToPage(pagination.totalPages);
-    }, [pagination.totalPages, goToPage]);
+        setPagination(prev => {
+            if (prev.totalPages === 0 || prev.currentPage === prev.totalPages) return prev;
+            return { ...prev, currentPage: prev.totalPages };
+        });
+    }, []);
 
     const goToUserPage = useCallback(() => {
-        if (pagination.userPage) {
-            goToPage(pagination.userPage);
-        }
-    }, [pagination.userPage, goToPage]);
+        setPagination(prev => {
+            if (!prev.userPage || prev.currentPage === prev.userPage) return prev;
+            return { ...prev, currentPage: prev.userPage };
+        });
+    }, []);
 
     useEffect(() => {
         // En la primera carga, cargar estadísticas

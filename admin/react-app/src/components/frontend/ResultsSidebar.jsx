@@ -2,13 +2,13 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 
-// Componente de leyenda - box ancho con texto (usando box-shadow inset para bordes)
+// Componente de leyenda - box ancho con texto
 const LegendBox = ({ bgColor, borderColor, textColor, text }) => (
-  <div 
-    className="px-2 py-1 rounded text-[9px] font-semibold text-center truncate"
-    style={{ 
-      backgroundColor: bgColor, 
-      boxShadow: `inset 0 0 0 2px ${borderColor}`,
+  <div
+    className="px-2.5 py-1.5 rounded-md text-[10px] font-semibold text-center border-2"
+    style={{
+      backgroundColor: bgColor,
+      borderColor: borderColor,
       color: textColor
     }}
   >
@@ -67,19 +67,19 @@ const ResultsSidebar = ({ result, questions }) => {
 
   return (
     <aside className="w-full pr-4 pt-4">
-      <div 
-        className="sticky top-6 p-2 rounded-lg border-2 shadow-sm max-h-[calc(100vh-5rem)] overflow-y-auto"
+      <div
+        className="p-3 rounded-lg border-2 shadow-sm"
         style={{
           backgroundColor: getColor('secondaryBackground', '#ffffff'),
           borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
         }}
       >
         {/* Leyenda de estados - 4 elementos en 2x2 */}
-        <div 
-          className="px-1 py-1.5 border-b mb-2"
+        <div
+          className="px-1 py-1.5 border-b mb-3"
           style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
         >
-          <div className="grid grid-cols-2 gap-1">
+          <div className="grid grid-cols-2 gap-1.5">
             {/* Correcta */}
             <LegendBox 
               bgColor={SUCCESS_COLOR}
@@ -112,42 +112,39 @@ const ResultsSidebar = ({ result, questions }) => {
         </div>
 
         {/* Mapa de preguntas - 10 columnas */}
-        <div className="px-1 py-1">
-          <h4 
-            className="text-[10px] font-semibold mb-1"
+        <div className="px-1 py-1.5">
+          <h4
+            className="text-[10px] font-semibold mb-1.5"
             style={{ color: textPrimary }}
           >
             {t('quizzes.resultsSidebar.questionsMap')}
           </h4>
-          <div 
-            className="grid grid-cols-10 gap-0.5 rounded"
+          <div
+            className="grid grid-cols-8 gap-1 rounded"
             style={{ backgroundColor: bgSubtle }}
           >
             {orderedResults && orderedResults.map((res, index) => {
               const wasAnswered = res.answer_given !== null && res.answer_given !== undefined;
-              
+
               let bgColor, borderColor, textColor, title;
-              
+
               if (!wasAnswered) {
-                // Sin contestar: fondo gris, borde blanco (dark) / gris oscuro (light), texto blanco/gris
                 bgColor = unansweredBg;
                 borderColor = unansweredBorder;
                 textColor = unansweredText;
                 title = t('quizzes.resultsSidebar.questionUnanswered', { number: index + 1 });
               } else if (res.is_risked) {
-                // Con riesgo: solo borde, sin fondo
                 bgColor = 'transparent';
                 borderColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
                 textColor = riskTextColor;
-                title = res.is_correct 
+                title = res.is_correct
                   ? t('quizzes.resultsSidebar.questionCorrectWithRisk', { number: index + 1 })
                   : t('quizzes.resultsSidebar.questionIncorrectWithRisk', { number: index + 1 });
               } else {
-                // Sin riesgo: fondo sólido
                 bgColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
                 borderColor = res.is_correct ? SUCCESS_COLOR : ERROR_COLOR;
                 textColor = '#ffffff';
-                title = res.is_correct 
+                title = res.is_correct
                   ? t('quizzes.resultsSidebar.questionCorrect', { number: index + 1 })
                   : t('quizzes.resultsSidebar.questionIncorrect', { number: index + 1 });
               }
@@ -156,10 +153,10 @@ const ResultsSidebar = ({ result, questions }) => {
                 <button
                   key={res.question_id}
                   onClick={() => scrollToQuestion(index + 1)}
-                  className="w-full aspect-square rounded text-[9px] font-semibold transition-all duration-150 flex items-center justify-center cursor-pointer hover:scale-110 hover:shadow-sm"
+                  className="w-full aspect-square rounded text-[11px] font-bold border-2 transition-all duration-150 flex items-center justify-center cursor-pointer hover:scale-110 hover:shadow-sm"
                   style={{
                     backgroundColor: bgColor,
-                    boxShadow: `inset 0 0 0 2px ${borderColor}`,
+                    borderColor: borderColor,
                     color: textColor
                   }}
                   title={title}

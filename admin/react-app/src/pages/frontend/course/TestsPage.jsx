@@ -572,6 +572,7 @@ const TestsPage = () => {
   // 🔥 FIX: Store all dependencies in refs to create a completely stable callback
   const quizIdRef = useRef(quizId);
   const quizToStartRef = useRef(quizToStart);
+  const selectedTestRef = useRef(selectedTest);
   const selectedLessonRef = useRef(selectedLesson);
   const allTestStepsRef = useRef(allTestSteps);
   const courseIdRef = useRef(courseId);
@@ -579,10 +580,11 @@ const TestsPage = () => {
   useEffect(() => {
     quizIdRef.current = quizId;
     quizToStartRef.current = quizToStart;
+    selectedTestRef.current = selectedTest;
     selectedLessonRef.current = selectedLesson;
     allTestStepsRef.current = allTestSteps;
     courseIdRef.current = courseId;
-  }, [quizId, quizToStart, selectedLesson, allTestSteps, courseId]);
+  }, [quizId, quizToStart, selectedTest, selectedLesson, allTestSteps, courseId]);
 
   // 🔥 FIX: Completely stable callback - no dependencies, uses refs for latest values
   const handleQuizComplete = useCallback(async (result, questions, quizInfo) => {
@@ -612,7 +614,7 @@ const TestsPage = () => {
     if (quizToStartRef.current?.id && selectedLessonRef.current) {
       try {
         const currentIndex = allTestStepsRef.current.findIndex(item =>
-          item.step === selectedTest && item.lesson.id === selectedLessonRef.current.id
+          item.step === selectedTestRef.current && item.lesson.id === selectedLessonRef.current.id
         );
 
         if (currentIndex !== -1) {
@@ -787,6 +789,22 @@ const TestsPage = () => {
   // Check if a quiz step is completed
   const isQuizCompleted = (lesson, stepIndex) => {
     return isCompleted(lesson.id, 'step', lesson.id, stepIndex);
+  };
+
+  // Toggle completion for a step directly from the list
+  const handleToggleListItem = async (lesson, originalStepIndex) => {
+    try {
+      const completed = isCompleted(lesson.id, 'step', lesson.id, originalStepIndex);
+      if (completed) {
+        await unmarkComplete(lesson.id, 'step', lesson.id, originalStepIndex);
+      } else {
+        await markComplete(lesson.id, 'step', lesson.id, originalStepIndex);
+      }
+      await fetchCompletedContent();
+      window.dispatchEvent(new CustomEvent('courseProgressUpdated', { detail: { courseId } }));
+    } catch (error) {
+      console.error('Error toggling step completion:', error);
+    }
   };
 
   // Check if current step is completed
@@ -1457,14 +1475,22 @@ const TestsPage = () => {
                                     style={{ opacity: (stepHidden || stepLocked) ? 0.6 : 1 }}
                                   >
                                     <div className="flex items-center gap-3 flex-1 mr-2 overflow-hidden">
-                                      {isCompleted ? (
-                                        <CheckCircle size={18} style={{ color: '#10b981' }} className="flex-shrink-0" />
-                                      ) : stepLocked ? (
+                                      {stepLocked ? (
                                         <Lock size={18} style={{ color: pageColors.accent }} className="flex-shrink-0" />
                                       ) : stepHidden ? (
                                         <EyeOff size={18} style={{ color: '#ef4444' }} className="flex-shrink-0" />
                                       ) : (
-                                        <Circle size={18} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); handleToggleListItem(lesson, originalStepIndex); }}
+                                          className="flex-shrink-0 p-1 transition-transform hover:scale-110"
+                                          title={isCompleted ? 'Marcar como no completado' : 'Marcar como completado'}
+                                        >
+                                          {isCompleted ? (
+                                            <CheckCircle size={28} style={{ color: '#10b981' }} />
+                                          ) : (
+                                            <Circle size={28} style={{ color: pageColors.textMuted }} />
+                                          )}
+                                        </button>
                                       )}
                                       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
                                         <span className="text-sm font-medium mb-1.5 truncate" style={{ color: pageColors.text }}>
@@ -1827,7 +1853,7 @@ const TestsPage = () => {
                       {/* HEADER: Título del Quiz + Estado */}
                       <div 
                         className="px-4 py-2 flex-shrink-0 rounded-xl mb-3"
-                        style={{ backgroundColor: getColor('primary', '#1a202c') }}
+                        style={{ backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1F2937') : getColor('primary', '#1a202c') }}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
@@ -1913,7 +1939,7 @@ const TestsPage = () => {
                           <div 
                             className="rounded-xl overflow-hidden"
                             style={{ 
-                              backgroundColor: getColor('primary', '#1a202c'),
+                              backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1F2937') : getColor('primary', '#1a202c'),
                               border: isDarkMode ? '1px solid #ffffff' : 'none'
                             }}
                           >
@@ -1949,7 +1975,7 @@ const TestsPage = () => {
                           <div 
                             className="rounded-xl overflow-hidden"
                             style={{ 
-                              backgroundColor: getColor('primary', '#1a202c'),
+                              backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1F2937') : getColor('primary', '#1a202c'),
                               border: isDarkMode ? '1px solid #ffffff' : 'none'
                             }}
                           >

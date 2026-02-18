@@ -597,6 +597,22 @@ const SupportMaterialPage = () => {
     }
   };
 
+  // Toggle completion for a step directly from the list
+  const handleToggleListItem = async (lesson, originalStepIndex) => {
+    try {
+      const completed = isCompleted(lesson.id, 'step', lesson.id, originalStepIndex);
+      if (completed) {
+        await unmarkComplete(lesson.id, 'step', lesson.id, originalStepIndex);
+      } else {
+        await markComplete(lesson.id, 'step', lesson.id, originalStepIndex);
+      }
+      await fetchCompletedContent();
+      window.dispatchEvent(new CustomEvent('courseProgressUpdated', { detail: { courseId } }));
+    } catch (error) {
+      console.error('Error toggling step completion:', error);
+    }
+  };
+
   // Check if current step is completed
   const isCurrentStepCompleted = () => {
     if (!selectedLesson || !selectedPDF) return false;
@@ -1042,14 +1058,22 @@ const SupportMaterialPage = () => {
                                   e.currentTarget.style.backgroundColor = 'transparent';
                                 }}
                               >
-                                {stepCompleted ? (
-                                  <CheckCircle size={18} style={{ color: '#10b981' }} className="flex-shrink-0" />
-                                ) : isLocked ? (
+                                {isLocked ? (
                                   <Lock size={18} style={{ color: pageColors.accent }} className="flex-shrink-0" />
                                 ) : isHidden ? (
                                   <EyeOff size={18} style={{ color: '#ef4444' }} className="flex-shrink-0" />
                                 ) : (
-                                  <Circle size={18} style={{ color: pageColors.textMuted }} className="flex-shrink-0" />
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleToggleListItem(lesson, originalStepIndex); }}
+                                    className="flex-shrink-0 p-1 transition-transform hover:scale-110"
+                                    title={stepCompleted ? 'Marcar como no completado' : 'Marcar como completado'}
+                                  >
+                                    {stepCompleted ? (
+                                      <CheckCircle size={28} style={{ color: '#10b981' }} />
+                                    ) : (
+                                      <Circle size={28} style={{ color: pageColors.textMuted }} />
+                                    )}
+                                  </button>
                                 )}
                                 <span
                                   className="text-sm font-medium flex-1 truncate"

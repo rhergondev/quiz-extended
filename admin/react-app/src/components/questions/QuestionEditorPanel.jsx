@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Save, X, Plus, Trash2 } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import '../../styles/quill-explanation.css';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
@@ -55,7 +56,8 @@ const QuestionEditorPanel = ({
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({});
   const quillRef = useRef(null);
-  
+  const quillInitialized = useRef(false);
+
   const titleRef = useRef(null);
 
   const autoResizeTextarea = useCallback((el) => {
@@ -93,6 +95,7 @@ const QuestionEditorPanel = ({
   }, []);
 
   useEffect(() => {
+    quillInitialized.current = false; // Reset so Quill gets re-initialized
     const fetchQuestionData = async () => {
       if (questionId && mode === 'edit') {
         setIsLoading(true);
@@ -155,24 +158,22 @@ const QuestionEditorPanel = ({
     autoResizeTextarea(titleRef.current);
   }, [formData.title, autoResizeTextarea]);
 
-  // 🔥 FIX: Sincronizar ReactQuill cuando cambia formData.explanation solo si hay contenido real
+  // Set Quill content via DOM to preserve intentional empty lines (<p><br></p>).
+  // clipboard.convert / dangerouslyPasteHTML strip empty <p> tags.
+  // innerHTML + update('silent') preserves them, but only after stripping whitespace
+  // text nodes between </p> and <p> — those stray \n chars get normalised into
+  // extra blank paragraphs by Quill's Parchment normalizer otherwise.
   useEffect(() => {
-    // Solo actualizar si hay contenido Y el editor está listo
-    if (!quillRef.current || !formData.explanation || formData.explanation.length === 0) {
-      return;
-    }
-    
+    if (quillInitialized.current) return;
+    if (!quillRef.current || !formData.explanation) return;
+
     const editor = quillRef.current.getEditor();
-    const currentContent = editor.root.innerHTML;
-    
-    // Solo actualizar si el contenido es realmente diferente y hay algo que poner
-    if (currentContent !== formData.explanation && formData.explanation.trim() !== '') {
-      console.log('🔄 Updating Quill content:', {
-        from: currentContent.substring(0, 50),
-        to: formData.explanation.substring(0, 50)
-      });
-      editor.clipboard.dangerouslyPasteHTML(formData.explanation);
-    }
+    if (!editor) return;
+
+    const cleanHtml = formData.explanation.replace(/<\/p>\s+<p/gi, '</p><p');
+    editor.root.innerHTML = cleanHtml;
+    editor.update('silent');
+    quillInitialized.current = true;
   }, [formData.explanation]);
   
   const handleFieldChange = (field, value) => {
@@ -526,14 +527,14 @@ const QuestionEditorPanel = ({
           />
         )}
        
-        <div className="qe-quill-wrapper">
+        <div className="explanation-editor">
             <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>{t('questions.fields.explanation')}</label>
-            <ReactQuill 
-              key={`quill-${questionId || 'new'}-${mode}`} 
-              ref={quillRef} 
-              theme="snow" 
-              value={formData.explanation || ''} 
-              onChange={(val) => handleFieldChange('explanation', val)} 
+            <ReactQuill
+              key={`quill-${questionId || 'new'}-${mode}`}
+              ref={quillRef}
+              theme="snow"
+              defaultValue=""
+              onChange={(val) => handleFieldChange('explanation', val)}
               modules={quillModules}
               style={{ minHeight: '200px' }}
             />

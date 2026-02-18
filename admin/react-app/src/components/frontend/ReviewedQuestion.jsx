@@ -410,11 +410,11 @@ const ReviewedQuestion = ({
 
         {/* Badge de respuesta correcta */}
         <div className="px-4 pb-3">
-          <div 
+          <div
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
             style={{
-              backgroundColor: is_correct ? SUCCESS_COLOR + '15' : ERROR_COLOR + '15',
-              color: is_correct ? SUCCESS_COLOR : ERROR_COLOR
+              backgroundColor: is_correct ? SUCCESS_COLOR : ERROR_COLOR,
+              color: '#ffffff'
             }}
           >
             {is_correct ? (

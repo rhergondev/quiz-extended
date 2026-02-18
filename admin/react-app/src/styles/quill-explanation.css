@@ -1,0 +1,74 @@
+/* ===================================
+   QUILL EDITOR — Match explanation-content
+   styles so the admin sees the same output.
+
+   IMPORTANT: This file MUST be imported AFTER
+   react-quill/dist/quill.snow.css so our rules
+   win in the cascade.
+   =================================== */
+
+.explanation-editor .ql-editor {
+  font-size: 0.75rem !important;
+  line-height: 1.625 !important;
+}
+
+.explanation-editor .ql-editor * {
+  font-size: inherit !important;
+}
+
+/* Paragraph spacing — matches explanation-content */
+.explanation-editor .ql-editor p {
+  margin-bottom: 0.5rem !important;
+  min-height: 1.2em !important;
+}
+
+.explanation-editor .ql-editor p:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Quill's empty line: <p><br></p> with class .ql-blank */
+.explanation-editor .ql-editor p.ql-blank {
+  min-height: 1.2em !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* Quill lists */
+.explanation-editor .ql-editor ol {
+  margin-left: 1.25rem !important;
+  margin-bottom: 0.5rem !important;
+  padding-left: 0 !important;
+  list-style-type: none !important;
+}
+
+.explanation-editor .ql-editor li {
+  margin-bottom: 0.25rem !important;
+  padding-left: 0.5rem !important;
+}
+
+.explanation-editor .ql-editor li[data-list="bullet"]::before {
+  content: '\2022' !important;
+  display: inline !important;
+  margin-right: 0.375rem;
+  font-size: inherit;
+}
+
+.explanation-editor .ql-editor li[data-list="ordered"]::before {
+  display: inline !important;
+  margin-right: 0.375rem;
+  font-size: inherit;
+}
+
+.explanation-editor .ql-editor strong,
+.explanation-editor .ql-editor b {
+  font-weight: 600 !important;
+}
+
+.explanation-editor .ql-editor em,
+.explanation-editor .ql-editor i {
+  font-style: italic !important;
+}
+
+.explanation-editor .ql-editor span[style*="text-decoration: underline"],
+.explanation-editor .ql-editor u {
+  text-decoration: underline !important;
+}

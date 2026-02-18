@@ -47,56 +47,43 @@ const Question = ({
   const bgSubtle = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
   const borderSubtle = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
   
-  // Función para obtener colores según el estado
+  const accentColor = getColor('accent', '#f59e0b');
+
+  // Structural color: risked is treated same as answered — only the badge + checkbox use yellow
   const getQuestionColor = (opacity = '') => {
-    switch (questionState) {
+    const effectiveState = questionState === 'risked' ? 'answered' : questionState;
+    switch (effectiveState) {
       case 'unanswered':
-        // En dark mode usar blanco para mejor contraste
         return isDarkMode ? `#ffffff${opacity}` : `#6b7280${opacity}`;
-      case 'risked':
-        return `${getColor('accent', '#f59e0b')}${opacity}`; // Naranja
       case 'answered':
       default:
-        // En dark mode aplicar más brillo al color primary para mejor contraste
         if (isDarkMode) {
           const primaryColor = getColor('primary', '#3b82f6');
-          // Aplicar brightness 1.1 simulado mezclando con blanco
           return opacity ? `${primaryColor}${opacity}` : primaryColor;
         }
-        return `${getColor('primary', '#3b82f6')}${opacity}`; // Azul
+        return `${getColor('primary', '#3b82f6')}${opacity}`;
     }
   };
-  
-  // Obtener color de borde según estado (para dark mode con mejor contraste)
+
   const getBorderColor = () => {
-    switch (questionState) {
+    const effectiveState = questionState === 'risked' ? 'answered' : questionState;
+    switch (effectiveState) {
       case 'unanswered':
         return isDarkMode ? 'rgba(255,255,255,0.3)' : 'rgba(107,114,128,0.4)';
-      case 'risked':
-        return getColor('accent', '#f59e0b');
       case 'answered':
       default:
-        // En dark mode, usar un azul más suave
-        if (isDarkMode) {
-          return '#4a8ae8'; // Azul más suave para dark mode
-        }
-        return getColor('primary', '#3b82f6');
+        return isDarkMode ? '#4a8ae8' : getColor('primary', '#3b82f6');
     }
   };
-  
-  // Color de borde secundario (laterales y abajo)
+
   const getSecondaryBorderColor = () => {
-    switch (questionState) {
+    const effectiveState = questionState === 'risked' ? 'answered' : questionState;
+    switch (effectiveState) {
       case 'unanswered':
         return isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(107,114,128,0.25)';
-      case 'risked':
-        return isDarkMode ? `${getColor('accent', '#f59e0b')}60` : `${getColor('accent', '#f59e0b')}40`;
       case 'answered':
       default:
-        if (isDarkMode) {
-          return `${getColor('primary', '#3b82f6')}80`; // Más visible en dark
-        }
-        return `${getColor('primary', '#3b82f6')}40`;
+        return isDarkMode ? `${getColor('primary', '#3b82f6')}80` : `${getColor('primary', '#3b82f6')}40`;
     }
   };
 
@@ -164,11 +151,11 @@ const Question = ({
                 </div>
               )}
               {questionState === 'risked' && (
-                <div 
+                <div
                   className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
-                  style={{ 
-                    backgroundColor: getQuestionColor('20'),
-                    color: getQuestionColor()
+                  style={{
+                    backgroundColor: `${accentColor}20`,
+                    color: accentColor
                   }}
                 >
                   <TrendingDown size={12} />
@@ -254,10 +241,10 @@ const Question = ({
                   }
                 }}
               >
-                <div className="flex items-center gap-3 flex-1">
+                <div className="flex items-start gap-3 flex-1">
                   {/* Radio button customizado */}
-                  <div 
-                    className="flex items-center justify-center rounded-full transition-all duration-200"
+                  <div
+                    className="flex items-center justify-center rounded-full transition-all duration-200 flex-shrink-0"
                     style={{
                       width: '18px',
                       height: '18px',
@@ -293,8 +280,8 @@ const Question = ({
                   />
                   
                   {/* Letra de la opción */}
-                  <div 
-                    className="flex items-center justify-center rounded font-bold text-[10px] transition-all duration-200"
+                  <div
+                    className="flex items-center justify-center rounded font-bold text-[10px] transition-all duration-200 flex-shrink-0"
                     style={{
                       width: '20px',
                       height: '20px',

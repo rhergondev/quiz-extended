@@ -705,16 +705,16 @@ const CourseStatisticsPage = () => {
                 </div>
 
                 {/* Preguntas Widget */}
-                <div 
-                  className="rounded-lg overflow-hidden border flex flex-col relative"
-                  style={{ 
+                <div
+                  className="rounded-lg overflow-hidden border flex flex-col"
+                  style={{
                     backgroundColor: pageColors.cardBg,
                     borderColor: pageColors.border,
                     minHeight: '280px'
                   }}
                 >
                   {/* Header */}
-                  <div 
+                  <div
                     className="px-3 py-2 flex items-center justify-between"
                     style={{ backgroundColor: getColor('accent', '#f59e0b') }}
                   >
@@ -724,18 +724,16 @@ const CourseStatisticsPage = () => {
                         Preguntas
                       </span>
                     </div>
-                    {questionStats && (questionStats.correct_with_risk > 0 || questionStats.incorrect_with_risk > 0) && (
-                      <button
-                        onClick={() => setShowRiskPanel(true)}
-                        className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all"
-                        style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#ffffff' }}
-                      >
-                        <Zap size={10} />
-                        Riesgo
-                      </button>
-                    )}
+                    <button
+                      onClick={() => setShowRiskPanel(prev => !prev)}
+                      className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all"
+                      style={{ backgroundColor: showRiskPanel ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.2)', color: '#ffffff' }}
+                    >
+                      <Zap size={10} />
+                      {showRiskPanel ? 'Con riesgo' : 'Sin riesgo'}
+                    </button>
                   </div>
-                  
+
                   {/* Subheader */}
                   <div className="px-3 py-1.5 border-b flex items-center justify-between gap-2" style={{ borderColor: pageColors.border }}>
                     <div className="flex items-center gap-2">
@@ -761,7 +759,7 @@ const CourseStatisticsPage = () => {
                           onClick={() => setSelectedDifficulty(diff)}
                           className="px-2 py-0.5 rounded text-xs font-medium transition-all"
                           style={{
-                            backgroundColor: selectedDifficulty === diff 
+                            backgroundColor: selectedDifficulty === diff
                               ? (diff === 'easy' ? '#22c55e' : diff === 'medium' ? '#f59e0b' : '#ef4444')
                               : (isDarkMode ? '#374151' : '#f3f4f6'),
                             color: selectedDifficulty === diff ? '#ffffff' : pageColors.textMuted
@@ -772,161 +770,208 @@ const CourseStatisticsPage = () => {
                       ))}
                     </div>
                   </div>
-                  
+
                   {/* Content */}
                   <div className="flex-1 overflow-y-auto p-2">
                     {questionStats ? (
                       <div className="space-y-2">
-                        {/* Correctas */}
-                        {(() => {
-                          const userPct = questionStats.user_correct_pct || 0;
-                          const globalPct = questionStats.global_stats?.correct_pct || 0;
-                          const diff = questionStats.comparison?.correct_diff || 0;
-                          const isAbove = diff > 0.5;
-                          const isBelow = diff < -0.5;
-                          
-                          return (
-                            <div className="p-2 rounded border" style={{ backgroundColor: isDarkMode ? '#111827' : '#fafafa', borderColor: pageColors.border }}>
-                              <div className="flex items-center justify-between mb-1.5">
-                                <div className="flex items-center gap-1.5">
-                                  <CheckCircle size={12} style={{ color: '#10b981' }} />
-                                  <span className="text-xs font-semibold" style={{ color: pageColors.text }}>Correctas</span>
-                                </div>
-                                {questionStats.total_questions > 0 && (
-                                  <span className="text-xs font-bold" style={{ color: isAbove ? '#16a34a' : isBelow ? '#dc2626' : pageColors.textMuted }}>
-                                    {diff > 0 ? '+' : ''}{diff}%
-                                  </span>
-                                )}
-                              </div>
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs w-10" style={{ color: pageColors.text }}>Tú</span>
-                                  <span className="text-xs w-8 font-bold" style={{ color: '#10b981' }}>{userPct}%</span>
-                                  <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
-                                    <div className="h-full rounded-full" style={{ width: `${userPct}%`, backgroundColor: '#10b981' }} />
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs w-10" style={{ color: pageColors.textMuted }}>Media</span>
-                                  <span className="text-xs w-8" style={{ color: pageColors.textMuted }}>{globalPct}%</span>
-                                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
-                                    <div className="h-full rounded-full" style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }} />
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        {/* Incorrectas */}
-                        {(() => {
-                          const userPct = questionStats.user_incorrect_pct || 0;
-                          const globalPct = questionStats.global_stats?.incorrect_pct || 0;
-                          const diff = questionStats.comparison?.incorrect_diff || 0;
-                          const isAbove = diff < -0.5;
-                          const isBelow = diff > 0.5;
-                          
-                          return (
-                            <div className="p-2 rounded border" style={{ backgroundColor: isDarkMode ? '#111827' : '#fafafa', borderColor: pageColors.border }}>
-                              <div className="flex items-center justify-between mb-1.5">
-                                <div className="flex items-center gap-1.5">
-                                  <X size={12} style={{ color: '#ef4444' }} />
-                                  <span className="text-xs font-semibold" style={{ color: pageColors.text }}>Incorrectas</span>
-                                </div>
-                                {questionStats.total_questions > 0 && (
-                                  <span className="text-xs font-bold" style={{ color: isAbove ? '#16a34a' : isBelow ? '#dc2626' : pageColors.textMuted }}>
-                                    {diff > 0 ? '+' : ''}{diff}%
-                                  </span>
-                                )}
-                              </div>
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs w-10" style={{ color: pageColors.text }}>Tú</span>
-                                  <span className="text-xs w-8 font-bold" style={{ color: '#ef4444' }}>{userPct}%</span>
-                                  <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
-                                    <div className="h-full rounded-full" style={{ width: `${userPct}%`, backgroundColor: '#ef4444' }} />
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs w-10" style={{ color: pageColors.textMuted }}>Media</span>
-                                  <span className="text-xs w-8" style={{ color: pageColors.textMuted }}>{globalPct}%</span>
-                                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
-                                    <div className="h-full rounded-full" style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }} />
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        {/* Sin contestar */}
-                        {(questionStats.user_unanswered_pct > 0 || questionStats.global_stats?.unanswered_pct > 0) && (() => {
-                          const userPct = questionStats.user_unanswered_pct || 0;
-                          const globalPct = questionStats.global_stats?.unanswered_pct || 0;
-                          
-                          return (
-                            <div className="p-2 rounded border" style={{ backgroundColor: isDarkMode ? '#111827' : '#fafafa', borderColor: pageColors.border }}>
-                              <div className="flex items-center gap-1.5 mb-1.5">
-                                <AlertCircle size={12} style={{ color: '#6b7280' }} />
-                                <span className="text-xs font-semibold" style={{ color: pageColors.text }}>Sin contestar</span>
-                              </div>
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs w-10" style={{ color: pageColors.text }}>Tú</span>
-                                  <span className="text-xs w-8 font-bold" style={{ color: '#6b7280' }}>{userPct}%</span>
-                                  <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
-                                    <div className="h-full rounded-full" style={{ width: `${userPct}%`, backgroundColor: '#94a3b8' }} />
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs w-10" style={{ color: pageColors.textMuted }}>Media</span>
-                                  <span className="text-xs w-8" style={{ color: pageColors.textMuted }}>{globalPct}%</span>
-                                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
-                                    <div className="h-full rounded-full" style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }} />
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        {/* Separador y sección de riesgo */}
-                        {(questionStats.correct_with_risk > 0 || questionStats.incorrect_with_risk > 0) && (
+                        {!showRiskPanel ? (
                           <>
-                            <div className="flex items-center gap-2 pt-2">
-                              <Zap size={12} style={{ color: '#f59e0b' }} />
-                              <span className="text-xs font-semibold" style={{ color: pageColors.text }}>Con Riesgo</span>
-                            </div>
-
-                            {/* Correctas con riesgo */}
-                            {questionStats.correct_with_risk > 0 && (
-                              <div className="p-2 rounded border" style={{ backgroundColor: isDarkMode ? '#14532d' : '#dcfce7', borderColor: isDarkMode ? '#166534' : '#86efac' }}>
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-1.5">
-                                    <CheckCircle size={12} style={{ color: isDarkMode ? '#86efac' : '#16a34a' }} />
-                                    <span className="text-xs font-semibold" style={{ color: isDarkMode ? '#86efac' : '#166534' }}>Correctas</span>
+                            {/* Correctas */}
+                            {(() => {
+                              const userPct = questionStats.user_correct_pct || 0;
+                              const globalPct = questionStats.global_stats?.correct_pct || 0;
+                              const diff = questionStats.comparison?.correct_diff || 0;
+                              const isAbove = diff > 0.5;
+                              const isBelow = diff < -0.5;
+                              return (
+                                <div className="p-2 rounded border" style={{ backgroundColor: isDarkMode ? '#111827' : '#fafafa', borderColor: pageColors.border }}>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <CheckCircle size={12} style={{ color: '#10b981' }} />
+                                      <span className="text-xs font-semibold" style={{ color: pageColors.text }}>Correctas</span>
+                                    </div>
+                                    {questionStats.total_questions > 0 && (
+                                      <span className="text-xs font-bold" style={{ color: isAbove ? '#16a34a' : isBelow ? '#dc2626' : pageColors.textMuted }}>
+                                        {diff > 0 ? '+' : ''}{diff}%
+                                      </span>
+                                    )}
                                   </div>
-                                  <span className="text-xs font-bold" style={{ color: isDarkMode ? '#86efac' : '#16a34a' }}>
-                                    {questionStats.correct_with_risk}
-                                  </span>
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs w-10" style={{ color: pageColors.text }}>Tú</span>
+                                      <span className="text-xs w-8 font-bold" style={{ color: '#10b981' }}>{userPct}%</span>
+                                      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                        <div className="h-full rounded-full" style={{ width: `${userPct}%`, backgroundColor: '#10b981' }} />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs w-10" style={{ color: pageColors.textMuted }}>Media</span>
+                                      <span className="text-xs w-8" style={{ color: pageColors.textMuted }}>{globalPct}%</span>
+                                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                        <div className="h-full rounded-full" style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }} />
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              );
+                            })()}
+
+                            {/* Incorrectas */}
+                            {(() => {
+                              const userPct = questionStats.user_incorrect_pct || 0;
+                              const globalPct = questionStats.global_stats?.incorrect_pct || 0;
+                              const diff = questionStats.comparison?.incorrect_diff || 0;
+                              const isAbove = diff < -0.5;
+                              const isBelow = diff > 0.5;
+                              return (
+                                <div className="p-2 rounded border" style={{ backgroundColor: isDarkMode ? '#111827' : '#fafafa', borderColor: pageColors.border }}>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <X size={12} style={{ color: '#ef4444' }} />
+                                      <span className="text-xs font-semibold" style={{ color: pageColors.text }}>Incorrectas</span>
+                                    </div>
+                                    {questionStats.total_questions > 0 && (
+                                      <span className="text-xs font-bold" style={{ color: isAbove ? '#16a34a' : isBelow ? '#dc2626' : pageColors.textMuted }}>
+                                        {diff > 0 ? '+' : ''}{diff}%
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs w-10" style={{ color: pageColors.text }}>Tú</span>
+                                      <span className="text-xs w-8 font-bold" style={{ color: '#ef4444' }}>{userPct}%</span>
+                                      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                        <div className="h-full rounded-full" style={{ width: `${userPct}%`, backgroundColor: '#ef4444' }} />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs w-10" style={{ color: pageColors.textMuted }}>Media</span>
+                                      <span className="text-xs w-8" style={{ color: pageColors.textMuted }}>{globalPct}%</span>
+                                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                        <div className="h-full rounded-full" style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {/* Sin contestar */}
+                            {(questionStats.user_unanswered_pct > 0 || questionStats.global_stats?.unanswered_pct > 0) && (() => {
+                              const userPct = questionStats.user_unanswered_pct || 0;
+                              const globalPct = questionStats.global_stats?.unanswered_pct || 0;
+                              return (
+                                <div className="p-2 rounded border" style={{ backgroundColor: isDarkMode ? '#111827' : '#fafafa', borderColor: pageColors.border }}>
+                                  <div className="flex items-center gap-1.5 mb-1.5">
+                                    <AlertCircle size={12} style={{ color: '#6b7280' }} />
+                                    <span className="text-xs font-semibold" style={{ color: pageColors.text }}>Sin contestar</span>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs w-10" style={{ color: pageColors.text }}>Tú</span>
+                                      <span className="text-xs w-8 font-bold" style={{ color: '#6b7280' }}>{userPct}%</span>
+                                      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                        <div className="h-full rounded-full" style={{ width: `${userPct}%`, backgroundColor: '#94a3b8' }} />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs w-10" style={{ color: pageColors.textMuted }}>Media</span>
+                                      <span className="text-xs w-8" style={{ color: pageColors.textMuted }}>{globalPct}%</span>
+                                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                        <div className="h-full rounded-full" style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </>
+                        ) : (
+                          <>
+                            {/* Correctas con riesgo */}
+                            {(() => {
+                              const userCount = questionStats.correct_with_risk || 0;
+                              const total = questionStats.total_questions || 0;
+                              const userPct = total > 0 ? Math.round((userCount / total) * 100) : 0;
+                              const globalPct = questionStats.global_stats?.correct_with_risk_pct || 0;
+                              const diff = userPct - globalPct;
+                              const isAbove = diff > 0.5;
+                              const isBelow = diff < -0.5;
+                              return (
+                                <div className="p-2 rounded border" style={{ backgroundColor: isDarkMode ? '#111827' : '#fafafa', borderColor: pageColors.border }}>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <CheckCircle size={12} style={{ color: '#10b981' }} />
+                                      <span className="text-xs font-semibold" style={{ color: pageColors.text }}>Correctas</span>
+                                    </div>
+                                    {total > 0 && (
+                                      <span className="text-xs font-bold" style={{ color: isAbove ? '#16a34a' : isBelow ? '#dc2626' : pageColors.textMuted }}>
+                                        {diff > 0 ? '+' : ''}{diff}%
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs w-10" style={{ color: pageColors.text }}>Tú</span>
+                                      <span className="text-xs w-8 font-bold" style={{ color: '#10b981' }}>{userPct}%</span>
+                                      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                        <div className="h-full rounded-full" style={{ width: `${userPct}%`, backgroundColor: '#10b981' }} />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs w-10" style={{ color: pageColors.textMuted }}>Media</span>
+                                      <span className="text-xs w-8" style={{ color: pageColors.textMuted }}>{globalPct}%</span>
+                                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                        <div className="h-full rounded-full" style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
 
                             {/* Incorrectas con riesgo */}
-                            {questionStats.incorrect_with_risk > 0 && (
-                              <div className="p-2 rounded border" style={{ backgroundColor: isDarkMode ? '#7f1d1d' : '#fee2e2', borderColor: isDarkMode ? '#991b1b' : '#fca5a5' }}>
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-1.5">
-                                    <X size={12} style={{ color: isDarkMode ? '#fca5a5' : '#dc2626' }} />
-                                    <span className="text-xs font-semibold" style={{ color: isDarkMode ? '#fca5a5' : '#991b1b' }}>Incorrectas</span>
+                            {(() => {
+                              const userCount = questionStats.incorrect_with_risk || 0;
+                              const total = questionStats.total_questions || 0;
+                              const userPct = total > 0 ? Math.round((userCount / total) * 100) : 0;
+                              const globalPct = questionStats.global_stats?.incorrect_with_risk_pct || 0;
+                              const diff = userPct - globalPct;
+                              const isAbove = diff < -0.5;
+                              const isBelow = diff > 0.5;
+                              return (
+                                <div className="p-2 rounded border" style={{ backgroundColor: isDarkMode ? '#111827' : '#fafafa', borderColor: pageColors.border }}>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <X size={12} style={{ color: '#ef4444' }} />
+                                      <span className="text-xs font-semibold" style={{ color: pageColors.text }}>Incorrectas</span>
+                                    </div>
+                                    {total > 0 && (
+                                      <span className="text-xs font-bold" style={{ color: isAbove ? '#16a34a' : isBelow ? '#dc2626' : pageColors.textMuted }}>
+                                        {diff > 0 ? '+' : ''}{diff}%
+                                      </span>
+                                    )}
                                   </div>
-                                  <span className="text-xs font-bold" style={{ color: isDarkMode ? '#fca5a5' : '#dc2626' }}>
-                                    {questionStats.incorrect_with_risk}
-                                  </span>
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs w-10" style={{ color: pageColors.text }}>Tú</span>
+                                      <span className="text-xs w-8 font-bold" style={{ color: '#ef4444' }}>{userPct}%</span>
+                                      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                        <div className="h-full rounded-full" style={{ width: `${userPct}%`, backgroundColor: '#ef4444' }} />
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs w-10" style={{ color: pageColors.textMuted }}>Media</span>
+                                      <span className="text-xs w-8" style={{ color: pageColors.textMuted }}>{globalPct}%</span>
+                                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                                        <div className="h-full rounded-full" style={{ width: `${globalPct}%`, backgroundColor: '#9ca3af' }} />
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              );
+                            })()}
                           </>
                         )}
                       </div>
@@ -943,48 +988,6 @@ const CourseStatisticsPage = () => {
                         <p className="text-xs" style={{ color: pageColors.textMuted }}>
                           Cargando...
                         </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Risk Analysis Slide Panel */}
-                  <div 
-                    className={`absolute inset-0 transition-transform duration-300 ease-in-out ${showRiskPanel ? 'translate-x-0' : 'translate-x-full'}`}
-                    style={{ backgroundColor: pageColors.cardBg }}
-                  >
-                    {showRiskPanel && questionStats && (
-                      <div className="h-full flex flex-col">
-                        <div className="px-3 py-2 flex items-center justify-between" style={{ backgroundColor: getColor('accent', '#f59e0b') }}>
-                          <div className="flex items-center gap-2">
-                            <Zap size={14} className="text-white" />
-                            <span className="text-xs font-bold uppercase text-white">Con Riesgo</span>
-                          </div>
-                          <button onClick={() => setShowRiskPanel(false)} className="p-1 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
-                            <X size={14} className="text-white" />
-                          </button>
-                        </div>
-                        <div className="flex-1 p-3 overflow-y-auto space-y-2">
-                          <div className="p-3 rounded border" style={{ backgroundColor: isDarkMode ? '#14532d' : '#dcfce7', borderColor: isDarkMode ? '#166534' : '#86efac' }}>
-                            <div className="flex items-center gap-2 mb-2">
-                              <CheckCircle size={14} style={{ color: isDarkMode ? '#86efac' : '#16a34a' }} />
-                              <span className="text-xs font-bold" style={{ color: isDarkMode ? '#86efac' : '#166534' }}>Correctas con riesgo</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-xs" style={{ color: isDarkMode ? '#86efac' : '#166534' }}>Tú: <strong>{questionStats.correct_with_risk || 0}</strong></span>
-                              <span className="text-xs" style={{ color: isDarkMode ? '#86efac' : '#166534' }}>Media: {questionStats.global_stats?.correct_with_risk_pct || 0}%</span>
-                            </div>
-                          </div>
-                          <div className="p-3 rounded border" style={{ backgroundColor: isDarkMode ? '#7f1d1d' : '#fee2e2', borderColor: isDarkMode ? '#991b1b' : '#fca5a5' }}>
-                            <div className="flex items-center gap-2 mb-2">
-                              <X size={14} style={{ color: isDarkMode ? '#fca5a5' : '#dc2626' }} />
-                              <span className="text-xs font-bold" style={{ color: isDarkMode ? '#fca5a5' : '#991b1b' }}>Incorrectas con riesgo</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-xs" style={{ color: isDarkMode ? '#fca5a5' : '#991b1b' }}>Tú: <strong>{questionStats.incorrect_with_risk || 0}</strong></span>
-                              <span className="text-xs" style={{ color: isDarkMode ? '#fca5a5' : '#991b1b' }}>Media: {questionStats.global_stats?.incorrect_with_risk_pct || 0}%</span>
-                            </div>
-                          </div>
-                        </div>
                       </div>
                     )}
                   </div>

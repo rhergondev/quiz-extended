@@ -89,19 +89,18 @@ const QuizResults = ({
         <Menu className="w-6 h-6" />
       </button>
 
-      <div className={`flex-1 overflow-hidden ${noPadding ? '' : 'p-4'}`}>
-        <div className="w-full h-full max-w-screen-2xl mx-auto flex flex-col lg:flex-row-reverse gap-6">
+      <div className={`flex-1 overflow-y-auto ${noPadding ? '' : 'p-4'}`}>
+        <div className="w-full max-w-screen-2xl mx-auto flex flex-col lg:flex-row-reverse gap-6">
           {/* Sidebar de resultados */}
           <aside className={`
             fixed lg:relative
-            top-0 right-0 
+            top-0 right-0
             h-full lg:h-auto
-            w-80 lg:w-80
+            w-[360px] lg:w-[400px]
             flex-shrink-0
             transition-transform duration-300
             z-50 lg:z-auto
             ${isResultsSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
-            ${noPadding ? 'lg:sticky lg:top-4' : ''}
           `}
           style={{
             backgroundColor: isResultsSidebarOpen ? getColor('background', '#ffffff') : 'transparent'
@@ -123,12 +122,17 @@ const QuizResults = ({
               </button>
             </div>
 
-            <div className="overflow-y-auto h-[calc(100%-88px)] lg:h-auto px-4 py-4 lg:p-0">
+            {/* Sticky inner wrapper — stays in view while questions scroll */}
+            <div className="hidden lg:block sticky top-4">
+              <ResultsSidebar result={result} questions={questions} />
+            </div>
+            {/* Mobile: normal scroll within the slide-in drawer */}
+            <div className="lg:hidden overflow-y-auto h-[calc(100%-88px)] px-4 py-4">
               <ResultsSidebar result={result} questions={questions} />
             </div>
           </aside>
 
-          <main className={`flex-1 w-full lg:w-auto overflow-y-auto ${noPadding ? 'px-4 sm:px-6 lg:px-4 py-4 lg:py-4 pb-24 lg:pb-12' : 'px-4 lg:pr-4 py-4 lg:pb-8 pb-24'}`}>
+          <main className={`flex-1 min-w-0 ${noPadding ? 'px-4 sm:px-6 lg:px-4 py-4 lg:py-4 pb-24 lg:pb-12' : 'px-4 lg:pr-4 py-4 lg:pb-8 pb-24'}`}>
         {/* Barra de info: Botón volver, Dificultad y Tiempo */}
         {(onBack || difficulty || result?.duration_seconds) && (
           <div
@@ -242,24 +246,24 @@ const QuizResults = ({
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <CheckCircle size={12} style={{ color: SUCCESS_COLOR }} />
-                    <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('quizzes.results.correct')}</span>
+                    <CheckCircle size={14} style={{ color: SUCCESS_COLOR }} />
+                    <span className="text-sm font-semibold" style={{ color: SUCCESS_COLOR }}>{t('quizzes.results.correct')}</span>
                   </div>
-                  <span className="text-xs font-medium" style={{ color: SUCCESS_COLOR }}>{correctAnswersWithoutRisk}</span>
+                  <span className="text-sm font-semibold" style={{ color: SUCCESS_COLOR }}>{correctAnswersWithoutRisk}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <MinusCircle size={12} style={{ color: GRAY_COLOR }} />
-                    <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('quizzes.results.unanswered')}</span>
+                    <MinusCircle size={14} style={{ color: GRAY_COLOR }} />
+                    <span className="text-sm font-semibold" style={{ color: GRAY_COLOR }}>{t('quizzes.results.unanswered')}</span>
                   </div>
-                  <span className="text-xs font-medium" style={{ color: GRAY_COLOR }}>{unansweredWithoutRisk}</span>
+                  <span className="text-sm font-semibold" style={{ color: GRAY_COLOR }}>{unansweredWithoutRisk}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <XCircle size={12} style={{ color: ERROR_COLOR }} />
-                    <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('quizzes.results.incorrect')}</span>
+                    <XCircle size={14} style={{ color: ERROR_COLOR }} />
+                    <span className="text-sm font-semibold" style={{ color: ERROR_COLOR }}>{t('quizzes.results.incorrect')}</span>
                   </div>
-                  <span className="text-xs font-medium" style={{ color: ERROR_COLOR }}>{incorrectAnswersWithoutRisk}</span>
+                  <span className="text-sm font-semibold" style={{ color: ERROR_COLOR }}>{incorrectAnswersWithoutRisk}</span>
                 </div>
               </div>
             </div>
@@ -287,24 +291,24 @@ const QuizResults = ({
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <CheckCircle size={12} style={{ color: SUCCESS_COLOR }} />
-                    <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('quizzes.results.correct')}</span>
+                    <CheckCircle size={14} style={{ color: SUCCESS_COLOR }} />
+                    <span className="text-sm font-semibold" style={{ color: SUCCESS_COLOR }}>{t('quizzes.results.correct')}</span>
                   </div>
-                  <span className="text-xs font-medium" style={{ color: SUCCESS_COLOR }}>{correctAnswersWithRisk}</span>
+                  <span className="text-sm font-semibold" style={{ color: SUCCESS_COLOR }}>{correctAnswersWithRisk}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <MinusCircle size={12} style={{ color: GRAY_COLOR }} />
-                    <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('quizzes.results.unanswered')}</span>
+                    <MinusCircle size={14} style={{ color: GRAY_COLOR }} />
+                    <span className="text-sm font-semibold" style={{ color: GRAY_COLOR }}>{t('quizzes.results.unanswered')}</span>
                   </div>
-                  <span className="text-xs font-medium" style={{ color: GRAY_COLOR }}>{unansweredWithRisk}</span>
+                  <span className="text-sm font-semibold" style={{ color: GRAY_COLOR }}>{unansweredWithRisk}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <XCircle size={12} style={{ color: ERROR_COLOR }} />
-                    <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('quizzes.results.incorrect')}</span>
+                    <XCircle size={14} style={{ color: ERROR_COLOR }} />
+                    <span className="text-sm font-semibold" style={{ color: ERROR_COLOR }}>{t('quizzes.results.incorrect')}</span>
                   </div>
-                  <span className="text-xs font-medium" style={{ color: ERROR_COLOR }}>{incorrectAnswersWithRisk}</span>
+                  <span className="text-sm font-semibold" style={{ color: ERROR_COLOR }}>{incorrectAnswersWithRisk}</span>
                 </div>
               </div>
             </div>
