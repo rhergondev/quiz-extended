@@ -743,6 +743,23 @@ button.qe-btn-lg {
   fill: #ffffff !important;
 }
 
+/* Active state for B/I/U and list buttons in dark mode */
+.qe-dark-mode .ql-toolbar.ql-snow button.ql-active .ql-stroke {
+  stroke: #60a5fa !important; /* blue-400 — clearly visible on dark bg */
+}
+
+.qe-dark-mode .ql-toolbar.ql-snow button.ql-active .ql-fill {
+  fill: #60a5fa !important;
+}
+
+.qe-dark-mode .ql-toolbar.ql-snow .ql-picker-label.ql-active {
+  color: #60a5fa !important;
+}
+
+.qe-dark-mode .ql-toolbar.ql-snow .ql-picker-label.ql-active .ql-stroke {
+  stroke: #60a5fa !important;
+}
+
 /* Dark mode para ReactQuill editor container */
 .qe-dark-mode .ql-container.ql-snow {
   background-color: rgba(255, 255, 255, 0.05) !important;

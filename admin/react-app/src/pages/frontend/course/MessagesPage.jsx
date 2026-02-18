@@ -580,7 +580,7 @@ const MessagesPage = () => {
                                 Enunciado
                               </p>
                               <div
-                                className={`text-sm leading-relaxed prose prose-sm max-w-none break-words ${isDarkMode ? 'prose-invert' : ''}`}
+                                className="explanation-content text-sm leading-relaxed break-words"
                                 style={{ color: pageColors.text, overflowWrap: 'anywhere' }}
                                 dangerouslySetInnerHTML={{ __html: relatedQuestion.title?.rendered || relatedQuestion.title || '' }}
                               />
@@ -625,7 +625,7 @@ const MessagesPage = () => {
                             )}
 
                             {/* Explanation */}
-                            {relatedQuestion.content?.rendered && (
+                            {(relatedQuestion.content?.rendered || relatedQuestion.meta?._explanation) && (
                               <div
                                 className="p-3 sm:p-4 rounded-xl"
                                 style={{
@@ -637,9 +637,9 @@ const MessagesPage = () => {
                                   Explicación
                                 </p>
                                 <div
-                                  className={`text-sm leading-relaxed prose prose-sm max-w-none break-words ${isDarkMode ? 'prose-invert' : ''}`}
-                                  style={{ color: pageColors.text, overflowWrap: 'anywhere' }}
-                                  dangerouslySetInnerHTML={{ __html: relatedQuestion.content.rendered }}
+                                  className="explanation-content text-xs leading-relaxed break-words"
+                                  style={{ color: isDarkMode ? '#ffffff' : pageColors.textMuted, overflowWrap: 'anywhere' }}
+                                  dangerouslySetInnerHTML={{ __html: relatedQuestion.content?.rendered || relatedQuestion.meta?._explanation || '' }}
                                 />
                               </div>
                             )}

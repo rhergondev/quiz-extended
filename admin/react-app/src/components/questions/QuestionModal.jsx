@@ -924,7 +924,7 @@ const QuestionModal = ({
           )}
             
           {/* Explicación */}
-          <div>
+          <div className="explanation-editor">
             <label className="block text-xs font-bold uppercase mb-1" style={{ color: pageColors.text }}>Explicación (Opcional)</label>
             <ReactQuill
               ref={quillRef}
@@ -932,9 +932,6 @@ const QuestionModal = ({
               value={formData.explanation}
               onChange={(value) => handleFieldChange('explanation', value)}
               modules={quillModules}
-              style={{
-                fontSize: '14px' 
-              }}
             />
           </div>
             

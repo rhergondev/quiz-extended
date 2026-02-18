@@ -190,19 +190,10 @@ export const formatQuestionForDisplay = (question) => {
     return null;
   }
 
-  // 🔥 CORRECCIÓN: Accedemos a content.rendered si es un objeto, o usamos el string directamente
-  let contentText = '';
-  if (sanitized.content) {
-    if (typeof sanitized.content === 'object' && sanitized.content !== null) {
-      // Si es objeto, intentamos obtener rendered, si no existe o está vacío, usamos raw
-      contentText = sanitized.content.rendered || sanitized.content.raw || '';
-    } else if (typeof sanitized.content === 'string') {
-      contentText = sanitized.content;
-    }
-  }
-  
-  // Si no hay contenido, usamos el meta _explanation
-  const explanationHTML = contentText || sanitized.meta?._explanation || '';
+  // sanitizeQuestionData already resolves content.rendered/raw via
+  // sanitizeRenderedContent(), so sanitized.content is always a string.
+  // Fall back to meta._explanation if content is empty.
+  const explanationHTML = sanitized.content || sanitized.meta?._explanation || '';
   
   // Para la versión corta (sin HTML), eliminamos las etiquetas
   const explanationPlainText = explanationHTML.replace(/<[^>]*>/g, '').trim();
