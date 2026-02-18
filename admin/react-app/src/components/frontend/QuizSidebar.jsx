@@ -12,18 +12,18 @@ const StatBox = ({ label, value, textColor, bgCard }) => (
       borderColor: textColor
     }}
   >
-    <span className="block text-[11px] font-semibold leading-tight" style={{ color: textColor }}>
+    <span className="block text-xs font-semibold leading-tight" style={{ color: textColor }}>
       {label}
     </span>
-    <span className="block text-xl font-bold mt-0.5" style={{ color: textColor }}>
+    <span className="block text-[22px] font-bold mt-0.5" style={{ color: textColor }}>
       {value}
     </span>
   </div>
 );
 
 const LegendItem = ({ bgColor, borderColor, textColor, text }) => (
-  <div 
-    className="px-2.5 py-1.5 rounded-md text-[10px] font-semibold flex items-center justify-center border-2"
+  <div
+    className="px-3 py-1.5 rounded-md text-[11px] font-semibold flex items-center justify-center border-2"
     style={{ 
       backgroundColor: bgColor,
       borderColor: borderColor,
@@ -216,12 +216,12 @@ const QuizSidebar = ({
 
         {/* Mapa de preguntas - con scroll interno */}
         <div className="px-1 py-1.5 border-b flex-1 min-h-0 flex flex-col" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
-          <h3 className="text-[10px] font-semibold mb-1 flex-shrink-0" style={{ color: textPrimary }}>
+          <h3 className="text-[11px] font-semibold mb-1 flex-shrink-0" style={{ color: textPrimary }}>
             {t('quizzes.sidebar.questionsMap')}
           </h3>
-          <div className="flex-1 min-h-0" style={{ maxHeight: '280px' }}>
-            <div 
-              className="grid grid-cols-10 gap-0.5"
+          <div className="flex-1 min-h-0" style={{ maxHeight: '420px' }}>
+            <div
+              className="grid grid-cols-8 gap-1"
             >
             {Array.from({ length: effectiveTotal }).map((_, index) => {
               const qId = questionIds && questionIds[index] ? questionIds[index] : (questions && questions[index] ? questions[index].id : `unloaded-${index}`);
@@ -273,7 +273,7 @@ const QuizSidebar = ({
                     }
                   }}
                   disabled={!elementExists}
-                  className="w-full aspect-square rounded text-[11px] font-bold transition-all duration-150 flex items-center justify-center border-2 disabled:cursor-wait hover:enabled:scale-110 hover:enabled:shadow-sm cursor-pointer"
+                  className="w-full aspect-square rounded text-[15px] font-bold transition-all duration-150 flex items-center justify-center border-2 disabled:cursor-wait hover:enabled:scale-110 hover:enabled:shadow-sm cursor-pointer"
                   style={{
                     backgroundColor: bgColor,
                     borderColor: borderColor,
@@ -294,7 +294,7 @@ const QuizSidebar = ({
         <div className="px-2 py-2 flex-shrink-0">
           <button
             onClick={onSubmit}
-            className="w-full py-3 text-sm text-white font-bold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98] text-center"
+            className="w-full py-3.5 text-[15px] text-white font-bold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98] text-center"
             style={{ backgroundColor: colors.answeredBg }}
           >
             {t('quizzes.sidebar.finishExam')}

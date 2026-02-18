@@ -40,7 +40,7 @@ const VideosPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [selectedLesson, setSelectedLesson] = useState(null);
-  const [feedbackModalData, setFeedbackModalData] = useState({ isOpen: false, step: null, lesson: null });
+  const [feedbackModalData, setFeedbackModalData] = useState({ isOpen: false, step: null, lesson: null, feedbackType: 'duda' });
 
   // Admin functionality
   const userIsAdmin = isUserAdmin();
@@ -1133,25 +1133,44 @@ const VideosPage = () => {
                                       </button>
                                     </div>
                                   )}
-                                  {/* Doubt Button - non-admin only, visible non-locked videos */}
+                                  {/* Doubt + Impugnación Buttons - non-admin only, visible non-locked videos */}
                                   {!userIsAdmin && !isLocked && !isHidden && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setFeedbackModalData({ isOpen: true, step, lesson });
-                                      }}
-                                      className="p-2 rounded-lg transition-all flex-shrink-0"
-                                      style={{ backgroundColor: `${pageColors.accent}15` }}
-                                      title={t('quizzes.feedbackModal.titleFeedback')}
-                                      onMouseEnter={(e) => {
-                                        e.currentTarget.style.backgroundColor = `${pageColors.accent}25`;
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.currentTarget.style.backgroundColor = `${pageColors.accent}15`;
-                                      }}
-                                    >
-                                      <MessageSquare size={16} style={{ color: pageColors.accent }} />
-                                    </button>
+                                    <>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setFeedbackModalData({ isOpen: true, step, lesson, feedbackType: 'duda' });
+                                        }}
+                                        className="p-2 rounded-lg transition-all flex-shrink-0"
+                                        style={{ backgroundColor: `${pageColors.accent}15` }}
+                                        title={t('quizzes.feedbackModal.titleFeedback')}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.backgroundColor = `${pageColors.accent}25`;
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.backgroundColor = `${pageColors.accent}15`;
+                                        }}
+                                      >
+                                        <MessageSquare size={16} style={{ color: pageColors.accent }} />
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setFeedbackModalData({ isOpen: true, step, lesson, feedbackType: 'impugnacion' });
+                                        }}
+                                        className="p-2 rounded-lg transition-all flex-shrink-0"
+                                        style={{ backgroundColor: 'rgba(239,68,68,0.1)' }}
+                                        title={t('quizzes.feedbackModal.titleChallenge')}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.2)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.1)';
+                                        }}
+                                      >
+                                        <AlertTriangle size={16} style={{ color: '#ef4444' }} />
+                                      </button>
+                                    </>
                                   )}
 
                                   {/* Available Button */}
@@ -1511,7 +1530,8 @@ const VideosPage = () => {
           lesson={feedbackModalData.lesson}
           courseId={courseId}
           courseName={courseName}
-          onClose={() => setFeedbackModalData({ isOpen: false, step: null, lesson: null })}
+          feedbackType={feedbackModalData.feedbackType}
+          onClose={() => setFeedbackModalData({ isOpen: false, step: null, lesson: null, feedbackType: 'duda' })}
         />
       )}
     </CoursePageTemplate>

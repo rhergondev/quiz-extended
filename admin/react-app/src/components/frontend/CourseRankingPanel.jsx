@@ -576,13 +576,13 @@ export const CourseRankingSlidePanel = () => {
                                             <colgroup>
                                                 <col style={{ width: '56px' }} />
                                                 <col />
-                                                <col style={{ width: '110px' }} />
+                                                <col style={{ width: '130px' }} />
                                             </colgroup>
                                             <thead>
                                                 <tr style={{ backgroundColor: '#000000' }}>
                                                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>#</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide" style={{ color: '#ffffff' }}>Usuario</th>
-                                                    <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide" style={{ color: withRisk ? pageColors.accent : '#ffffff' }}>
+                                                    <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide whitespace-nowrap" style={{ color: withRisk ? pageColors.accent : '#ffffff' }}>
                                                         {withRisk ? 'Con Riesgo' : 'Sin Riesgo'}
                                                     </th>
                                                 </tr>

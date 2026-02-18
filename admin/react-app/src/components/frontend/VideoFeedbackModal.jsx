@@ -29,6 +29,7 @@ const VideoFeedbackModal = ({
   lesson,
   courseId = null,
   courseName = null,
+  feedbackType = 'duda',
   onClose,
 }) => {
   const [message, setMessage] = useState('');
@@ -69,6 +70,7 @@ const VideoFeedbackModal = ({
         course_id: courseId,
         lesson_id: lesson?.id || null,
         video_title: videoTitle || null,
+        feedback_type: feedbackType,
         message: fullMessage,
       });
       setSuccess(true);
@@ -101,12 +103,21 @@ const VideoFeedbackModal = ({
             <div className="flex items-center gap-3">
               <div
                 className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: `${primaryColor}15`, border: `1px solid ${primaryColor}30` }}
+                style={{
+                  backgroundColor: feedbackType === 'impugnacion' ? `${accentColor}15` : `${primaryColor}15`,
+                  border: `1px solid ${feedbackType === 'impugnacion' ? accentColor : primaryColor}30`
+                }}
               >
-                <MessageSquare size={18} style={{ color: primaryColor }} />
+                {feedbackType === 'impugnacion'
+                  ? <AlertTriangle size={18} style={{ color: accentColor }} />
+                  : <MessageSquare size={18} style={{ color: primaryColor }} />
+                }
               </div>
               <h3 className="text-base font-bold" style={{ color: textPrimary }}>
-                {t('quizzes.feedbackModal.titleFeedback')}
+                {feedbackType === 'impugnacion'
+                  ? t('quizzes.feedbackModal.titleChallenge')
+                  : t('quizzes.feedbackModal.titleFeedback')
+                }
               </h3>
             </div>
             <button
@@ -198,7 +209,10 @@ const VideoFeedbackModal = ({
                       e.currentTarget.style.borderColor = borderSubtle;
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    placeholder={t('quizzes.feedbackModal.placeholderFeedback')}
+                    placeholder={feedbackType === 'impugnacion'
+                      ? t('quizzes.feedbackModal.placeholderChallenge')
+                      : t('quizzes.feedbackModal.placeholderFeedback')
+                    }
                   />
                 </div>
 

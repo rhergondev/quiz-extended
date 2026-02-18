@@ -47,7 +47,8 @@ class QE_Messages_API extends QE_API_Base
                     'lesson_id' => ['required' => true, 'type' => 'integer'],
                     'video_title' => ['required' => true, 'type' => 'string', 'maxLength' => 200],
                     'video_url' => ['required' => true, 'type' => 'string', 'maxLength' => 500],
-                    'message' => ['required' => true, 'type' => 'string', 'maxLength' => 5000]
+                    'message' => ['required' => true, 'type' => 'string', 'maxLength' => 5000],
+                    'feedback_type' => ['required' => false, 'type' => 'string', 'enum' => ['duda', 'impugnacion']]
                 ]
             ]
         );
@@ -373,11 +374,14 @@ class QE_Messages_API extends QE_API_Base
 
             $subject = mb_substr($message, 0, 200);
 
+            $feedback_type = $request->get_param('feedback_type') ?: 'duda';
+            $type = ($feedback_type === 'impugnacion') ? 'video_challenge' : 'video_feedback';
+
             $message_id = $this->db_insert('messages', [
                 'sender_id' => $user_id,
                 'recipient_id' => 0,
                 'related_object_id' => $lesson_id,
-                'type' => 'video_feedback',
+                'type' => $type,
                 'subject' => $subject,
                 'message' => $full_message,
                 'status' => 'unread',
@@ -1184,7 +1188,7 @@ class QE_Messages_API extends QE_API_Base
                 }
                 if (!empty($course_lesson_ids)) {
                     $l_ids = implode(',', array_map('intval', $course_lesson_ids));
-                    $conditions[] = "(type = 'video_feedback' AND related_object_id IN ({$l_ids}))";
+                    $conditions[] = "(type IN ('video_feedback', 'video_challenge') AND related_object_id IN ({$l_ids}))";
                 }
 
                 if (!empty($conditions)) {

@@ -20,7 +20,6 @@ import {
   Target, 
   AlertCircle, 
   BarChart2,
-  BarChart3,
   Trophy,
   Zap,
   CheckCircle,
@@ -60,6 +59,8 @@ const CourseStatisticsPage = () => {
     cardBg: isDarkMode ? '#1f2937' : '#ffffff',
     accent: getColor('accent', '#f59e0b'),
     primary: getColor('primary', '#3b82f6'),
+    headerBg: isDarkMode ? getColor('accent', '#f59e0b') : getColor('primary', '#3b82f6'),
+    labelColor: isDarkMode ? '#ffffff' : getColor('primary', '#3b82f6'),
   };
 
   // State for ranking panel
@@ -78,6 +79,7 @@ const CourseStatisticsPage = () => {
   const [riskViewMode, setRiskViewMode] = useState('without'); // 'with' or 'without' risk
   const [selectedLessonFilter, setSelectedLessonFilter] = useState(null); // For filtering chart and question analysis
   const [showRiskPanel, setShowRiskPanel] = useState(false); // For risk analysis slide panel
+  const [rankingRiskView, setRankingRiskView] = useState(false); // false = sin riesgo, true = con riesgo
 
   useEffect(() => {
     const fetchData = async () => {
@@ -361,136 +363,129 @@ const CourseStatisticsPage = () => {
 
                 {/* Stats Grid - More compact */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                  {/* Nota Media */}
+                  {/* Combined: Nota Media + Media del Curso */}
                   {(() => {
-                    const top10Cutoff = rankingStatistics?.top_20_cutoff_without_risk;
+                    const withoutRiskCutoff = rankingStatistics?.top_20_cutoff_without_risk;
+                    const withRiskCutoff = rankingStatistics?.top_20_cutoff_with_risk;
+                    const activeCutoff = rankingRiskView ? withRiskCutoff : withoutRiskCutoff;
                     const userScore = computedStats?.avgScore || 0;
-                    const hasTop10Data = top10Cutoff !== undefined && top10Cutoff !== null && top10Cutoff > 0;
-                    const isInTop10 = hasTop10Data && userScore >= top10Cutoff;
-                    
+                    const hasTop10Data = withoutRiskCutoff !== undefined && withoutRiskCutoff !== null && withoutRiskCutoff > 0;
+                    const isInTop10 = hasTop10Data && userScore >= withoutRiskCutoff;
+                    const globalAvg = rankingRiskView
+                      ? (rankingStatistics?.avg_score_with_risk || 0)
+                      : (rankingStatistics?.avg_score_without_risk || 0);
+
                     return (
-                      <div 
-                        className="rounded-lg overflow-hidden border transition-all duration-200 hover:shadow-md"
-                        style={{ 
+                      <div
+                        className="col-span-2 rounded-lg overflow-hidden border transition-all duration-200 hover:shadow-md"
+                        style={{
                           backgroundColor: pageColors.cardBg,
-                          borderColor: isInTop10 ? '#22c55e' : pageColors.border
+                          borderColor: pageColors.border
                         }}
                       >
-                        <div 
+                        {/* Header */}
+                        <div
                           className="px-3 py-1.5 flex items-center justify-between"
-                          style={{ backgroundColor: isInTop10 ? '#22c55e' : getColor('primary', '#1a202c') }}
+                          style={{ backgroundColor: pageColors.headerBg }}
                         >
-                          <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#ffffff' }}>
-                            {t('statistics.averageScore')}
-                          </span>
-                          {isInTop10 ? (
-                            <Award size={14} style={{ color: '#ffffff' }} />
-                          ) : (
-                            <TrendingUp size={14} style={{ color: '#ffffff' }} />
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {isInTop10 ? (
+                              <Award size={14} style={{ color: '#ffffff' }} />
+                            ) : (
+                              <TrendingUp size={14} style={{ color: '#ffffff' }} />
+                            )}
+                            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#ffffff' }}>
+                              {t('statistics.averageScore')}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => setIsRankingOpen(true)}
+                            className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold transition-all"
+                            style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#ffffff' }}
+                            title={t('statistics.ranking')}
+                          >
+                            <Trophy size={12} />
+                            <span>#{rankingStatus?.position || '-'}</span>
+                            {rankingStatus?.total_users && (
+                              <span className="opacity-70">/{rankingStatus.total_users}</span>
+                            )}
+                          </button>
                         </div>
-                        <div className="p-3">
-                          <div className="flex items-center justify-between">
+
+                        {/* Body - two sections */}
+                        <div className="grid grid-cols-2">
+                          {/* Left: My score */}
+                          <div className="p-3" style={{ borderRight: `1px solid ${pageColors.border}` }}>
+                            <p className="text-xs mb-1 font-medium" style={{ color: pageColors.labelColor }}>Mi nota</p>
                             <div className="flex items-baseline gap-1">
                               <span className="text-2xl font-bold" style={{ color: isInTop10 ? '#22c55e' : pageColors.text }}>
                                 {computedStats ? formatScore(computedStats.avgScore) : '-'}
                               </span>
-                              <span className="text-xs" style={{ color: pageColors.textMuted }}>
+                              <span className="text-xs" style={{ color: pageColors.labelColor }}>
                                 / {isPercentage ? '100' : '10'}
                               </span>
                             </div>
-                            <button
-                              onClick={() => setIsRankingOpen(true)}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg border transition-all duration-200 hover:shadow-md"
-                              style={{
-                                backgroundColor: isDarkMode ? `${pageColors.accent}20` : `${pageColors.accent}10`,
-                                borderColor: isDarkMode ? `${pageColors.accent}40` : `${pageColors.accent}30`,
-                              }}
-                              title={t('statistics.ranking')}
-                            >
-                              <BarChart3 size={14} style={{ color: pageColors.accent }} />
-                            </button>
+                            {isInTop10 ? (
+                              <div className="flex items-center gap-1 mt-1">
+                                <CheckCircle size={11} style={{ color: '#22c55e' }} />
+                                <span className="text-xs font-medium" style={{ color: '#22c55e' }}>Top 20%</span>
+                              </div>
+                            ) : (
+                              <div className="mt-1 h-4" />
+                            )}
                           </div>
-                          
-                          {/* Top 20% Cutoff info - compact */}
-                          {hasTop10Data ? (
-                            <div 
-                              className="flex items-center gap-1.5 mt-2 px-2 py-1 rounded text-xs"
-                              style={{ 
-                                backgroundColor: isInTop10 ? (isDarkMode ? '#166534' : '#dcfce7') : (isDarkMode ? '#92400e' : '#fef3c7'),
-                              }}
-                            >
-                              {isInTop10 ? (
-                                <>
-                                  <CheckCircle size={12} style={{ color: isDarkMode ? '#86efac' : '#16a34a' }} />
-                                  <span style={{ color: isDarkMode ? '#86efac' : '#166534' }}>
-                                    ✓ Top 20%
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  <Target size={12} style={{ color: isDarkMode ? '#fcd34d' : '#d97706' }} />
-                                  <span style={{ color: isDarkMode ? '#fcd34d' : '#92400e' }}>
-                                    Nota de corte: <strong>{formatScore(top10Cutoff)}</strong>
-                                  </span>
-                                </>
-                              )}
+
+                          {/* Right: Course global average */}
+                          <div className="p-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-xs font-medium" style={{ color: pageColors.labelColor }}>Media del curso</p>
+                              <div className="flex rounded overflow-hidden" style={{ border: `1px solid ${pageColors.border}` }}>
+                                <button
+                                  onClick={() => setRankingRiskView(false)}
+                                  className="px-2 py-0.5 text-[10px] font-semibold transition-all"
+                                  style={{
+                                    backgroundColor: !rankingRiskView ? pageColors.headerBg : 'transparent',
+                                    color: !rankingRiskView ? '#ffffff' : pageColors.textMuted
+                                  }}
+                                >
+                                  Sin riesgo
+                                </button>
+                                <button
+                                  onClick={() => setRankingRiskView(true)}
+                                  className="px-2 py-0.5 text-[10px] font-semibold transition-all"
+                                  style={{
+                                    backgroundColor: rankingRiskView ? pageColors.headerBg : 'transparent',
+                                    color: rankingRiskView ? '#ffffff' : pageColors.textMuted
+                                  }}
+                                >
+                                  Con riesgo
+                                </button>
+                              </div>
                             </div>
-                          ) : (
-                            <div 
-                              className="flex items-center gap-1.5 mt-2 px-2 py-1 rounded text-xs"
-                              style={{ 
-                                backgroundColor: isDarkMode ? '#374151' : '#f3f4f6',
-                              }}
-                            >
-                              <AlertCircle size={12} style={{ color: pageColors.textMuted }} />
-                              <span style={{ color: pageColors.textMuted }}>
-                                Sin datos
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-2xl font-bold" style={{ color: pageColors.text }}>
+                                {rankingStatistics ? formatScore(globalAvg) : '-'}
+                              </span>
+                              <span className="text-xs" style={{ color: pageColors.labelColor }}>
+                                / {isPercentage ? '100' : '10'}
                               </span>
                             </div>
-                          )}
+                            {activeCutoff > 0 && (
+                              <div
+                                className="flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-xs"
+                                style={{ backgroundColor: isDarkMode ? '#92400e' : '#fef3c7' }}
+                              >
+                                <Target size={10} style={{ color: isDarkMode ? '#fcd34d' : '#d97706' }} />
+                                <span style={{ color: isDarkMode ? '#fcd34d' : '#92400e' }}>
+                                  Nota de corte: <strong>{formatScore(activeCutoff)}</strong>
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
                   })()}
-
-                  {/* Ranking */}
-                  <div 
-                    className="rounded-lg overflow-hidden border transition-all duration-200 hover:shadow-md cursor-pointer"
-                    style={{ 
-                      backgroundColor: pageColors.cardBg,
-                      borderColor: pageColors.border
-                    }}
-                    onClick={() => setIsRankingOpen(true)}
-                  >
-                    <div 
-                      className="px-3 py-1.5 flex items-center justify-between"
-                      style={{ backgroundColor: getColor('accent', '#f59e0b') }}
-                    >
-                      <span className="text-xs font-bold uppercase tracking-wider text-white">
-                        {t('statistics.ranking')}
-                      </span>
-                      <Trophy size={14} className="text-white" />
-                    </div>
-                    <div className="p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-2xl font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
-                            #{rankingStatus?.position || '-'}
-                          </span>
-                          {rankingStatus?.total_users && (
-                            <span className="text-sm" style={{ color: pageColors.textMuted }}>
-                              /{rankingStatus.total_users}
-                            </span>
-                          )}
-                          {computedStats?.completedQuizzes === computedStats?.totalQuizzes && computedStats?.totalQuizzes > 0 && (
-                            <CheckCircle size={14} className="text-green-500 ml-1" />
-                          )}
-                        </div>
-                        <ChevronRight size={16} style={{ color: pageColors.textMuted }} />
-                      </div>
-                    </div>
-                  </div>
 
                   {/* Tests Completados */}
                   <div 
@@ -500,9 +495,9 @@ const CourseStatisticsPage = () => {
                       borderColor: pageColors.border
                     }}
                   >
-                    <div 
+                    <div
                       className="px-3 py-1.5 flex items-center justify-between"
-                      style={{ backgroundColor: '#64748b' }}
+                      style={{ backgroundColor: pageColors.headerBg }}
                     >
                       <span className="text-xs font-bold uppercase tracking-wider text-white">
                         {t('statistics.completedQuizzes')}
@@ -511,10 +506,10 @@ const CourseStatisticsPage = () => {
                     </div>
                     <div className="p-3">
                       <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-bold" style={{ color: isDarkMode ? '#94a3b8' : '#475569' }}>
+                        <span className="text-2xl font-bold" style={{ color: isDarkMode ? '#ffffff' : '#475569' }}>
                           {computedStats?.completedQuizzes || 0}
                         </span>
-                        <span className="text-xs" style={{ color: pageColors.textMuted }}>
+                        <span className="text-xs font-medium" style={{ color: pageColors.labelColor }}>
                           / {computedStats?.totalQuizzes || 0}
                         </span>
                       </div>
@@ -538,9 +533,9 @@ const CourseStatisticsPage = () => {
                       borderColor: pageColors.border
                     }}
                   >
-                    <div 
+                    <div
                       className="px-3 py-1.5 flex items-center justify-between"
-                      style={{ backgroundColor: '#10b981' }}
+                      style={{ backgroundColor: pageColors.headerBg }}
                     >
                       <span className="text-xs font-bold uppercase tracking-wider text-white">
                         {t('statistics.bestPerformance')}
@@ -551,19 +546,19 @@ const CourseStatisticsPage = () => {
                       {computedStats?.bestLesson ? (
                         <>
                           <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold" style={{ color: '#059669' }}>
+                            <span className="text-2xl font-bold" style={{ color: isDarkMode ? '#34d399' : '#059669' }}>
                               {formatScore(computedStats.bestLesson.avg_score)}
                             </span>
-                            <span className="text-xs" style={{ color: pageColors.textMuted }}>
+                            <span className="text-xs font-medium" style={{ color: pageColors.labelColor }}>
                               / {isPercentage ? '100' : '10'}
                             </span>
                           </div>
-                          <p className="text-xs mt-1 truncate" style={{ color: pageColors.textMuted }}>
+                          <p className="text-xs mt-1 truncate font-medium" style={{ color: pageColors.labelColor }}>
                             {computedStats.bestLesson.lesson_title}
                           </p>
                         </>
                       ) : (
-                        <p className="text-xs" style={{ color: pageColors.textMuted }}>
+                        <p className="text-xs" style={{ color: pageColors.labelColor }}>
                           {t('statistics.noDataYet')}
                         </p>
                       )}
@@ -624,9 +619,9 @@ const CourseStatisticsPage = () => {
                   }}
                 >
                   {/* Header */}
-                  <div 
+                  <div
                     className="px-3 py-2 flex items-center justify-between"
-                    style={{ backgroundColor: isDarkMode ? getColor('primary', '#3b82f6') : getColor('primary', '#3b82f6') }}
+                    style={{ backgroundColor: pageColors.headerBg }}
                   >
                     <div className="flex items-center gap-2">
                       <BookOpen size={14} className="text-white" />
@@ -649,7 +644,7 @@ const CourseStatisticsPage = () => {
                   
                   {/* Subheader */}
                   <div className="px-3 py-1.5 border-b" style={{ borderColor: pageColors.border }}>
-                    <span className="text-xs" style={{ color: pageColors.textMuted }}>
+                    <span className="text-xs font-medium" style={{ color: pageColors.labelColor }}>
                       Ordenados por nota (peor → mejor)
                     </span>
                   </div>
@@ -716,12 +711,12 @@ const CourseStatisticsPage = () => {
                   {/* Header */}
                   <div
                     className="px-3 py-2 flex items-center justify-between"
-                    style={{ backgroundColor: getColor('accent', '#f59e0b') }}
+                    style={{ backgroundColor: pageColors.headerBg }}
                   >
                     <div className="flex items-center gap-2">
                       <Target size={14} className="text-white" />
                       <span className="text-xs font-bold uppercase tracking-wider text-white">
-                        Preguntas
+                        Análisis Preguntas
                       </span>
                     </div>
                     <button
@@ -739,14 +734,14 @@ const CourseStatisticsPage = () => {
                     <div className="flex items-center gap-2">
                       {questionStats?.global_stats?.total_users > 0 && (
                         <div className="flex items-center gap-1 px-1.5 py-0.5 rounded" style={{ backgroundColor: isDarkMode ? '#374151' : '#f3f4f6' }}>
-                          <Users size={10} style={{ color: pageColors.textMuted }} />
-                          <span className="text-xs" style={{ color: pageColors.textMuted }}>
+                          <Users size={10} style={{ color: pageColors.labelColor }} />
+                          <span className="text-xs font-medium" style={{ color: pageColors.labelColor }}>
                             {questionStats.global_stats.total_users}
                           </span>
                         </div>
                       )}
                       {questionStats?.total_questions > 0 && (
-                        <span className="text-xs" style={{ color: pageColors.textMuted }}>
+                        <span className="text-xs font-medium" style={{ color: pageColors.labelColor }}>
                           {questionStats.total_questions} respondidas
                         </span>
                       )}

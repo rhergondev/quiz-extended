@@ -42,7 +42,7 @@ const Question = ({
   
   // Dark mode aware colors
   const textPrimary = isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c');
-  const textSecondary = isDarkMode ? getColor('textSecondary', '#9ca3af') : '#6b7280';
+  const textSecondary = isDarkMode ? '#ffffff' : '#374151';
   const bgCard = isDarkMode ? getColor('secondaryBackground', '#1f2937') : getColor('secondaryBackground', '#ffffff');
   const bgSubtle = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
   const borderSubtle = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
@@ -54,7 +54,7 @@ const Question = ({
     const effectiveState = questionState === 'risked' ? 'answered' : questionState;
     switch (effectiveState) {
       case 'unanswered':
-        return isDarkMode ? `#ffffff${opacity}` : `#6b7280${opacity}`;
+        return isDarkMode ? `#ffffff${opacity}` : `#374151${opacity}`;
       case 'answered':
       default:
         if (isDarkMode) {
@@ -69,7 +69,7 @@ const Question = ({
     const effectiveState = questionState === 'risked' ? 'answered' : questionState;
     switch (effectiveState) {
       case 'unanswered':
-        return isDarkMode ? 'rgba(255,255,255,0.3)' : 'rgba(107,114,128,0.4)';
+        return isDarkMode ? 'rgba(255,255,255,0.7)' : '#374151';
       case 'answered':
       default:
         return isDarkMode ? '#4a8ae8' : getColor('primary', '#3b82f6');
@@ -80,7 +80,7 @@ const Question = ({
     const effectiveState = questionState === 'risked' ? 'answered' : questionState;
     switch (effectiveState) {
       case 'unanswered':
-        return isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(107,114,128,0.25)';
+        return isDarkMode ? 'rgba(255,255,255,0.35)' : 'rgba(55,65,81,0.35)';
       case 'answered':
       default:
         return isDarkMode ? `${getColor('primary', '#3b82f6')}80` : `${getColor('primary', '#3b82f6')}40`;
@@ -125,11 +125,11 @@ const Question = ({
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div 
-                className="flex items-center justify-center rounded-full font-bold text-xs"
-                style={{ 
-                  width: '28px',
-                  height: '28px',
+              <div
+                className="flex items-center justify-center rounded-full font-bold text-sm"
+                style={{
+                  width: '35px',
+                  height: '35px',
                   backgroundColor: getBorderColor(),
                   color: questionState === 'unanswered' && isDarkMode 
                     ? getColor('secondaryBackground', '#1f2937') 
@@ -139,38 +139,38 @@ const Question = ({
                 {displayIndex}
               </div>
               {questionState === 'unanswered' && (
-                <div 
-                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
-                  style={{ 
+                <div
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-semibold"
+                  style={{
                     backgroundColor: isDarkMode ? 'rgba(255,255,255,0.15)' : `${getQuestionColor()}20`,
                     color: isDarkMode ? '#ffffff' : getQuestionColor()
                   }}
                 >
-                  <Circle size={12} />
+                  <Circle size={15} />
                   <span>{t('quizzes.question.unanswered')}</span>
                 </div>
               )}
               {questionState === 'risked' && (
                 <div
-                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-semibold"
                   style={{
                     backgroundColor: `${accentColor}20`,
                     color: accentColor
                   }}
                 >
-                  <TrendingDown size={12} />
+                  <TrendingDown size={15} />
                   <span>{t('quizzes.question.withRisk')}</span>
                 </div>
               )}
               {questionState === 'answered' && (
-                <div 
-                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
-                  style={{ 
+                <div
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-semibold"
+                  style={{
                     backgroundColor: isDarkMode ? `${getColor('primary', '#3b82f6')}30` : getQuestionColor('20'),
-                    color: isDarkMode ? '#93c5fd' : getQuestionColor() // Azul más claro en dark mode
+                    color: isDarkMode ? '#93c5fd' : getQuestionColor()
                   }}
                 >
-                  <CheckCircle size={12} />
+                  <CheckCircle size={15} />
                   <span>{t('quizzes.question.answered')}</span>
                 </div>
               )}
@@ -203,8 +203,8 @@ const Question = ({
 
         {/* Título de la pregunta */}
         <div className="px-4 py-3">
-          <h3 
-            className="text-sm font-medium leading-relaxed"
+          <h3
+            className="text-lg font-medium leading-relaxed"
             style={{ color: textPrimary }}
             dangerouslySetInnerHTML={{ __html: questionTitle || '' }}
           />
@@ -223,21 +223,21 @@ const Question = ({
                   backgroundColor: isSelected 
                     ? getQuestionColor('15')
                     : 'transparent',
-                  border: `2px solid ${isSelected 
+                  border: `2px solid ${isSelected
                     ? getQuestionColor()
-                    : isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'
+                    : isDarkMode ? 'rgba(255,255,255,0.35)' : 'rgba(55,65,81,0.35)'
                   }`
                 }}
                 onMouseEnter={(e) => {
                   if (!isSelected) {
-                    e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
-                    e.currentTarget.style.borderColor = isDarkMode ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)';
+                    e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(55,65,81,0.05)';
+                    e.currentTarget.style.borderColor = isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(55,65,81,0.55)';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!isSelected) {
                     e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.borderColor = isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
+                    e.currentTarget.style.borderColor = isDarkMode ? 'rgba(255,255,255,0.35)' : 'rgba(55,65,81,0.35)';
                   }
                 }}
               >
@@ -246,23 +246,23 @@ const Question = ({
                   <div
                     className="flex items-center justify-center rounded-full transition-all duration-200 flex-shrink-0"
                     style={{
-                      width: '18px',
-                      height: '18px',
-                      border: `2px solid ${isSelected 
+                      width: '23px',
+                      height: '23px',
+                      border: `2px solid ${isSelected
                         ? getQuestionColor()
-                        : isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.25)'
+                        : isDarkMode ? 'rgba(255,255,255,0.55)' : 'rgba(55,65,81,0.55)'
                       }`,
-                      backgroundColor: isSelected 
+                      backgroundColor: isSelected
                         ? getQuestionColor()
                         : 'transparent'
                     }}
                   >
                     {isSelected && (
-                      <div 
+                      <div
                         className="rounded-full"
                         style={{
-                          width: '6px',
-                          height: '6px',
+                          width: '8px',
+                          height: '8px',
                           backgroundColor: '#ffffff'
                         }}
                       />
@@ -281,26 +281,24 @@ const Question = ({
                   
                   {/* Letra de la opción */}
                   <div
-                    className="flex items-center justify-center rounded font-bold text-[10px] transition-all duration-200 flex-shrink-0"
+                    className="flex items-center justify-center rounded font-bold text-xs transition-all duration-200 flex-shrink-0"
                     style={{
-                      width: '20px',
-                      height: '20px',
+                      width: '25px',
+                      height: '25px',
                       backgroundColor: isSelected
                         ? getQuestionColor()
-                        : isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-                      color: isSelected ? '#ffffff' : textPrimary
+                        : isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(55,65,81,0.12)',
+                      color: isSelected ? '#ffffff' : textSecondary
                     }}
                   >
                     {String.fromCharCode(65 + optionIndex)}
                   </div>
                   
                   {/* Texto de la opción */}
-                  <span 
-                    className="text-base leading-relaxed transition-colors duration-200"
-                    style={{ 
-                      color: isSelected 
-                        ? textPrimary
-                        : textPrimary,
+                  <span
+                    className="text-lg leading-relaxed transition-colors duration-200"
+                    style={{
+                      color: textPrimary,
                       fontWeight: isSelected ? '600' : '500'
                     }}
                   >
@@ -535,7 +533,7 @@ const Question = ({
                 style={{
                   width: '20px',
                   height: '20px',
-                  border: `2px solid ${isRisked ? getColor('accent', '#f59e0b') : isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.25)'}`,
+                  border: `2px solid ${isRisked ? getColor('accent', '#f59e0b') : isDarkMode ? 'rgba(255,255,255,0.55)' : 'rgba(55,65,81,0.55)'}`,
                   backgroundColor: isRisked ? getColor('accent', '#f59e0b') : 'transparent'
                 }}
               >

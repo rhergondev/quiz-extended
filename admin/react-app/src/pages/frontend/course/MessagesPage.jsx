@@ -139,7 +139,7 @@ const MessagesPage = () => {
   useEffect(() => {
     const loadQuestion = async () => {
       const effectiveType = parentMessage?.type || selectedMessage?.type;
-      if (selectedMessage?.related_object_id && effectiveType !== 'video_feedback') {
+      if (selectedMessage?.related_object_id && effectiveType !== 'video_feedback' && effectiveType !== 'video_challenge') {
         setLoadingQuestion(true);
         try {
           const config = getApiConfig();
@@ -223,6 +223,7 @@ const MessagesPage = () => {
     if (type === 'question_feedback') return { icon: MessageCircle, label: 'Duda', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' };
     if (type === 'question_challenge') return { icon: Flag, label: 'Impugnación', color: pageColors.error, bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2' };
     if (type === 'video_feedback') return { icon: Video, label: 'Duda (Video)', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' };
+    if (type === 'video_challenge') return { icon: Flag, label: 'Impugnación (Video)', color: pageColors.error, bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2' };
     if (type === 'admin_reply') return { icon: Send, label: 'Respuesta', color: isDarkMode ? '#93c5fd' : pageColors.primary, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff' };
     if (type?.startsWith('admin_')) return { icon: Mail, label: 'Aviso', color: pageColors.accent, bgColor: isDarkMode ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7' };
     return { icon: Mail, label: 'Mensaje', color: pageColors.textMuted, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6' };
@@ -567,7 +568,7 @@ const MessagesPage = () => {
                   {(() => {
                     // Determine effective type: if viewing a reply, check parent type
                     const effectiveType = parentMessage?.type || selectedMessage.type;
-                    if (effectiveType !== 'video_feedback') return null;
+                    if (effectiveType !== 'video_feedback' && effectiveType !== 'video_challenge') return null;
                     // Extract video URL from the original message content
                     const rawContent = parentMessage?.message || selectedMessage.message;
                     const videoUrl = extractVideoUrl(rawContent);
@@ -599,7 +600,8 @@ const MessagesPage = () => {
 
                   {/* 2b. Question card - anything with related_object_id that is not a video message */}
                   {selectedMessage.related_object_id &&
-                   (parentMessage?.type || selectedMessage.type) !== 'video_feedback' && (
+                   (parentMessage?.type || selectedMessage.type) !== 'video_feedback' &&
+                   (parentMessage?.type || selectedMessage.type) !== 'video_challenge' && (
                     <div className="ml-10 sm:ml-14 max-w-2xl">
                       <div
                         className="rounded-xl overflow-hidden"

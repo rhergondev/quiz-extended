@@ -26,7 +26,8 @@ import {
   Plus,
   Clock,
   ArrowRight,
-  Video
+  Video,
+  AlertTriangle
 } from 'lucide-react';
 
 import { useTranslation } from 'react-i18next';
@@ -426,6 +427,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
     if (type === 'question_feedback') return { icon: MessageCircle, label: 'Duda', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' };
     if (type === 'question_challenge') return { icon: Flag, label: 'Impugnación', color: pageColors.error, bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2' };
     if (type === 'video_feedback') return { icon: Video, label: 'Duda (Video)', color: pageColors.info, bgColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' };
+    if (type === 'video_challenge') return { icon: AlertTriangle, label: 'Impugnación (Video)', color: pageColors.error, bgColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2' };
     return { icon: Mail, label: 'Mensaje', color: pageColors.textMuted, bgColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6' };
   };
 
@@ -646,6 +648,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                 <option value="question_feedback">Dudas</option>
                 <option value="question_challenge">Impugnaciones</option>
                 <option value="video_feedback">Dudas de Video</option>
+                <option value="video_challenge">Impugnaciones de Video</option>
               </select>
             </div>
             )}
@@ -656,7 +659,6 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                 <div className="flex items-center gap-2 mr-2 px-3 py-1.5 rounded-lg" style={{ backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe' }}>
                   <span className="text-sm font-medium" style={{ color: pageColors.info }}>{selectedIds.size} sel.</span>
                   <button onClick={() => handleBatchAction('resolve')} className="text-xs px-2 py-1 rounded font-medium" style={{ backgroundColor: pageColors.success, color: '#fff' }}>Resueltos</button>
-                  <button onClick={() => handleBatchAction('archive')} className="text-xs px-2 py-1 rounded" style={{ backgroundColor: pageColors.hoverBg, color: pageColors.textMuted }}>Archivar</button>
                 </div>
               )}
               <button 
@@ -909,16 +911,6 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleStatusChange(selectedMessage.id, 'archived')} 
-                    className="p-2 rounded-lg" 
-                    style={{ backgroundColor: pageColors.inputBg, border: `1px solid ${pageColors.cardBorder}`, color: pageColors.textMuted }} 
-                    title="Archivar"
-                  >
-                    <Archive size={16} />
-                  </button>
-                </div>
               </div>
 
               {/* Chat Content */}
@@ -960,8 +952,8 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                   </div>
                 )}
 
-                {/* Video embed - only for video_feedback type */}
-                {selectedMessage.type === 'video_feedback' && (() => {
+                {/* Video embed - for video_feedback and video_challenge types */}
+                {(selectedMessage.type === 'video_feedback' || selectedMessage.type === 'video_challenge') && (() => {
                   const videoUrl = extractVideoUrl(selectedMessage.message);
                   if (!videoUrl) return null;
                   return (

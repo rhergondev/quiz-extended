@@ -109,6 +109,7 @@ const Quiz = ({
   const { getColor, isDarkMode, toggleDarkMode } = useTheme();
   const { t } = useTranslation();
   const questionsContainerRef = useRef(null);
+  const pageScrollRef = useRef(null);
 
   // Dark mode aware colors
   const textPrimary = isDarkMode ? getColor('textPrimary', '#f9fafb') : getColor('primary', '#1a202c');
@@ -167,7 +168,7 @@ const Quiz = ({
         }
       },
       {
-        root: questionsContainerRef.current,
+        root: pageScrollRef.current,
         rootMargin: '200px', // Cargar cuando está a 200px de ser visible
         threshold: 0.1
       }
@@ -180,7 +181,7 @@ const Quiz = ({
         observer.unobserve(triggerElement);
       }
     };
-  }, [quizState, hasMoreQuestions, questionsLoading, loadMore, questionsContainerRef]);
+  }, [quizState, hasMoreQuestions, questionsLoading, loadMore]);
 
   // 🔥 Ref to prevent double quiz start in React Strict Mode
   const attemptStartedRef = useRef(false);
@@ -521,12 +522,12 @@ const Quiz = ({
       );
   }
   if (quizState === 'submitting') {
-      return <div className="text-center p-8">{t('quizzes.quiz.submittingAnswers')}</div>
+      return <div className="text-center p-8" style={{ color: textPrimary }}>{t('quizzes.quiz.submittingAnswers')}</div>
   }
   if (quizState === 'submitted') {
     // El quiz ha sido enviado, el padre debería manejar los resultados
     // Mostrar un mensaje mientras se procesa
-    return <div className="text-center p-8">{t('quizzes.quiz.submittingAnswers')}</div>
+    return <div className="text-center p-8" style={{ color: textPrimary }}>{t('quizzes.quiz.submittingAnswers')}</div>
   }
   
   if (quizInfo && quizQuestions.length === 0 && !questionsLoading && questionIds.length === 0) {
@@ -734,10 +735,10 @@ const Quiz = ({
         <Menu className="w-6 h-6" />
       </button>
 
-      <div className="flex-1 overflow-hidden">
-        <div className="w-full h-full max-w-screen-2xl mx-auto flex flex-col lg:flex-row gap-8 justify-between px-4 sm:px-6 py-6">
-          {/* Columna de Preguntas (con scroll y canvas de dibujo) */}
-          <main ref={questionsContainerRef} className="w-full lg:pr-4 relative overflow-y-auto pb-24 lg:pb-8">
+      <div className="flex-1 overflow-y-auto" ref={pageScrollRef}>
+        <div className="w-full max-w-screen-2xl mx-auto flex flex-col lg:flex-row gap-8 justify-between px-4 sm:px-6 py-6">
+          {/* Columna de Preguntas (con canvas de dibujo) */}
+          <main ref={questionsContainerRef} className="flex-1 min-w-0 lg:pr-4 relative pb-24 lg:pb-8">
             {/* Canvas de dibujo relativo al contenedor */}
             {currentDrawingMode && (
               <DrawingCanvas 
@@ -818,7 +819,7 @@ const Quiz = ({
         fixed lg:relative
         top-0 right-0 
         h-full lg:h-auto
-        w-80 lg:w-[280px] xl:w-[300px]
+        w-80 lg:w-[320px] xl:w-[340px]
         flex-shrink-0
         transition-transform duration-300
         z-50 lg:z-auto
@@ -854,7 +855,7 @@ const Quiz = ({
               onSubmit={handleSubmit}
               loadedCount={loadedCount}
               onLoadMore={hasMoreQuestions && !questionsLoading ? loadMore : null}
-              scrollContainerRef={questionsContainerRef}
+              scrollContainerRef={pageScrollRef}
             />
         </div>
       </aside>
