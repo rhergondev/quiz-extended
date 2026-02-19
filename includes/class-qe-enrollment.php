@@ -31,6 +31,11 @@ class QE_Enrollment
         add_action('woocommerce_order_status_refunded', [$this, 'unenroll_user_on_refund'], 10, 1);
         add_action('woocommerce_order_status_cancelled', [$this, 'unenroll_user_on_cancel'], 10, 1);
 
+        // WooCommerce Subscriptions hooks (only registered when the plugin is active)
+        add_action('woocommerce_subscription_status_expired', [$this, 'unenroll_user_on_subscription_expired'], 10, 1);
+        add_action('woocommerce_subscription_status_cancelled', [$this, 'unenroll_user_on_subscription_cancelled'], 10, 1);
+        add_action('woocommerce_subscription_status_active', [$this, 'reenroll_user_on_subscription_activated'], 10, 1);
+
         // Product meta box for course linking
         add_action('add_meta_boxes', [$this, 'add_course_link_meta_box']);
         add_action('save_post_product', [$this, 'save_course_link_meta_box'], 10, 1);
@@ -374,6 +379,127 @@ class QE_Enrollment
             $this->log_error('Unenrollment on cancel failed', [
                 'order_id' => $order_id,
                 'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    // ============================================================
+    // WOOCOMMERCE SUBSCRIPTIONS HANDLERS
+    // ============================================================
+
+    /**
+     * Unenroll user when their subscription expires
+     *
+     * @param WC_Subscription $subscription
+     * @return void
+     */
+    public function unenroll_user_on_subscription_expired($subscription)
+    {
+        $this->unenroll_user_from_subscription($subscription, 'expired');
+    }
+
+    /**
+     * Unenroll user when their subscription is cancelled
+     *
+     * @param WC_Subscription $subscription
+     * @return void
+     */
+    public function unenroll_user_on_subscription_cancelled($subscription)
+    {
+        $this->unenroll_user_from_subscription($subscription, 'subscription_cancelled');
+    }
+
+    /**
+     * Re-enroll user when their subscription becomes active again (renewal or reactivation)
+     *
+     * @param WC_Subscription $subscription
+     * @return void
+     */
+    public function reenroll_user_on_subscription_activated($subscription)
+    {
+        $user_id = $subscription->get_user_id();
+
+        if (!$user_id) {
+            return;
+        }
+
+        $reenrolled = [];
+
+        foreach ($subscription->get_items() as $item) {
+            $product_id = $item->get_product_id();
+            $course_id  = get_post_meta($product_id, '_quiz_extended_course_id', true);
+
+            if (!$course_id) {
+                continue;
+            }
+
+            // Skip if already enrolled
+            if (get_user_meta($user_id, '_enrolled_course_' . $course_id, true)) {
+                continue;
+            }
+
+            $enrollment_date = current_time('mysql');
+
+            update_user_meta($user_id, '_enrolled_course_' . $course_id, true);
+            update_user_meta($user_id, '_enrolled_course_' . $course_id . '_date', $enrollment_date);
+            update_user_meta($user_id, '_enrolled_course_' . $course_id . '_order_id', $subscription->get_id());
+            update_user_meta($user_id, '_course_' . $course_id . '_progress', 0);
+            update_user_meta($user_id, '_course_' . $course_id . '_last_activity', $enrollment_date);
+
+            $reenrolled[] = $course_id;
+
+            do_action('qe_user_enrolled', $user_id, $course_id, $subscription->get_id());
+        }
+
+        if (!empty($reenrolled)) {
+            $this->log_info('User re-enrolled via subscription activation', [
+                'user_id'        => $user_id,
+                'subscription_id' => $subscription->get_id(),
+                'courses'        => $reenrolled,
+            ]);
+        }
+    }
+
+    /**
+     * Remove enrollment for all courses linked to a subscription's products
+     *
+     * @param WC_Subscription $subscription
+     * @param string          $reason  'expired' | 'subscription_cancelled'
+     * @return void
+     */
+    private function unenroll_user_from_subscription($subscription, $reason)
+    {
+        $user_id = $subscription->get_user_id();
+
+        if (!$user_id) {
+            return;
+        }
+
+        $unenrolled = [];
+
+        foreach ($subscription->get_items() as $item) {
+            $product_id = $item->get_product_id();
+            $course_id  = get_post_meta($product_id, '_quiz_extended_course_id', true);
+
+            if (!$course_id) {
+                continue;
+            }
+
+            delete_user_meta($user_id, '_enrolled_course_' . $course_id);
+            delete_user_meta($user_id, '_enrolled_course_' . $course_id . '_date');
+            delete_user_meta($user_id, '_enrolled_course_' . $course_id . '_order_id');
+
+            $unenrolled[] = $course_id;
+
+            do_action('qe_user_unenrolled', $user_id, $course_id, $subscription->get_id(), $reason);
+        }
+
+        if (!empty($unenrolled)) {
+            $this->log_info('User unenrolled via subscription status change', [
+                'user_id'        => $user_id,
+                'subscription_id' => $subscription->get_id(),
+                'reason'         => $reason,
+                'courses'        => $unenrolled,
             ]);
         }
     }
