@@ -77,6 +77,14 @@ const SettingsPage = () => {
   const [chainError, setChainError] = useState(null);
   const [chainLoading, setChainLoading] = useState(false);
   const [chainCopied, setChainCopied] = useState(false);
+
+  // Provider analysis state
+  const [providers, setProviders] = useState([]);
+  const [providerSlug, setProviderSlug] = useState('');
+  const [providerResult, setProviderResult] = useState(null);
+  const [providerError, setProviderError] = useState(null);
+  const [providerLoading, setProviderLoading] = useState(false);
+  const [providerCopied, setProviderCopied] = useState(false);
   
 
 
@@ -293,6 +301,47 @@ const SettingsPage = () => {
     navigator.clipboard.writeText(JSON.stringify(chainResult, null, 2));
     setChainCopied(true);
     setTimeout(() => setChainCopied(false), 2000);
+  };
+
+  // Load providers list when DB Consults tab is opened
+  useEffect(() => {
+    if (activeTab !== 'db-consults' || providers.length > 0) return;
+    fetch('/wp-json/quiz-extended/v1/debug/providers', {
+      headers: { 'X-WP-Nonce': window.qe_data?.nonce || '' }
+    })
+      .then(r => r.json())
+      .then(json => { if (json.success) setProviders(json.data); })
+      .catch(() => {});
+  }, [activeTab]);
+
+  const handleProviderAnalysis = async () => {
+    if (!providerSlug) return;
+    setProviderLoading(true);
+    setProviderResult(null);
+    setProviderError(null);
+    try {
+      const response = await fetch(
+        `/wp-json/quiz-extended/v1/debug/provider-analysis?slug=${encodeURIComponent(providerSlug)}`,
+        { headers: { 'X-WP-Nonce': window.qe_data?.nonce || '' } }
+      );
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        setProviderError(json.message || 'Error fetching provider data');
+      } else {
+        setProviderResult(json.data);
+      }
+    } catch (err) {
+      setProviderError(err.message || 'Network error');
+    } finally {
+      setProviderLoading(false);
+    }
+  };
+
+  const handleProviderCopy = () => {
+    if (!providerResult) return;
+    navigator.clipboard.writeText(JSON.stringify(providerResult, null, 2));
+    setProviderCopied(true);
+    setTimeout(() => setProviderCopied(false), 2000);
   };
 
   const handleColorChange = (mode, colorKey, value) => {
@@ -1761,6 +1810,191 @@ const SettingsPage = () => {
                         <div><strong>Meta courses:</strong> {summary.course_ids_in_question_meta.join(', ') || 'none'}</div>
                         <div><strong>Meta lessons:</strong> {summary.lesson_ids_in_question_meta.join(', ') || 'none'}</div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── Provider Analysis ──────────────────────────────────────── */}
+            <div
+              className="p-6 rounded-xl"
+              style={{
+                backgroundColor: pageColors.bgCard,
+                border: `1px solid ${pageColors.cardBorder}`,
+                boxShadow: pageColors.shadowSm
+              }}
+            >
+              <h2 className="text-lg font-semibold mb-1" style={{ color: pageColors.text }}>
+                Provider Analysis
+              </h2>
+              <p className="text-sm mb-5" style={{ color: pageColors.textMuted }}>
+                All questions for a provider — shows which lesson field was used during migration
+                (<code className="text-xs px-1 rounded" style={{ backgroundColor: pageColors.hoverBg }}>_question_lesson</code> legacy vs
+                <code className="text-xs px-1 rounded" style={{ backgroundColor: pageColors.hoverBg }}>_lesson_ids</code> new), quiz membership, and course links.
+              </p>
+
+              {/* Provider pills */}
+              {providers.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {providers.map(p => (
+                    <button
+                      key={p.slug}
+                      onClick={() => { setProviderSlug(p.slug); setProviderResult(null); setProviderError(null); }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all focus:outline-none"
+                      style={{
+                        backgroundColor: providerSlug === p.slug ? pageColors.accent : pageColors.inputBg,
+                        color: providerSlug === p.slug ? '#fff' : pageColors.text,
+                        border: `1px solid ${providerSlug === p.slug ? pageColors.accent : pageColors.cardBorder}`
+                      }}
+                    >
+                      {p.name} <span style={{ opacity: 0.7 }}>({p.question_count})</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={providerSlug}
+                  onChange={e => setProviderSlug(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleProviderAnalysis()}
+                  placeholder="Provider slug (e.g. david)..."
+                  className="flex-1 px-4 py-2.5 rounded-xl focus:outline-none focus:ring-2 font-mono"
+                  style={{
+                    backgroundColor: pageColors.inputBg,
+                    border: `1px solid ${pageColors.cardBorder}`,
+                    color: pageColors.text,
+                    '--tw-ring-color': pageColors.accent
+                  }}
+                />
+                <button
+                  onClick={handleProviderAnalysis}
+                  disabled={providerLoading || !providerSlug}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all focus:outline-none disabled:opacity-50"
+                  style={{ backgroundColor: pageColors.accent, color: '#fff' }}
+                >
+                  {providerLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                  Analyze
+                </button>
+              </div>
+            </div>
+
+            {/* Provider error */}
+            {providerError && (
+              <div
+                className="p-4 rounded-xl flex items-start gap-3"
+                style={{
+                  backgroundColor: isDarkMode ? 'rgba(239,68,68,0.1)' : '#fee2e2',
+                  border: `1px solid ${isDarkMode ? 'rgba(239,68,68,0.3)' : '#fca5a5'}`
+                }}
+              >
+                <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: pageColors.error }} />
+                <p className="text-sm" style={{ color: pageColors.error }}>{providerError}</p>
+              </div>
+            )}
+
+            {/* Provider result */}
+            {providerResult && (() => {
+              const { provider, total_questions, stats, questions } = providerResult;
+              const statColor = (n) => n === 0 ? pageColors.textMuted : pageColors.text;
+              return (
+                <div
+                  className="rounded-xl overflow-hidden"
+                  style={{ backgroundColor: pageColors.bgCard, border: `1px solid ${pageColors.cardBorder}`, boxShadow: pageColors.shadowSm }}
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${pageColors.cardBorder}` }}>
+                    <span className="text-sm font-semibold" style={{ color: pageColors.text }}>
+                      {provider.name} — {total_questions} questions
+                    </span>
+                    <button
+                      onClick={handleProviderCopy}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all focus:outline-none"
+                      style={{
+                        backgroundColor: providerCopied ? pageColors.success : pageColors.inputBg,
+                        color: providerCopied ? '#fff' : pageColors.text,
+                        border: `1px solid ${pageColors.cardBorder}`
+                      }}
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      {providerCopied ? 'Copied!' : 'Copy JSON'}
+                    </button>
+                  </div>
+
+                  <div className="p-4 space-y-4">
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {[
+                        { label: '_question_lesson only (legacy)', value: stats.has_question_lesson_only, warn: true },
+                        { label: '_lesson_ids populated (new)',     value: stats.has_lesson_ids,           warn: false },
+                        { label: '_course_ids populated',           value: stats.has_course_ids,           warn: false },
+                        { label: 'No lesson reference at all',      value: stats.has_no_lesson_at_all,     warn: true },
+                        { label: 'In a quiz',                       value: stats.in_a_quiz,                warn: false },
+                        { label: 'Not in any quiz',                 value: stats.not_in_any_quiz,          warn: true },
+                      ].map(s => (
+                        <div
+                          key={s.label}
+                          className="p-3 rounded-lg"
+                          style={{
+                            backgroundColor: s.warn && s.value > 0
+                              ? isDarkMode ? 'rgba(245,158,11,0.1)' : '#fef3c7'
+                              : pageColors.hoverBg
+                          }}
+                        >
+                          <div className="text-xl font-bold" style={{ color: s.warn && s.value > 0 ? pageColors.warning : pageColors.accent }}>
+                            {s.value}
+                          </div>
+                          <div className="text-xs mt-0.5" style={{ color: pageColors.textMuted }}>{s.label}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Question table */}
+                    <div className="overflow-auto" style={{ maxHeight: '50vh' }}>
+                      <table className="w-full text-xs border-collapse">
+                        <thead>
+                          <tr style={{ borderBottom: `1px solid ${pageColors.cardBorder}` }}>
+                            {['ID', 'Title', 'Status', 'Difficulty', 'Lesson field', 'Lesson title', 'Course IDs', 'Quiz count'].map(h => (
+                              <th key={h} className="text-left py-2 px-2 font-semibold whitespace-nowrap" style={{ color: pageColors.textMuted }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {questions.map((q, i) => {
+                            const lessonRef = q.lesson_refs[0];
+                            const rowBg = i % 2 === 0 ? 'transparent' : (isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)');
+                            return (
+                              <tr key={q.question_id} style={{ backgroundColor: rowBg, borderBottom: `1px solid ${pageColors.cardBorder}22` }}>
+                                <td className="py-1.5 px-2 font-mono" style={{ color: pageColors.textMuted }}>{q.question_id}</td>
+                                <td className="py-1.5 px-2" style={{ color: pageColors.text, maxWidth: '240px' }}>
+                                  <span className="line-clamp-1 block" title={q.question_title}>{q.question_title}</span>
+                                </td>
+                                <td className="py-1.5 px-2">
+                                  <span className="px-1.5 py-0.5 rounded text-xs" style={{
+                                    backgroundColor: q.question_status === 'publish' ? `${pageColors.success}22` : `${pageColors.warning}22`,
+                                    color: q.question_status === 'publish' ? pageColors.success : pageColors.warning
+                                  }}>{q.question_status}</span>
+                                </td>
+                                <td className="py-1.5 px-2" style={{ color: pageColors.textMuted }}>{q.difficulty || '—'}</td>
+                                <td className="py-1.5 px-2 font-mono" style={{ color: q.flags.has_lesson_ids ? pageColors.success : q.flags.has_question_lesson ? pageColors.warning : pageColors.error }}>
+                                  {q.flags.has_lesson_ids ? '_lesson_ids' : q.flags.has_question_lesson ? '_question_lesson' : 'none'}
+                                </td>
+                                <td className="py-1.5 px-2" style={{ color: pageColors.text }}>
+                                  {lessonRef ? <span title={lessonRef.title} className="line-clamp-1 block" style={{ maxWidth: '200px' }}>#{lessonRef.id} {lessonRef.title}</span> : <span style={{ color: pageColors.error }}>—</span>}
+                                </td>
+                                <td className="py-1.5 px-2 font-mono" style={{ color: q.course_ids.length ? pageColors.text : pageColors.error }}>
+                                  {q.course_ids.length ? q.course_ids.join(', ') : '—'}
+                                </td>
+                                <td className="py-1.5 px-2 font-mono" style={{ color: q.quizzes.length ? pageColors.text : pageColors.error }}>
+                                  {q.quizzes.length}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>

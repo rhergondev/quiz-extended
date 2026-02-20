@@ -121,6 +121,23 @@ class QE_Debug_API extends QE_API_Base
             ]
         ]);
 
+        // 📋 List all providers with question counts
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/providers', [
+            'methods' => 'GET',
+            'callback' => [$this, 'list_providers'],
+            'permission_callback' => [$this, 'permissions_check'],
+        ]);
+
+        // 📊 Provider analysis — all questions for a provider with lesson/quiz/course breakdown
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/provider-analysis', [
+            'methods' => 'GET',
+            'callback' => [$this, 'provider_analysis'],
+            'permission_callback' => [$this, 'permissions_check'],
+            'args' => [
+                'slug' => ['required' => true, 'type' => 'string']
+            ]
+        ]);
+
         // 🔗 Question chain analysis endpoint
         register_rest_route($this->namespace, '/' . $this->rest_base . '/question-chain', [
             'methods' => 'GET',
@@ -787,6 +804,241 @@ class QE_Debug_API extends QE_API_Base
         }
 
         return $connections;
+    }
+
+    /**
+     * List all providers (qe_provider taxonomy) with their question counts.
+     *
+     * GET /wp-json/quiz-extended/v1/debug/providers
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function list_providers($request)
+    {
+        $terms = get_terms([
+            'taxonomy'   => 'qe_provider',
+            'hide_empty' => false,
+            'orderby'    => 'name',
+            'order'      => 'ASC',
+        ]);
+
+        if (is_wp_error($terms)) {
+            return new WP_REST_Response(['success' => false, 'message' => $terms->get_error_message()], 500);
+        }
+
+        $providers = array_map(function ($term) {
+            return [
+                'id'             => $term->term_id,
+                'name'           => $term->name,
+                'slug'           => $term->slug,
+                'question_count' => (int) $term->count,
+            ];
+        }, $terms);
+
+        return new WP_REST_Response(['success' => true, 'data' => $providers], 200);
+    }
+
+    /**
+     * Provider analysis — all questions for a provider with lesson/quiz/course breakdown.
+     * Uses bulk queries (no N+1) so it stays fast even with hundreds of questions.
+     *
+     * GET /wp-json/quiz-extended/v1/debug/provider-analysis?slug=david
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function provider_analysis($request)
+    {
+        global $wpdb;
+        $slug = sanitize_title($request->get_param('slug'));
+
+        // Resolve the term
+        $term = get_term_by('slug', $slug, 'qe_provider');
+        if (!$term) {
+            $term = get_term_by('name', $slug, 'qe_provider');
+        }
+        if (!$term) {
+            return new WP_REST_Response([
+                'success' => false,
+                'message' => "Provider '{$slug}' not found in qe_provider taxonomy"
+            ], 404);
+        }
+
+        // 1. All question IDs for this provider
+        $question_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT tr.object_id
+             FROM {$wpdb->term_relationships} tr
+             JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+             JOIN {$wpdb->posts} p ON tr.object_id = p.ID
+             WHERE tt.term_id = %d
+               AND tt.taxonomy = 'qe_provider'
+               AND p.post_type = 'qe_question'
+               AND p.post_status != 'trash'
+             ORDER BY tr.object_id ASC",
+            $term->term_id
+        ));
+
+        if (empty($question_ids)) {
+            return new WP_REST_Response([
+                'success' => true,
+                'data' => [
+                    'provider'        => ['id' => $term->term_id, 'name' => $term->name, 'slug' => $term->slug],
+                    'total_questions' => 0,
+                    'stats'           => [],
+                    'questions'       => [],
+                ]
+            ], 200);
+        }
+
+        $ids_str = implode(',', array_map('intval', $question_ids));
+
+        // 2. Post titles + status in one query
+        $posts_map = [];
+        foreach ($wpdb->get_results(
+            "SELECT ID, post_title, post_status FROM {$wpdb->posts} WHERE ID IN ({$ids_str})",
+            ARRAY_A
+        ) as $row) {
+            $posts_map[(int)$row['ID']] = $row;
+        }
+
+        // 3. Relevant meta for all questions in one query
+        $meta_map = []; // question_id => [meta_key => value]
+        $meta_rows = $wpdb->get_results(
+            "SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta}
+             WHERE post_id IN ({$ids_str})
+               AND meta_key IN ('_question_lesson', '_lesson_ids', '_course_ids', '_course_id', '_difficulty_level')
+             ORDER BY post_id, meta_key",
+            ARRAY_A
+        );
+        foreach ($meta_rows as $row) {
+            $val = $row['meta_value'];
+            $uns = @maybe_unserialize($val);
+            if ($uns !== $val) { $val = $uns; }
+            else { $j = json_decode($val, true); if ($j !== null) $val = $j; }
+            $meta_map[(int)$row['post_id']][$row['meta_key']] = $val;
+        }
+
+        // 4. Build question_id → quizzes map by scanning ALL quiz _quiz_question_ids at once
+        $q_to_quizzes = []; // question_id => [{quiz_id, quiz_title}]
+        $quiz_meta_rows = $wpdb->get_results(
+            "SELECT pm.post_id AS quiz_id, p.post_title AS quiz_title, pm.meta_value
+             FROM {$wpdb->postmeta} pm
+             JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+             WHERE pm.meta_key = '_quiz_question_ids'
+               AND p.post_type = 'qe_quiz'",
+            ARRAY_A
+        );
+        foreach ($quiz_meta_rows as $row) {
+            $ids = @maybe_unserialize($row['meta_value']);
+            if (!is_array($ids)) { $ids = json_decode($row['meta_value'], true); }
+            if (!is_array($ids)) continue;
+            foreach ($ids as $qid) {
+                $qid = (int) $qid;
+                if (!isset($q_to_quizzes[$qid])) $q_to_quizzes[$qid] = [];
+                $q_to_quizzes[$qid][] = ['quiz_id' => (int)$row['quiz_id'], 'quiz_title' => $row['quiz_title']];
+            }
+        }
+
+        // 5. Collect all unique lesson IDs then resolve them in one query
+        $all_lesson_ids = [];
+        foreach ($question_ids as $qid) {
+            $qid = (int) $qid;
+            $m = $meta_map[$qid] ?? [];
+            if (!empty($m['_question_lesson'])) $all_lesson_ids[] = (int)$m['_question_lesson'];
+            if (!empty($m['_lesson_ids']) && is_array($m['_lesson_ids'])) {
+                foreach ($m['_lesson_ids'] as $lid) $all_lesson_ids[] = (int)$lid;
+            }
+        }
+        $all_lesson_ids = array_values(array_unique(array_filter($all_lesson_ids)));
+
+        $lessons_map = [];
+        if (!empty($all_lesson_ids)) {
+            $lids_str = implode(',', $all_lesson_ids);
+            foreach ($wpdb->get_results(
+                "SELECT ID, post_title, post_status FROM {$wpdb->posts} WHERE ID IN ({$lids_str})",
+                ARRAY_A
+            ) as $row) {
+                $lessons_map[(int)$row['ID']] = $row;
+            }
+        }
+
+        // 6. Build per-question data + aggregate stats
+        $stats = [
+            'has_question_lesson_only'  => 0, // old field, no new _lesson_ids
+            'has_lesson_ids'            => 0, // new normalized field populated
+            'has_course_ids'            => 0, // course linked
+            'has_no_lesson_at_all'      => 0, // neither field exists
+            'in_a_quiz'                 => 0,
+            'not_in_any_quiz'           => 0,
+        ];
+
+        $questions = [];
+        foreach ($question_ids as $qid) {
+            $qid = (int) $qid;
+            $m    = $meta_map[$qid] ?? [];
+            $post = $posts_map[$qid] ?? [];
+
+            $has_legacy    = !empty($m['_question_lesson']);
+            $has_new       = !empty($m['_lesson_ids']) && is_array($m['_lesson_ids']) && count($m['_lesson_ids']) > 0;
+            $has_courses   = !empty($m['_course_ids']) && is_array($m['_course_ids']) && count($m['_course_ids']) > 0;
+            $in_quiz       = !empty($q_to_quizzes[$qid]);
+
+            if ($has_legacy && !$has_new) $stats['has_question_lesson_only']++;
+            if ($has_new) $stats['has_lesson_ids']++;
+            if ($has_courses) $stats['has_course_ids']++;
+            if (!$has_legacy && !$has_new) $stats['has_no_lesson_at_all']++;
+            if ($in_quiz) $stats['in_a_quiz']++; else $stats['not_in_any_quiz']++;
+
+            // Build lesson references
+            $lesson_refs = [];
+            if ($has_legacy) {
+                $lid = (int)$m['_question_lesson'];
+                $lesson_refs[] = [
+                    'via'    => '_question_lesson (legacy)',
+                    'id'     => $lid,
+                    'title'  => $lessons_map[$lid]['post_title'] ?? '(not found)',
+                    'status' => $lessons_map[$lid]['post_status'] ?? null,
+                ];
+            }
+            if ($has_new) {
+                foreach ($m['_lesson_ids'] as $lid) {
+                    $lid = (int)$lid;
+                    $lesson_refs[] = [
+                        'via'    => '_lesson_ids (new)',
+                        'id'     => $lid,
+                        'title'  => $lessons_map[$lid]['post_title'] ?? '(not found)',
+                        'status' => $lessons_map[$lid]['post_status'] ?? null,
+                    ];
+                }
+            }
+
+            $questions[] = [
+                'question_id'     => $qid,
+                'question_title'  => $post['post_title'] ?? '(not found)',
+                'question_status' => $post['post_status'] ?? null,
+                'difficulty'      => $m['_difficulty_level'] ?? null,
+                'lesson_refs'     => $lesson_refs,
+                'course_ids'      => $has_courses ? array_map('intval', (array)$m['_course_ids']) : [],
+                'quizzes'         => $q_to_quizzes[$qid] ?? [],
+                'flags'           => [
+                    'has_question_lesson' => $has_legacy,
+                    'has_lesson_ids'      => $has_new,
+                    'has_course_ids'      => $has_courses,
+                    'in_quiz'             => $in_quiz,
+                ],
+            ];
+        }
+
+        return new WP_REST_Response([
+            'success' => true,
+            'data' => [
+                'provider'        => ['id' => $term->term_id, 'name' => $term->name, 'slug' => $term->slug],
+                'total_questions' => count($question_ids),
+                'stats'           => $stats,
+                'questions'       => $questions,
+            ]
+        ], 200);
     }
 
     /**
