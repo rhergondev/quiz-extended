@@ -1017,9 +1017,9 @@ const StudyPlannerPage = () => {
             <div className="flex flex-wrap gap-4">
               {/* Video */}
               <div className="flex items-center gap-2">
-                <div 
+                <div
                   className="w-4 h-4 rounded"
-                  style={{ backgroundColor: '#3B82F6' }}
+                  style={{ backgroundColor: '#EF4444' }}
                 />
                 <Video size={14} style={{ color: pageColors.textMuted }} />
                 <span className="text-sm" style={{ color: pageColors.text }}>
@@ -1028,9 +1028,9 @@ const StudyPlannerPage = () => {
               </div>
               {/* Test/Quiz */}
               <div className="flex items-center gap-2">
-                <div 
+                <div
                   className="w-4 h-4 rounded"
-                  style={{ backgroundColor: '#EF4444' }}
+                  style={{ backgroundColor: '#3B82F6' }}
                 />
                 <ClipboardList size={14} style={{ color: pageColors.textMuted }} />
                 <span className="text-sm" style={{ color: pageColors.text }}>
@@ -1039,7 +1039,7 @@ const StudyPlannerPage = () => {
               </div>
               {/* PDF */}
               <div className="flex items-center gap-2">
-                <div 
+                <div
                   className="w-4 h-4 rounded"
                   style={{ backgroundColor: '#10B981' }}
                 />
@@ -1048,22 +1048,11 @@ const StudyPlannerPage = () => {
                   {t('calendar.legendPdf', 'PDF')}
                 </span>
               </div>
-              {/* Lesson/Text */}
+              {/* Note */}
               <div className="flex items-center gap-2">
-                <div 
-                  className="w-4 h-4 rounded"
+                <div
+                  className="w-4 h-4 rounded-full"
                   style={{ backgroundColor: '#8B5CF6' }}
-                />
-                <FileText size={14} style={{ color: pageColors.textMuted }} />
-                <span className="text-sm" style={{ color: pageColors.text }}>
-                  {t('calendar.legendLesson', 'Tema')}
-                </span>
-              </div>
-              {/* Note - always visible */}
-              <div className="flex items-center gap-2">
-                <div 
-                  className="w-4 h-4 rounded border-2 border-dashed"
-                  style={{ borderColor: '#8B5CF6', backgroundColor: 'transparent' }}
                 />
                 <StickyNote size={14} style={{ color: pageColors.textMuted }} />
                 <span className="text-sm" style={{ color: pageColors.text }}>
@@ -1072,7 +1061,7 @@ const StudyPlannerPage = () => {
               </div>
               {/* Live Class */}
               <div className="flex items-center gap-2">
-                <div 
+                <div
                   className="w-4 h-4 rounded border-2 border-dashed"
                   style={{ borderColor: '#EF4444', backgroundColor: 'transparent' }}
                 />

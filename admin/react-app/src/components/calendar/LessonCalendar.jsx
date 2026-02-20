@@ -41,11 +41,12 @@ const localizer = dateFnsLocalizer({
  */
 const getLessonTypeColor = (lessonType, isDarkMode, customColor = null) => {
   const colors = {
-    video: { bg: '#3B82F6', border: '#2563EB', text: '#FFFFFF' },
-    quiz: { bg: '#EF4444', border: '#DC2626', text: '#FFFFFF' },
-    test: { bg: '#EF4444', border: '#DC2626', text: '#FFFFFF' },
+    video: { bg: '#EF4444', border: '#DC2626', text: '#FFFFFF' },
+    quiz: { bg: '#3B82F6', border: '#2563EB', text: '#FFFFFF' },
+    test: { bg: '#3B82F6', border: '#2563EB', text: '#FFFFFF' },
     pdf: { bg: '#10B981', border: '#059669', text: '#FFFFFF' },
     note: { bg: customColor || '#8B5CF6', border: customColor || '#7C3AED', text: '#FFFFFF' },
+    live_class: { bg: '#EF4444', border: '#DC2626', text: '#FFFFFF' },
     default: { bg: '#8B5CF6', border: '#7C3AED', text: '#FFFFFF' },
   };
   return colors[lessonType] || colors.default;
@@ -127,16 +128,19 @@ const CustomWeekView = ({ date, events, pageColors, getColor, isDarkMode, t, onS
                 </div>
               ) : (
                 dayEvents.map((event, idx) => {
-                  const colors = event.isNote 
+                  const colors = event.isNote
                     ? { bg: event.color, text: '#FFFFFF' }
                     : getLessonTypeColor(event.lessonType, isDarkMode);
+                  const isLiveClass = event.isNote && event.isLiveClass;
+                  const isPureNote = event.isNote && !event.isLiveClass;
                   return (
-                    <div 
+                    <div
                       key={idx}
-                      className="text-xs p-1.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity"
-                      style={{ 
-                        backgroundColor: colors.bg,
-                        color: colors.text
+                      className={`text-xs p-1.5 truncate cursor-pointer hover:opacity-80 transition-opacity ${isPureNote ? 'rounded-full' : 'rounded'}`}
+                      style={{
+                        backgroundColor: isLiveClass ? event.color + '20' : colors.bg,
+                        color: isLiveClass ? event.color : colors.text,
+                        border: isLiveClass ? `2px dashed ${event.color}` : 'none',
                       }}
                       title={event.title}
                       onClick={() => onSelectEvent && onSelectEvent(event)}
@@ -300,15 +304,17 @@ const CustomYearView = ({ date, events, pageColors, getColor, isDarkMode, t, onS
             {tooltip.date && format(tooltip.date, 'd MMMM yyyy', { locale })}
           </div>
           {tooltip.events.map((event, idx) => {
-            const colors = getLessonTypeColor(event.lessonType, isDarkMode);
+            const colors = event.isNote
+              ? { bg: event.color }
+              : getLessonTypeColor(event.lessonType, isDarkMode);
             return (
-              <div 
+              <div
                 key={idx}
                 className="text-xs py-0.5 flex items-center gap-1 cursor-pointer hover:opacity-80"
                 style={{ color: pageColors.text }}
                 onClick={() => onSelectEvent && onSelectEvent(event)}
               >
-                <span 
+                <span
                   className="w-2 h-2 rounded-full"
                   style={{ backgroundColor: colors.bg }}
                 />
@@ -441,9 +447,11 @@ const LessonCalendar = ({
           const startDate = new Date(step.start_date);
           startDate.setHours(0, 0, 0, 0);
           const endDate = addHours(startDate, 24);
-          
+
           // Map step type to lesson type for colors
           const stepType = step.type || 'default';
+          // Skip "Tema" (default) type — not shown in planner
+          if (stepType === 'default') return;
           const colors = getLessonTypeColor(stepType, isDarkMode);
           
           const lessonTitle = lesson.title?.rendered || lesson.title || '';
@@ -474,7 +482,9 @@ const LessonCalendar = ({
       .filter(lesson => {
         // Only show lesson-level events if lesson has _start_date and NO steps with start_date
         const hasStepsWithDates = (lesson.meta?._lesson_steps || []).some(s => s.start_date);
-        return lesson.meta?._start_date && !hasStepsWithDates;
+        const lessonType = lesson.meta?._lesson_type || 'default';
+        // Skip "Tema" (default) type — not shown in planner
+        return lesson.meta?._start_date && !hasStepsWithDates && lessonType !== 'default';
       })
       .map(lesson => {
         const startDate = new Date(lesson.meta._start_date);
@@ -547,15 +557,32 @@ const LessonCalendar = ({
 
   // Custom event styling
   const eventStyleGetter = useCallback((event) => {
+    const isLiveClass = event.isNote && event.isLiveClass;
+    const isPureNote = event.isNote && !event.isLiveClass;
+
+    if (isLiveClass) {
+      return {
+        style: {
+          backgroundColor: event.color + '20',
+          color: event.color,
+          borderRadius: '6px',
+          border: `2px dashed ${event.color}`,
+          fontSize: '12px',
+          padding: '2px 6px',
+          cursor: 'pointer',
+        },
+      };
+    }
+
     return {
       style: {
         backgroundColor: event.color,
         borderColor: event.borderColor,
         color: event.textColor,
-        borderRadius: '6px',
+        borderRadius: isPureNote ? '9999px' : '6px',
         border: `2px solid ${event.borderColor}`,
         fontSize: '12px',
-        padding: '2px 6px',
+        padding: isPureNote ? '2px 8px' : '2px 6px',
         cursor: 'pointer',
       },
     };

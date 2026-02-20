@@ -46,7 +46,7 @@ const CourseLessonsPage = () => {
   const [lessons, setLessons] = useState([]);
   const [lessonsLoading, setLessonsLoading] = useState(false);
   const [lessonsError, setLessonsError] = useState(null);
-  const [activeContent, setActiveContent] = useState({ lesson: null, step: null });
+  const [activeContent, setActiveContent] = useState({ lesson: null, step: null, stepIndex: -1 });
   const [error, setError] = useState(null);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [showRankingModal, setShowRankingModal] = useState(false);
@@ -158,12 +158,12 @@ const CourseLessonsPage = () => {
       
       if (targetLesson && targetLesson.meta?._lesson_steps) {
         const steps = targetLesson.meta._lesson_steps;
-        
+
         // Verificar que el índice esté dentro del rango
         if (selectedStepIndex >= 0 && selectedStepIndex < steps.length) {
           const targetStep = steps[selectedStepIndex];
-          
-          setActiveContent({ lesson: targetLesson, step: targetStep });
+
+          setActiveContent({ lesson: targetLesson, step: targetStep, stepIndex: selectedStepIndex });
           setHasInitialized(true);
           
           // Limpiar el estado para evitar reselección en futuras navegaciones
@@ -186,12 +186,13 @@ const CourseLessonsPage = () => {
       });
       
       if (associatedLesson) {
-        const quizStep = associatedLesson.meta._lesson_steps.find(s => 
+        const quizStep = associatedLesson.meta._lesson_steps.find(s =>
           s?.data?.quiz_id && parseInt(s.data.quiz_id) === parseInt(selectedQuizId)
         );
-        
+
         if (quizStep) {
-          setActiveContent({ lesson: associatedLesson, step: quizStep });
+          const quizStepIndex = associatedLesson.meta._lesson_steps.indexOf(quizStep);
+          setActiveContent({ lesson: associatedLesson, step: quizStep, stepIndex: quizStepIndex });
           setHasInitialized(true);
           
           // Limpiar el estado para evitar reselección en futuras navegaciones
@@ -204,16 +205,18 @@ const CourseLessonsPage = () => {
     // Comportamiento por defecto: seleccionar el primer paso
     const firstLesson = sortedLessons[0];
     const firstStep = firstLesson?.meta?._lesson_steps?.[0];
-    
+
     if (firstLesson && firstStep) {
-      setActiveContent({ lesson: firstLesson, step: firstStep });
+      setActiveContent({ lesson: firstLesson, step: firstStep, stepIndex: 0 });
       setHasInitialized(true);
     }
   }, [sortedLessons, lessonsLoading, hasInitialized, location.state]);
 
   // 5. Handler para la selección de pasos
   const handleSelectStep = (step, lesson) => {
-    setActiveContent({ step, lesson });
+    const steps = lesson.meta?._lesson_steps || [];
+    const stepIndex = steps.indexOf(step);
+    setActiveContent({ step, lesson, stepIndex });
   };
 
   // 6. Handler para abrir el ranking
@@ -234,15 +237,16 @@ const CourseLessonsPage = () => {
     <div className="flex flex-col lg:flex-row h-full overflow-hidden">
       {/* Panel de contenido principal */}
       <div className="flex-1 overflow-y-auto relative">
-        <StepContent 
-          lesson={activeContent.lesson} 
+        <StepContent
+          lesson={activeContent.lesson}
           step={activeContent.step}
+          stepIndex={activeContent.stepIndex}
           lessons={sortedLessons}
           onNavigate={handleSelectStep}
           courseId={parseInt(courseId, 10)}
           onOpenRanking={handleOpenRanking}
           rankingLoading={rankingLoading}
-          onOpenLessonList={() => setIsLessonListOpen(true)} // Pasar función para abrir el modal
+          onOpenLessonList={() => setIsLessonListOpen(true)}
         />
       </div>
 

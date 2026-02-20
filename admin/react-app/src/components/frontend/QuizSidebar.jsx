@@ -148,9 +148,9 @@ const QuizSidebar = ({
   };
 
   return (
-    <div className="w-full h-full flex flex-col">
-      <div 
-        className="rounded-lg shadow-sm border-2 transition-all duration-200 flex flex-col h-full max-h-full p-2"
+    <div className="w-full">
+      <div
+        className="rounded-lg shadow-sm border-2 transition-all duration-200 p-2"
         style={{ 
           backgroundColor: getColor('secondaryBackground', '#ffffff'),
           borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
@@ -214,12 +214,12 @@ const QuizSidebar = ({
           </div>
         </div>
 
-        {/* Mapa de preguntas - con scroll interno */}
-        <div className="px-1 py-1.5 border-b flex-1 min-h-0 flex flex-col" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
-          <h3 className="text-[11px] font-semibold mb-1 flex-shrink-0" style={{ color: textPrimary }}>
+        {/* Mapa de preguntas */}
+        <div className="px-1 py-1.5 border-b" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
+          <h3 className="text-[11px] font-semibold mb-1" style={{ color: textPrimary }}>
             {t('quizzes.sidebar.questionsMap')}
           </h3>
-          <div className="flex-1 min-h-0" style={{ maxHeight: '420px' }}>
+          <div>
             <div
               className="grid grid-cols-8 gap-1"
             >

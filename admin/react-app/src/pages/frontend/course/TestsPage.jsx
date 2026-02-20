@@ -1884,9 +1884,9 @@ const TestsPage = () => {
                       <div className="flex items-center justify-center gap-6 mb-3 py-2">
                         {/* Dificultad */}
                         <div className="flex items-center gap-2">
-                          <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('tests.difficulty')}:</span>
-                          <span 
-                            className="text-xs font-bold px-2 py-0.5 rounded-full"
+                          <span className="text-base" style={{ color: pageColors.textMuted }}>{t('tests.difficulty')}:</span>
+                          <span
+                            className="text-base font-bold px-2 py-0.5 rounded-full"
                             style={{ 
                               backgroundColor: (() => {
                                 const diff = selectedTest.data?.difficulty || 'medium';
@@ -1911,8 +1911,8 @@ const TestsPage = () => {
                         {/* Preguntas */}
                         <div className="flex items-center gap-2">
                           <HelpCircle size={14} style={{ color: pageColors.textMuted }} />
-                          <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('tests.questions')}:</span>
-                          <span className="text-sm font-bold" style={{ color: pageColors.text }}>
+                          <span className="text-base" style={{ color: pageColors.textMuted }}>{t('tests.questions')}:</span>
+                          <span className="text-lg font-bold" style={{ color: pageColors.text }}>
                             {selectedTest.data?.question_count || '?'}
                           </span>
                         </div>
@@ -1923,8 +1923,8 @@ const TestsPage = () => {
                         {/* Tiempo */}
                         <div className="flex items-center gap-2">
                           <Clock size={14} style={{ color: pageColors.textMuted }} />
-                          <span className="text-xs" style={{ color: pageColors.textMuted }}>{t('tests.time')}:</span>
-                          <span className="text-sm font-bold" style={{ color: pageColors.text }}>
+                          <span className="text-base" style={{ color: pageColors.textMuted }}>{t('tests.time')}:</span>
+                          <span className="text-lg font-bold" style={{ color: pageColors.text }}>
                             {selectedTest.data?.time_limit ? `${selectedTest.data.time_limit} min` : '∞'}
                           </span>
                         </div>
@@ -1933,7 +1933,7 @@ const TestsPage = () => {
                       {/* SECCIÓN 2: Estadísticas Sin Arriesgar */}
                       {hasUserStats && (
                         <div className="mb-3">
-                          <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c') }}>
+                          <p className="text-base font-semibold uppercase tracking-wide mb-2" style={{ color: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c') }}>
                             {t('tests.withoutRisk')}
                           </p>
                           <div 
@@ -1946,18 +1946,18 @@ const TestsPage = () => {
                             <div className="grid grid-cols-3">
                               {/* Media UA */}
                               <div className="py-2 text-center">
-                                <div className="text-[10px] uppercase mb-1 font-bold" style={{ color: isDarkMode ? getColor('accent', '#f59e0b') : '#ffffff' }}>{t('tests.avgScore')}</div>
-                                <div className="text-lg font-bold" style={{ color: '#ffffff' }}>{formatScore(ranking?.statistics?.avg_score_without_risk || 0)}</div>
+                                <div className="text-sm uppercase mb-1 font-bold" style={{ color: isDarkMode ? getColor('accent', '#f59e0b') : '#ffffff' }}>{t('tests.avgScore')}</div>
+                                <div className="text-2xl font-bold" style={{ color: '#ffffff' }}>{formatScore(ranking?.statistics?.avg_score_without_risk || 0)}</div>
                               </div>
                               {/* Mi Nota */}
                               <div className="py-2 text-center">
-                                <div className="text-[10px] uppercase mb-1 font-bold" style={{ color: isDarkMode ? getColor('accent', '#f59e0b') : '#ffffff' }}>{t('tests.myScore')}</div>
-                                <div className="text-lg font-bold" style={{ color: '#ffffff' }}>{formatScore(userStats?.score || 0)}</div>
+                                <div className="text-sm uppercase mb-1 font-bold" style={{ color: isDarkMode ? getColor('accent', '#f59e0b') : '#ffffff' }}>{t('tests.myScore')}</div>
+                                <div className="text-2xl font-bold" style={{ color: '#ffffff' }}>{formatScore(userStats?.score || 0)}</div>
                               </div>
                               {/* Mi Percentil */}
                               <div className="py-2 text-center">
-                                <div className="text-[10px] uppercase mb-1 font-bold" style={{ color: isDarkMode ? getColor('accent', '#f59e0b') : '#ffffff' }}>{t('tests.percentile')}</div>
-                                <div className="text-lg font-bold" style={{ color: '#ffffff' }}>
+                                <div className="text-sm uppercase mb-1 font-bold" style={{ color: isDarkMode ? getColor('accent', '#f59e0b') : '#ffffff' }}>{t('tests.percentile')}</div>
+                                <div className="text-2xl font-bold" style={{ color: '#ffffff' }}>
                                   {calculatePercentile(userStats?.score || 0, false) >= 0 ? '+' : ''}{formatScore(calculatePercentile(userStats?.score || 0, false))}
                                 </div>
                               </div>
@@ -1969,7 +1969,7 @@ const TestsPage = () => {
                       {/* SECCIÓN 3: Estadísticas Arriesgando */}
                       {hasUserStats && (
                         <div className="mb-3">
-                          <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c') }}>
+                          <p className="text-base font-semibold uppercase tracking-wide mb-2" style={{ color: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c') }}>
                             {t('tests.withRisk')}
                           </p>
                           <div 
@@ -1982,18 +1982,18 @@ const TestsPage = () => {
                             <div className="grid grid-cols-3">
                               {/* Media UA */}
                               <div className="py-2 text-center">
-                                <div className="text-[10px] uppercase mb-1 font-bold" style={{ color: isDarkMode ? getColor('accent', '#f59e0b') : '#ffffff' }}>{t('tests.avgScore')}</div>
-                                <div className="text-lg font-bold" style={{ color: '#ffffff' }}>{formatScore(ranking?.statistics?.avg_score_with_risk || 0)}</div>
+                                <div className="text-sm uppercase mb-1 font-bold" style={{ color: isDarkMode ? getColor('accent', '#f59e0b') : '#ffffff' }}>{t('tests.avgScore')}</div>
+                                <div className="text-2xl font-bold" style={{ color: '#ffffff' }}>{formatScore(ranking?.statistics?.avg_score_with_risk || 0)}</div>
                               </div>
                               {/* Mi Nota */}
                               <div className="py-2 text-center">
-                                <div className="text-[10px] uppercase mb-1 font-bold" style={{ color: isDarkMode ? getColor('accent', '#f59e0b') : '#ffffff' }}>{t('tests.myScore')}</div>
-                                <div className="text-lg font-bold" style={{ color: '#ffffff' }}>{formatScore(userStats?.score_with_risk || 0)}</div>
+                                <div className="text-sm uppercase mb-1 font-bold" style={{ color: isDarkMode ? getColor('accent', '#f59e0b') : '#ffffff' }}>{t('tests.myScore')}</div>
+                                <div className="text-2xl font-bold" style={{ color: '#ffffff' }}>{formatScore(userStats?.score_with_risk || 0)}</div>
                               </div>
                               {/* Mi Percentil */}
                               <div className="py-2 text-center">
-                                <div className="text-[10px] uppercase mb-1 font-bold" style={{ color: isDarkMode ? getColor('accent', '#f59e0b') : '#ffffff' }}>{t('tests.percentile')}</div>
-                                <div className="text-lg font-bold" style={{ color: '#ffffff' }}>
+                                <div className="text-sm uppercase mb-1 font-bold" style={{ color: isDarkMode ? getColor('accent', '#f59e0b') : '#ffffff' }}>{t('tests.percentile')}</div>
+                                <div className="text-2xl font-bold" style={{ color: '#ffffff' }}>
                                   {calculatePercentile(userStats?.score_with_risk || 0, true) >= 0 ? '+' : ''}{formatScore(calculatePercentile(userStats?.score_with_risk || 0, true))}
                                 </div>
                               </div>
@@ -2006,10 +2006,10 @@ const TestsPage = () => {
                       {quizAttempts.length > 0 && !attemptsLoading && (
                         <div className="mb-3 flex-1 flex flex-col min-h-0">
                           <div className="flex items-center justify-between mb-2">
-                            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: pageColors.text }}>
+                            <p className="text-base font-semibold uppercase tracking-wide" style={{ color: pageColors.text }}>
                               {t('tests.recentAttempts')}
                             </p>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: pageColors.hoverBg, color: pageColors.textMuted }}>
+                            <span className="text-sm px-2 py-0.5 rounded-full" style={{ backgroundColor: pageColors.hoverBg, color: pageColors.textMuted }}>
                               {quizAttempts.slice(0, 5).length}/5
                             </span>
                           </div>
@@ -2022,7 +2022,7 @@ const TestsPage = () => {
                           >
                             {/* Header de columnas - 9 columnas: Intento, Fecha | Nota, Percentil, Nota Corte | Arriesgando, Percentil, Nota Corte | Ver */}
                             <div 
-                              className="grid grid-cols-9 text-[10px] uppercase tracking-wide font-bold border-b-2"
+                              className="grid grid-cols-9 text-sm uppercase tracking-wide font-bold border-b-2"
                               style={{ 
                                 color: isDarkMode ? getColor('accent', '#f59e0b') : '#ffffff', 
                                 borderColor: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c'), 
@@ -2065,53 +2065,53 @@ const TestsPage = () => {
                                     }}
                                   >
                                     {/* Intento */}
-                                    <div className="text-xs font-medium flex items-center py-2 px-3" style={{ color: pageColors.text }}>
+                                    <div className="text-base font-medium flex items-center py-2 px-3" style={{ color: pageColors.text }}>
                                       #{index + 1}
                                     </div>
-                                    
+
                                     {/* Fecha */}
-                                    <div className="text-[10px] flex items-center py-2 px-1" style={{ color: pageColors.textMuted }}>
+                                    <div className="text-sm flex items-center py-2 px-1" style={{ color: pageColors.textMuted }}>
                                       {new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
                                     </div>
                                     
                                     {/* Nota (Sin riesgo) */}
                                     <div className="flex items-center justify-center py-2 px-1 border-l-2" style={{ borderColor: borderLineColor }}>
-                                      <span className="text-sm font-bold" style={{ color: pageColors.text }}>
+                                      <span className="text-lg font-bold" style={{ color: pageColors.text }}>
                                         {formatScore(attempt.score || 0)}
                                       </span>
                                     </div>
                                     
                                     {/* Percentil (Sin riesgo) */}
                                     <div className="flex items-center justify-center py-2 px-1">
-                                      <span className="text-xs font-medium" style={{ color: percentileWithoutRisk >= 0 ? '#10b981' : '#ef4444' }}>
+                                      <span className="text-base font-medium" style={{ color: percentileWithoutRisk >= 0 ? '#10b981' : '#ef4444' }}>
                                         {percentileWithoutRisk >= 0 ? '+' : ''}{percentileWithoutRisk.toFixed(1)}
                                       </span>
                                     </div>
                                     
                                     {/* Nota Corte (Sin riesgo) */}
                                     <div className="flex items-center justify-center py-2 px-1">
-                                      <span className="text-xs font-medium" style={{ color: pageColors.text }}>
+                                      <span className="text-base font-medium" style={{ color: pageColors.text }}>
                                         {formatScore(cutoffWithoutRisk)}
                                       </span>
                                     </div>
                                     
                                     {/* Arriesgando */}
                                     <div className="flex items-center justify-center py-2 px-1 border-l-2" style={{ borderColor: borderLineColor }}>
-                                      <span className="text-sm font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
+                                      <span className="text-lg font-bold" style={{ color: getColor('accent', '#f59e0b') }}>
                                         {formatScore(attempt.score_with_risk || 0)}
                                       </span>
                                     </div>
                                     
                                     {/* Percentil (Arriesgando) */}
                                     <div className="flex items-center justify-center py-2 px-1">
-                                      <span className="text-xs font-medium" style={{ color: percentileWithRisk >= 0 ? '#10b981' : '#ef4444' }}>
+                                      <span className="text-base font-medium" style={{ color: percentileWithRisk >= 0 ? '#10b981' : '#ef4444' }}>
                                         {percentileWithRisk >= 0 ? '+' : ''}{percentileWithRisk.toFixed(1)}
                                       </span>
                                     </div>
                                     
                                     {/* Nota Corte (Con riesgo) */}
                                     <div className="flex items-center justify-center py-2 px-1">
-                                      <span className="text-xs font-medium" style={{ color: pageColors.text }}>
+                                      <span className="text-base font-medium" style={{ color: pageColors.text }}>
                                         {formatScore(cutoffWithRisk)}
                                       </span>
                                     </div>
@@ -2120,7 +2120,7 @@ const TestsPage = () => {
                                     <div className="flex justify-center items-center py-2 px-1 border-l-2" style={{ borderColor: borderLineColor }}>
                                       <button
                                         onClick={() => handleViewAttemptDetails(attempt.attempt_id || attempt.id)}
-                                        className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg transition-all"
+                                        className="flex items-center gap-1 text-sm font-medium px-2 py-1 rounded-lg transition-all"
                                         style={{ 
                                           backgroundColor: getColor('primary', '#1a202c'),
                                           color: '#ffffff'

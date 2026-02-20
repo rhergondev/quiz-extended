@@ -123,7 +123,7 @@ const QuizResults = ({
             </div>
 
             {/* Sticky inner wrapper — stays in view while questions scroll */}
-            <div className="hidden lg:block sticky top-4">
+            <div className="hidden lg:block sticky top-4 overflow-y-auto max-h-[calc(100vh-2rem)]">
               <ResultsSidebar result={result} questions={questions} />
             </div>
             {/* Mobile: normal scroll within the slide-in drawer */}
@@ -226,7 +226,7 @@ const QuizResults = ({
             {/* Columna NOTA (Sin Riesgo) */}
             <div className="border-r p-3" style={{ borderColor: 'rgba(156, 163, 175, 0.2)' }}>
               {/* Título */}
-              <p className="text-xs font-semibold uppercase tracking-wide mb-2 text-center" style={{ color: pageColors.textMuted }}>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2 text-center" style={{ color: isDarkMode ? pageColors.textMuted : primaryColor }}>
                 {t('quizzes.results.scoreWithoutRisk')}
               </p>
               
@@ -271,7 +271,7 @@ const QuizResults = ({
             {/* Columna ARRIESGANDO (Con Riesgo) */}
             <div className="p-3">
               {/* Título */}
-              <p className="text-xs font-semibold uppercase tracking-wide mb-2 text-center" style={{ color: pageColors.textMuted }}>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2 text-center" style={{ color: isDarkMode ? pageColors.textMuted : primaryColor }}>
                 {t('quizzes.results.scoreWithRisk')}
               </p>
               

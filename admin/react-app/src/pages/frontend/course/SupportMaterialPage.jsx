@@ -458,12 +458,6 @@ const SupportMaterialPage = () => {
   // For non-admins, exclude hidden/locked lessons AND hidden/locked materials
   const allMaterialSteps = useMemo(() => {
     return lessons
-      .filter(lesson => {
-        if (userIsAdmin) return true;
-        if (isLessonHidden(lesson)) return false;
-        if (isLessonLocked(lesson)) return false;
-        return true;
-      })
       .flatMap(lesson =>
         lesson.materialSteps
           .filter(step => {
@@ -800,13 +794,6 @@ const SupportMaterialPage = () => {
                 }}
               >
                 {displayLessons
-                  .filter(lesson => {
-                    // Non-admin users: hide lessons that are hidden or date-locked
-                    if (userIsAdmin) return true;
-                    if (isLessonHidden(lesson)) return false;
-                    if (isLessonLocked(lesson)) return false;
-                    return true;
-                  })
                   .map((lesson, lessonIndex, filteredLessons) => {
                   const isExpanded = expandedLessons.has(lesson.id);
                   // For non-admins, only count visible & unlocked materials
@@ -817,8 +804,6 @@ const SupportMaterialPage = () => {
                   const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
                   const isFirst = lessonIndex === 0;
                   const isLast = lessonIndex === filteredLessons.length - 1;
-                  const lessonHidden = isLessonHidden(lesson);
-                  const lessonLocked = isLessonLocked(lesson);
 
                   return (
                     <div 
@@ -866,43 +851,12 @@ const SupportMaterialPage = () => {
                             </div>
                           )}
                           {/* Icon + Title */}
-                          {lessonHidden ? (
-                            <EyeOff size={20} style={{ color: '#ef4444' }} className="flex-shrink-0" />
-                          ) : lessonLocked ? (
-                            <Lock size={20} style={{ color: pageColors.accent }} className="flex-shrink-0" />
-                          ) : (
-                            <FileText size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
-                          )}
+                          <FileText size={20} style={{ color: pageColors.text }} className="flex-shrink-0" />
                           <span
                             className="font-semibold text-left truncate"
-                            style={{ color: pageColors.text, opacity: (lessonHidden || lessonLocked) ? 0.6 : 1 }}
+                            style={{ color: pageColors.text }}
                             dangerouslySetInnerHTML={{ __html: lessonTitle }}
                           />
-                          {/* Admin: Lesson visibility badges */}
-                          {userIsAdmin && lessonHidden && (
-                            <span
-                              className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
-                              style={{
-                                backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                                color: '#ef4444'
-                              }}
-                            >
-                              <EyeOff size={10} />
-                              <span className="hidden sm:inline">{t('supportMaterial.hiddenBadge')}</span>
-                            </span>
-                          )}
-                          {userIsAdmin && lessonLocked && (
-                            <span
-                              className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0"
-                              style={{
-                                backgroundColor: `${pageColors.accent}15`,
-                                color: pageColors.accent
-                              }}
-                            >
-                              <Calendar size={10} />
-                              <span className="hidden sm:inline">{formatUnlockDate(lesson.meta?._start_date)}</span>
-                            </span>
-                          )}
                         </div>
                         
                         {/* Badge count + Admin Actions + Expand/Collapse Button */}

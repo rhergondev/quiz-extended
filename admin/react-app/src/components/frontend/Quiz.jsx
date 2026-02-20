@@ -497,7 +497,7 @@ const Quiz = ({
   }, [attemptId, quizQuestions, questionIds, userAnswers, riskedAnswers, customQuiz, startTime, quizId, lessonId, clearAutosave, onQuizComplete, quizInfo]);
 
   if (quizState === 'loading' || (questionsLoading && quizQuestions.length === 0)) {
-    return <div className="text-center p-8">{t('quizzes.quiz.loadingQuiz')}</div>;
+    return <div className="text-center p-8" style={{ color: textPrimary }}>{t('quizzes.quiz.loadingQuiz')}</div>;
   }
   if (quizState === 'awaiting-recovery') {
     return (
@@ -845,7 +845,7 @@ const Quiz = ({
           </button>
         </div>
 
-        <div className="space-y-3 p-4 lg:p-0 lg:sticky lg:top-6 overflow-y-auto h-[calc(100%-88px)] lg:h-auto lg:ml-auto">
+        <div className="space-y-3 p-4 lg:p-0 lg:sticky lg:top-6 overflow-y-auto h-[calc(100%-88px)] lg:max-h-[calc(100vh-3rem)] lg:ml-auto">
             <QuizSidebar
               questions={quizQuestions}
               questionIds={orderedQuestionIds || questionIds}

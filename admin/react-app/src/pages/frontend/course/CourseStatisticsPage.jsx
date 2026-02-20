@@ -398,18 +398,33 @@ const CourseStatisticsPage = () => {
                               {t('statistics.averageScore')}
                             </span>
                           </div>
-                          <button
-                            onClick={() => setIsRankingOpen(true)}
-                            className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold transition-all"
-                            style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#ffffff' }}
-                            title={t('statistics.ranking')}
-                          >
-                            <Trophy size={12} />
-                            <span>#{rankingStatus?.position || '-'}</span>
-                            {rankingStatus?.total_users && (
-                              <span className="opacity-70">/{rankingStatus.total_users}</span>
-                            )}
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setRankingRiskView(!rankingRiskView)}
+                              className="px-2 py-0.5 text-[10px] font-bold rounded-full transition-all duration-200 shadow-sm"
+                              style={{
+                                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : (rankingRiskView ? pageColors.accent : '#ffffff'),
+                                color: isDarkMode ? '#ffffff' : (rankingRiskView ? '#ffffff' : pageColors.primary),
+                              }}
+                            >
+                              {rankingRiskView ? 'Con riesgo' : 'Sin riesgo'}
+                            </button>
+                            <button
+                              onClick={() => setIsRankingOpen(true)}
+                              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold transition-all duration-200 shadow-sm"
+                              style={{
+                                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : '#ffffff',
+                                color: isDarkMode ? '#ffffff' : pageColors.accent,
+                              }}
+                              title={t('statistics.ranking')}
+                            >
+                              <Trophy size={12} style={{ color: isDarkMode ? '#ffffff' : pageColors.accent }} />
+                              <span>#{rankingStatus?.position || '-'}</span>
+                              {rankingStatus?.total_users && (
+                                <span style={{ color: isDarkMode ? '#ffffff' : pageColors.primary }}>/{rankingStatus.total_users}</span>
+                              )}
+                            </button>
+                          </div>
                         </div>
 
                         {/* Body - two sections */}
@@ -437,31 +452,7 @@ const CourseStatisticsPage = () => {
 
                           {/* Right: Course global average */}
                           <div className="p-3">
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-xs font-medium" style={{ color: pageColors.labelColor }}>Media del curso</p>
-                              <div className="flex rounded overflow-hidden" style={{ border: `1px solid ${pageColors.border}` }}>
-                                <button
-                                  onClick={() => setRankingRiskView(false)}
-                                  className="px-2 py-0.5 text-[10px] font-semibold transition-all"
-                                  style={{
-                                    backgroundColor: !rankingRiskView ? pageColors.headerBg : 'transparent',
-                                    color: !rankingRiskView ? '#ffffff' : pageColors.textMuted
-                                  }}
-                                >
-                                  Sin riesgo
-                                </button>
-                                <button
-                                  onClick={() => setRankingRiskView(true)}
-                                  className="px-2 py-0.5 text-[10px] font-semibold transition-all"
-                                  style={{
-                                    backgroundColor: rankingRiskView ? pageColors.headerBg : 'transparent',
-                                    color: rankingRiskView ? '#ffffff' : pageColors.textMuted
-                                  }}
-                                >
-                                  Con riesgo
-                                </button>
-                              </div>
-                            </div>
+                            <p className="text-xs font-medium mb-1" style={{ color: pageColors.labelColor }}>Media del curso</p>
                             <div className="flex items-baseline gap-1">
                               <span className="text-2xl font-bold" style={{ color: pageColors.text }}>
                                 {rankingStatistics ? formatScore(globalAvg) : '-'}
@@ -631,14 +622,14 @@ const CourseStatisticsPage = () => {
                     </div>
                     <button
                       onClick={() => setShowAllLessons(true)}
-                      className="text-xs font-medium flex items-center gap-1 px-2 py-1 rounded transition-all"
-                      style={{ 
-                        backgroundColor: 'rgba(255,255,255,0.2)',
-                        color: '#ffffff'
+                      className="text-xs font-bold flex items-center gap-1 px-3 py-1 rounded-full transition-all duration-200 shadow-sm"
+                      style={{
+                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : '#ffffff',
+                        color: isDarkMode ? '#ffffff' : pageColors.primary,
                       }}
                     >
                       {t('statistics.viewAll', 'Ver todos')}
-                      <ChevronRight size={12} />
+                      <ChevronRight size={12} style={{ color: isDarkMode ? '#ffffff' : pageColors.primary }} />
                     </button>
                   </div>
                   
@@ -721,10 +712,13 @@ const CourseStatisticsPage = () => {
                     </div>
                     <button
                       onClick={() => setShowRiskPanel(prev => !prev)}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all"
-                      style={{ backgroundColor: showRiskPanel ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.2)', color: '#ffffff' }}
+                      className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-all duration-200 shadow-sm"
+                      style={{
+                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : '#ffffff',
+                        color: isDarkMode ? '#ffffff' : (showRiskPanel ? pageColors.accent : pageColors.primary),
+                      }}
                     >
-                      <Zap size={10} />
+                      <Zap size={10} style={{ color: isDarkMode ? '#ffffff' : (showRiskPanel ? pageColors.accent : pageColors.primary) }} />
                       {showRiskPanel ? 'Con riesgo' : 'Sin riesgo'}
                     </button>
                   </div>

@@ -536,32 +536,18 @@ export const CourseRankingSlidePanel = () => {
                                     </div>
 
                                     {/* Sin Riesgo / Con Riesgo toggle */}
-                                    <div className="flex justify-center mt-4 mb-1">
-                                        <div
-                                            className="flex rounded-lg overflow-hidden"
-                                            style={{ border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.2)' : pageColors.border}` }}
+                                    <div className="flex justify-end mt-4 mb-1">
+                                        <button
+                                            onClick={toggleRisk}
+                                            className="px-4 py-2 text-sm font-semibold rounded-lg transition-all"
+                                            style={{
+                                                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : (withRisk ? pageColors.accent : primaryColor),
+                                                color: '#ffffff',
+                                                border: isDarkMode ? '1px solid rgba(255,255,255,0.3)' : 'none',
+                                            }}
                                         >
-                                            <button
-                                                onClick={() => withRisk && toggleRisk()}
-                                                className="w-28 py-2 text-sm font-semibold transition-all text-center"
-                                                style={{
-                                                    backgroundColor: !withRisk ? primaryColor : 'transparent',
-                                                    color: !withRisk ? '#ffffff' : pageColors.textMuted,
-                                                }}
-                                            >
-                                                Sin Riesgo
-                                            </button>
-                                            <button
-                                                onClick={() => !withRisk && toggleRisk()}
-                                                className="w-28 py-2 text-sm font-semibold transition-all text-center"
-                                                style={{
-                                                    backgroundColor: withRisk ? primaryColor : 'transparent',
-                                                    color: withRisk ? '#ffffff' : pageColors.textMuted,
-                                                }}
-                                            >
-                                                Con Riesgo
-                                            </button>
-                                        </div>
+                                            {withRisk ? 'Con Riesgo' : 'Sin Riesgo'}
+                                        </button>
                                     </div>
 
                                     {/* Ranking Table */}

@@ -560,7 +560,7 @@ class QE_Database
         try {
             global $wpdb;
 
-            $table_name = $prefix . 'qe_course_notifications';
+            $table_name = $prefix . 'course_notifications';
 
             $sql = "CREATE TABLE $table_name (
                 id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -582,7 +582,7 @@ class QE_Database
             dbDelta($sql);
 
             // Create user read status table
-            $read_table = $prefix . 'qe_notification_reads';
+            $read_table = $prefix . 'notification_reads';
 
             $sql_reads = "CREATE TABLE $read_table (
                 id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,

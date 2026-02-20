@@ -15,7 +15,7 @@ const stepIcons = {
   default: <BookOpen className="w-5 h-5 text-gray-500" />,
 };
 
-const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId, onOpenRanking, rankingLoading, onOpenLessonList, onQuizStateChange }) => {
+const StepContent = ({ step, lesson, stepIndex: stepIndexProp = -1, lessons = [], onNavigate, courseId, onOpenRanking, rankingLoading, onOpenLessonList, onQuizStateChange }) => {
   const { getColor } = useTheme(); // Obtener función para colores seguros
   const [quizStarted, setQuizStarted] = useState(false);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
@@ -78,33 +78,21 @@ const StepContent = ({ step, lesson, lessons = [], onNavigate, courseId, onOpenR
 
     const currentLessonIndex = lessons.findIndex(l => l.id === lesson.id);
     const steps = lesson.meta?._lesson_steps || [];
-    
-    // 🔥 IMPORTANTE: Los steps se identifican por índice, no por ID
-    // Buscamos el paso actual comparando por referencia o por todas sus propiedades
-    const currentStepIndex = steps.findIndex(s => {
-      // Si tienen ID y coinciden
-      if (s.id && step.id && s.id === step.id) return true;
-      
-      // Si son el mismo objeto (referencia)
-      if (s === step) return true;
-      
-      // Comparación profunda: mismo tipo y mismos datos
-      if (s.type === step.type) {
-        const sData = JSON.stringify(s.data || {});
-        const stepData = JSON.stringify(step.data || {});
-        if (sData === stepData) return true;
-      }
-      
-      return false;
-    });
 
-    console.log('🔍 getCurrentStepInfo:', { 
-      currentLessonIndex, 
-      currentStepIndex, 
-      lessonId: lesson.id,
-      stepType: step.type,
-      totalSteps: steps.length 
-    });
+    // Use the explicit stepIndex prop when available — avoids fragile data comparison
+    // for cases like multiple quiz steps with identical data in the same lesson.
+    let currentStepIndex = (stepIndexProp >= 0 && stepIndexProp < steps.length)
+      ? stepIndexProp
+      : steps.findIndex(s => {
+          if (s.id && step.id && s.id === step.id) return true;
+          if (s === step) return true;
+          if (s.type === step.type) {
+            const sData = JSON.stringify(s.data || {});
+            const stepData = JSON.stringify(step.data || {});
+            if (sData === stepData) return true;
+          }
+          return false;
+        });
 
     return { currentLessonIndex, currentStepIndex, steps };
   };

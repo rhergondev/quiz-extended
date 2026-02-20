@@ -308,17 +308,18 @@ const CourseDashboardPage = () => {
                 {rankingStatus && rankingStatus.completed_quizzes > 0 && (
                   <button
                     onClick={() => setShowWithRisk(!showWithRisk)}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors"
-                    style={{ 
-                      backgroundColor: showWithRisk ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)',
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all duration-200 shadow-sm"
+                    style={{
+                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : '#ffffff',
+                      color: isDarkMode ? '#ffffff' : (showWithRisk ? pageColors.accent : pageColors.primary),
                     }}
                   >
                     {showWithRisk ? (
-                      <ToggleRight size={14} className="text-white" />
+                      <ToggleRight size={14} style={{ color: isDarkMode ? '#ffffff' : pageColors.accent }} />
                     ) : (
-                      <ToggleLeft size={14} className="text-white" />
+                      <ToggleLeft size={14} style={{ color: isDarkMode ? '#ffffff' : pageColors.primary }} />
                     )}
-                    <span className="text-white">{showWithRisk ? t('tests.withRisk') : t('tests.withoutRisk')}</span>
+                    <span>{showWithRisk ? t('tests.withRisk') : t('tests.withoutRisk')}</span>
                   </button>
                 )}
               </div>
@@ -469,35 +470,6 @@ const CourseDashboardPage = () => {
                   </p>
                 </div>
               )}
-              {/* Progress Bar (same as CompactCourseCard) */}
-              <div className="p-4 pb-0">
-                <div className="flex justify-between items-center mb-2">
-                  <span 
-                    className="text-sm font-semibold"
-                    style={{ color: pageColors.textMuted }}
-                  >
-                    {t('courses.progress')}
-                  </span>
-                  <span 
-                    className="text-lg font-bold"
-                    style={{ color: pageColors.text }}
-                  >
-                    {progressPercentage}%
-                  </span>
-                </div>
-                <div 
-                  className="rounded-full h-3 overflow-hidden"
-                  style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : `${pageColors.primary}15` }}
-                >
-                  <div 
-                    className="h-full transition-all duration-500 rounded-full"
-                    style={{ 
-                      width: `${progressPercentage}%`,
-                      backgroundColor: pageColors.primary
-                    }}
-                  />
-                </div>
-              </div>
             </div>
           </div>
 
@@ -597,6 +569,44 @@ const CourseDashboardPage = () => {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Course Progress Widget - full width */}
+        <div
+          className="rounded-xl border overflow-hidden"
+          style={{
+            backgroundColor: pageColors.cardBg,
+            borderColor: pageColors.border
+          }}
+        >
+          <div
+            className="px-4 py-3"
+            style={{ backgroundColor: isDarkMode ? pageColors.accent : pageColors.primary }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingUp size={18} className="text-white" />
+                <span className="font-semibold text-white text-sm">
+                  {t('courses.progress', 'Progreso del Curso')}
+                </span>
+              </div>
+              <span className="text-white font-bold text-sm">{progressPercentage}%</span>
+            </div>
+          </div>
+          <div className="px-6 py-4">
+            <div
+              className="rounded-full h-4 overflow-hidden"
+              style={{ backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : `${pageColors.primary}15` }}
+            >
+              <div
+                className="h-full transition-all duration-500 rounded-full"
+                style={{
+                  width: `${progressPercentage}%`,
+                  backgroundColor: isDarkMode ? pageColors.accent : pageColors.primary
+                }}
+              />
             </div>
           </div>
         </div>

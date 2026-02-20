@@ -157,6 +157,7 @@ const ResultsSidebar = ({ result, questions }) => {
                   style={{
                     backgroundColor: bgColor,
                     borderColor: borderColor,
+                    borderStyle: 'solid',
                     color: textColor
                   }}
                   title={title}
