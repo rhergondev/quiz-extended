@@ -143,9 +143,10 @@ class QE_Question_Type extends QE_Post_Types_Base
             }
         }
 
-        // 3. Handle lessons filter - INDIRECT SEARCH through quizzes
-        // Questions don't store lesson_ids directly, so we find quizzes for those lessons,
-        // then get the question IDs directly from the quiz's _quiz_question_ids
+        // 3. Handle lessons filter - dual approach: quiz chain + direct meta
+        // Source A: lesson._lesson_steps → quiz._quiz_question_ids (structural relationship)
+        // Source B: question._question_lesson meta (denormalized cache)
+        // Union both so questions found by either method are included.
         if ($request->get_param('lessons')) {
             $lessons = $request->get_param('lessons');
             if (is_string($lessons)) {
@@ -155,30 +156,29 @@ class QE_Question_Type extends QE_Post_Types_Base
             if (!empty($lessons) && is_array($lessons)) {
                 $lessons = array_map('absint', $lessons);
 
-                // Step 1: Find all quiz IDs that belong to these lessons
-                $quiz_ids = $this->get_quiz_ids_for_lessons($lessons);
-
+                // Source A: chain through quizzes
+                $chain_ids = [];
+                $quiz_ids  = $this->get_quiz_ids_for_lessons($lessons);
                 if (!empty($quiz_ids)) {
-                    // Step 2: Get question IDs directly from quizzes' _quiz_question_ids
-                    $question_ids = $this->get_question_ids_from_quizzes($quiz_ids);
+                    $chain_ids = $this->get_question_ids_from_quizzes($quiz_ids);
+                }
 
-                    if (!empty($question_ids)) {
-                        // Use post__in to filter by these question IDs
-                        // If there's already a post__in, intersect them
-                        if (isset($args['post__in']) && !empty($args['post__in']) && $args['post__in'] !== [0]) {
-                            $args['post__in'] = array_intersect($args['post__in'], $question_ids);
-                            if (empty($args['post__in'])) {
-                                $args['post__in'] = [0]; // No intersection, return no results
-                            }
-                        } else {
-                            $args['post__in'] = $question_ids;
+                // Source B: direct _question_lesson meta
+                $meta_ids = $this->get_question_ids_by_lesson_meta($lessons);
+
+                // Union
+                $question_ids = array_unique(array_merge($chain_ids, $meta_ids));
+
+                if (!empty($question_ids)) {
+                    if (isset($args['post__in']) && !empty($args['post__in']) && $args['post__in'] !== [0]) {
+                        $args['post__in'] = array_intersect($args['post__in'], $question_ids);
+                        if (empty($args['post__in'])) {
+                            $args['post__in'] = [0];
                         }
                     } else {
-                        // No questions found in these quizzes
-                        $args['post__in'] = [0];
+                        $args['post__in'] = $question_ids;
                     }
                 } else {
-                    // No quizzes found for these lessons, return no results
                     $args['post__in'] = [0];
                 }
             }
@@ -752,5 +752,33 @@ class QE_Question_Type extends QE_Post_Types_Base
         }
 
         return array_unique($question_ids);
+    }
+
+    /**
+     * Get question IDs that have _question_lesson set to one of the given lesson IDs.
+     * This is the direct meta-based fallback for the lessons filter, used alongside
+     * the quiz-chain approach so both denormalized and structural associations are honoured.
+     *
+     * @param array $lesson_ids Array of lesson IDs
+     * @return array Array of question IDs
+     */
+    private function get_question_ids_by_lesson_meta($lesson_ids)
+    {
+        global $wpdb;
+
+        if (empty($lesson_ids)) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($lesson_ids), '%d'));
+
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta}
+             WHERE meta_key = '_question_lesson'
+             AND meta_value IN ({$placeholders})",
+            ...$lesson_ids
+        ));
+
+        return array_map('absint', $ids);
     }
 }
