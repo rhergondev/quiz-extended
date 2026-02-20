@@ -530,12 +530,13 @@ class QE_User_Stats_API extends QE_API_Base
                 $query = $wpdb->prepare("
                     SELECT score
                     FROM {$attempts_table}
-                    WHERE user_id = %d 
+                    WHERE user_id = %d
                     AND quiz_id = %d
+                    AND course_id = %d
                     AND status = 'completed'
                     ORDER BY end_time DESC
                     LIMIT 1
-                ", $user_id, $quiz_id);
+                ", $user_id, $quiz_id, $course_id);
 
                 $last_attempt = $wpdb->get_row($query);
 
@@ -878,7 +879,7 @@ class QE_User_Stats_API extends QE_API_Base
 
         // Get all completed attempts with quiz info
         $query = $wpdb->prepare("
-            SELECT 
+            SELECT
                 quiz_id,
                 score,
                 end_time as completed_at,
@@ -886,10 +887,11 @@ class QE_User_Stats_API extends QE_API_Base
             FROM {$table_name}
             WHERE user_id = %d
             AND quiz_id IN ({$quiz_ids_placeholder})
+            AND course_id = %d
             AND status = 'completed'
             {$date_filter}
             ORDER BY quiz_id, end_time DESC
-        ", array_merge([$user_id], $all_quiz_ids));
+        ", array_merge([$user_id], $all_quiz_ids, [$course_id]));
 
         $all_attempts = $wpdb->get_results($query);
 

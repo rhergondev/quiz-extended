@@ -130,7 +130,7 @@ class QE_Course_Ranking_API extends QE_API_Base
         // Using ONLY the last attempt per quiz per user
         $order_column = $with_risk ? 'average_score_with_risk' : 'average_score_without_risk';
         $all_users_raw = $wpdb->get_results($wpdb->prepare("
-            SELECT 
+            SELECT
                 la.user_id,
                 COUNT(DISTINCT la.quiz_id) as quizzes_completed,
                 AVG(la.score) as average_score_without_risk,
@@ -144,16 +144,18 @@ class QE_Course_Ranking_API extends QE_API_Base
                     SELECT user_id, quiz_id, MAX(end_time) as max_end_time
                     FROM {$table_name}
                     WHERE quiz_id IN ({$quiz_placeholders})
+                    AND course_id = %d
                     AND status = 'completed'
                     GROUP BY user_id, quiz_id
-                ) t2 ON t1.user_id = t2.user_id 
-                    AND t1.quiz_id = t2.quiz_id 
+                ) t2 ON t1.user_id = t2.user_id
+                    AND t1.quiz_id = t2.quiz_id
                     AND t1.end_time = t2.max_end_time
                 WHERE t1.status = 'completed'
+                    AND t1.course_id = %d
             ) la
             GROUP BY la.user_id
             HAVING quizzes_completed >= 1
-        ", $quiz_ids));
+        ", array_merge($quiz_ids, [$course_id, $course_id])));
 
         // Filter out non-existent WordPress users BEFORE calculating positions and statistics
         $all_users = [];
@@ -388,12 +390,13 @@ class QE_Course_Ranking_API extends QE_API_Base
             $last_attempt = $wpdb->get_row($wpdb->prepare("
                 SELECT score, score_with_risk, end_time
                 FROM {$table_name}
-                WHERE user_id = %d 
+                WHERE user_id = %d
                 AND quiz_id = %d
+                AND course_id = %d
                 AND status = 'completed'
                 ORDER BY end_time DESC
                 LIMIT 1
-            ", $user_id, $quiz_id));
+            ", $user_id, $quiz_id, $course_id));
 
             if ($last_attempt) {
                 $last_attempts_scores[] = (float) $last_attempt->score;
@@ -450,16 +453,18 @@ class QE_Course_Ranking_API extends QE_API_Base
                         SELECT user_id, quiz_id, MAX(end_time) as max_end_time
                         FROM {$table_name}
                         WHERE quiz_id IN (" . implode(',', array_fill(0, count($quiz_ids), '%d')) . ")
+                        AND course_id = %d
                         AND status = 'completed'
                         GROUP BY user_id, quiz_id
-                    ) t2 ON t1.user_id = t2.user_id 
-                        AND t1.quiz_id = t2.quiz_id 
+                    ) t2 ON t1.user_id = t2.user_id
+                        AND t1.quiz_id = t2.quiz_id
                         AND t1.end_time = t2.max_end_time
                     WHERE t1.status = 'completed'
+                        AND t1.course_id = %d
                 ) la
                 GROUP BY la.user_id
                 HAVING completed >= 1
-            ", $quiz_ids));
+            ", array_merge($quiz_ids, [$course_id, $course_id])));
 
             // Filter to only include existing users and count those with higher scores
             $position = 1;

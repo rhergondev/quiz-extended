@@ -129,9 +129,23 @@ class QE_Course_Duplicate_API extends QE_API_Base
             $quiz_id_map = []; // Map old quiz ID => new quiz ID
 
             foreach ($lesson_id_map as $old_lesson_id => $new_lesson_id) {
-                // Get quizzes for this lesson
-                $quiz_ids = get_post_meta($old_lesson_id, '_quiz_ids', true);
-                $quiz_ids = is_array($quiz_ids) ? $quiz_ids : [];
+                // Get quizzes from _quiz_ids meta
+                $quiz_ids_meta = get_post_meta($old_lesson_id, '_quiz_ids', true);
+                $quiz_ids = is_array($quiz_ids_meta) ? $quiz_ids_meta : [];
+
+                // Also extract quiz IDs from _lesson_steps (primary storage method).
+                // Without this, lessons that store quiz references only in _lesson_steps
+                // will not have their quizzes duplicated, causing the new course to share
+                // quiz IDs with the original and inherit all its ranking/stats data.
+                $original_steps = get_post_meta($old_lesson_id, '_lesson_steps', true);
+                if (is_array($original_steps)) {
+                    foreach ($original_steps as $step) {
+                        if (isset($step['type']) && $step['type'] === 'quiz' && isset($step['data']['quiz_id'])) {
+                            $quiz_ids[] = (int) $step['data']['quiz_id'];
+                        }
+                    }
+                }
+                $quiz_ids = array_unique(array_filter($quiz_ids));
 
                 $new_quiz_ids = [];
                 foreach ($quiz_ids as $quiz_id) {
