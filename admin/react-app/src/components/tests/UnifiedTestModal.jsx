@@ -11,6 +11,7 @@ import { CSS } from '@dnd-kit/utilities';
 import useQuizzes from '../../hooks/useQuizzes';
 import useQuestionsAdmin from '../../hooks/useQuestionsAdmin';
 import { getQuestionsByIds } from '../../api/services/questionService';
+import { getApiConfig, getDefaultHeaders } from '../../api/config/apiConfig';
 import QuestionSelector from '../questions/QuestionSelector';
 import QuestionModal from '../questions/QuestionModal';
 import { getOne as getQuiz } from '../../api/services/quizService';
@@ -81,6 +82,7 @@ const UnifiedTestModal = ({
   mode = 'create', // 'create' | 'edit'
   test = null, // The lesson step object if editing
   courseId,
+  lessonId = null,
   onSave
 }) => {
   const { t } = useTranslation();
@@ -260,7 +262,24 @@ const UnifiedTestModal = ({
         resultQuizId = newQuiz.id;
       }
 
-      // 3. Update difficulty on all assigned questions
+      // 3. Sync _question_lesson on all assigned questions (fire-and-forget, non-blocking)
+      if (lessonId && selectedQuestions.length > 0) {
+        try {
+          const { apiUrl } = getApiConfig();
+          await fetch(`${apiUrl}/quiz-extended/v1/batch/sync-question-lessons`, {
+            method: 'POST',
+            headers: getDefaultHeaders(),
+            body: JSON.stringify({
+              question_ids: selectedQuestions.map(q => q.id),
+              lesson_id: lessonId,
+            }),
+          });
+        } catch (syncError) {
+          console.warn('Could not sync question lesson associations:', syncError);
+        }
+      }
+
+      // 4. Update difficulty on all assigned questions
       const difficulty = formData.difficulty_level;
       if (selectedQuestions.length > 0) {
         await Promise.all(
@@ -686,10 +705,11 @@ const UnifiedTestModal = ({
               </div>
               
               <div className="flex-1 overflow-hidden relative">
-                 <QuestionSelectorWrapper 
+                 <QuestionSelectorWrapper
                     currentSelected={selectedQuestions}
                     onSelectionChange={setSelectedQuestions}
                     colors={colors}
+                    onEditQuestion={openEditQuestion}
                  />
               </div>
             </div>
@@ -738,9 +758,9 @@ const UnifiedTestModal = ({
 };
 
 // Wrapper ensuring we get objects not just IDs
-const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, colors }) => {
+const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, colors, onEditQuestion }) => {
   return (
-    <QuestionSelector 
+    <QuestionSelector
        selectedIds={currentSelected.map(q => q.id)}
        onSelect={() => {}} // Ignore generic bulk ID update
        onToggleQuestion={(question) => {
@@ -753,6 +773,7 @@ const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, colors })
             toast.success(`Pregunta añadida al test`, { autoClose: 1000, position: 'bottom-right' });
           }
        }}
+       onEditQuestion={onEditQuestion}
     />
   );
 }

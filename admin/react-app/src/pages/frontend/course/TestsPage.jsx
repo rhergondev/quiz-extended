@@ -2251,6 +2251,7 @@ const TestsPage = () => {
           test={testModalState.test}
           onSave={handleSaveTest}
           courseId={courseId}
+          lessonId={testModalState.lessonId}
         />
 
         {/* Delete Theme Confirmation Modal */}

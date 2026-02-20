@@ -37,6 +37,26 @@ class QE_Batch_API extends QE_API_Base
                 return current_user_can('manage_options');
             },
         ]);
+
+        register_rest_route('quiz-extended/v1', '/batch/sync-question-lessons', [
+            'methods' => 'POST',
+            'callback' => [$this, 'sync_question_lessons'],
+            'permission_callback' => function () {
+                return current_user_can('edit_posts');
+            },
+            'args' => [
+                'question_ids' => [
+                    'required' => true,
+                    'type' => 'array',
+                    'items' => ['type' => 'integer'],
+                ],
+                'lesson_id' => [
+                    'required' => true,
+                    'type' => 'integer',
+                    'minimum' => 1,
+                ],
+            ],
+        ]);
     }
 
     /**
@@ -111,6 +131,46 @@ class QE_Batch_API extends QE_API_Base
                 $stats['questions_skipped']
             ),
             'stats' => $stats
+        ], 200);
+    }
+
+    /**
+     * Sync _question_lesson and _lesson_ids on a set of questions to point to a given lesson.
+     * Called when a quiz is saved into a lesson step so that the question bank's
+     * lesson associations stay in sync with the denormalized meta fields.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response|WP_Error
+     */
+    public function sync_question_lessons($request)
+    {
+        $question_ids = array_filter(array_map('absint', (array) $request->get_param('question_ids')));
+        $lesson_id    = absint($request->get_param('lesson_id'));
+
+        if (empty($question_ids) || !$lesson_id) {
+            return new WP_REST_Response(['success' => false, 'message' => 'Invalid parameters'], 400);
+        }
+
+        $updated = 0;
+
+        foreach ($question_ids as $question_id) {
+            // Legacy single-value field
+            update_post_meta($question_id, '_question_lesson', $lesson_id);
+
+            // Array field — merge with existing lesson IDs to preserve other associations
+            $existing = get_post_meta($question_id, '_lesson_ids', true);
+            if (!is_array($existing)) {
+                $existing = [];
+            }
+            $existing[] = $lesson_id;
+            update_post_meta($question_id, '_lesson_ids', array_values(array_unique($existing)));
+
+            $updated++;
+        }
+
+        return new WP_REST_Response([
+            'success' => true,
+            'updated' => $updated,
         ], 200);
     }
 }

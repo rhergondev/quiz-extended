@@ -12,7 +12,8 @@ const QuestionSelector = ({
   onSelect,
   onToggleQuestion, // New prop to handle object selection directly
   multiSelect = true,
-  excludedIds = []
+  excludedIds = [],
+  onEditQuestion = null, // Optional: open the in-app edit modal for a question
 }) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
@@ -474,9 +475,9 @@ const QuestionSelector = ({
                       <div className="flex items-center gap-2 text-xs flex-wrap" style={{ color: colors.textMuted }}>
                         <span
                           className="text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none"
-                          style={{ backgroundColor: '#fef3c7', color: '#92400e' }}
+                          style={{ backgroundColor: '#dbeafe', color: '#1e40af' }}
                         >
-                          Sin proveedor uniforme
+                          Sin proveedor: Uniforme Azul
                         </span>
                         {question.difficulty && (
                           <span className={`px-1.5 py-0.5 rounded text-[10px] ${
@@ -489,22 +490,38 @@ const QuestionSelector = ({
                         )}
                       </div>
                     </div>
-                    <a
-                      href={getWpEditUrl(question.id)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex-shrink-0 flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors mt-0.5"
-                      style={{
-                        border: `1.5px solid ${colors.accent}`,
-                        color: colors.accent,
-                        backgroundColor: `${colors.accent}10`,
-                        textDecoration: 'none'
-                      }}
-                    >
-                      <ExternalLink size={11} />
-                      Editar
-                    </a>
+                    {onEditQuestion ? (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onEditQuestion(question); }}
+                        className="flex-shrink-0 flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors mt-0.5"
+                        style={{
+                          border: `1.5px solid ${colors.accent}`,
+                          color: colors.accent,
+                          backgroundColor: `${colors.accent}10`,
+                        }}
+                      >
+                        <ExternalLink size={11} />
+                        Editar
+                      </button>
+                    ) : (
+                      <a
+                        href={getWpEditUrl(question.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-shrink-0 flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors mt-0.5"
+                        style={{
+                          border: `1.5px solid ${colors.accent}`,
+                          color: colors.accent,
+                          backgroundColor: `${colors.accent}10`,
+                          textDecoration: 'none'
+                        }}
+                      >
+                        <ExternalLink size={11} />
+                        Editar
+                      </a>
+                    )}
                   </div>
                 );
               }

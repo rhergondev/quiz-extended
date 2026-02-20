@@ -550,9 +550,8 @@ const QuestionModal = ({
           </div>
 
           {/* Fila 1: Categoría, Proveedor, Dificultad */}
-          <div className={`grid grid-cols-1 ${isSimplified ? '' : 'md:grid-cols-3'} gap-3`}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* Categoría */}
-            {!isSimplified && (
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold uppercase" style={{ color: pageColors.text }}>Categoría</label>
@@ -665,10 +664,8 @@ const QuestionModal = ({
                 />
               </div>
             </div>
-            )}
 
             {/* Proveedor */}
-            {!isSimplified && (
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold uppercase" style={{ color: pageColors.text }}>Proveedor</label>
@@ -781,7 +778,6 @@ const QuestionModal = ({
                 />
               </div>
             </div>
-            )}
 
             {/* Dificultad */}
             <div>
