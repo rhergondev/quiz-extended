@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Filter, ChevronDown, CheckCircle, Circle, Loader2, X } from 'lucide-react';
+import { Search, Filter, ChevronDown, CheckCircle, Circle, Loader2, X, ExternalLink, Lock } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useQuestionsAdmin from '../../hooks/useQuestionsAdmin';
 import { useTaxonomyOptions } from '../../hooks/useTaxonomyOptions';
@@ -42,6 +42,25 @@ const QuestionSelector = ({
   // null means no provider is selected → show all lessons.
   const [providerLessons, setProviderLessons] = useState(null);
   const [providerLessonsLoading, setProviderLessonsLoading] = useState(false);
+
+  // Term ID for the "uniforme-azul" provider — questions without it are restricted.
+  // null = loading (fail open), 0 = not found (fail open), >0 = restriction active.
+  const [uniformeAzulTermId, setUniformeAzulTermId] = useState(null);
+
+  useEffect(() => {
+    const fetchTerm = async () => {
+      try {
+        const config = getApiConfig();
+        const res = await makeApiRequest(`${config.apiUrl}/wp/v2/qe_provider?slug=uniforme-azul`);
+        const terms = Array.isArray(res.data) ? res.data : [];
+        setUniformeAzulTermId(terms.length > 0 ? terms[0].id : 0);
+      } catch (err) {
+        console.error('Error fetching uniforme-azul term:', err);
+        setUniformeAzulTermId(0); // fail open
+      }
+    };
+    fetchTerm();
+  }, []);
 
   // Colors
   const colors = useMemo(() => ({
@@ -188,6 +207,20 @@ const QuestionSelector = ({
     const found = topicOptions.find(o => String(o.value) === String(lessonId));
     return found ? found.label : 'Temas';
   }, [questionsHook.filters?.lessons, topicOptions]);
+
+  // Returns true if this question can be added to a test.
+  // Restriction is active only when uniformeAzulTermId is a positive number.
+  const isQuestionAllowed = useCallback((question) => {
+    if (!uniformeAzulTermId) return true; // loading or term not found → fail open
+    return (question.qe_provider || []).includes(uniformeAzulTermId);
+  }, [uniformeAzulTermId]);
+
+  // Build the WP admin edit URL for a question
+  const getWpEditUrl = (questionId) => {
+    const apiUrl = window.qe_data?.api_url || '';
+    const siteUrl = apiUrl.replace(/\/wp-json\/?$/, '');
+    return `${siteUrl}/wp-admin/post.php?post=${questionId}&action=edit`;
+  };
 
   const isLoading = !questionsHook.filters || !questionsHook.computed;
 
@@ -370,6 +403,24 @@ const QuestionSelector = ({
         )}
       </div>
 
+      {/* Results count */}
+      {!isLoading && questionsHook.pagination.total > 0 && (
+        <div
+          className="flex items-center justify-between px-4 py-1.5 text-xs border-b"
+          style={{ color: colors.textMuted, borderColor: colors.border }}
+        >
+          <span>
+            {questionsHook.hasMore
+              ? `Mostrando ${questionsHook.questions.length} de ${questionsHook.pagination.total}`
+              : `${questionsHook.pagination.total} pregunta${questionsHook.pagination.total !== 1 ? 's' : ''}`
+            }
+          </span>
+          {questionsHook.loading && (
+            <Loader2 size={12} className="animate-spin opacity-50" style={{ color: colors.textMuted }} />
+          )}
+        </div>
+      )}
+
       {/* List */}
       <div className="flex-1 overflow-y-auto min-h-0">
         {isLoading ? (
@@ -401,6 +452,61 @@ const QuestionSelector = ({
                 if (content.includes(searchTerm)) matches.push('explicación');
                 if (matchingOpts.length > 0) matches.push(matchingOpts.length === 1 ? '1 opción' : `${matchingOpts.length} opciones`);
                 if (matches.length > 0) matchTags = matches;
+              }
+
+              const allowed = isQuestionAllowed(question);
+
+              if (!allowed) {
+                // Restricted: show edit link instead of selection
+                return (
+                  <div
+                    key={question.id}
+                    className="flex items-start gap-3 p-3"
+                    style={{ opacity: 0.6 }}
+                  >
+                    <div className="mt-0.5 text-gray-300 dark:text-gray-600">
+                      <Lock size={16} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm line-clamp-2 mb-0.5" style={{ color: colors.text }}>
+                        {question.title?.rendered || question.title || 'Sin título'}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs flex-wrap" style={{ color: colors.textMuted }}>
+                        <span
+                          className="text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none"
+                          style={{ backgroundColor: '#fef3c7', color: '#92400e' }}
+                        >
+                          Sin proveedor uniforme
+                        </span>
+                        {question.difficulty && (
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                            question.difficulty === 'hard' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                            question.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                            'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          }`}>
+                            {question.difficulty === 'hard' ? 'Difícil' : question.difficulty === 'medium' ? 'Media' : 'Fácil'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <a
+                      href={getWpEditUrl(question.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-shrink-0 flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors mt-0.5"
+                      style={{
+                        border: `1.5px solid ${colors.accent}`,
+                        color: colors.accent,
+                        backgroundColor: `${colors.accent}10`,
+                        textDecoration: 'none'
+                      }}
+                    >
+                      <ExternalLink size={11} />
+                      Editar
+                    </a>
+                  </div>
+                );
               }
 
               return (
@@ -450,16 +556,19 @@ const QuestionSelector = ({
         
         {/* Load More */}
         {questionsHook.hasMore && (
-           <div className="p-4 text-center">
-             <button 
-               onClick={(e) => { e.stopPropagation(); questionsHook.loadMoreQuestions(); }}
-               className="text-xs font-medium px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-               style={{ color: colors.text }}
-               disabled={questionsHook.loading}
-             >
-               {questionsHook.loading ? 'Cargando...' : 'Cargar más'}
-             </button>
-           </div>
+          <div className="p-4 text-center">
+            <button
+              onClick={(e) => { e.stopPropagation(); questionsHook.loadMoreQuestions(); }}
+              disabled={questionsHook.loading}
+              className="inline-flex items-center gap-2 text-xs font-semibold px-5 py-2 rounded-lg transition-opacity disabled:opacity-60"
+              style={{ backgroundColor: colors.accent, color: '#ffffff' }}
+            >
+              {questionsHook.loading
+                ? <><Loader2 size={13} className="animate-spin" /> Cargando...</>
+                : 'Cargar más'
+              }
+            </button>
+          </div>
         )}
       </div>
     </div>
