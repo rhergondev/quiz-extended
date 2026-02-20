@@ -1,6 +1,6 @@
 // src/pages/SettingsPage.jsx
 import React, { useState, useEffect, useMemo } from 'react';
-import { Save, Settings, Percent, Hash, Palette, Sun, Moon, RotateCcw, Mail, Bell, AlertTriangle, MessageSquare, Send, Loader2, CheckCircle, Database, RefreshCw } from 'lucide-react';
+import { Save, Settings, Percent, Hash, Palette, Sun, Moon, RotateCcw, Mail, Bell, AlertTriangle, MessageSquare, Send, Loader2, CheckCircle, Database, RefreshCw, Search, Copy } from 'lucide-react';
 import { toast } from 'react-toastify';
 import settingsService from '../api/services/settingsService';
 import { DEFAULT_THEME, useTheme } from '../contexts/ThemeContext';
@@ -62,6 +62,21 @@ const SettingsPage = () => {
   const [wpAdminEmail, setWpAdminEmail] = useState('');
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const [updatingDifficulty, setUpdatingDifficulty] = useState(false);
+
+  // DB Consults state
+  const [dbConsultType, setDbConsultType] = useState('question');
+  const [dbConsultId, setDbConsultId] = useState('');
+  const [dbConsultResult, setDbConsultResult] = useState(null);
+  const [dbConsultError, setDbConsultError] = useState(null);
+  const [dbConsultLoading, setDbConsultLoading] = useState(false);
+  const [dbConsultCopied, setDbConsultCopied] = useState(false);
+
+  // Question chain analysis state
+  const [chainId, setChainId] = useState('');
+  const [chainResult, setChainResult] = useState(null);
+  const [chainError, setChainError] = useState(null);
+  const [chainLoading, setChainLoading] = useState(false);
+  const [chainCopied, setChainCopied] = useState(false);
   
 
 
@@ -214,6 +229,70 @@ const SettingsPage = () => {
     } finally {
       setUpdatingDifficulty(false);
     }
+  };
+
+  const handleDbConsult = async () => {
+    if (!dbConsultId) return;
+    setDbConsultLoading(true);
+    setDbConsultResult(null);
+    setDbConsultError(null);
+    try {
+      const response = await fetch(
+        `/wp-json/quiz-extended/v1/debug/db-consult?type=${dbConsultType}&id=${parseInt(dbConsultId)}`,
+        {
+          headers: {
+            'X-WP-Nonce': window.qe_data?.nonce || '',
+          },
+        }
+      );
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        setDbConsultError(json.message || 'Error fetching data');
+      } else {
+        setDbConsultResult(json.data);
+      }
+    } catch (err) {
+      setDbConsultError(err.message || 'Network error');
+    } finally {
+      setDbConsultLoading(false);
+    }
+  };
+
+  const handleDbConsultCopy = () => {
+    if (!dbConsultResult) return;
+    navigator.clipboard.writeText(JSON.stringify(dbConsultResult, null, 2));
+    setDbConsultCopied(true);
+    setTimeout(() => setDbConsultCopied(false), 2000);
+  };
+
+  const handleChainAnalysis = async () => {
+    if (!chainId) return;
+    setChainLoading(true);
+    setChainResult(null);
+    setChainError(null);
+    try {
+      const response = await fetch(
+        `/wp-json/quiz-extended/v1/debug/question-chain?id=${parseInt(chainId)}`,
+        { headers: { 'X-WP-Nonce': window.qe_data?.nonce || '' } }
+      );
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        setChainError(json.message || 'Error fetching chain');
+      } else {
+        setChainResult(json.data);
+      }
+    } catch (err) {
+      setChainError(err.message || 'Network error');
+    } finally {
+      setChainLoading(false);
+    }
+  };
+
+  const handleChainCopy = () => {
+    if (!chainResult) return;
+    navigator.clipboard.writeText(JSON.stringify(chainResult, null, 2));
+    setChainCopied(true);
+    setTimeout(() => setChainCopied(false), 2000);
   };
 
   const handleColorChange = (mode, colorKey, value) => {
@@ -510,7 +589,7 @@ const SettingsPage = () => {
           </div>
         </div>
         
-        <button
+        {activeTab !== 'db-consults' && <button
           onClick={handleSave}
           disabled={loading}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 disabled:opacity-50 focus:outline-none"
@@ -530,7 +609,7 @@ const SettingsPage = () => {
         >
           <Save size={18} />
           <span>{loading ? 'Guardando...' : 'Guardar'}</span>
-        </button>
+        </button>}
       </div>
 
       {/* MAIN CONTENT */}
@@ -550,6 +629,7 @@ const SettingsPage = () => {
               { id: 'theme', label: 'Tema', icon: Palette },
               { id: 'notifications', label: 'Notificaciones', icon: Bell },
               { id: 'maintenance', label: 'Mantenimiento', icon: Database },
+              { id: 'db-consults', label: 'DB Consults', icon: Search },
             ].map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -1369,6 +1449,323 @@ const SettingsPage = () => {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* DB Consults Tab */}
+        {activeTab === 'db-consults' && (
+          <div className="space-y-6">
+            {/* Entity type + ID selector */}
+            <div
+              className="p-6 rounded-xl"
+              style={{
+                backgroundColor: pageColors.bgCard,
+                border: `1px solid ${pageColors.cardBorder}`,
+                boxShadow: pageColors.shadowSm
+              }}
+            >
+              <h2 className="text-lg font-semibold mb-1" style={{ color: pageColors.text }}>
+                DB Consults
+              </h2>
+              <p className="text-sm mb-6" style={{ color: pageColors.textMuted }}>
+                Retrieve all raw DB data (post row + postmeta + taxonomies) for any entity by ID.
+              </p>
+
+              {/* Type selector */}
+              <div className="flex flex-wrap gap-2 mb-5">
+                {['question', 'lesson', 'quiz', 'course'].map(t => (
+                  <button
+                    key={t}
+                    onClick={() => { setDbConsultType(t); setDbConsultResult(null); setDbConsultError(null); }}
+                    className="px-4 py-2 rounded-lg text-sm font-medium transition-all focus:outline-none capitalize"
+                    style={{
+                      backgroundColor: dbConsultType === t ? pageColors.accent : pageColors.inputBg,
+                      color: dbConsultType === t ? '#fff' : pageColors.text,
+                      border: `1px solid ${dbConsultType === t ? pageColors.accent : pageColors.cardBorder}`
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+
+              {/* ID input + query button */}
+              <div className="flex gap-3">
+                <input
+                  type="number"
+                  min="1"
+                  value={dbConsultId}
+                  onChange={e => setDbConsultId(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleDbConsult()}
+                  placeholder="Enter ID..."
+                  className="flex-1 px-4 py-2.5 rounded-xl focus:outline-none focus:ring-2 font-mono"
+                  style={{
+                    backgroundColor: pageColors.inputBg,
+                    border: `1px solid ${pageColors.cardBorder}`,
+                    color: pageColors.text,
+                    '--tw-ring-color': pageColors.accent
+                  }}
+                />
+                <button
+                  onClick={handleDbConsult}
+                  disabled={dbConsultLoading || !dbConsultId}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all focus:outline-none disabled:opacity-50"
+                  style={{
+                    backgroundColor: pageColors.accent,
+                    color: '#fff'
+                  }}
+                >
+                  {dbConsultLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                  Query
+                </button>
+              </div>
+            </div>
+
+            {/* Error */}
+            {dbConsultError && (
+              <div
+                className="p-4 rounded-xl flex items-start gap-3"
+                style={{
+                  backgroundColor: isDarkMode ? 'rgba(239,68,68,0.1)' : '#fee2e2',
+                  border: `1px solid ${isDarkMode ? 'rgba(239,68,68,0.3)' : '#fca5a5'}`
+                }}
+              >
+                <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: pageColors.error }} />
+                <p className="text-sm" style={{ color: pageColors.error }}>{dbConsultError}</p>
+              </div>
+            )}
+
+            {/* Result */}
+            {dbConsultResult && (
+              <div
+                className="rounded-xl overflow-hidden"
+                style={{
+                  backgroundColor: pageColors.bgCard,
+                  border: `1px solid ${pageColors.cardBorder}`,
+                  boxShadow: pageColors.shadowSm
+                }}
+              >
+                <div
+                  className="flex items-center justify-between px-4 py-3"
+                  style={{ borderBottom: `1px solid ${pageColors.cardBorder}` }}
+                >
+                  <span className="text-sm font-semibold" style={{ color: pageColors.text }}>
+                    Result — {dbConsultType} #{dbConsultId}
+                  </span>
+                  <button
+                    onClick={handleDbConsultCopy}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all focus:outline-none"
+                    style={{
+                      backgroundColor: dbConsultCopied ? pageColors.success : pageColors.inputBg,
+                      color: dbConsultCopied ? '#fff' : pageColors.text,
+                      border: `1px solid ${pageColors.cardBorder}`
+                    }}
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    {dbConsultCopied ? 'Copied!' : 'Copy JSON'}
+                  </button>
+                </div>
+                <pre
+                  className="p-4 overflow-auto text-xs font-mono leading-relaxed"
+                  style={{
+                    color: pageColors.text,
+                    backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)',
+                    maxHeight: '60vh'
+                  }}
+                >
+                  {JSON.stringify(dbConsultResult, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            {/* ── Question Chain Analysis ─────────────────────────────────── */}
+            <div
+              className="p-6 rounded-xl"
+              style={{
+                backgroundColor: pageColors.bgCard,
+                border: `1px solid ${pageColors.cardBorder}`,
+                boxShadow: pageColors.shadowSm
+              }}
+            >
+              <h2 className="text-lg font-semibold mb-1" style={{ color: pageColors.text }}>
+                Question Chain Analysis
+              </h2>
+              <p className="text-sm mb-6" style={{ color: pageColors.textMuted }}>
+                Given a question ID, traces the full path: <strong>Question → Quizzes → Lessons → Courses</strong> using both reverse lookups and the question's own meta IDs. Flags inconsistencies.
+              </p>
+
+              <div className="flex gap-3">
+                <input
+                  type="number"
+                  min="1"
+                  value={chainId}
+                  onChange={e => setChainId(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleChainAnalysis()}
+                  placeholder="Question ID..."
+                  className="flex-1 px-4 py-2.5 rounded-xl focus:outline-none focus:ring-2 font-mono"
+                  style={{
+                    backgroundColor: pageColors.inputBg,
+                    border: `1px solid ${pageColors.cardBorder}`,
+                    color: pageColors.text,
+                    '--tw-ring-color': pageColors.accent
+                  }}
+                />
+                <button
+                  onClick={handleChainAnalysis}
+                  disabled={chainLoading || !chainId}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all focus:outline-none disabled:opacity-50"
+                  style={{ backgroundColor: pageColors.primary, color: '#fff' }}
+                >
+                  {chainLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                  Analyze
+                </button>
+              </div>
+            </div>
+
+            {/* Chain error */}
+            {chainError && (
+              <div
+                className="p-4 rounded-xl flex items-start gap-3"
+                style={{
+                  backgroundColor: isDarkMode ? 'rgba(239,68,68,0.1)' : '#fee2e2',
+                  border: `1px solid ${isDarkMode ? 'rgba(239,68,68,0.3)' : '#fca5a5'}`
+                }}
+              >
+                <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: pageColors.error }} />
+                <p className="text-sm" style={{ color: pageColors.error }}>{chainError}</p>
+              </div>
+            )}
+
+            {/* Chain result — visual tree */}
+            {chainResult && (() => {
+              const { question, chain, meta_resolved, summary } = chainResult;
+              const hasWarnings = summary.warnings?.length > 0;
+              const pill = (label, color) => (
+                <span className="px-2 py-0.5 rounded text-xs font-mono" style={{ backgroundColor: color + '22', color }}>{label}</span>
+              );
+              return (
+                <div className="space-y-4">
+                  {/* Header / copy */}
+                  <div
+                    className="rounded-xl overflow-hidden"
+                    style={{ backgroundColor: pageColors.bgCard, border: `1px solid ${pageColors.cardBorder}`, boxShadow: pageColors.shadowSm }}
+                  >
+                    <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${pageColors.cardBorder}` }}>
+                      <span className="text-sm font-semibold" style={{ color: pageColors.text }}>
+                        Chain — Question #{chainId}: &quot;{question.title}&quot;
+                      </span>
+                      <button
+                        onClick={handleChainCopy}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all focus:outline-none"
+                        style={{
+                          backgroundColor: chainCopied ? pageColors.success : pageColors.inputBg,
+                          color: chainCopied ? '#fff' : pageColors.text,
+                          border: `1px solid ${pageColors.cardBorder}`
+                        }}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        {chainCopied ? 'Copied!' : 'Copy JSON'}
+                      </button>
+                    </div>
+
+                    <div className="p-4 space-y-4">
+                      {/* Warnings */}
+                      {hasWarnings && (
+                        <div className="space-y-1.5">
+                          {summary.warnings.map((w, i) => (
+                            <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg text-xs"
+                              style={{ backgroundColor: isDarkMode ? 'rgba(245,158,11,0.1)' : '#fef3c7', color: pageColors.warning }}>
+                              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                              {w}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {!hasWarnings && (
+                        <div className="flex items-center gap-2 text-xs p-2.5 rounded-lg"
+                          style={{ backgroundColor: isDarkMode ? 'rgba(16,185,129,0.1)' : '#d1fae5', color: pageColors.success }}>
+                          <CheckCircle className="w-3.5 h-3.5" /> All connections are consistent
+                        </div>
+                      )}
+
+                      {/* Question info */}
+                      <div>
+                        <p className="text-xs font-semibold mb-2" style={{ color: pageColors.textMuted }}>QUESTION</p>
+                        <div className="flex flex-wrap gap-2 items-center text-xs" style={{ color: pageColors.text }}>
+                          <span className="font-mono">#{question.id}</span>
+                          <span className="font-medium">{question.title}</span>
+                          {pill(question.status, question.status === 'publish' ? pageColors.success : pageColors.warning)}
+                          {Object.entries(question.taxonomies || {}).map(([tax, terms]) =>
+                            terms.map(t => <span key={t.id} className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: pageColors.hoverBg, color: pageColors.textMuted }}>{tax}: {t.name}</span>)
+                          )}
+                        </div>
+                        <div className="mt-2 text-xs font-mono" style={{ color: pageColors.textMuted }}>
+                          meta _course_ids: {JSON.stringify(question.meta_ids._course_ids)} &nbsp;|&nbsp;
+                          _lesson_ids: {JSON.stringify(question.meta_ids._lesson_ids)}
+                        </div>
+                      </div>
+
+                      {/* Chain */}
+                      {chain.length === 0 && (
+                        <div className="text-xs p-3 rounded-lg" style={{ backgroundColor: pageColors.hoverBg, color: pageColors.textMuted }}>
+                          No quiz found that lists this question in _quiz_question_ids.
+                        </div>
+                      )}
+                      {chain.map((entry, qi) => (
+                        <div key={qi} className="border-l-2 pl-4 space-y-2" style={{ borderColor: pageColors.primary }}>
+                          <div className="flex flex-wrap gap-2 items-center text-xs">
+                            <span className="font-bold" style={{ color: pageColors.primary }}>Quiz</span>
+                            <span className="font-mono" style={{ color: pageColors.text }}>#{entry.quiz_id}</span>
+                            <span style={{ color: pageColors.text }}>{entry.quiz_title}</span>
+                            {pill(entry.quiz_status, entry.quiz_status === 'publish' ? pageColors.success : pageColors.warning)}
+                            <span style={{ color: pageColors.textMuted }}>_course_id: {entry.quiz_course_id_meta || 'none'}</span>
+                            <span style={{ color: pageColors.textMuted }}>({entry.question_ids_in_quiz?.length ?? 0} questions)</span>
+                          </div>
+
+                          {entry.lessons.length === 0 && (
+                            <div className="text-xs ml-4" style={{ color: pageColors.warning }}>⚠ Not referenced by any lesson</div>
+                          )}
+                          {entry.lessons.map((l, li) => (
+                            <div key={li} className="border-l-2 pl-4 ml-2 space-y-1" style={{ borderColor: pageColors.accent }}>
+                              <div className="flex flex-wrap gap-2 items-center text-xs">
+                                <span className="font-bold" style={{ color: pageColors.accent }}>Lesson</span>
+                                <span className="font-mono" style={{ color: pageColors.text }}>#{l.lesson_id}</span>
+                                <span style={{ color: pageColors.text }}>{l.lesson_title}</span>
+                                {pill(l.lesson_status, l.lesson_status === 'publish' ? pageColors.success : pageColors.warning)}
+                                <span style={{ color: pageColors.textMuted }}>via {l.found_via}</span>
+                              </div>
+                              {l.course ? (
+                                <div className="flex flex-wrap gap-2 items-center text-xs ml-4">
+                                  <span className="font-bold" style={{ color: pageColors.info }}>Course</span>
+                                  <span className="font-mono" style={{ color: pageColors.text }}>#{l.course.course_id}</span>
+                                  <span style={{ color: pageColors.text }}>{l.course.course_title}</span>
+                                  {pill(l.course.course_status, l.course.course_status === 'publish' ? pageColors.success : pageColors.warning)}
+                                </div>
+                              ) : (
+                                <div className="text-xs ml-4" style={{ color: pageColors.warning }}>⚠ No course linked to this lesson</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+
+                      {/* Summary IDs */}
+                      <div className="text-xs space-y-1 pt-2" style={{ borderTop: `1px solid ${pageColors.cardBorder}`, color: pageColors.textMuted }}>
+                        <div><strong>Quizzes found:</strong> {summary.quiz_ids_found_by_reverse_lookup.join(', ') || 'none'}</div>
+                        <div><strong>Lessons found:</strong> {summary.lesson_ids_found_by_reverse_lookup.join(', ') || 'none'}</div>
+                        <div><strong>Courses found:</strong> {summary.course_ids_found_by_reverse_lookup.join(', ') || 'none'}</div>
+                        <div><strong>Meta courses:</strong> {summary.course_ids_in_question_meta.join(', ') || 'none'}</div>
+                        <div><strong>Meta lessons:</strong> {summary.lesson_ids_in_question_meta.join(', ') || 'none'}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
           </div>

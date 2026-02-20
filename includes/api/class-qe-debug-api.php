@@ -102,6 +102,39 @@ class QE_Debug_API extends QE_API_Base
             'permission_callback' => [$this, 'permissions_check']
         ]);
 
+        // 🔍 DB Consult endpoint
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/db-consult', [
+            'methods' => 'GET',
+            'callback' => [$this, 'db_consult'],
+            'permission_callback' => [$this, 'permissions_check'],
+            'args' => [
+                'type' => [
+                    'required' => true,
+                    'type' => 'string',
+                    'enum' => ['question', 'lesson', 'quiz', 'course']
+                ],
+                'id' => [
+                    'required' => true,
+                    'type' => 'integer',
+                    'minimum' => 1
+                ]
+            ]
+        ]);
+
+        // 🔗 Question chain analysis endpoint
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/question-chain', [
+            'methods' => 'GET',
+            'callback' => [$this, 'question_chain'],
+            'permission_callback' => [$this, 'permissions_check'],
+            'args' => [
+                'id' => [
+                    'required' => true,
+                    'type' => 'integer',
+                    'minimum' => 1
+                ]
+            ]
+        ]);
+
         // 🧹 Endpoint para limpieza de opciones autoload
         register_rest_route($this->namespace, '/' . $this->rest_base . '/cleanup-autoload', [
             'methods' => 'POST',
@@ -463,6 +496,571 @@ class QE_Debug_API extends QE_API_Base
         return new WP_REST_Response([
             'success' => true,
             'data' => $debug_data
+        ], 200);
+    }
+
+    /**
+     * DB Consult - return all post + meta (deserialized) + taxonomy + reverse-lookup connection data
+     *
+     * GET /wp-json/quiz-extended/v1/debug/db-consult?type=question&id=123
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function db_consult($request)
+    {
+        global $wpdb;
+
+        $type_map = [
+            'question' => 'qe_question',
+            'lesson'   => 'qe_lesson',
+            'quiz'     => 'qe_quiz',
+            'course'   => 'qe_course',
+        ];
+
+        $type      = $request->get_param('type');
+        $id        = (int) $request->get_param('id');
+        $post_type = $type_map[$type];
+
+        // Get post row
+        $post = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->posts} WHERE ID = %d AND post_type = %s",
+            $id, $post_type
+        ), ARRAY_A);
+
+        if (!$post) {
+            return new WP_REST_Response([
+                'success' => false,
+                'message' => "No {$type} found with ID {$id} (post_type: {$post_type})"
+            ], 404);
+        }
+
+        // Get all postmeta, deserializing each value so arrays/objects are readable
+        $meta_rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id = %d ORDER BY meta_key",
+            $id
+        ), ARRAY_A);
+
+        $meta = [];
+        foreach ($meta_rows as $row) {
+            $raw = $row['meta_value'];
+            // Try PHP unserialize first, then JSON decode, otherwise keep raw
+            $unserialized = @maybe_unserialize($raw);
+            if ($unserialized !== $raw) {
+                $meta[$row['meta_key']] = $unserialized;
+            } else {
+                $decoded = json_decode($raw, true);
+                $meta[$row['meta_key']] = ($decoded !== null) ? $decoded : $raw;
+            }
+        }
+
+        // Get taxonomy terms (names + slugs, grouped by taxonomy)
+        $tax_names = get_object_taxonomies($post_type);
+        $terms     = [];
+        if (!empty($tax_names)) {
+            $all_terms = wp_get_object_terms($id, $tax_names);
+            foreach ($all_terms as $term) {
+                if (!isset($terms[$term->taxonomy])) {
+                    $terms[$term->taxonomy] = [];
+                }
+                $terms[$term->taxonomy][] = [
+                    'id'   => $term->term_id,
+                    'name' => $term->name,
+                    'slug' => $term->slug,
+                ];
+            }
+        }
+
+        // Build entity-specific reverse-lookup connections
+        $connections = $this->get_db_consult_connections($type, $id, $meta, $wpdb);
+
+        return new WP_REST_Response([
+            'success' => true,
+            'data' => [
+                'post'        => $post,
+                'meta'        => $meta,
+                'taxonomies'  => $terms,
+                'connections' => $connections,
+            ]
+        ], 200);
+    }
+
+    /**
+     * Build reverse-lookup connection data for each entity type.
+     * Helps understand which entities reference the queried one.
+     *
+     * @param string $type    question|lesson|quiz|course
+     * @param int    $id      Entity ID
+     * @param array  $meta    Already-deserialized meta array
+     * @param object $wpdb    Global wpdb
+     * @return array
+     */
+    private function get_db_consult_connections($type, $id, $meta, $wpdb)
+    {
+        $connections = [];
+
+        if ($type === 'question') {
+            // Which quizzes contain this question? (stored in _quiz_question_ids)
+            $quizzes_with_question = $wpdb->get_results($wpdb->prepare(
+                "SELECT p.ID, p.post_title, p.post_status, pm.meta_value AS raw_question_ids
+                 FROM {$wpdb->postmeta} pm
+                 JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+                 WHERE pm.meta_key = '_quiz_question_ids'
+                 AND p.post_type = 'qe_quiz'
+                 AND (
+                     pm.meta_value LIKE %s
+                     OR pm.meta_value LIKE %s
+                     OR pm.meta_value = %s
+                 )",
+                '%i:' . $id . ';%',          // inside serialized array
+                '%"' . $id . '"%',           // inside JSON array
+                (string) $id                 // single value
+            ), ARRAY_A);
+
+            $connections['quizzes_referencing_this_question'] = array_map(function ($row) {
+                $parsed = @maybe_unserialize($row['raw_question_ids']);
+                if ($parsed === $row['raw_question_ids']) {
+                    $parsed = json_decode($row['raw_question_ids'], true) ?? $row['raw_question_ids'];
+                }
+                return [
+                    'quiz_id'     => (int) $row['ID'],
+                    'quiz_title'  => $row['post_title'],
+                    'post_status' => $row['post_status'],
+                    'question_ids_in_quiz' => $parsed,
+                ];
+            }, $quizzes_with_question);
+
+            // Resolved lesson/course names from meta IDs
+            $connections['meta_resolved'] = [];
+            foreach (['_course_ids', '_lesson_ids', '_course_id', '_question_lesson'] as $key) {
+                if (!empty($meta[$key])) {
+                    $ids = is_array($meta[$key]) ? $meta[$key] : [$meta[$key]];
+                    $resolved = [];
+                    foreach ($ids as $rel_id) {
+                        $rel_id = (int) $rel_id;
+                        if ($rel_id <= 0) continue;
+                        $title = $wpdb->get_var($wpdb->prepare(
+                            "SELECT post_title FROM {$wpdb->posts} WHERE ID = %d", $rel_id
+                        ));
+                        $resolved[] = ['id' => $rel_id, 'title' => $title ?: '(not found)'];
+                    }
+                    $connections['meta_resolved'][$key] = $resolved;
+                }
+            }
+        }
+
+        if ($type === 'quiz') {
+            // Which lessons reference this quiz? (via _quiz_ids or _lesson_steps)
+            $lessons_via_quiz_ids = $wpdb->get_results($wpdb->prepare(
+                "SELECT p.ID, p.post_title, p.post_status
+                 FROM {$wpdb->postmeta} pm
+                 JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+                 WHERE pm.meta_key = '_quiz_ids'
+                 AND p.post_type = 'qe_lesson'
+                 AND (
+                     pm.meta_value LIKE %s
+                     OR pm.meta_value LIKE %s
+                 )",
+                '%i:' . $id . ';%',
+                '%"' . $id . '"%'
+            ), ARRAY_A);
+
+            $lessons_via_steps = $wpdb->get_results($wpdb->prepare(
+                "SELECT p.ID, p.post_title, p.post_status, pm.meta_value AS raw_steps
+                 FROM {$wpdb->postmeta} pm
+                 JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+                 WHERE pm.meta_key = '_lesson_steps'
+                 AND p.post_type = 'qe_lesson'
+                 AND pm.meta_value LIKE %s",
+                '%' . $id . '%'
+            ), ARRAY_A);
+
+            $connections['lessons_referencing_this_quiz'] = [
+                'via__quiz_ids'     => $lessons_via_quiz_ids,
+                'via__lesson_steps' => array_map(function ($row) {
+                    $parsed = @maybe_unserialize($row['raw_steps']);
+                    if ($parsed === $row['raw_steps']) {
+                        $parsed = json_decode($row['raw_steps'], true) ?? $row['raw_steps'];
+                    }
+                    return [
+                        'lesson_id'    => (int) $row['ID'],
+                        'lesson_title' => $row['post_title'],
+                        'post_status'  => $row['post_status'],
+                        'steps'        => $parsed,
+                    ];
+                }, $lessons_via_steps),
+            ];
+
+            // Resolve course name
+            if (!empty($meta['_course_id'])) {
+                $course_id = (int) $meta['_course_id'];
+                $course_title = $wpdb->get_var($wpdb->prepare(
+                    "SELECT post_title FROM {$wpdb->posts} WHERE ID = %d", $course_id
+                ));
+                $connections['course'] = ['id' => $course_id, 'title' => $course_title ?: '(not found)'];
+            }
+
+            // Resolve question titles
+            if (!empty($meta['_quiz_question_ids']) && is_array($meta['_quiz_question_ids'])) {
+                $connections['questions_in_this_quiz'] = [];
+                foreach ($meta['_quiz_question_ids'] as $q_id) {
+                    $q_id = (int) $q_id;
+                    if ($q_id <= 0) continue;
+                    $q_title = $wpdb->get_var($wpdb->prepare(
+                        "SELECT post_title FROM {$wpdb->posts} WHERE ID = %d", $q_id
+                    ));
+                    $connections['questions_in_this_quiz'][] = ['id' => $q_id, 'title' => $q_title ?: '(not found)'];
+                }
+            }
+        }
+
+        if ($type === 'lesson') {
+            // Resolve parent course
+            if (!empty($meta['_course_id'])) {
+                $course_id = (int) $meta['_course_id'];
+                $course_title = $wpdb->get_var($wpdb->prepare(
+                    "SELECT post_title FROM {$wpdb->posts} WHERE ID = %d", $course_id
+                ));
+                $connections['course'] = ['id' => $course_id, 'title' => $course_title ?: '(not found)'];
+            }
+
+            // Resolve quiz titles from _quiz_ids
+            if (!empty($meta['_quiz_ids']) && is_array($meta['_quiz_ids'])) {
+                $connections['quizzes_in_this_lesson'] = [];
+                foreach ($meta['_quiz_ids'] as $q_id) {
+                    $q_id = (int) $q_id;
+                    if ($q_id <= 0) continue;
+                    $q_title = $wpdb->get_var($wpdb->prepare(
+                        "SELECT post_title FROM {$wpdb->posts} WHERE ID = %d", $q_id
+                    ));
+                    $connections['quizzes_in_this_lesson'][] = ['id' => $q_id, 'title' => $q_title ?: '(not found)'];
+                }
+            }
+
+            // Parse _lesson_steps for quick human-readable summary
+            if (!empty($meta['_lesson_steps'])) {
+                $steps = $meta['_lesson_steps']; // already deserialized above
+                if (is_array($steps)) {
+                    $connections['lesson_steps_summary'] = array_map(function ($step) use ($wpdb) {
+                        $summary = ['type' => $step['type'] ?? 'unknown'];
+                        $ref_id = null;
+                        if (isset($step['data']['quiz_id'])) {
+                            $ref_id = (int) $step['data']['quiz_id'];
+                            $summary['quiz_id'] = $ref_id;
+                        }
+                        if ($ref_id) {
+                            $summary['title'] = $wpdb->get_var($wpdb->prepare(
+                                "SELECT post_title FROM {$wpdb->posts} WHERE ID = %d", $ref_id
+                            )) ?: '(not found)';
+                        }
+                        return $summary;
+                    }, $steps);
+                }
+            }
+        }
+
+        if ($type === 'course') {
+            // All lessons in this course
+            $lessons = $wpdb->get_results($wpdb->prepare(
+                "SELECT p.ID, p.post_title, p.post_status, pm2.meta_value AS lesson_order
+                 FROM {$wpdb->postmeta} pm
+                 JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+                 LEFT JOIN {$wpdb->postmeta} pm2 ON pm2.post_id = p.ID AND pm2.meta_key = '_lesson_order'
+                 WHERE pm.meta_key = '_course_id' AND pm.meta_value = %s
+                 AND p.post_type = 'qe_lesson'
+                 ORDER BY CAST(pm2.meta_value AS UNSIGNED) ASC, p.ID ASC",
+                (string) $id
+            ), ARRAY_A);
+            $connections['lessons'] = $lessons;
+
+            // All quizzes in this course
+            $quizzes = $wpdb->get_results($wpdb->prepare(
+                "SELECT p.ID, p.post_title, p.post_status
+                 FROM {$wpdb->postmeta} pm
+                 JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+                 WHERE pm.meta_key = '_course_id' AND pm.meta_value = %s
+                 AND p.post_type = 'qe_quiz'
+                 ORDER BY p.ID ASC",
+                (string) $id
+            ), ARRAY_A);
+            $connections['quizzes'] = $quizzes;
+        }
+
+        return $connections;
+    }
+
+    /**
+     * Question chain analysis - full graph traversal from a single question ID.
+     *
+     * Returns: question data → quizzes that contain it → lessons those quizzes
+     * belong to → courses those lessons belong to. Also reads the question's own
+     * meta IDs and cross-checks them against the chain for inconsistencies.
+     *
+     * GET /wp-json/quiz-extended/v1/debug/question-chain?id=123
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function question_chain($request)
+    {
+        global $wpdb;
+        $q_id = (int) $request->get_param('id');
+
+        // ── Helper: deserialize a raw meta string ──────────────────────────────
+        $decode = function ($raw) {
+            if ($raw === null || $raw === '') return $raw;
+            $unserialized = @maybe_unserialize($raw);
+            if ($unserialized !== $raw) return $unserialized;
+            $json = json_decode($raw, true);
+            return ($json !== null) ? $json : $raw;
+        };
+
+        // ── Helper: fetch a single post's basic info ───────────────────────────
+        $get_post_info = function ($id) use ($wpdb) {
+            if (!$id) return null;
+            return $wpdb->get_row($wpdb->prepare(
+                "SELECT ID, post_title, post_status, post_type FROM {$wpdb->posts} WHERE ID = %d",
+                (int) $id
+            ), ARRAY_A);
+        };
+
+        // ── Helper: get all deserialized meta for a post ───────────────────────
+        $get_meta = function ($id) use ($wpdb, $decode) {
+            $rows = $wpdb->get_results($wpdb->prepare(
+                "SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id = %d ORDER BY meta_key",
+                (int) $id
+            ), ARRAY_A);
+            $out = [];
+            foreach ($rows as $r) {
+                $out[$r['meta_key']] = $decode($r['meta_value']);
+            }
+            return $out;
+        };
+
+        // ── 1. Question itself ─────────────────────────────────────────────────
+        $q_post = $wpdb->get_row($wpdb->prepare(
+            "SELECT ID, post_title, post_status, post_type FROM {$wpdb->posts}
+             WHERE ID = %d AND post_type = 'qe_question'",
+            $q_id
+        ), ARRAY_A);
+
+        if (!$q_post) {
+            return new WP_REST_Response([
+                'success' => false,
+                'message' => "No question found with ID {$q_id}"
+            ], 404);
+        }
+
+        $q_meta = $get_meta($q_id);
+
+        // Taxonomy terms
+        $tax_names = get_object_taxonomies('qe_question');
+        $q_taxonomies = [];
+        if (!empty($tax_names)) {
+            foreach (wp_get_object_terms($q_id, $tax_names) as $term) {
+                $q_taxonomies[$term->taxonomy][] = [
+                    'id' => $term->term_id, 'name' => $term->name, 'slug' => $term->slug
+                ];
+            }
+        }
+
+        // IDs declared in question's own meta
+        $meta_course_ids = is_array($q_meta['_course_ids'] ?? null) ? array_map('intval', $q_meta['_course_ids']) : [];
+        $meta_lesson_ids = is_array($q_meta['_lesson_ids'] ?? null) ? array_map('intval', $q_meta['_lesson_ids']) : [];
+        if (!empty($q_meta['_course_id']))     $meta_course_ids[] = (int) $q_meta['_course_id'];
+        if (!empty($q_meta['_question_lesson'])) $meta_lesson_ids[] = (int) $q_meta['_question_lesson'];
+        $meta_course_ids = array_values(array_unique(array_filter($meta_course_ids)));
+        $meta_lesson_ids = array_values(array_unique(array_filter($meta_lesson_ids)));
+
+        // ── 2. Quizzes that contain this question ──────────────────────────────
+        // _quiz_question_ids is a serialized PHP array or JSON array
+        $quiz_rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT p.ID, p.post_title, p.post_status, pm.meta_value AS raw_ids
+             FROM {$wpdb->postmeta} pm
+             JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+             WHERE pm.meta_key = '_quiz_question_ids'
+               AND p.post_type = 'qe_quiz'
+               AND (
+                   pm.meta_value LIKE %s
+                   OR pm.meta_value LIKE %s
+                   OR pm.meta_value = %s
+               )",
+            '%i:' . $q_id . ';%',
+            '%"' . $q_id . '"%',
+            (string) $q_id
+        ), ARRAY_A);
+
+        // ── 3. For each quiz → find referencing lessons → find their course ────
+        $chain = [];
+        $chain_quiz_ids    = [];
+        $chain_lesson_ids  = [];
+        $chain_course_ids  = [];
+
+        foreach ($quiz_rows as $quiz_row) {
+            $quiz_id    = (int) $quiz_row['ID'];
+            $quiz_meta  = $get_meta($quiz_id);
+            $q_ids_in_quiz = $decode($quiz_row['raw_ids']);
+            // Normalize to array of ints
+            if (!is_array($q_ids_in_quiz)) $q_ids_in_quiz = [$q_ids_in_quiz];
+            $q_ids_in_quiz = array_map('intval', $q_ids_in_quiz);
+
+            $chain_quiz_ids[] = $quiz_id;
+
+            // Lessons referencing this quiz via _quiz_ids
+            $lessons_via_quiz_ids = $wpdb->get_results($wpdb->prepare(
+                "SELECT p.ID FROM {$wpdb->postmeta} pm
+                 JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+                 WHERE pm.meta_key = '_quiz_ids'
+                   AND p.post_type = 'qe_lesson'
+                   AND (pm.meta_value LIKE %s OR pm.meta_value LIKE %s)",
+                '%i:' . $quiz_id . ';%',
+                '%"' . $quiz_id . '"%'
+            ), ARRAY_A);
+            $lesson_ids_a = array_column($lessons_via_quiz_ids, 'ID');
+
+            // Lessons referencing this quiz via _lesson_steps
+            $lessons_via_steps = $wpdb->get_results($wpdb->prepare(
+                "SELECT p.ID FROM {$wpdb->postmeta} pm
+                 JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+                 WHERE pm.meta_key = '_lesson_steps'
+                   AND p.post_type = 'qe_lesson'
+                   AND pm.meta_value LIKE %s",
+                '%' . $quiz_id . '%'
+            ), ARRAY_A);
+            $lesson_ids_b = array_column($lessons_via_steps, 'ID');
+
+            $all_lesson_ids = array_values(array_unique(array_merge($lesson_ids_a, $lesson_ids_b)));
+
+            // Build lesson details with their course
+            $lessons_detail = [];
+            foreach ($all_lesson_ids as $l_id) {
+                $l_id = (int) $l_id;
+                $lesson_info = $get_post_info($l_id);
+                $lesson_meta = $get_meta($l_id);
+                $course_id   = (int) ($lesson_meta['_course_id'] ?? 0);
+                $course_info = $course_id ? $get_post_info($course_id) : null;
+
+                $chain_lesson_ids[] = $l_id;
+                if ($course_id) $chain_course_ids[] = $course_id;
+
+                $lessons_detail[] = [
+                    'lesson_id'     => $l_id,
+                    'lesson_title'  => $lesson_info['post_title'] ?? '(not found)',
+                    'lesson_status' => $lesson_info['post_status'] ?? '?',
+                    'found_via'     => in_array($l_id, $lesson_ids_a) ? '_quiz_ids' : '_lesson_steps',
+                    'course' => $course_id ? [
+                        'course_id'     => $course_id,
+                        'course_title'  => $course_info['post_title'] ?? '(not found)',
+                        'course_status' => $course_info['post_status'] ?? '?',
+                    ] : null,
+                ];
+            }
+
+            $chain[] = [
+                'quiz_id'              => $quiz_id,
+                'quiz_title'           => $quiz_row['post_title'],
+                'quiz_status'          => $quiz_row['post_status'],
+                'quiz_course_id_meta'  => (int) ($quiz_meta['_course_id'] ?? 0),
+                'question_ids_in_quiz' => $q_ids_in_quiz,
+                'lessons'              => $lessons_detail,
+            ];
+        }
+
+        $chain_course_ids  = array_values(array_unique(array_filter($chain_course_ids)));
+        $chain_lesson_ids  = array_values(array_unique(array_filter($chain_lesson_ids)));
+
+        // ── 4. Resolve meta IDs to titles ──────────────────────────────────────
+        $resolve_ids = function ($ids, $label) use ($wpdb) {
+            $out = [];
+            foreach ($ids as $rid) {
+                $rid = (int) $rid;
+                if (!$rid) continue;
+                $row = $wpdb->get_row($wpdb->prepare(
+                    "SELECT ID, post_title, post_status, post_type FROM {$wpdb->posts} WHERE ID = %d",
+                    $rid
+                ), ARRAY_A);
+                $out[] = $row
+                    ? ['id' => $rid, 'title' => $row['post_title'], 'status' => $row['post_status'], 'post_type' => $row['post_type']]
+                    : ['id' => $rid, 'title' => '(not found)', 'status' => null, 'post_type' => null];
+            }
+            return $out;
+        };
+
+        $meta_courses_resolved = $resolve_ids($meta_course_ids, 'course');
+        $meta_lessons_resolved = $resolve_ids($meta_lesson_ids, 'lesson');
+
+        // ── 5. Inconsistency analysis ──────────────────────────────────────────
+        $warnings = [];
+
+        // Quizzes found by reverse lookup but not declared in question meta
+        $undeclared_quiz_courses = [];
+        foreach ($chain as $entry) {
+            $quiz_course = $entry['quiz_course_id_meta'];
+            if ($quiz_course && !in_array($quiz_course, $meta_course_ids)) {
+                $warnings[] = "Quiz #{$entry['quiz_id']} ({$entry['quiz_title']}) has _course_id={$quiz_course} but that course is NOT in the question's _course_ids.";
+            }
+            foreach ($entry['lessons'] as $l) {
+                if (!$l['course']) {
+                    $warnings[] = "Lesson #{$l['lesson_id']} ({$l['lesson_title']}) has no _course_id set.";
+                } elseif (!in_array($l['course']['course_id'], $meta_course_ids)) {
+                    $warnings[] = "Lesson #{$l['lesson_id']} ({$l['lesson_title']}) points to course #{$l['course']['course_id']} but that is NOT in the question's _course_ids.";
+                }
+                if (!in_array($l['lesson_id'], $meta_lesson_ids)) {
+                    $warnings[] = "Lesson #{$l['lesson_id']} ({$l['lesson_title']}) references this quiz but is NOT in the question's _lesson_ids.";
+                }
+            }
+            if (empty($entry['lessons'])) {
+                $warnings[] = "Quiz #{$entry['quiz_id']} ({$entry['quiz_title']}) contains this question but is NOT referenced by any lesson.";
+            }
+        }
+        // Meta IDs that have no chain match
+        foreach ($meta_lesson_ids as $mid) {
+            if (!in_array($mid, $chain_lesson_ids)) {
+                $t = $wpdb->get_var($wpdb->prepare("SELECT post_title FROM {$wpdb->posts} WHERE ID = %d", $mid));
+                $warnings[] = "Question's _lesson_ids contains lesson #{$mid} (" . ($t ?: 'not found') . ") but no quiz found in that lesson references this question.";
+            }
+        }
+        foreach ($meta_course_ids as $cid) {
+            if (!in_array($cid, $chain_course_ids)) {
+                $t = $wpdb->get_var($wpdb->prepare("SELECT post_title FROM {$wpdb->posts} WHERE ID = %d", $cid));
+                $warnings[] = "Question's _course_ids contains course #{$cid} (" . ($t ?: 'not found') . ") but no chain path reaches that course.";
+            }
+        }
+        if (empty($quiz_rows)) {
+            $warnings[] = "No quiz found that lists this question in _quiz_question_ids.";
+        }
+
+        // ── 6. Response ────────────────────────────────────────────────────────
+        return new WP_REST_Response([
+            'success' => true,
+            'data' => [
+                'question' => [
+                    'id'         => $q_id,
+                    'title'      => $q_post['post_title'],
+                    'status'     => $q_post['post_status'],
+                    'taxonomies' => $q_taxonomies,
+                    'meta_ids'   => [
+                        '_course_ids'       => $q_meta['_course_ids'] ?? null,
+                        '_lesson_ids'       => $q_meta['_lesson_ids'] ?? null,
+                        '_course_id'        => $q_meta['_course_id'] ?? null,
+                        '_question_lesson'  => $q_meta['_question_lesson'] ?? null,
+                    ],
+                ],
+                'chain' => $chain,
+                'meta_resolved' => [
+                    'courses' => $meta_courses_resolved,
+                    'lessons' => $meta_lessons_resolved,
+                ],
+                'summary' => [
+                    'quiz_ids_found_by_reverse_lookup'   => $chain_quiz_ids,
+                    'lesson_ids_found_by_reverse_lookup' => $chain_lesson_ids,
+                    'course_ids_found_by_reverse_lookup' => $chain_course_ids,
+                    'course_ids_in_question_meta'        => $meta_course_ids,
+                    'lesson_ids_in_question_meta'        => $meta_lesson_ids,
+                    'warnings'                           => $warnings,
+                    'is_consistent'                      => empty($warnings),
+                ],
+            ]
         ], 200);
     }
 
