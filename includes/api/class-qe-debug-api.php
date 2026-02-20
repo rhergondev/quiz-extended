@@ -138,6 +138,16 @@ class QE_Debug_API extends QE_API_Base
             ]
         ]);
 
+        // 📚 Provider lessons — lessons that have at least one question for a given provider
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/provider-lessons', [
+            'methods' => 'GET',
+            'callback' => [$this, 'provider_lessons'],
+            'permission_callback' => [$this, 'permissions_check'],
+            'args' => [
+                'provider' => ['required' => true]
+            ]
+        ]);
+
         // 🔗 Question chain analysis endpoint
         register_rest_route($this->namespace, '/' . $this->rest_base . '/question-chain', [
             'methods' => 'GET',
@@ -837,6 +847,133 @@ class QE_Debug_API extends QE_API_Base
         }, $terms);
 
         return new WP_REST_Response(['success' => true, 'data' => $providers], 200);
+    }
+
+    /**
+     * Provider lessons — return lessons that have at least one question for a given provider.
+     * Used by the QuestionSelector Temas dropdown to show only relevant lessons.
+     *
+     * GET /wp-json/quiz-extended/v1/debug/provider-lessons?provider={term_id_or_slug}
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function provider_lessons($request)
+    {
+        global $wpdb;
+
+        $provider_param = $request->get_param('provider');
+        if (empty($provider_param)) {
+            return new WP_REST_Response(['success' => false, 'message' => 'provider parameter required'], 400);
+        }
+
+        // Resolve by term ID or slug
+        if (is_numeric($provider_param)) {
+            $term = get_term((int) $provider_param, 'qe_provider');
+        } else {
+            $term = get_term_by('slug', sanitize_title($provider_param), 'qe_provider');
+        }
+
+        if (!$term || is_wp_error($term)) {
+            return new WP_REST_Response(['success' => false, 'message' => "Provider '{$provider_param}' not found"], 404);
+        }
+
+        // Get all question IDs for this provider
+        $question_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT tr.object_id
+             FROM {$wpdb->term_relationships} tr
+             JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+             JOIN {$wpdb->posts} p ON tr.object_id = p.ID
+             WHERE tt.term_id = %d
+               AND tt.taxonomy = 'qe_provider'
+               AND p.post_type = 'qe_question'
+               AND p.post_status != 'trash'",
+            $term->term_id
+        ));
+
+        if (empty($question_ids)) {
+            return new WP_REST_Response([
+                'success' => true,
+                'data' => [
+                    'provider'       => ['id' => $term->term_id, 'name' => $term->name, 'slug' => $term->slug],
+                    'lessons'        => [],
+                    'question_count' => 0,
+                ]
+            ], 200);
+        }
+
+        $ids_str = implode(',', array_map('intval', $question_ids));
+
+        // Collect all lesson IDs from _question_lesson (legacy) and _lesson_ids (new)
+        $lesson_ids_legacy = $wpdb->get_col(
+            "SELECT DISTINCT meta_value FROM {$wpdb->postmeta}
+             WHERE post_id IN ({$ids_str})
+               AND meta_key = '_question_lesson'
+               AND meta_value != ''
+               AND meta_value != '0'"
+        );
+
+        $lesson_ids_new_raw = $wpdb->get_col(
+            "SELECT DISTINCT meta_value FROM {$wpdb->postmeta}
+             WHERE post_id IN ({$ids_str})
+               AND meta_key = '_lesson_ids'
+               AND meta_value != ''"
+        );
+
+        $all_lesson_ids = array_map('intval', $lesson_ids_legacy);
+
+        foreach ($lesson_ids_new_raw as $raw) {
+            $decoded = @maybe_unserialize($raw);
+            if (!is_array($decoded)) {
+                $decoded = json_decode($raw, true);
+            }
+            if (is_array($decoded)) {
+                foreach ($decoded as $lid) {
+                    $all_lesson_ids[] = (int) $lid;
+                }
+            } elseif (is_numeric($raw) && (int) $raw > 0) {
+                $all_lesson_ids[] = (int) $raw;
+            }
+        }
+
+        $all_lesson_ids = array_values(array_unique(array_filter($all_lesson_ids)));
+
+        if (empty($all_lesson_ids)) {
+            return new WP_REST_Response([
+                'success' => true,
+                'data' => [
+                    'provider'       => ['id' => $term->term_id, 'name' => $term->name, 'slug' => $term->slug],
+                    'lessons'        => [],
+                    'question_count' => count($question_ids),
+                ]
+            ], 200);
+        }
+
+        $lids_str = implode(',', $all_lesson_ids);
+        $lessons_raw = $wpdb->get_results(
+            "SELECT ID, post_title FROM {$wpdb->posts}
+             WHERE ID IN ({$lids_str})
+               AND post_type = 'qe_lesson'
+               AND post_status IN ('publish', 'draft', 'private')
+             ORDER BY post_title ASC",
+            ARRAY_A
+        );
+
+        $lessons = array_map(function ($row) {
+            return [
+                'id'    => (int) $row['ID'],
+                'title' => $row['post_title'],
+            ];
+        }, $lessons_raw);
+
+        return new WP_REST_Response([
+            'success' => true,
+            'data' => [
+                'provider'       => ['id' => $term->term_id, 'name' => $term->name, 'slug' => $term->slug],
+                'lessons'        => $lessons,
+                'question_count' => count($question_ids),
+            ]
+        ], 200);
     }
 
     /**

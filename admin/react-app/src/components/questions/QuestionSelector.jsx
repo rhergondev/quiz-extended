@@ -38,6 +38,10 @@ const QuestionSelector = ({
   
   const { options: taxonomyOptions } = useTaxonomyOptions(['qe_category', 'qe_provider']);
   const [allLessons, setAllLessons] = useState([]);
+  // Lessons filtered to only those that have questions for the selected provider.
+  // null means no provider is selected → show all lessons.
+  const [providerLessons, setProviderLessons] = useState(null);
+  const [providerLessonsLoading, setProviderLessonsLoading] = useState(false);
 
   // Colors
   const colors = useMemo(() => ({
@@ -102,10 +106,51 @@ const QuestionSelector = ({
     fetchAllLessons();
   }, []);
 
+  // When provider changes, fetch lessons that have questions for that provider.
+  // Also resets the lesson filter so the user picks from the updated Temas list.
+  useEffect(() => {
+    const provider = questionsHook.filters?.provider;
+
+    // Always clear the lesson selection when provider changes
+    questionsHook.updateFilter('lessons', null);
+
+    if (!provider || provider === 'all') {
+      setProviderLessons(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchProviderLessons = async () => {
+      try {
+        setProviderLessonsLoading(true);
+        const config = getApiConfig();
+        const url = `${config.apiUrl}/quiz-extended/v1/debug/provider-lessons?provider=${provider}`;
+        const res = await makeApiRequest(url);
+        if (cancelled) return;
+        const lessons = res.data?.data?.lessons || [];
+        setProviderLessons(lessons.map(l => ({ value: l.id, label: l.title || `Lesson #${l.id}` })));
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Error fetching provider lessons:', err);
+          setProviderLessons([]);
+        }
+      } finally {
+        if (!cancelled) setProviderLessonsLoading(false);
+      }
+    };
+
+    fetchProviderLessons();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionsHook.filters?.provider]);
+
   // Filter Handling
   const categoryOptions = useMemo(() => taxonomyOptions.qe_category || [], [taxonomyOptions]);
   const providerOptions = useMemo(() => taxonomyOptions.qe_provider || [], [taxonomyOptions]);
-  const topicOptions = allLessons; // Temas = Lessons
+  // When a provider is selected, topicOptions is limited to lessons that have
+  // questions for that provider. Otherwise show all lessons.
+  const topicOptions = providerLessons !== null ? providerLessons : allLessons;
   const difficultyOptions = [
     { value: 'all', label: 'Todas' },
     { value: 'easy', label: 'Fácil' },
@@ -227,8 +272,13 @@ const QuestionSelector = ({
                   color: questionsHook.filters?.lessons && questionsHook.filters.lessons !== null ? colors.accent : colors.text
                 }}
               >
-                <span className="truncate text-sm">{selectedTopicLabel}</span>
-                <ChevronDown size={14} className={`flex-shrink-0 transition-transform ${topicDropdownOpen ? 'rotate-180' : ''}`} />
+                <span className="truncate text-sm">
+                  {providerLessonsLoading ? 'Cargando temas...' : selectedTopicLabel}
+                </span>
+                {providerLessonsLoading
+                  ? <Loader2 size={14} className="flex-shrink-0 animate-spin opacity-50" />
+                  : <ChevronDown size={14} className={`flex-shrink-0 transition-transform ${topicDropdownOpen ? 'rotate-180' : ''}`} />
+                }
               </button>
               {topicDropdownOpen && (
                 <div
@@ -265,7 +315,10 @@ const QuestionSelector = ({
                     </button>
                     {filteredTopicOptions.length === 0 ? (
                       <div className="px-3 py-2 text-sm" style={{ color: colors.textMuted }}>
-                        Sin resultados
+                        {providerLessons !== null && providerLessons.length === 0
+                          ? 'Sin temas para este proveedor'
+                          : 'Sin resultados'
+                        }
                       </div>
                     ) : (
                       filteredTopicOptions.map(opt => {
