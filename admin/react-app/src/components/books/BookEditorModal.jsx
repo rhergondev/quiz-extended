@@ -253,6 +253,7 @@ const BookEditorModal = ({
           url: uploadedMedia.url
         }
       }));
+      setError(null);
     } catch (err) {
       setUploadError(err.message || t('books.uploadFailed', 'Error al subir el archivo'));
     } finally {
@@ -361,6 +362,7 @@ const BookEditorModal = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.title.trim()) { setError('El título es obligatorio'); return; }
+    if (mode === 'create' && !formData.pdf.file_id) { setError('Es necesario adjuntar un PDF para crear el libro.'); return; }
     
     setSaving(true);
     setError(null);
@@ -491,7 +493,10 @@ const BookEditorModal = ({
                   <div className="p-4 rounded-xl" style={{ backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : '#f8f9fa' }}>
                      <label className="block text-sm font-medium mb-3" style={{ color: modalColors.text }}>
                         {t('books.fullPdf', 'Libro Completo (PDF)')}
-                        <span className="text-xs font-normal ml-2 opacity-70">{t('common.optional', 'Opcional')}</span>
+                        {mode === 'create'
+                          ? <span className="text-xs font-normal ml-2" style={{ color: modalColors.error }}>*</span>
+                          : <span className="text-xs font-normal ml-2 opacity-70">{t('common.optional', 'Opcional')}</span>
+                        }
                      </label>
                      
                      {formData.pdf.file_id ? (
@@ -505,9 +510,9 @@ const BookEditorModal = ({
                            <button type="button" onClick={removePdf} className="p-1.5 hover:bg-red-50 text-red-500 rounded transition-colors"><Trash2 size={16} /></button>
                         </div>
                      ) : (
-                        <div onClick={() => !uploading && fileInputRef.current?.click()} 
+                        <div onClick={() => !uploading && fileInputRef.current?.click()}
                             className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer transition-colors ${uploading ? 'opacity-50 cursor-wait' : 'hover:border-blue-500'}`}
-                            style={{ borderColor: modalColors.border }}
+                            style={{ borderColor: (error && mode === 'create') ? modalColors.error : modalColors.border }}
                         >
                             <input type="file" accept="application/pdf" ref={fileInputRef} onChange={handleFileChange} className="hidden" disabled={uploading} />
                             <UploadCloud size={24} style={{ color: modalColors.textMuted }} className="mb-2" />
