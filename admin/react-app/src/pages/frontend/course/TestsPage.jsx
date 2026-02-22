@@ -153,10 +153,9 @@ const TestsPage = () => {
   }, [userIsAdmin]);
 
   // Hook para manejar el progreso del estudiante
-  const { 
+  const {
     isCompleted,
-    markComplete, 
-    unmarkComplete, 
+    markComplete,
     loading: progressLoading,
     fetchCompletedContent
   } = useStudentProgress(courseId, false);
@@ -757,54 +756,9 @@ const TestsPage = () => {
     }
   };
 
-  // Toggle complete
-  const handleToggleComplete = async () => {
-    if (!selectedLesson || !selectedTest || !courseId) return;
-
-    const currentIndex = getCurrentStepIndex();
-    if (currentIndex === -1) return;
-
-    const { originalStepIndex } = allTestSteps[currentIndex];
-    
-    try {
-      const isStepCompleted = isCompleted(selectedLesson.id, 'step', selectedLesson.id, originalStepIndex);
-      
-      if (isStepCompleted) {
-        await unmarkComplete(selectedLesson.id, 'step', selectedLesson.id, originalStepIndex);
-      } else {
-        await markComplete(selectedLesson.id, 'step', selectedLesson.id, originalStepIndex);
-      }
-      
-      // Force reload of completed content and trigger a page reload to update sidebar
-      await fetchCompletedContent();
-      
-      // Trigger custom event to notify sidebar to reload
-      window.dispatchEvent(new CustomEvent('courseProgressUpdated', { detail: { courseId } }));
-      
-    } catch (error) {
-      console.error('Error toggling step completion:', error);
-    }
-  };
-
   // Check if a quiz step is completed
   const isQuizCompleted = (lesson, stepIndex) => {
     return isCompleted(lesson.id, 'step', lesson.id, stepIndex);
-  };
-
-  // Toggle completion for a step directly from the list
-  const handleToggleListItem = async (lesson, originalStepIndex) => {
-    try {
-      const completed = isCompleted(lesson.id, 'step', lesson.id, originalStepIndex);
-      if (completed) {
-        await unmarkComplete(lesson.id, 'step', lesson.id, originalStepIndex);
-      } else {
-        await markComplete(lesson.id, 'step', lesson.id, originalStepIndex);
-      }
-      await fetchCompletedContent();
-      window.dispatchEvent(new CustomEvent('courseProgressUpdated', { detail: { courseId } }));
-    } catch (error) {
-      console.error('Error toggling step completion:', error);
-    }
   };
 
   // Check if current step is completed
@@ -1480,17 +1434,13 @@ const TestsPage = () => {
                                       ) : stepHidden ? (
                                         <EyeOff size={18} style={{ color: '#ef4444' }} className="flex-shrink-0" />
                                       ) : (
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); handleToggleListItem(lesson, originalStepIndex); }}
-                                          className="flex-shrink-0 p-1 bg-transparent transition-transform hover:scale-110"
-                                          title={isCompleted ? 'Marcar como no completado' : 'Marcar como completado'}
-                                        >
+                                        <div className="flex-shrink-0 p-1">
                                           {isCompleted ? (
                                             <CheckCircle size={28} style={{ color: '#10b981' }} />
                                           ) : (
                                             <Circle size={28} style={{ color: pageColors.textMuted }} />
                                           )}
-                                        </button>
+                                        </div>
                                       )}
                                       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
                                         <span className="text-sm font-medium mb-1.5 truncate" style={{ color: pageColors.text }}>

@@ -118,6 +118,7 @@ const UnifiedTestModal = ({
   
   const [selectedQuestions, setSelectedQuestions] = useState([]); // Array of question objects
   const [questionSearch, setQuestionSearch] = useState('');
+  const [selectorKey, setSelectorKey] = useState(0); // Increment to force QuestionSelector remount/refetch
 
   // Filter assigned questions by search term, with match metadata per question
   const filteredSelectedQuestions = useMemo(() => {
@@ -372,8 +373,24 @@ const UnifiedTestModal = ({
     }
   };
   
+  const handleDeleteQuestion = (questionId) => {
+    // Unassign: removes from this test's question list only (no DB delete)
+    setSelectedQuestions(prev => prev.filter(q => q.id !== questionId));
+    closeQuestionModal();
+    toast.success('Pregunta desasignada del test');
+  };
+
+  const handleDeleteQuestionFromDB = async (questionId) => {
+    // Permanently delete from DB — only callable when question has no quiz associations
+    await questionsAdminHook.deleteQuestion(questionId);
+    setSelectedQuestions(prev => prev.filter(q => q.id !== questionId));
+    setSelectorKey(k => k + 1); // Force QuestionSelector to refetch the list
+    closeQuestionModal();
+    toast.success('Pregunta borrada del campus');
+  };
+
   // Custom add from selector
-  // Since QuestionSelector filters, it has the objects in its hook. 
+  // Since QuestionSelector filters, it has the objects in its hook.
   // It's hard to get them out without modifying QuestionSelector.
   // I will just open a "Drawer" mode.
   
@@ -706,6 +723,7 @@ const UnifiedTestModal = ({
               
               <div className="flex-1 overflow-hidden relative">
                  <QuestionSelectorWrapper
+                    key={selectorKey}
                     currentSelected={selectedQuestions}
                     onSelectionChange={setSelectedQuestions}
                     colors={colors}
@@ -748,6 +766,8 @@ const UnifiedTestModal = ({
           mode={questionModal.mode}
           question={questionModal.question}
           onSave={handleSaveQuestion}
+          onDelete={questionModal.mode === 'edit' ? handleDeleteQuestion : undefined}
+          onDeleteFromDB={questionModal.mode === 'edit' ? handleDeleteQuestionFromDB : undefined}
           isSimplified={true}
           /* parent information to help context */
           parentQuizId={null} // We are editing transiently, not really tied to a saved quiz yet

@@ -677,6 +677,11 @@ class QE_Quiz_Attempts_API extends QE_API_Base
 
                 $this->get_db()->query('COMMIT');
 
+                // Auto-mark the corresponding lesson step as complete in student_progress.
+                // This is the source of truth for progress tracking and avoids relying
+                // on a separate frontend call to mark-complete after quiz submission.
+                $this->mark_quiz_step_complete($user_id, $attempt->quiz_id, $attempt->lesson_id, $attempt->course_id);
+
                 // 🔥 FIX: Limpiar autosave después de completar exitosamente el quiz
                 // Esto evita el edge case donde el frontend falla al limpiar el autosave
                 $this->clear_quiz_autosave($user_id, $attempt->quiz_id);
@@ -1691,6 +1696,108 @@ class QE_Quiz_Attempts_API extends QE_API_Base
 
         $questions_count = count($question_ids);
         return max(1, ceil($questions_count / 2));
+    }
+
+    /**
+     * Automatically mark the lesson step corresponding to a submitted quiz as complete
+     * in student_progress. This ensures progress is recorded even if the frontend
+     * mark-complete API call fails after quiz submission.
+     *
+     * @param int $user_id   User ID
+     * @param int $quiz_id   Quiz ID that was just submitted
+     * @param int $lesson_id Lesson ID the quiz belongs to
+     * @param int $course_id Course ID
+     * @return void
+     */
+    private function mark_quiz_step_complete($user_id, $quiz_id, $lesson_id, $course_id)
+    {
+        try {
+            if (!$lesson_id || !$course_id) {
+                return;
+            }
+
+            // Find which step index this quiz occupies in the lesson
+            $steps = get_post_meta($lesson_id, '_lesson_steps', true);
+            if (empty($steps) || !is_array($steps)) {
+                return;
+            }
+
+            $steps = array_values($steps);
+            $step_index = null;
+
+            foreach ($steps as $index => $step) {
+                if (
+                    isset($step['type']) && $step['type'] === 'quiz' &&
+                    isset($step['data']['quiz_id']) && (int) $step['data']['quiz_id'] === (int) $quiz_id
+                ) {
+                    $step_index = $index;
+                    break;
+                }
+            }
+
+            if ($step_index === null) {
+                // Quiz step not found in lesson — may be a standalone quiz
+                return;
+            }
+
+            $unique_step_id = (intval($lesson_id) * 10000) + intval($step_index);
+
+            // Upsert the step completion
+            $existing = $this->db_get_var(
+                "SELECT progress_id FROM {$this->get_table('student_progress')}
+                 WHERE user_id = %d AND content_id = %d AND content_type = 'step'",
+                [$user_id, $unique_step_id]
+            );
+
+            if ($existing) {
+                $this->db_update(
+                    'student_progress',
+                    ['status' => 'completed', 'last_viewed' => $this->get_mysql_timestamp()],
+                    ['progress_id' => $existing],
+                    ['%s', '%s'],
+                    ['%d']
+                );
+            } else {
+                $this->db_insert('student_progress', [
+                    'user_id'      => $user_id,
+                    'course_id'    => $course_id,
+                    'content_id'   => $unique_step_id,
+                    'content_type' => 'step',
+                    'status'       => 'completed',
+                    'last_viewed'  => $this->get_mysql_timestamp()
+                ], ['%d', '%d', '%d', '%s', '%s', '%s']);
+            }
+
+            // Refresh the cached progress percentage for the course
+            $lesson_ids = get_post_meta($course_id, '_lesson_ids', true);
+            if (!empty($lesson_ids) && is_array($lesson_ids)) {
+                $total_steps = 0;
+                foreach ($lesson_ids as $lid) {
+                    $s = get_post_meta($lid, '_lesson_steps', true);
+                    if (is_array($s)) {
+                        $total_steps += count($s);
+                    }
+                }
+
+                if ($total_steps > 0) {
+                    $completed_steps = (int) $this->db_get_var(
+                        "SELECT COUNT(*) FROM {$this->get_table('student_progress')}
+                         WHERE user_id = %d AND course_id = %d AND content_type = 'step' AND status = 'completed'",
+                        [$user_id, $course_id]
+                    );
+                    $percentage = round(($completed_steps / $total_steps) * 100, 2);
+                    update_user_meta($user_id, "_course_{$course_id}_progress", $percentage);
+                    update_user_meta($user_id, "_course_{$course_id}_last_activity", current_time('mysql'));
+                }
+            }
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in mark_quiz_step_complete', [
+                'message'   => $e->getMessage(),
+                'quiz_id'   => $quiz_id,
+                'lesson_id' => $lesson_id,
+            ]);
+        }
     }
 }
 

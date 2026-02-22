@@ -39,6 +39,7 @@ const CourseDashboardPage = () => {
     background: getColor('background', '#ffffff'),
     secondaryBg: getColor('secondaryBackground', '#f3f4f6'),
     cardBg: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+    primaryBackground: getColor('primaryBackground', '#1a202c'),
     border: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
   };
 
@@ -310,14 +311,14 @@ const CourseDashboardPage = () => {
                     onClick={() => setShowWithRisk(!showWithRisk)}
                     className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all duration-200 shadow-sm"
                     style={{
-                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : '#ffffff',
-                      color: isDarkMode ? '#ffffff' : (showWithRisk ? pageColors.accent : pageColors.primary),
+                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.5)' : '#ffffff',
+                      color: isDarkMode ? pageColors.secondaryBg : (showWithRisk ? pageColors.accent : pageColors.primary),
                     }}
                   >
                     {showWithRisk ? (
-                      <ToggleRight size={14} style={{ color: isDarkMode ? '#ffffff' : pageColors.accent }} />
+                      <ToggleRight size={14} style={{ color: isDarkMode ? pageColors.primaryBackground : pageColors.accent }} />
                     ) : (
-                      <ToggleLeft size={14} style={{ color: isDarkMode ? '#ffffff' : pageColors.primary }} />
+                      <ToggleLeft size={14} style={{ color: isDarkMode ? pageColors.primaryBackground : pageColors.primary }} />
                     )}
                     <span>{showWithRisk ? t('tests.withRisk') : t('tests.withoutRisk')}</span>
                   </button>

@@ -79,10 +79,9 @@ const VideosPage = () => {
   }, [userIsAdmin]);
 
   // Hook para manejar el progreso del estudiante
-  const { 
-    isCompleted, 
-    markComplete, 
-    unmarkComplete, 
+  const {
+    isCompleted,
+    markComplete,
     loading: progressLoading,
     fetchCompletedContent
   } = useStudentProgress(courseId, false);
@@ -520,51 +519,6 @@ const VideosPage = () => {
       const nextItem = allVideoSteps[currentIndex + 1];
       setSelectedVideo(nextItem.step);
       setSelectedLesson(nextItem.lesson);
-    }
-  };
-
-  // Toggle complete
-  const handleToggleComplete = async () => {
-    if (!selectedLesson || !selectedVideo || !courseId) return;
-
-    const currentIndex = getCurrentStepIndex();
-    if (currentIndex === -1) return;
-
-    const { originalStepIndex } = allVideoSteps[currentIndex];
-    
-    try {
-      const isStepCompleted = isCompleted(selectedLesson.id, 'step', selectedLesson.id, originalStepIndex);
-      
-      if (isStepCompleted) {
-        await unmarkComplete(selectedLesson.id, 'step', selectedLesson.id, originalStepIndex);
-      } else {
-        await markComplete(selectedLesson.id, 'step', selectedLesson.id, originalStepIndex);
-      }
-      
-      // Force reload of completed content and trigger update
-      await fetchCompletedContent();
-      
-      // Trigger custom event to notify sidebar to reload
-      window.dispatchEvent(new CustomEvent('courseProgressUpdated', { detail: { courseId } }));
-      
-    } catch (error) {
-      console.error('Error toggling step completion:', error);
-    }
-  };
-
-  // Toggle completion for a step directly from the list
-  const handleToggleListItem = async (lesson, originalStepIndex) => {
-    try {
-      const completed = isCompleted(lesson.id, 'step', lesson.id, originalStepIndex);
-      if (completed) {
-        await unmarkComplete(lesson.id, 'step', lesson.id, originalStepIndex);
-      } else {
-        await markComplete(lesson.id, 'step', lesson.id, originalStepIndex);
-      }
-      await fetchCompletedContent();
-      window.dispatchEvent(new CustomEvent('courseProgressUpdated', { detail: { courseId } }));
-    } catch (error) {
-      console.error('Error toggling step completion:', error);
     }
   };
 
@@ -1038,17 +992,13 @@ const VideosPage = () => {
                                   ) : isHidden ? (
                                     <EyeOff size={18} style={{ color: '#ef4444' }} className="flex-shrink-0" />
                                   ) : (
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); handleToggleListItem(lesson, originalStepIndex); }}
-                                      className="flex-shrink-0 p-1 bg-transparent transition-transform hover:scale-110"
-                                      title={stepCompleted ? 'Marcar como no completado' : 'Marcar como completado'}
-                                    >
+                                    <div className="flex-shrink-0 p-1">
                                       {stepCompleted ? (
                                         <CheckCircle size={28} style={{ color: '#10b981' }} />
                                       ) : (
                                         <Circle size={28} style={{ color: pageColors.textMuted }} />
                                       )}
-                                    </button>
+                                    </div>
                                   )}
                                   <div className="flex flex-col flex-1 min-w-0">
                                     <span

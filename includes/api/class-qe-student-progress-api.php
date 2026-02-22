@@ -437,10 +437,10 @@ class QE_Student_Progress_API extends QE_API_Base
                 return $access_check;
             }
 
-            // Get completed content
+            // Get completed content from student_progress
             $completed = $this->db_get_results(
-                "SELECT content_id, content_type, status, last_viewed 
-                 FROM {$this->get_table('student_progress')} 
+                "SELECT content_id, content_type, status, last_viewed
+                 FROM {$this->get_table('student_progress')}
                  WHERE user_id = %d AND course_id = %d AND status = 'completed'
                  ORDER BY last_viewed DESC",
                 [$user_id, $course_id]
@@ -455,6 +455,11 @@ class QE_Student_Progress_API extends QE_API_Base
                     'completed_at' => $item->last_viewed
                 ];
             }, $completed ?: []);
+
+            // Supplement with quiz step completions derived from quiz_attempts.
+            // This covers cases where the frontend mark-complete call failed after
+            // quiz submission, as well as existing historical data.
+            $formatted = $this->merge_quiz_attempt_completions($user_id, $course_id, $formatted);
 
             return $this->success_response($formatted);
 
@@ -554,6 +559,117 @@ class QE_Student_Progress_API extends QE_API_Base
     // ============================================================
     // HELPER METHODS
     // ============================================================
+
+    /**
+     * Merge quiz-attempt-derived step completions into a student_progress result set.
+     *
+     * For each quiz-type step in the course's lessons, if the user has a completed
+     * attempt in qe_quiz_attempts but no matching entry in $existing_completions,
+     * a synthesized completion record is appended.  This makes quiz progress resilient
+     * to missed mark-complete API calls from the frontend.
+     *
+     * @param int   $user_id              Current user ID
+     * @param int   $course_id            Course ID
+     * @param array $existing_completions Already-formatted student_progress rows
+     * @return array Merged completion list
+     */
+    private function merge_quiz_attempt_completions($user_id, $course_id, $existing_completions)
+    {
+        try {
+            $lesson_ids = get_post_meta($course_id, '_lesson_ids', true);
+            if (empty($lesson_ids) || !is_array($lesson_ids)) {
+                return $existing_completions;
+            }
+
+            // Build a set of step content_ids already marked complete so we can skip duplicates
+            $already_complete = [];
+            foreach ($existing_completions as $item) {
+                if ($item['content_type'] === 'step') {
+                    $already_complete[$item['content_id']] = true;
+                }
+            }
+
+            // Fetch all quiz IDs this user has completed for this course in one query
+            $completed_attempts = $this->db_get_results(
+                "SELECT DISTINCT quiz_id
+                 FROM {$this->get_table('quiz_attempts')}
+                 WHERE user_id = %d AND course_id = %d AND status = 'completed'",
+                [$user_id, $course_id]
+            );
+
+            if (empty($completed_attempts)) {
+                return $existing_completions;
+            }
+
+            $completed_quiz_ids = [];
+            foreach ($completed_attempts as $row) {
+                $completed_quiz_ids[(int) $row->quiz_id] = true;
+            }
+
+            $synthesized = [];
+            $today = gmdate('Y-m-d');
+
+            foreach ($lesson_ids as $lesson_id) {
+                // Respect lesson visibility rules
+                $lesson_start = get_post_meta($lesson_id, '_start_date', true);
+                if ($lesson_start === '9999-12-31') {
+                    continue;
+                }
+                if (!empty($lesson_start) && $lesson_start > $today) {
+                    continue;
+                }
+
+                $steps = get_post_meta($lesson_id, '_lesson_steps', true);
+                if (!is_array($steps)) {
+                    continue;
+                }
+
+                $steps = array_values($steps);
+
+                foreach ($steps as $index => $step) {
+                    if (
+                        !isset($step['type']) || $step['type'] !== 'quiz' ||
+                        !isset($step['data']['quiz_id'])
+                    ) {
+                        continue;
+                    }
+
+                    $quiz_id = (int) $step['data']['quiz_id'];
+
+                    if (!isset($completed_quiz_ids[$quiz_id])) {
+                        continue;
+                    }
+
+                    $unique_step_id = (intval($lesson_id) * 10000) + intval($index);
+
+                    if (isset($already_complete[$unique_step_id])) {
+                        continue; // Already recorded in student_progress
+                    }
+
+                    $synthesized[] = [
+                        'content_id'   => $unique_step_id,
+                        'content_type' => 'step',
+                        'status'       => 'completed',
+                        'completed_at' => null
+                    ];
+
+                    // Mark as seen so we don't duplicate within the same pass
+                    $already_complete[$unique_step_id] = true;
+                }
+            }
+
+            return array_merge($existing_completions, $synthesized);
+
+        } catch (Exception $e) {
+            $this->log_error('Exception in merge_quiz_attempt_completions', [
+                'message'   => $e->getMessage(),
+                'user_id'   => $user_id,
+                'course_id' => $course_id,
+            ]);
+
+            return $existing_completions; // Fail gracefully
+        }
+    }
 
     /**
      * Auto-complete lesson if all its steps are completed

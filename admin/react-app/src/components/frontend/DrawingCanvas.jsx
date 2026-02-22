@@ -46,13 +46,23 @@ const DrawingCanvas = ({ isActive, isDrawingEnabled, tool, color, lineWidth, onC
       
       // Solo redimensionar si cambió el tamaño
       if (canvas.width !== fullWidth || canvas.height !== fullHeight) {
+        // Save current drawing before resize clears the bitmap
+        const imageData = canvas.width > 0 && canvas.height > 0
+          ? ctx.getImageData(0, 0, canvas.width, canvas.height)
+          : null;
+
         canvas.width = fullWidth;
         canvas.height = fullHeight;
-        
+
         // Restaurar configuración del contexto
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        
+
+        // Restore drawing after resize
+        if (imageData) {
+          ctx.putImageData(imageData, 0, 0);
+        }
+
         console.log('🎨 Canvas resized to:', { width: fullWidth, height: fullHeight });
       }
     };

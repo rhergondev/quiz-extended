@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 
 const StatBox = ({ label, value, textColor, bgCard }) => (
   <div 
-    className="text-center px-2 py-2 rounded border-2"
+    className="text-center px-2 py-1.5 rounded border-2"
     style={{
       backgroundColor: bgCard,
       borderColor: textColor
@@ -15,7 +15,7 @@ const StatBox = ({ label, value, textColor, bgCard }) => (
     <span className="block text-xs font-semibold leading-tight" style={{ color: textColor }}>
       {label}
     </span>
-    <span className="block text-[22px] font-bold mt-0.5" style={{ color: textColor }}>
+    <span className="block text-[22px] font-bold" style={{ color: textColor }}>
       {value}
     </span>
   </div>
@@ -221,7 +221,7 @@ const QuizSidebar = ({
           </h3>
           <div>
             <div
-              className="grid grid-cols-8 gap-1"
+              className="grid grid-cols-10 gap-1"
             >
             {Array.from({ length: effectiveTotal }).map((_, index) => {
               const qId = questionIds && questionIds[index] ? questionIds[index] : (questions && questions[index] ? questions[index].id : `unloaded-${index}`);
@@ -273,7 +273,7 @@ const QuizSidebar = ({
                     }
                   }}
                   disabled={!elementExists}
-                  className="w-full aspect-square rounded text-[15px] font-bold transition-all duration-150 flex items-center justify-center border-2 disabled:cursor-wait hover:enabled:scale-110 hover:enabled:shadow-sm cursor-pointer"
+                  className="w-full aspect-square rounded text-[11px] font-bold transition-all duration-150 flex items-center justify-center border-2 disabled:cursor-wait hover:enabled:scale-110 hover:enabled:shadow-sm cursor-pointer"
                   style={{
                     backgroundColor: bgColor,
                     borderColor: borderColor,
@@ -294,7 +294,7 @@ const QuizSidebar = ({
         <div className="px-2 py-2 flex-shrink-0">
           <button
             onClick={onSubmit}
-            className="w-full py-3.5 text-[15px] text-white font-bold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98] text-center"
+            className="w-full py-3 text-[15px] text-white font-bold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98] text-center"
             style={{ backgroundColor: colors.answeredBg }}
           >
             {t('quizzes.sidebar.finishExam')}

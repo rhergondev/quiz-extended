@@ -403,8 +403,8 @@ const CourseStatisticsPage = () => {
                               onClick={() => setRankingRiskView(!rankingRiskView)}
                               className="px-2 py-0.5 text-[10px] font-bold rounded-full transition-all duration-200 shadow-sm"
                               style={{
-                                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : (rankingRiskView ? pageColors.accent : '#ffffff'),
-                                color: isDarkMode ? '#ffffff' : (rankingRiskView ? '#ffffff' : pageColors.primary),
+                                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.5)' : (rankingRiskView ? pageColors.accent : '#ffffff'),
+                                color: isDarkMode ? pageColors.secondaryBg : (rankingRiskView ? '#ffffff' : pageColors.primary),
                               }}
                             >
                               {rankingRiskView ? 'Con riesgo' : 'Sin riesgo'}
@@ -413,15 +413,15 @@ const CourseStatisticsPage = () => {
                               onClick={() => setIsRankingOpen(true)}
                               className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold transition-all duration-200 shadow-sm"
                               style={{
-                                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : '#ffffff',
-                                color: isDarkMode ? '#ffffff' : pageColors.accent,
+                                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.5)' : '#ffffff',
+                                color: isDarkMode ? pageColors.secondaryBg : pageColors.accent,
                               }}
                               title={t('statistics.ranking')}
                             >
-                              <Trophy size={12} style={{ color: isDarkMode ? '#ffffff' : pageColors.accent }} />
+                              <Trophy size={12} style={{ color: isDarkMode ? pageColors.secondaryBg : pageColors.accent }} />
                               <span>#{rankingStatus?.position || '-'}</span>
                               {rankingStatus?.total_users && (
-                                <span style={{ color: isDarkMode ? '#ffffff' : pageColors.primary }}>/{rankingStatus.total_users}</span>
+                                <span style={{ color: isDarkMode ? pageColors.secondaryBg : pageColors.primary }}>/{rankingStatus.total_users}</span>
                               )}
                             </button>
                           </div>
@@ -624,12 +624,12 @@ const CourseStatisticsPage = () => {
                       onClick={() => setShowAllLessons(true)}
                       className="text-xs font-bold flex items-center gap-1 px-3 py-1 rounded-full transition-all duration-200 shadow-sm"
                       style={{
-                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : '#ffffff',
-                        color: isDarkMode ? '#ffffff' : pageColors.primary,
+                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.5)' : '#ffffff',
+                        color: isDarkMode ? pageColors.secondaryBg : pageColors.primary,
                       }}
                     >
                       {t('statistics.viewAll', 'Ver todos')}
-                      <ChevronRight size={12} style={{ color: isDarkMode ? '#ffffff' : pageColors.primary }} />
+                      <ChevronRight size={12} style={{ color: isDarkMode ? pageColors.secondaryBg : pageColors.primary }} />
                     </button>
                   </div>
                   
@@ -714,11 +714,11 @@ const CourseStatisticsPage = () => {
                       onClick={() => setShowRiskPanel(prev => !prev)}
                       className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-all duration-200 shadow-sm"
                       style={{
-                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : '#ffffff',
-                        color: isDarkMode ? '#ffffff' : (showRiskPanel ? pageColors.accent : pageColors.primary),
+                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.5)' : '#ffffff',
+                        color: isDarkMode ? pageColors.secondaryBg : (showRiskPanel ? pageColors.accent : pageColors.primary),
                       }}
                     >
-                      <Zap size={10} style={{ color: isDarkMode ? '#ffffff' : (showRiskPanel ? pageColors.accent : pageColors.primary) }} />
+                      <Zap size={10} style={{ color: isDarkMode ? pageColors.secondaryBg : (showRiskPanel ? pageColors.accent : pageColors.primary) }} />
                       {showRiskPanel ? 'Con riesgo' : 'Sin riesgo'}
                     </button>
                   </div>

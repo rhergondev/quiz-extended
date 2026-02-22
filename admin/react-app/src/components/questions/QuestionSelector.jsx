@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Search, Filter, ChevronDown, CheckCircle, Circle, Loader2, X, ExternalLink, Lock } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useQuestionsAdmin from '../../hooks/useQuestionsAdmin';
+import useQuizzes from '../../hooks/useQuizzes';
 import { useTaxonomyOptions } from '../../hooks/useTaxonomyOptions';
 import { makeApiRequest } from '../../api/services/baseService';
 import { getApiConfig } from '../../api/config/apiConfig';
@@ -31,11 +32,13 @@ const QuestionSelector = ({
   }, [selectedIds]);
 
   // Hooks
-  const questionsHook = useQuestionsAdmin({ 
-    autoFetch: true, 
-    perPage: 20, 
-    debounceMs: 300 
+  const questionsHook = useQuestionsAdmin({
+    autoFetch: true,
+    perPage: 20,
+    debounceMs: 300
   });
+
+  const { quizzes: quizList = [] } = useQuizzes({ autoFetch: true });
   
   const { options: taxonomyOptions } = useTaxonomyOptions(['qe_category', 'qe_provider']);
   const [allLessons, setAllLessons] = useState([]);
@@ -477,8 +480,29 @@ const QuestionSelector = ({
                           className="text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none"
                           style={{ backgroundColor: '#dbeafe', color: '#1e40af' }}
                         >
-                          Sin proveedor: Uniforme Azul
+                          {(() => {
+                            const providerIds = question.qe_provider || [];
+                            const names = providerIds
+                              .map(id => providerOptions.find(p => p.value === id)?.label)
+                              .filter(Boolean);
+                            return names.length > 0
+                              ? `Proveedor: ${names.join(', ')}`
+                              : 'Sin proveedor';
+                          })()}
                         </span>
+                        {(question.meta?._quiz_ids || []).map(qId => {
+                          const quiz = quizList.find(q => q.id === qId);
+                          if (!quiz) return null;
+                          return (
+                            <span
+                              key={qId}
+                              className="text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none"
+                              style={{ backgroundColor: `${colors.primary}15`, color: colors.primary }}
+                            >
+                              {quiz.title?.rendered || quiz.title || `Quiz ${qId}`}
+                            </span>
+                          );
+                        })}
                         {question.difficulty && (
                           <span className={`px-1.5 py-0.5 rounded text-[10px] ${
                             question.difficulty === 'hard' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
@@ -563,14 +587,59 @@ const QuestionSelector = ({
                           {tag}
                         </span>
                       ))}
+                      {(question.meta?._quiz_ids || []).map(qId => {
+                        const quiz = quizList.find(q => q.id === qId);
+                        if (!quiz) return null;
+                        return (
+                          <span
+                            key={qId}
+                            className="text-[9px] font-medium px-1.5 py-0.5 rounded-full leading-none"
+                            style={{ backgroundColor: `${colors.primary}15`, color: colors.primary }}
+                          >
+                            {quiz.title?.rendered || quiz.title || `Quiz ${qId}`}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
+                  {onEditQuestion ? (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onEditQuestion(question); }}
+                      className="flex-shrink-0 flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors mt-0.5"
+                      style={{
+                        border: `1.5px solid ${colors.accent}`,
+                        color: colors.accent,
+                        backgroundColor: `${colors.accent}10`,
+                      }}
+                    >
+                      <ExternalLink size={11} />
+                      Editar
+                    </button>
+                  ) : (
+                    <a
+                      href={getWpEditUrl(question.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-shrink-0 flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors mt-0.5"
+                      style={{
+                        border: `1.5px solid ${colors.accent}`,
+                        color: colors.accent,
+                        backgroundColor: `${colors.accent}10`,
+                        textDecoration: 'none'
+                      }}
+                    >
+                      <ExternalLink size={11} />
+                      Editar
+                    </a>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
-        
+
         {/* Load More */}
         {questionsHook.hasMore && (
           <div className="p-4 text-center">

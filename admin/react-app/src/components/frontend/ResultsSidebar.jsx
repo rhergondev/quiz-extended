@@ -120,7 +120,7 @@ const ResultsSidebar = ({ result, questions }) => {
             {t('quizzes.resultsSidebar.questionsMap')}
           </h4>
           <div
-            className="grid grid-cols-8 gap-1 rounded"
+            className="grid grid-cols-10 gap-1 rounded"
             style={{ backgroundColor: bgSubtle }}
           >
             {orderedResults && orderedResults.map((res, index) => {

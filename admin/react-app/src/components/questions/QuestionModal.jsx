@@ -1,6 +1,6 @@
 // admin/react-app/src/components/modals/QuestionModal.jsx
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { X, Plus, Trash2, Save, Eye, AlertCircle, ChevronDown } from 'lucide-react';
+import { X, Plus, Trash2, Save, Eye, AlertCircle, ChevronDown, Database } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import '../../styles/quill-explanation.css';
@@ -51,6 +51,8 @@ const QuestionModal = ({
   availableLessons = [],
   availableCourses = [],
   isLoading = false,
+  onDelete = null, // Optional: called with question id to unassign from test
+  onDeleteFromDB = null, // Optional: called with question id to permanently delete from DB (only shown when question has no quiz associations)
   parentQuizId = null, // ID del quiz desde el que se crea/edita (para ocultar QuizSelector y asociar automáticamente)
   isSimplified = false // Oculta campos innecesarios (Categoría, Proveedor, Curso, Lección) cuando estamos en contexto de Test
 }) => {
@@ -90,6 +92,10 @@ const QuestionModal = ({
   });
 
   const [errors, setErrors] = useState({});
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeletingFromDB, setIsDeletingFromDB] = useState(false);
+  const [showDeleteFromDBConfirm, setShowDeleteFromDBConfirm] = useState(false);
   
   // State para Providers
   const [providers, setProviders] = useState([]);
@@ -354,6 +360,30 @@ const QuestionModal = ({
           isCorrect: i === index
         }))
       }));
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    setIsDeleting(true);
+    try {
+      await onDelete(question?.id);
+    } catch (err) {
+      setErrors(prev => ({ ...prev, submit: 'Error al eliminar la pregunta.' }));
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const handleDeleteFromDB = async () => {
+    if (!onDeleteFromDB) return;
+    setIsDeletingFromDB(true);
+    try {
+      await onDeleteFromDB(question?.id);
+    } catch (err) {
+      setErrors(prev => ({ ...prev, submit: 'Error al borrar la pregunta del campus.' }));
+      setIsDeletingFromDB(false);
+      setShowDeleteFromDBConfirm(false);
     }
   };
 
@@ -994,13 +1024,130 @@ const QuestionModal = ({
 
         {/* Footer */}
         {!isReadOnly && (
-          <div 
-            className="flex items-center justify-end gap-3 p-4"
-            style={{ 
+          <div
+            className="flex items-center justify-between gap-3 p-4"
+            style={{
               borderTop: `1px solid ${pageColors.inputBorder}`,
               backgroundColor: pageColors.cardBg
             }}
           >
+            {/* Left: Delete buttons (edit mode only) */}
+            <div className="flex items-center gap-2">
+              {(() => {
+                const hasQuizAssociations = (question?.meta?._quiz_ids?.length ?? 0) > 0;
+                // If a confirm flow is active, show only that flow
+                if (showDeleteConfirm) {
+                  return (
+                    <>
+                      <span style={{ fontSize: '13px', color: '#ef4444', fontWeight: '500' }}>¿Confirmar?</span>
+                      <button
+                        type="button"
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                        style={{
+                          padding: '6px 12px', borderRadius: '6px', border: 'none',
+                          backgroundColor: '#ef4444', color: '#ffffff',
+                          fontSize: '13px', fontWeight: '500',
+                          cursor: isDeleting ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        {isDeleting ? 'Eliminando...' : 'Sí, eliminar'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(false)}
+                        disabled={isDeleting}
+                        style={{
+                          padding: '6px 12px', borderRadius: '6px',
+                          border: `1px solid ${pageColors.inputBorder}`,
+                          backgroundColor: pageColors.inputBg, color: pageColors.text,
+                          fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  );
+                }
+                if (showDeleteFromDBConfirm) {
+                  return (
+                    <>
+                      <span style={{ fontSize: '13px', color: '#b45309', fontWeight: '500' }}>¿Borrar del campus?</span>
+                      <button
+                        type="button"
+                        onClick={handleDeleteFromDB}
+                        disabled={isDeletingFromDB}
+                        style={{
+                          padding: '6px 12px', borderRadius: '6px', border: 'none',
+                          backgroundColor: '#b45309', color: '#ffffff',
+                          fontSize: '13px', fontWeight: '500',
+                          cursor: isDeletingFromDB ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        {isDeletingFromDB ? 'Borrando...' : 'Sí, borrar'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteFromDBConfirm(false)}
+                        disabled={isDeletingFromDB}
+                        style={{
+                          padding: '6px 12px', borderRadius: '6px',
+                          border: `1px solid ${pageColors.inputBorder}`,
+                          backgroundColor: pageColors.inputBg, color: pageColors.text,
+                          fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  );
+                }
+                // Default: show available action buttons
+                return (
+                  <>
+                    {mode === 'edit' && onDelete && (
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        disabled={isDeleting || isLoading}
+                        style={{
+                          padding: '6px 12px', borderRadius: '6px',
+                          border: '1px solid #ef4444', backgroundColor: 'transparent',
+                          color: '#ef4444', fontSize: '13px', fontWeight: '500',
+                          cursor: isDeleting || isLoading ? 'not-allowed' : 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '4px',
+                          opacity: isDeleting || isLoading ? 0.5 : 1,
+                        }}
+                      >
+                        <Trash2 size={13} />
+                        Eliminar
+                      </button>
+                    )}
+                    {mode === 'edit' && onDeleteFromDB && !hasQuizAssociations && (
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteFromDBConfirm(true)}
+                        disabled={isDeletingFromDB || isLoading}
+                        style={{
+                          padding: '6px 12px', borderRadius: '6px',
+                          border: '1px solid #b45309', backgroundColor: 'transparent',
+                          color: '#b45309', fontSize: '13px', fontWeight: '500',
+                          cursor: isDeletingFromDB || isLoading ? 'not-allowed' : 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '4px',
+                          opacity: isDeletingFromDB || isLoading ? 0.5 : 1,
+                        }}
+                      >
+                        <Database size={13} />
+                        Borrar de campus
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Right: errors + cancel + save */}
+            <div className="flex items-center gap-3">
             {errors.submit && <p style={{ color: '#dc2626', fontSize: '13px' }}>{errors.submit}</p>}
             <button 
               type="button"
@@ -1050,6 +1197,7 @@ const QuestionModal = ({
             >
               {isLoading ? 'Guardando...' : (mode === 'create' ? 'Crear Pregunta' : 'Guardar Cambios')}
             </button>
+            </div>
           </div>
         )}
       </div>
