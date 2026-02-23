@@ -155,7 +155,7 @@ const QuestionModal = ({
   // Pre-select "uniforme-azul" provider when creating a new question
   useEffect(() => {
     if (mode !== 'create' || !isOpen || providers.length === 0) return;
-    const uniformeAzul = providers.find(p => p.label.toLowerCase() === 'uniforme-azul');
+    const uniformeAzul = providers.find(p => p.slug === 'uniforme-azul');
     if (uniformeAzul) {
       setFormData(prev => prev.provider ? prev : { ...prev, provider: uniformeAzul.value });
     }
@@ -167,7 +167,8 @@ const QuestionModal = ({
       const terms = await getTaxonomyTerms('qe_provider');
       const providerOptions = terms.map(term => ({
         value: term.id,
-        label: term.name
+        label: term.name,
+        slug: term.slug
       }));
       setProviders(providerOptions);
     } catch (error) {

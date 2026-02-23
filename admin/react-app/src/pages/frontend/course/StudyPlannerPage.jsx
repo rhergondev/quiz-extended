@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useLessons } from '../../../hooks/useLessons';
@@ -721,8 +721,9 @@ const StudyPlannerPage = () => {
   const { lessons, loading, error } = useLessons({ courseId, perPage: 100 });
   const navigate = useNavigate();
   
+  const { isMobileMenuOpen, setIsMobileMenuOpen } = useOutletContext();
   const [selectedLesson, setSelectedLesson] = useState(null);
-  
+
   // Calendar notes state (admin feature)
   const isAdmin = isUserAdmin();
   const [calendarNotes, setCalendarNotes] = useState([]);
@@ -938,7 +939,7 @@ const StudyPlannerPage = () => {
 
   return (
     <div className="flex h-full w-full">
-      <CourseSidebar />
+      <CourseSidebar isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <div 
         className="flex-1 flex flex-col overflow-auto"
         style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}

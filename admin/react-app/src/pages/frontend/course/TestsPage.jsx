@@ -734,7 +734,7 @@ const TestsPage = () => {
   const getCurrentStepIndex = () => {
     if (!selectedTest || !selectedLesson) return -1;
     return allTestSteps.findIndex(item =>
-      item.step?.id === selectedTest?.id && item.lesson.id === selectedLesson.id
+      item.step?.data?.quiz_id === selectedTest?.data?.quiz_id && item.lesson.id === selectedLesson.id
     );
   };
 

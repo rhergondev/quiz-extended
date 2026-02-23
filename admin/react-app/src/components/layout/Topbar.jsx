@@ -417,6 +417,19 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
           {/* Mobile/Tablet: Show essential icons when in course route (rest is in sidebar) */}
           {isInCourseRoute && (
             <div className="flex lg:hidden items-center gap-1">
+              {/* Dashboard */}
+              <NavLink
+                to={`/courses/${courseId}/dashboard`}
+                end
+                className="flex items-center justify-center p-2 rounded-lg transition-all duration-200 outline-none focus:outline-none"
+                style={({ isActive }) => ({
+                  backgroundColor: isActive ? `${topbarColors.accent}20` : 'transparent',
+                  color: isActive ? topbarColors.accent : topbarColors.text,
+                })}
+                title={t('courses.dashboard')}
+              >
+                <BookOpen className="w-5 h-5" />
+              </NavLink>
               {/* Notifications and messages with badges */}
               {courseMenuItems.filter(item => item.badge !== undefined).map((item) => (
                 <NavLink

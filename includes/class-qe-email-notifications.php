@@ -407,11 +407,13 @@ class QE_Email_Notifications
         }
 
         // Build frontend URL with hash route for React SPA
-        // Use the public LMS page URL instead of admin URL so unauthenticated users
-        // see the login form first, then get redirected to messages after login
         $lms_page_id = get_option('quiz_extended_lms_page_id', 0);
         $base_url = $lms_page_id > 0 ? get_permalink($lms_page_id) : home_url('/campus/');
         $message_url = trailingslashit($base_url) . '#/messages?messageId=' . intval($message_id);
+        // Wrap in wp_login_url so unauthenticated users are redirected to login first,
+        // with the full hash URL preserved as redirect_to. Logged-in users are sent
+        // directly to the message URL by WordPress without seeing the login form.
+        $message_url = wp_login_url($message_url);
 
         return '
                             <!-- CTA Button -->
