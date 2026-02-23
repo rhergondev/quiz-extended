@@ -648,8 +648,17 @@ class QE_Frontend
             return $redirect_to;
         }
 
-        // If user object is provided, make sure it's a valid user
-        if ($user && isset($user->ID)) {
+        // Normalise the user object:
+        // - login_redirect (WP)         passes: ($url, $requested_url, WP_User)  → $user is set
+        // - woocommerce_login_redirect  passes: ($url, WP_User)                  → $requested_redirect_to is the user, $user is null
+        $actual_user = null;
+        if ($user instanceof WP_User) {
+            $actual_user = $user;
+        } elseif ($requested_redirect_to instanceof WP_User) {
+            $actual_user = $requested_redirect_to;
+        }
+
+        if ($actual_user && $actual_user->ID > 0) {
             $lms_page_id  = $this->get_lms_page_id();
             $lms_page_url = $lms_page_id > 0 ? get_permalink($lms_page_id) : '';
 
