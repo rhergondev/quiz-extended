@@ -392,6 +392,44 @@ class QE_Email_Notifications
     }
 
     /**
+     * Get the course ID associated with a question, via the quiz it belongs to.
+     *
+     * @param int $question_id
+     * @return int Course ID, or 0 if not found
+     */
+    private function get_course_id_from_question($question_id)
+    {
+        global $wpdb;
+
+        // Find quizzes that have this question in their _quiz_question_ids meta
+        $quiz_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT post_id
+             FROM {$wpdb->postmeta}
+             WHERE meta_key = '_quiz_question_ids'
+             AND (meta_value LIKE %s OR meta_value LIKE %s OR meta_value LIKE %s)",
+            '%i:' . intval($question_id) . ';%',
+            '%"' . intval($question_id) . '"%',
+            '%:' . intval($question_id) . ';%'
+        ));
+
+        foreach ($quiz_ids as $quiz_id) {
+            // Try _course_ids (array) first
+            $course_ids = get_post_meta($quiz_id, '_course_ids', true);
+            if (!empty($course_ids) && is_array($course_ids)) {
+                return absint($course_ids[0]);
+            }
+
+            // Fallback to legacy _course_id (scalar)
+            $course_id = get_post_meta($quiz_id, '_course_id', true);
+            if ($course_id) {
+                return absint($course_id);
+            }
+        }
+
+        return 0;
+    }
+
+    /**
      * Build CTA button for email
      *
      * @param array $data
@@ -406,10 +444,24 @@ class QE_Email_Notifications
             return '';
         }
 
+        // Resolve course ID — prefer explicitly passed value, fall back to deriving from question
+        $course_id = !empty($data['course_id']) ? absint($data['course_id']) : 0;
+
+        if (!$course_id && !empty($data['question_id'])) {
+            $course_id = $this->get_course_id_from_question(intval($data['question_id']));
+        }
+
         // Build frontend URL with hash route for React SPA
         $lms_page_id = get_option('quiz_extended_lms_page_id', 0);
         $base_url = $lms_page_id > 0 ? get_permalink($lms_page_id) : home_url('/campus/');
-        $message_url = trailingslashit($base_url) . '#/messages?messageId=' . intval($message_id);
+
+        if ($course_id > 0) {
+            // Course-specific messages route (correct for per-course MessagesPage)
+            $message_url = trailingslashit($base_url) . '#/courses/' . $course_id . '/messages?messageId=' . intval($message_id);
+        } else {
+            // Fallback: global messages route (when course cannot be determined)
+            $message_url = trailingslashit($base_url) . '#/messages?messageId=' . intval($message_id);
+        }
 
         return '
                             <!-- CTA Button -->

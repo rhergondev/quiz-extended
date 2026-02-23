@@ -36,6 +36,18 @@ const LoginPage = () => {
     setError('');
     setLoading(true);
 
+    // Preserve the intended destination hash before navigating away.
+    // ProtectedRoute may have already stored it; only write if not yet set.
+    const currentHash = window.location.hash;
+    if (
+      !sessionStorage.getItem('qe_pending_hash') &&
+      currentHash &&
+      currentHash.length > 1 &&
+      currentHash !== '#/login'
+    ) {
+      sessionStorage.setItem('qe_pending_hash', currentHash);
+    }
+
     try {
       const response = await fetch(`${window.qe_data.home_url}/wp-login.php`, {
         method: 'POST',
@@ -54,8 +66,12 @@ const LoginPage = () => {
       });
 
       if (response.ok || response.redirected) {
-        // Login successful, reload the page to get new user data
-        window.location.reload();
+        // Navigate directly to the campus page with the intended hash so the
+        // browser always gets a fresh authenticated page (avoids stale cache).
+        const pendingHash = sessionStorage.getItem('qe_pending_hash');
+        sessionStorage.removeItem('qe_pending_hash');
+        const targetHash = (pendingHash && pendingHash !== '#/login') ? pendingHash : '#/';
+        window.location.href = window.location.origin + window.location.pathname + targetHash;
       } else {
         setError(t('login.invalidCredentials') || 'Usuario o contraseña incorrectos');
       }
