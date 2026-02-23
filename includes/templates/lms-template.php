@@ -16,8 +16,12 @@ if (!is_user_logged_in()) {
     $campus_logo = isset($settings['campus_logo']) ? $settings['campus_logo'] : '';
     $theme_color = isset($settings['theme']) ? $settings['theme'] : '#1a202c';
 
-    // Get redirect URL
-    $redirect_to = isset($_REQUEST['redirect_to']) ? $_REQUEST['redirect_to'] : home_url('/academia/');
+    // Get redirect URL — use the actual LMS page URL as fallback
+    $lms_page_id_for_redirect = get_option('quiz_extended_lms_page_id', 0);
+    $lms_page_url_fallback = ($lms_page_id_for_redirect > 0)
+        ? get_permalink($lms_page_id_for_redirect)
+        : home_url('/campus/');
+    $redirect_to = isset($_REQUEST['redirect_to']) ? $_REQUEST['redirect_to'] : $lms_page_url_fallback;
     ?>
 
     <!DOCTYPE html>
@@ -242,6 +246,16 @@ if (!is_user_logged_in()) {
                     echo '<div class="qe-error-message">Por favor, introduce tu usuario y contraseña</div>';
                 }
                 ?>
+
+                <script>
+                    // Save the intended destination hash so React can restore it after login
+                    (function () {
+                        var hash = window.location.hash;
+                        if (hash && hash.length > 1 && hash !== '#/') {
+                            sessionStorage.setItem('qe_pending_hash', hash);
+                        }
+                    })();
+                </script>
 
                 <form name="loginform" id="loginform"
                     action="<?php echo esc_url(site_url('wp-login.php', 'login_post')); ?>" method="post"

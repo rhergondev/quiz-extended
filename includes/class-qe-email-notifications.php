@@ -410,10 +410,6 @@ class QE_Email_Notifications
         $lms_page_id = get_option('quiz_extended_lms_page_id', 0);
         $base_url = $lms_page_id > 0 ? get_permalink($lms_page_id) : home_url('/campus/');
         $message_url = trailingslashit($base_url) . '#/messages?messageId=' . intval($message_id);
-        // Wrap in wp_login_url so unauthenticated users are redirected to login first,
-        // with the full hash URL preserved as redirect_to. Logged-in users are sent
-        // directly to the message URL by WordPress without seeing the login form.
-        $message_url = wp_login_url($message_url);
 
         return '
                             <!-- CTA Button -->
