@@ -21,6 +21,62 @@ import Quiz from '../../components/frontend/Quiz';
 import QuizResults from '../../components/frontend/QuizResults';
 import CoursePageTemplate from '../../components/course/CoursePageTemplate';
 
+// Single-select dropdown styled identically to MultiSelect
+const SingleSelect = ({ label, options, value, onChange, pageColors, isDarkMode }) => {
+  const { getColor } = useTheme();
+  const [isOpen, setIsOpen] = useState(false);
+
+  const selectedOption = options.find(o => o.value === value);
+
+  return (
+    <div className="relative">
+      <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
+        {label}
+      </label>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 text-left rounded-lg flex items-center justify-between transition-all text-sm"
+        style={{
+          border: `2px solid ${isOpen ? pageColors.accent : pageColors.inputBorder}`,
+          backgroundColor: pageColors.inputBg,
+          color: pageColors.text
+        }}
+      >
+        <span>{selectedOption?.label ?? ''}</span>
+        <ChevronDown size={14} className={`transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} style={{ color: pageColors.textMuted }} />
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
+          <div
+            className="absolute z-20 w-full mt-1 max-h-48 overflow-auto rounded-lg shadow-lg border-2"
+            style={{
+              backgroundColor: isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff',
+              borderColor: isDarkMode ? pageColors.accent : pageColors.inputBorder
+            }}
+          >
+            {options.map(option => (
+              <div
+                key={option.value}
+                onClick={() => { onChange(option.value); setIsOpen(false); }}
+                className="px-3 py-2 cursor-pointer flex items-center justify-between transition-colors"
+                style={{ backgroundColor: option.value === value ? (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : 'transparent' }}
+                onMouseEnter={(e) => { if (option.value !== value) e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'; }}
+                onMouseLeave={(e) => { if (option.value !== value) e.currentTarget.style.backgroundColor = 'transparent'; }}
+              >
+                <span className="text-sm" style={{ color: pageColors.text }}>{option.label}</span>
+                {option.value === value && <Check size={12} style={{ color: pageColors.accent }} />}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 // Simple MultiSelect Component with Select All
 const MultiSelect = ({ label, options, selected, onChange, placeholder = "Seleccionar...", pageColors, isDarkMode, selectAllLabel }) => {
   const { t } = useTranslation();
@@ -338,7 +394,7 @@ const QuizGeneratorPage = () => {
             <div className="mx-auto pt-8 pb-24" style={{ paddingLeft: '3rem', paddingRight: '3rem' }}>
               {isLoading ? (
                 <div 
-                  className="rounded-xl border-2 overflow-hidden"
+                  className="rounded-xl border-2"
                   style={{ 
                     backgroundColor: pageColors.cardBg,
                     borderColor: pageColors.containerBorder
@@ -357,7 +413,7 @@ const QuizGeneratorPage = () => {
                 </div>
               ) : (
                 <div 
-                  className="rounded-xl border-2 overflow-hidden"
+                  className="rounded-xl border-2"
                   style={{ 
                     backgroundColor: pageColors.cardBg,
                     borderColor: pageColors.containerBorder
@@ -399,30 +455,14 @@ const QuizGeneratorPage = () => {
                         className="rounded-lg p-3"
                         style={{ border: `1px solid ${pageColors.inputBorder}` }}
                       >
-                        <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
-                          {t('courses.difficulty.label')}
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={config.difficulty}
-                            onChange={(e) => handleConfigChange('difficulty', e.target.value)}
-                            className="w-full px-3 py-2 text-sm rounded-lg appearance-none transition-all"
-                            style={{ 
-                              border: `2px solid ${pageColors.inputBorder}`,
-                              backgroundColor: pageColors.inputBg,
-                              color: pageColors.text
-                            }}
-                          >
-                            {difficultyOptions.map(opt => (
-                              <option key={opt.value} value={opt.value} style={{ backgroundColor: pageColors.inputBg, color: pageColors.text }}>{opt.label}</option>
-                            ))}
-                          </select>
-                          <ChevronDown 
-                            className="absolute right-2.5 top-2.5 pointer-events-none" 
-                            size={14} 
-                            style={{ color: pageColors.textMuted }}
-                          />
-                        </div>
+                        <SingleSelect
+                          label={t('courses.difficulty.label')}
+                          options={difficultyOptions}
+                          value={config.difficulty}
+                          onChange={(value) => handleConfigChange('difficulty', value)}
+                          pageColors={pageColors}
+                          isDarkMode={isDarkMode}
+                        />
                       </div>
 
                       {/* Filters - 2x2 Checkboxes */}
@@ -446,18 +486,18 @@ const QuizGeneratorPage = () => {
                                 key={status.id}
                                 className="flex items-center gap-2 cursor-pointer py-1"
                               >
-                                <div 
-                                  className="w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0"
-                                  style={{ 
+                                <div
+                                  className="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0"
+                                  style={{
                                     backgroundColor: isSelected ? pageColors.accent : 'transparent',
                                     borderColor: isSelected ? pageColors.accent : pageColors.inputBorder
                                   }}
                                   onClick={() => toggleStatusFilter(status.id)}
                                 >
-                                  {isSelected && <Check size={10} className="text-white" />}
+                                  {isSelected && <Check size={12} className="text-white" />}
                                 </div>
-                                <span 
-                                  className="text-xs"
+                                <span
+                                  className="text-sm"
                                   style={{ color: pageColors.text }}
                                   onClick={() => toggleStatusFilter(status.id)}
                                 >
@@ -477,30 +517,14 @@ const QuizGeneratorPage = () => {
                         className="rounded-lg p-3"
                         style={{ border: `1px solid ${pageColors.inputBorder}` }}
                       >
-                        <label className="block text-xs font-medium mb-1.5" style={{ color: pageColors.text }}>
-                          {t('common.questions')}
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={config.numQuestions}
-                            onChange={(e) => handleConfigChange('numQuestions', parseInt(e.target.value))}
-                            className="w-full px-3 py-2 text-sm rounded-lg appearance-none transition-all"
-                            style={{ 
-                              border: `2px solid ${pageColors.inputBorder}`,
-                              backgroundColor: pageColors.inputBg,
-                              color: pageColors.text
-                            }}
-                          >
-                            {Array.from({ length: 20 }, (_, i) => (i + 1) * 5).map(num => (
-                              <option key={num} value={num} style={{ backgroundColor: pageColors.inputBg, color: pageColors.text }}>{num}</option>
-                            ))}
-                          </select>
-                          <ChevronDown 
-                            className="absolute right-2.5 top-2.5 pointer-events-none" 
-                            size={14} 
-                            style={{ color: pageColors.textMuted }}
-                          />
-                        </div>
+                        <SingleSelect
+                          label={t('common.questions')}
+                          options={Array.from({ length: 20 }, (_, i) => (i + 1) * 5).map(num => ({ value: num, label: String(num) }))}
+                          value={config.numQuestions}
+                          onChange={(value) => handleConfigChange('numQuestions', value)}
+                          pageColors={pageColors}
+                          isDarkMode={isDarkMode}
+                        />
                       </div>
                     </div>
 

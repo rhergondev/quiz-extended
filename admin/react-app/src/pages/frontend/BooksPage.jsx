@@ -11,14 +11,14 @@
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader, AlertTriangle, Inbox, Menu, X, BookOpen, FileText, Home, Sun, Moon, User, LogOut, Book, Plus } from 'lucide-react';
+import { Loader, AlertTriangle, Inbox, X, BookOpen, FileText, Home, Sun, Moon, User, LogOut, Book, Plus } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useUserBooks from '../../hooks/useUserBooks';
 import useBooks from '../../hooks/useBooks'; // Added for admin capabilities
 import BookCard from '../../components/frontend/BookCard';
 import BookEditorModal from '../../components/books/BookEditorModal'; // Replaces BookEditorSlidePanel
 import { isUserAdmin } from '../../utils/userUtils';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useOutletContext } from 'react-router-dom';
 
 /**
  * Page state component for loading/error/empty states
@@ -35,7 +35,7 @@ const BooksPage = () => {
   const { t } = useTranslation();
   const { getColor, isDarkMode, toggleDarkMode } = useTheme();
   const userIsAdmin = isUserAdmin();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isMobileMenuOpen: isMenuOpen, setIsMobileMenuOpen: setIsMenuOpen } = useOutletContext();
   
   const homeUrl = window.qe_data?.home_url || '';
   const logoutUrl = window.qe_data?.logout_url;
@@ -207,19 +207,6 @@ const BooksPage = () => {
       className="h-full w-full overflow-y-auto p-6" 
       style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}
     >
-      {/* Hamburger floating button - mobile only */}
-      <button
-        onClick={() => setIsMenuOpen(true)}
-        className="md:hidden fixed top-6 right-6 z-40 p-4 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
-        style={{
-          backgroundColor: getColor('primary', '#3b82f6'),
-          color: '#ffffff'
-        }}
-        aria-label={t('sidebar.openMenu')}
-      >
-        <Menu className="w-6 h-6" />
-      </button>
-
       {/* Menu overlay */}
       {isMenuOpen && (
         <>

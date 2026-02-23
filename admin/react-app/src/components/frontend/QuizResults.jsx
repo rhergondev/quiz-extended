@@ -89,7 +89,7 @@ const QuizResults = ({
         <Menu className="w-6 h-6" />
       </button>
 
-      <div className={`flex-1 overflow-y-auto ${noPadding ? '' : 'p-4'}`}>
+      <div className={`flex-1 overflow-y-auto overflow-x-hidden ${noPadding ? '' : 'p-4'}`}>
         <div className="w-full max-w-screen-2xl mx-auto flex flex-col lg:flex-row-reverse gap-6">
           {/* Sidebar de resultados */}
           <aside className={`

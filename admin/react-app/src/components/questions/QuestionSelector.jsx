@@ -129,12 +129,13 @@ const QuestionSelector = ({
     fetchAllLessons();
   }, []);
 
-  // When provider changes, fetch lessons that have questions for that provider.
+  // When provider or category changes, fetch lessons that have questions for that combination.
   // Also resets the lesson filter so the user picks from the updated Temas list.
   useEffect(() => {
     const provider = questionsHook.filters?.provider;
+    const category = questionsHook.filters?.category;
 
-    // Always clear the lesson selection when provider changes
+    // Always clear the lesson selection when provider or category changes
     questionsHook.updateFilter('lessons', null);
 
     if (!provider || provider === 'all') {
@@ -148,7 +149,10 @@ const QuestionSelector = ({
       try {
         setProviderLessonsLoading(true);
         const config = getApiConfig();
-        const url = `${config.apiUrl}/quiz-extended/v1/debug/provider-lessons?provider=${provider}`;
+        let url = `${config.apiUrl}/quiz-extended/v1/debug/provider-lessons?provider=${provider}`;
+        if (category && category !== 'all') {
+          url += `&category=${category}`;
+        }
         const res = await makeApiRequest(url);
         if (cancelled) return;
         const lessons = res.data?.data?.lessons || [];
@@ -166,7 +170,7 @@ const QuestionSelector = ({
     fetchProviderLessons();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questionsHook.filters?.provider]);
+  }, [questionsHook.filters?.provider, questionsHook.filters?.category]);
 
   // Filter Handling
   const categoryOptions = useMemo(() => taxonomyOptions.qe_category || [], [taxonomyOptions]);

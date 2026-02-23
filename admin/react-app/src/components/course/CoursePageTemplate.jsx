@@ -23,7 +23,7 @@ const CoursePageTemplate = ({ courseId, courseName, sectionName, children }) => 
       
       <div className="flex-1 flex flex-col h-full w-full overflow-hidden min-h-0">
         {/* Page Content */}
-        <main className="flex-1 w-full h-full overflow-hidden min-h-0">
+        <main className="flex-1 w-full h-full overflow-y-auto min-h-0">
           {children}
         </main>
       </div>

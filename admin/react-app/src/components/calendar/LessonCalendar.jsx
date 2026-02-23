@@ -81,9 +81,9 @@ const CustomWeekView = ({ date, events, pageColors, getColor, isDarkMode, t, onS
   };
 
   return (
-    <div 
-      className="grid grid-cols-7 gap-2 p-4 rounded-xl border-2"
-      style={{ 
+    <div
+      className="grid grid-cols-1 md:grid-cols-7 gap-2 p-4 rounded-xl border-2"
+      style={{
         backgroundColor: pageColors.bgCard,
         borderColor: getColor('borderColor', '#e5e7eb')
       }}
@@ -118,8 +118,8 @@ const CustomWeekView = ({ date, events, pageColors, getColor, isDarkMode, t, onS
             </div>
             
             {/* Events */}
-            <div 
-              className="flex-1 p-2 space-y-1 min-h-[120px]"
+            <div
+              className="flex-1 p-2 space-y-1 min-h-[60px] md:min-h-[120px]"
               style={{ backgroundColor: pageColors.bgCard }}
             >
               {dayEvents.length === 0 ? (

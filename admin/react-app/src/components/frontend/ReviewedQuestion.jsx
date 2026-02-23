@@ -244,11 +244,11 @@ const ReviewedQuestion = ({
                 </div>
               )}
               {questionState === 'unanswered' && (
-                <div 
-                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold"
                   style={{
                     backgroundColor: GRAY_COLOR + '15',
-                    color: GRAY_COLOR
+                    color: isDarkMode ? '#ffffff' : getColor('primary', '#1a202c')
                   }}
                 >
                   <Circle size={12} strokeWidth={2.5} />
@@ -434,7 +434,7 @@ const ReviewedQuestion = ({
         {/* Estadísticas de la pregunta (one-liner) */}
         {total_answers > 0 && (
           <div 
-            className="px-4 py-2.5 text-xs border-t"
+            className="px-4 py-2.5 text-xs font-bold border-t"
             style={{ 
               borderColor: borderSubtle,
               color: textMuted 

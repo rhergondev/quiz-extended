@@ -15,7 +15,15 @@ const SelfPacedQuestion = ({
   onAnswered
 }) => {
   const { t } = useTranslation();
-  const { getColor } = useTheme();
+  const { getColor, isDarkMode } = useTheme();
+
+  const colors = {
+    text:       isDarkMode ? getColor('textPrimary', '#f9fafb')       : getColor('textPrimary', '#1f2937'),
+    textMuted:  isDarkMode ? getColor('textSecondary', '#9ca3af')     : getColor('textSecondary', '#6b7280'),
+    bg:         isDarkMode ? getColor('secondaryBackground', '#1f2937') : getColor('background', '#ffffff'),
+    border:     isDarkMode ? '#ffffff'                                 : getColor('borderColor', '#e5e7eb'),
+    primary:    getColor('primary', '#3b82f6'),
+  };
   
   const question = questions[currentIndex];
   
@@ -148,8 +156,8 @@ const SelfPacedQuestion = ({
       // Grey out other options
       return {
         ...baseStyle,
-        borderColor: getColor('borderColor', '#e5e7eb'),
-        backgroundColor: getColor('background', '#ffffff'),
+        borderColor: colors.border,
+        backgroundColor: colors.bg,
         opacity: 0.5
       };
     }
@@ -158,30 +166,30 @@ const SelfPacedQuestion = ({
     if (selectedAnswer === option.id) {
       return {
         ...baseStyle,
-        borderColor: getColor('primary', '#3b82f6'),
-        backgroundColor: `${getColor('primary', '#3b82f6')}10`,
+        borderColor: colors.primary,
+        backgroundColor: `${colors.primary}10`,
       };
     }
 
     return {
       ...baseStyle,
-      borderColor: getColor('borderColor', '#e5e7eb'),
-      backgroundColor: getColor('background', '#ffffff'),
+      borderColor: colors.border,
+      backgroundColor: colors.bg,
     };
   };
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       {/* Question Header */}
-      <div 
+      <div
         className="flex items-center justify-between px-6 py-4 mb-6 rounded-lg border"
-        style={{ 
-          backgroundColor: getColor('background', '#ffffff'),
-          borderColor: getColor('borderColor', '#e5e7eb')
+        style={{
+          backgroundColor: colors.bg,
+          borderColor: colors.border
         }}
       >
         <div className="flex items-center gap-4">
-          <span className="text-sm font-medium" style={{ color: getColor('textSecondary', '#6b7280') }}>
+          <span className="text-sm font-medium" style={{ color: colors.text }}>
             {currentIndex + 1} / {questions.length}
           </span>
           <div 
@@ -214,24 +222,24 @@ const SelfPacedQuestion = ({
         {/* Question Text */}
         <div>
           <div className="flex items-start gap-3 mb-4">
-            <div 
+            <div
               className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: `${getColor('primary', '#3b82f6')}20` }}
+              style={{ backgroundColor: `${colors.primary}20` }}
             >
-              <BookOpen size={16} style={{ color: getColor('primary', '#3b82f6') }} />
+              <BookOpen size={16} style={{ color: isDarkMode ? '#ffffff' : colors.primary }} />
             </div>
-            <h3 
+            <h3
               className="text-lg font-semibold flex-1"
-              style={{ color: getColor('textPrimary', '#1f2937') }}
+              style={{ color: colors.text }}
             >
               {question.title?.rendered || question.title}
             </h3>
           </div>
           {question.content?.rendered && (
-            <div 
+            <div
               className="prose max-w-none ml-11"
               dangerouslySetInnerHTML={{ __html: question.content.rendered }}
-              style={{ color: getColor('textSecondary', '#6b7280') }}
+              style={{ color: colors.textMuted }}
             />
           )}
         </div>
@@ -249,23 +257,23 @@ const SelfPacedQuestion = ({
               <div 
                 className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-semibold"
                 style={{ 
-                  backgroundColor: showResult && option.id === correctAnswerId 
-                    ? '#10b981' 
-                    : showResult && option.id === selectedAnswer 
+                  backgroundColor: showResult && option.id === correctAnswerId
+                    ? '#10b981'
+                    : showResult && option.id === selectedAnswer
                     ? '#ef4444'
-                    : selectedAnswer === option.id 
-                    ? getColor('primary', '#3b82f6')
-                    : `${getColor('textSecondary', '#6b7280')}20`,
+                    : selectedAnswer === option.id
+                    ? colors.primary
+                    : `${colors.textMuted}30`,
                   color: (showResult && (option.id === correctAnswerId || option.id === selectedAnswer)) || selectedAnswer === option.id
                     ? '#ffffff'
-                    : getColor('textPrimary', '#1f2937')
+                    : colors.text
                 }}
               >
                 {String.fromCharCode(65 + idx)}
               </div>
-              <span 
+              <span
                 className="flex-1 text-sm"
-                style={{ color: getColor('textPrimary', '#1f2937') }}
+                style={{ color: colors.text }}
               >
                 {option.text}
               </span>
@@ -298,7 +306,7 @@ const SelfPacedQuestion = ({
                 <h4 className="font-bold text-base mb-1" style={{ color: isCorrect ? '#10b981' : '#ef4444' }}>
                   {isCorrect ? t('tests.correctAnswer') : t('tests.incorrectAnswer')}
                 </h4>
-                <p className="text-sm" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                <p className="text-sm" style={{ color: colors.textMuted }}>
                   {isCorrect ? t('tests.wellDone') : t('tests.keepPracticing')}
                 </p>
               </div>
@@ -311,14 +319,14 @@ const SelfPacedQuestion = ({
               >
                 <div className="flex items-center gap-2 mb-2">
                   <Lightbulb size={16} style={{ color: getColor('primary', '#3b82f6') }} />
-                  <span className="text-xs font-semibold uppercase" style={{ color: getColor('textSecondary', '#6b7280') }}>
+                  <span className="text-xs font-semibold uppercase" style={{ color: colors.textMuted }}>
                     {t('tests.explanation')}
                   </span>
                 </div>
-                <div 
+                <div
                   className="prose prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ __html: explanation }}
-                  style={{ color: getColor('textPrimary', '#1f2937') }}
+                  style={{ color: colors.text }}
                 />
               </div>
             )}
@@ -332,10 +340,10 @@ const SelfPacedQuestion = ({
           onClick={handlePrevious}
           disabled={currentIndex === 0}
           className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-          style={{ 
-            backgroundColor: getColor('background', '#ffffff'),
-            color: getColor('primary', '#3b82f6'),
-            border: `2px solid ${getColor('primary', '#3b82f6')}`
+          style={{
+            backgroundColor: colors.bg,
+            color: isDarkMode ? '#ffffff' : colors.primary,
+            border: `2px solid ${isDarkMode ? '#ffffff' : colors.primary}`
           }}
         >
           <ChevronLeft size={20} />
@@ -346,10 +354,10 @@ const SelfPacedQuestion = ({
           <button
             onClick={handleSkip}
             className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all shadow-sm"
-            style={{ 
-              backgroundColor: getColor('background', '#ffffff'),
-              color: getColor('textSecondary', '#6b7280'),
-              border: `2px solid ${getColor('borderColor', '#e5e7eb')}`
+            style={{
+              backgroundColor: colors.bg,
+              color: isDarkMode ? '#ffffff' : colors.textMuted,
+              border: `2px solid ${colors.border}`
             }}
           >
             <SkipForward size={20} />

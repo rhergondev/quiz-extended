@@ -326,10 +326,11 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
               <span className="text-xs font-medium">{t('sidebar.studyPlanner')}</span>
             </NavLink>
 
-            <a
-              href={`${homeUrl}/mi-cuenta/downloads/`}
+            <NavLink
+              to="/books"
+              onClick={() => setIsMobileMenuOpen(false)}
               className="flex items-center gap-2 p-2 rounded-lg transition-all duration-200"
-              style={{ 
+              style={{
                 backgroundColor: 'transparent',
                 color: sidebarColors.text,
                 border: `1px solid ${sidebarColors.text}40`
@@ -345,7 +346,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
             >
               <FileText className="w-4 h-4" />
               <span className="text-xs font-medium">{t('sidebar.books')}</span>
-            </a>
+            </NavLink>
 
             <a
               href={homeUrl}

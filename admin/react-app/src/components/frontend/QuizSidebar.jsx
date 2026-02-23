@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
 
@@ -56,6 +56,7 @@ const QuizSidebar = ({
   const effectiveTotal = totalCount !== null ? totalCount : (questions ? questions.length : (questionIds ? questionIds.length : 0));
   const unansweredCount = Math.max(0, effectiveTotal - answeredCount);
   const impugnedCount = 0;
+  const numRows = Math.ceil(effectiveTotal / 10) || 1;
 
   // Dark mode aware colors
   const bgCard = isDarkMode ? getColor('secondaryBackground', '#1f2937') : '#ffffff';
@@ -76,6 +77,52 @@ const QuizSidebar = ({
     risked: getColor('accent', '#f59e0b'),
     impugned: '#9ca3af' // gray-400
   };
+
+  // Auto-scaling: refs to measure each fixed section
+  const sidebarCardRef = useRef(null);
+  const legendSectionRef = useRef(null);
+  const statsSectionRef = useRef(null);
+  const gridTitleRef = useRef(null);
+  const submitSectionRef = useRef(null);
+  const [btnSize, setBtnSize] = useState(28);
+
+  useEffect(() => {
+    const card = sidebarCardRef.current;
+    if (!card) return;
+
+    const compute = () => {
+      const legend = legendSectionRef.current;
+      const stats = statsSectionRef.current;
+      const gridTitle = gridTitleRef.current;
+      const submit = submitSectionRef.current;
+      if (!legend || !stats || !submit) return;
+
+      const viewportH = window.innerHeight;
+      const { top: cardTop } = card.getBoundingClientRect();
+      const availableH = Math.max(100, viewportH - cardTop - 8);
+
+      const legendH = legend.offsetHeight;
+      const statsH = stats.offsetHeight;
+      const titleH = gridTitle ? gridTitle.offsetHeight + 4 : 20;
+      const submitH = submit.offsetHeight;
+      const overhead = 16; // card p-2 vertical padding
+
+      const gridH = Math.max(0, availableH - legendH - statsH - titleH - submitH - overhead);
+      const gap = 4; // gap-1 = 4px
+      const rows = Math.ceil(effectiveTotal / 10) || 1;
+      const maxBtnH = (gridH - (rows - 1) * gap) / rows;
+      setBtnSize(Math.max(16, Math.min(28, Math.floor(maxBtnH))));
+    };
+
+    const ro = new ResizeObserver(compute);
+    ro.observe(card);
+    compute();
+    window.addEventListener('resize', compute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', compute);
+    };
+  }, [effectiveTotal]);
 
   const scrollToQuestion = async (absoluteIndex) => {
     console.log('🎯 scrollToQuestion called with absoluteIndex:', absoluteIndex);
@@ -150,15 +197,17 @@ const QuizSidebar = ({
   return (
     <div className="w-full">
       <div
+        ref={sidebarCardRef}
         className="rounded-lg shadow-sm border-2 transition-all duration-200 p-2"
-        style={{ 
+        style={{
           backgroundColor: getColor('secondaryBackground', '#ffffff'),
           borderColor: isDarkMode ? getColor('accent', '#f59e0b') : getColor('borderColor', '#e5e7eb')
         }}
       >
         
         {/* Leyenda de estados */}
-        <div 
+        <div
+          ref={legendSectionRef}
           className="px-1 py-1.5 border-b"
           style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
         >
@@ -185,7 +234,7 @@ const QuizSidebar = ({
         </div>
 
         {/* Estadísticas */}
-        <div className="px-1 py-2 border-b" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
+        <div ref={statsSectionRef} className="px-1 py-2 border-b" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
           <div className="grid grid-cols-2 gap-2">
             <StatBox 
               label={t('quizzes.sidebar.answered')} 
@@ -216,7 +265,7 @@ const QuizSidebar = ({
 
         {/* Mapa de preguntas */}
         <div className="px-1 py-1.5 border-b" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
-          <h3 className="text-[11px] font-semibold mb-1" style={{ color: textPrimary }}>
+          <h3 ref={gridTitleRef} className="text-[11px] font-semibold mb-1" style={{ color: textPrimary }}>
             {t('quizzes.sidebar.questionsMap')}
           </h3>
           <div>
@@ -273,12 +322,15 @@ const QuizSidebar = ({
                     }
                   }}
                   disabled={!elementExists}
-                  className="w-full aspect-square rounded text-[11px] font-bold transition-all duration-150 flex items-center justify-center border-2 disabled:cursor-wait hover:enabled:scale-110 hover:enabled:shadow-sm cursor-pointer"
+                  className="w-full rounded font-bold transition-all duration-150 flex items-center justify-center border-2 disabled:cursor-wait hover:enabled:scale-110 hover:enabled:shadow-sm cursor-pointer"
                   style={{
                     backgroundColor: bgColor,
                     borderColor: borderColor,
                     color: textColor,
-                    opacity: opacity
+                    opacity: opacity,
+                    height: btnSize,
+                    fontSize: Math.max(8, Math.floor(btnSize * 0.42)),
+                    lineHeight: 1
                   }}
                   title={!isLoaded ? t('quizzes.sidebar.loadingQuestion') : `${t('quizzes.sidebar.question')} ${index + 1}`}
                 >
@@ -291,7 +343,7 @@ const QuizSidebar = ({
         </div>
 
         {/* Botón finalizar - siempre visible al final */}
-        <div className="px-2 py-2 flex-shrink-0">
+        <div ref={submitSectionRef} className="px-2 py-2 flex-shrink-0">
           <button
             onClick={onSubmit}
             className="w-full py-3 text-[15px] text-white font-bold rounded-lg shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-[0.98] text-center"

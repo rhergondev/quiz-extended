@@ -8,6 +8,7 @@ import LessonCalendar from '../../../components/calendar/LessonCalendar';
 import { Calendar, ChevronRight, Loader, Video, FileText, ClipboardList, X, Plus, Edit2, Trash2, StickyNote, Download, ExternalLink } from 'lucide-react';
 import { isUserAdmin } from '../../../utils/userUtils';
 import { getCalendarNotes, createCalendarNote, updateCalendarNote, deleteCalendarNote } from '../../../api/services/calendarNotesService';
+import { createNotification } from '../../../api/services/notificationsService';
 
 /**
  * LessonDetailModal - Modal to show lesson details when clicked
@@ -854,6 +855,14 @@ const StudyPlannerPage = () => {
         // Create new note
         const created = await createCalendarNote(courseId, noteData);
         setCalendarNotes(prev => [...prev, created]);
+        createNotification({
+          course_id: parseInt(courseId),
+          notification_type: 'study_plan_note',
+          title: t('studyPlanner.noteNotificationTitle', 'Nueva nota en el planificador'),
+          message: noteData.title,
+          related_object_id: created.id,
+          related_object_type: 'calendar_note',
+        }).catch(() => {}); // fire-and-forget, don't block the UI
       }
       setShowNoteModal(false);
       setEditingNote(null);
@@ -910,6 +919,14 @@ const StudyPlannerPage = () => {
         // Create new live class
         const created = await createCalendarNote(courseId, liveClassData);
         setCalendarNotes(prev => [...prev, created]);
+        createNotification({
+          course_id: parseInt(courseId),
+          notification_type: 'study_plan_live_class',
+          title: t('studyPlanner.liveClassNotificationTitle', 'Nueva clase en directo'),
+          message: liveClassData.title,
+          related_object_id: created.id,
+          related_object_type: 'calendar_note',
+        }).catch(() => {}); // fire-and-forget, don't block the UI
       }
       setShowLiveClassModal(false);
       setEditingNote(null);

@@ -62,6 +62,8 @@ const NotificationsPage = () => {
       'course_updated': Settings,
       'quiz_updated': ClipboardList,
       'question_updated': RefreshCw,
+      'study_plan_note': FileText,
+      'study_plan_live_class': Video,
     };
     return icons[type] || Bell;
   };
@@ -78,6 +80,8 @@ const NotificationsPage = () => {
       'course_updated': '#6366f1', // indigo
       'quiz_updated': '#8b5cf6',   // purple (same as new_quiz)
       'question_updated': '#f59e0b', // amber (same as lesson_updated)
+      'study_plan_note': '#8b5cf6',      // purple
+      'study_plan_live_class': '#ef4444', // red
     };
     return colors[type] || pageColors.primary;
   };
@@ -94,16 +98,19 @@ const NotificationsPage = () => {
       const response = await getCourseNotifications(courseId, { page, per_page: 20 });
       
       if (response.data?.success) {
-        const { notifications: newNotifications, pagination: pag, unread_count } = response.data.data;
-        
+        const { notifications: newNotifications, pagination: pag } = response.data.data;
+        const filtered = newNotifications.filter(n => n.type !== 'question_updated');
+        const filteredUnread = filtered.filter(n => !n.is_read).length;
+
         if (append) {
-          setNotifications(prev => [...prev, ...newNotifications]);
+          setNotifications(prev => [...prev, ...filtered]);
+          setUnreadCount(prev => prev + filteredUnread);
         } else {
-          setNotifications(newNotifications);
+          setNotifications(filtered);
+          setUnreadCount(filteredUnread);
         }
-        
+
         setPagination(pag);
-        setUnreadCount(unread_count);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);

@@ -403,7 +403,7 @@ const CourseStatisticsPage = () => {
                               onClick={() => setRankingRiskView(!rankingRiskView)}
                               className="px-2 py-0.5 text-[10px] font-bold rounded-full transition-all duration-200 shadow-sm"
                               style={{
-                                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.5)' : (rankingRiskView ? pageColors.accent : '#ffffff'),
+                                backgroundColor: isDarkMode ? '#ffffff' : (rankingRiskView ? pageColors.accent : '#ffffff'),
                                 color: isDarkMode ? pageColors.secondaryBg : (rankingRiskView ? '#ffffff' : pageColors.primary),
                               }}
                             >
@@ -413,7 +413,7 @@ const CourseStatisticsPage = () => {
                               onClick={() => setIsRankingOpen(true)}
                               className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold transition-all duration-200 shadow-sm"
                               style={{
-                                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.5)' : '#ffffff',
+                                backgroundColor: isDarkMode ? '#ffffff' : '#ffffff',
                                 color: isDarkMode ? pageColors.secondaryBg : pageColors.accent,
                               }}
                               title={t('statistics.ranking')}
@@ -624,7 +624,7 @@ const CourseStatisticsPage = () => {
                       onClick={() => setShowAllLessons(true)}
                       className="text-xs font-bold flex items-center gap-1 px-3 py-1 rounded-full transition-all duration-200 shadow-sm"
                       style={{
-                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.5)' : '#ffffff',
+                        backgroundColor: isDarkMode ? '#ffffff' : '#ffffff',
                         color: isDarkMode ? pageColors.secondaryBg : pageColors.primary,
                       }}
                     >
@@ -714,7 +714,7 @@ const CourseStatisticsPage = () => {
                       onClick={() => setShowRiskPanel(prev => !prev)}
                       className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-all duration-200 shadow-sm"
                       style={{
-                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.5)' : '#ffffff',
+                        backgroundColor: isDarkMode ? '#ffffff' : '#ffffff',
                         color: isDarkMode ? pageColors.secondaryBg : (showRiskPanel ? pageColors.accent : pageColors.primary),
                       }}
                     >

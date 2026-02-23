@@ -78,28 +78,39 @@ const PendingHashRestorer = () => {
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const isLoggedIn = window.qe_data?.user?.id > 0;
-  
+  const location = useLocation();
+
   if (!isLoggedIn) {
+    // Save the intended destination so PendingHashRestorer can restore it after login
+    const intended = '#' + location.pathname + (location.search || '');
+    if (intended !== '#/' && intended !== '#/login') {
+      sessionStorage.setItem('qe_pending_hash', intended);
+    }
     return <Navigate to="/login" replace />;
   }
-  
+
   return children;
 };
 
 // Admin Route Component - Only allows admins
 const AdminRoute = ({ children }) => {
   const isLoggedIn = window.qe_data?.user?.id > 0;
-  const isAdmin = window.qe_data?.user?.capabilities?.manage_options === true || 
+  const isAdmin = window.qe_data?.user?.capabilities?.manage_options === true ||
                   window.qe_data?.user?.is_admin === true;
-  
+  const location = useLocation();
+
   if (!isLoggedIn) {
+    const intended = '#' + location.pathname + (location.search || '');
+    if (intended !== '#/' && intended !== '#/login') {
+      sessionStorage.setItem('qe_pending_hash', intended);
+    }
     return <Navigate to="/login" replace />;
   }
-  
+
   if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
-  
+
   return children;
 };
 

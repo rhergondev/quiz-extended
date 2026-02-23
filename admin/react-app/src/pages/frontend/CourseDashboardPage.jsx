@@ -311,7 +311,7 @@ const CourseDashboardPage = () => {
                     onClick={() => setShowWithRisk(!showWithRisk)}
                     className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all duration-200 shadow-sm"
                     style={{
-                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.5)' : '#ffffff',
+                      backgroundColor: isDarkMode ? '#ffffff' : '#ffffff',
                       color: isDarkMode ? pageColors.secondaryBg : (showWithRisk ? pageColors.accent : pageColors.primary),
                     }}
                   >

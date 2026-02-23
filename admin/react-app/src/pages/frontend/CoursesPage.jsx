@@ -1,12 +1,12 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader, AlertTriangle, Inbox, Menu, X, BookOpen, FileText, Home, Sun, Moon, User, LogOut, Book, Plus, CheckCircle, XCircle } from 'lucide-react';
+import { Loader, AlertTriangle, Inbox, X, BookOpen, FileText, Home, Sun, Moon, User, LogOut, Book, Plus, CheckCircle, XCircle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useCourses from '../../hooks/useCourses';
 import CompactCourseCard from '../../components/frontend/CompactCourseCard';
 import CourseEditorModal from '../../components/courses/CourseEditorModal';
 import { isUserAdmin } from '../../utils/userUtils';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useOutletContext } from 'react-router-dom';
 import * as courseService from '../../api/services/courseService';
 
 const PageState = ({ icon: Icon, title, message, colors }) => (
@@ -21,7 +21,7 @@ const CoursesPage = () => {
   const { t } = useTranslation();
   const { getColor, isDarkMode, toggleDarkMode } = useTheme();
   const userIsAdmin = isUserAdmin();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isMobileMenuOpen: isMenuOpen, setIsMobileMenuOpen: setIsMenuOpen } = useOutletContext();
   const [isUpdatingOrder, setIsUpdatingOrder] = useState(false);
   const [duplicatingCourseId, setDuplicatingCourseId] = useState(null);
   const [duplicationToast, setDuplicationToast] = useState(null); // { type: 'success' | 'error', message: string }
@@ -340,19 +340,6 @@ const CoursesPage = () => {
       className="h-full w-full overflow-y-auto p-6" 
       style={{ backgroundColor: getColor('secondaryBackground', '#f3f4f6') }}
     >
-      {/* Botón hamburguesa flotante - solo móvil */}
-      <button
-        onClick={() => setIsMenuOpen(true)}
-        className="md:hidden fixed top-6 right-6 z-40 p-4 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
-        style={{
-          backgroundColor: getColor('primary', '#3b82f6'),
-          color: '#ffffff'
-        }}
-        aria-label="Abrir menú"
-      >
-        <Menu className="w-6 h-6" />
-      </button>
-
       {/* Overlay del menú */}
       {isMenuOpen && (
         <>

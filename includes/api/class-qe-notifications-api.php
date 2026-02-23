@@ -387,6 +387,23 @@ class QE_Notifications_API extends QE_API_Base
         ]);
     }
 
+    /**
+     * Check if the current user is an administrator
+     *
+     * @return bool|WP_Error
+     */
+    public function check_admin_permission()
+    {
+        if (!current_user_can('manage_options')) {
+            return new WP_Error(
+                'rest_forbidden',
+                __('Only administrators can create notifications.', 'quiz-extended'),
+                ['status' => 403]
+            );
+        }
+        return true;
+    }
+
     // ============================================================
     // STATIC HELPER METHODS (for hooks)
     // ============================================================

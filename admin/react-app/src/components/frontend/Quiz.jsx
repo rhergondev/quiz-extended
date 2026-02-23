@@ -61,7 +61,14 @@ const Quiz = ({
   const [isQuizSidebarOpen, setIsQuizSidebarOpen] = useState(false);
   const [clearCanvasCallback, setClearCanvasCallback] = useState(null);
   const [isTimerVisible, setIsTimerVisible] = useState(true);
-  
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+
   // Internal drawing states (fallback if not provided via props)
   const [internalDrawingMode, setInternalDrawingMode] = useState(false);
   const [internalDrawingEnabled, setInternalDrawingEnabled] = useState(false);
@@ -690,8 +697,8 @@ const Quiz = ({
         </div>
       )}
 
-      {/* Botón flotante para el subrayador */}
-      <button
+      {/* Botón flotante para el subrayador - solo desktop */}
+      {!isMobile && <button
         onClick={() => {
           const newState = !currentShowToolbar;
           handleSetShowToolbar(newState);
@@ -720,7 +727,7 @@ const Quiz = ({
           <path d="m22 2-7 7"/>
           <path d="M21 3 3 21"/>
         </svg>
-      </button>
+      </button>}
 
       {/* Botón flotante para abrir sidebar en móvil */}
       <button
@@ -739,9 +746,9 @@ const Quiz = ({
         <div className="w-full max-w-screen-2xl mx-auto flex flex-col lg:flex-row gap-8 justify-between px-4 sm:px-6 py-6">
           {/* Columna de Preguntas (con canvas de dibujo) */}
           <main ref={questionsContainerRef} className="flex-1 min-w-0 lg:pr-4 relative pb-24 lg:pb-8">
-            {/* Canvas de dibujo relativo al contenedor */}
-            {currentDrawingMode && (
-              <DrawingCanvas 
+            {/* Canvas de dibujo relativo al contenedor - solo desktop */}
+            {!isMobile && currentDrawingMode && (
+              <DrawingCanvas
                 isActive={currentDrawingMode}
                 isDrawingEnabled={currentDrawingEnabled}
                 tool={currentDrawingTool}
@@ -862,8 +869,8 @@ const Quiz = ({
         </div>
       </div>
 
-      {/* Drawing Toolbar */}
-      <DrawingToolbar
+      {/* Drawing Toolbar - solo desktop */}
+      {!isMobile && <DrawingToolbar
         isActive={currentShowToolbar}
         tool={currentDrawingTool}
         onToolChange={handleSetDrawingTool}
@@ -880,7 +887,7 @@ const Quiz = ({
           handleSetShowToolbar(false);
           handleSetDrawingEnabled(false);
         }}
-      />
+      />}
     </div>
   );
 };

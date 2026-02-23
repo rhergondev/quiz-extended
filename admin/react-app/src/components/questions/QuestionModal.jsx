@@ -15,7 +15,7 @@ import {
 import { SortableOption } from './SortableOption';
 import QuizSelector from '../questions/QuizSelector';
 import { useTheme } from '../../contexts/ThemeContext';
-import { getTaxonomyTerms, createTaxonomyTerm } from '../../api/services/taxonomyService';
+import { getTaxonomyTerms, createTaxonomyTerm, deleteTaxonomyTerm } from '../../api/services/taxonomyService';
 
 /**
  * Normalize HTML so Quill can render line breaks properly.
@@ -110,6 +110,8 @@ const QuestionModal = ({
   const [showNewCategoryForm, setShowNewCategoryForm] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [creatingCategory, setCreatingCategory] = useState(false);
+  const [deletingCategory, setDeletingCategory] = useState(false);
+  const [deletingProvider, setDeletingProvider] = useState(false);
 
   const quillRef = useRef(null);
   const quillInitialized = useRef(false);
@@ -146,9 +148,18 @@ const QuestionModal = ({
   useEffect(() => {
     if (isOpen) {
       loadProviders();
-      loadCategories(); // 🔥 NUEVO: Cargar categorías al abrir
+      loadCategories();
     }
   }, [isOpen]);
+
+  // Pre-select "uniforme-azul" provider when creating a new question
+  useEffect(() => {
+    if (mode !== 'create' || !isOpen || providers.length === 0) return;
+    const uniformeAzul = providers.find(p => p.label.toLowerCase() === 'uniforme-azul');
+    if (uniformeAzul) {
+      setFormData(prev => prev.provider ? prev : { ...prev, provider: uniformeAzul.value });
+    }
+  }, [providers, mode, isOpen]);
 
   const loadProviders = async () => {
     setLoadingProviders(true);
@@ -235,6 +246,40 @@ const QuestionModal = ({
       console.error('Error creating category:', error);
     } finally {
       setCreatingCategory(false);
+    }
+  };
+
+  const deleteCategory = async () => {
+    if (!formData.category) return;
+    const cat = categories.find(c => c.value == formData.category);
+    const confirmed = window.confirm(`¿Borrar la categoría "${cat?.label || formData.category}"?\n\nEsta acción eliminará la categoría del sistema y no se puede deshacer.`);
+    if (!confirmed) return;
+    setDeletingCategory(true);
+    try {
+      await deleteTaxonomyTerm('qe_category', formData.category, true);
+      setCategories(prev => prev.filter(c => c.value != formData.category));
+      handleFieldChange('category', '');
+    } catch (error) {
+      console.error('Error deleting category:', error);
+    } finally {
+      setDeletingCategory(false);
+    }
+  };
+
+  const deleteProvider = async () => {
+    if (!formData.provider) return;
+    const prov = providers.find(p => p.value == formData.provider);
+    const confirmed = window.confirm(`¿Borrar el proveedor "${prov?.label || formData.provider}"?\n\nEsta acción eliminará el proveedor del sistema y no se puede deshacer.`);
+    if (!confirmed) return;
+    setDeletingProvider(true);
+    try {
+      await deleteTaxonomyTerm('qe_provider', formData.provider, true);
+      setProviders(prev => prev.filter(p => p.value != formData.provider));
+      handleFieldChange('provider', '');
+    } catch (error) {
+      console.error('Error deleting provider:', error);
+    } finally {
+      setDeletingProvider(false);
     }
   };
 
@@ -586,23 +631,47 @@ const QuestionModal = ({
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold uppercase" style={{ color: pageColors.text }}>Categoría</label>
                 {!isReadOnly && !showNewCategoryForm && (
-                  <button
-                    type="button"
-                    onClick={() => setShowNewCategoryForm(true)}
-                    style={{
-                      padding: '2px',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      color: pageColors.accent,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
-                  >
-                    <Plus size={14} />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    {formData.category && (
+                      <button
+                        type="button"
+                        onClick={deleteCategory}
+                        disabled={deletingCategory}
+                        title="Borrar esta categoría"
+                        style={{
+                          padding: '2px',
+                          backgroundColor: 'transparent',
+                          border: 'none',
+                          color: '#ef4444',
+                          cursor: deletingCategory ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          opacity: deletingCategory ? 0.5 : 1
+                        }}
+                        onMouseEnter={(e) => { if (!deletingCategory) e.currentTarget.style.opacity = '0.7'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.opacity = deletingCategory ? '0.5' : '1'; }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowNewCategoryForm(true)}
+                      style={{
+                        padding: '2px',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        color: pageColors.accent,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
                 )}
               </div>
               {showNewCategoryForm && (
@@ -700,23 +769,47 @@ const QuestionModal = ({
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold uppercase" style={{ color: pageColors.text }}>Proveedor</label>
                 {!isReadOnly && !showNewProviderForm && (
-                  <button
-                    type="button"
-                    onClick={() => setShowNewProviderForm(true)}
-                    style={{
-                      padding: '2px',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      color: pageColors.accent,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
-                  >
-                    <Plus size={14} />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    {formData.provider && (
+                      <button
+                        type="button"
+                        onClick={deleteProvider}
+                        disabled={deletingProvider}
+                        title="Borrar este proveedor"
+                        style={{
+                          padding: '2px',
+                          backgroundColor: 'transparent',
+                          border: 'none',
+                          color: '#ef4444',
+                          cursor: deletingProvider ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          opacity: deletingProvider ? 0.5 : 1
+                        }}
+                        onMouseEnter={(e) => { if (!deletingProvider) e.currentTarget.style.opacity = '0.7'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.opacity = deletingProvider ? '0.5' : '1'; }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowNewProviderForm(true)}
+                      style={{
+                        padding: '2px',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        color: pageColors.accent,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
                 )}
               </div>
               {showNewProviderForm && (

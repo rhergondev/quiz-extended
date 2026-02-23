@@ -2003,7 +2003,7 @@ const TestsPage = () => {
                                     style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDarkMode ? '#ffffff' : '#000000' }}
                                   >
                                     <div className="text-base font-medium flex items-center py-2 px-3" style={{ color: pageColors.text }}>#{index + 1}</div>
-                                    <div className="text-sm flex items-center py-2 px-1" style={{ color: pageColors.textMuted }}>{new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</div>
+                                    <div className="text-sm font-bold flex items-center py-2 px-1" style={{ color: pageColors.text, fontSize: '0.963rem' }}>{new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</div>
                                     <div className="flex items-center justify-center py-2 px-1 border-l-2" style={{ borderColor: borderLineColor }}><span className="text-lg font-bold" style={{ color: pageColors.text }}>{formatScore(attempt.score || 0)}</span></div>
                                     <div className="flex items-center justify-center py-2 px-1"><span className="text-base font-medium" style={{ color: percentileWithoutRisk >= 0 ? '#10b981' : '#ef4444' }}>{percentileWithoutRisk >= 0 ? '+' : ''}{percentileWithoutRisk.toFixed(1)}</span></div>
                                     <div className="flex items-center justify-center py-2 px-1"><span className="text-base font-medium" style={{ color: pageColors.text }}>{formatScore(cutoffWithoutRisk)}</span></div>
@@ -2048,7 +2048,7 @@ const TestsPage = () => {
                                     {/* # + fecha */}
                                     <div>
                                       <div className="text-sm font-bold" style={{ color: pageColors.text }}>#{index + 1}</div>
-                                      <div className="text-xs" style={{ color: pageColors.textMuted }}>{new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</div>
+                                      <div className="text-xs font-bold" style={{ color: pageColors.text, fontSize: '0.825rem' }}>{new Date(attempt.end_time?.replace(' ', 'T')).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</div>
                                     </div>
                                     {/* Sin riesgo: nota + percentil + corte */}
                                     <div className="text-center">

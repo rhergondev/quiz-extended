@@ -541,7 +541,7 @@ export const CourseRankingSlidePanel = () => {
                                             onClick={toggleRisk}
                                             className="px-4 py-2 text-sm font-semibold rounded-lg transition-all"
                                             style={{
-                                                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.2)' : (withRisk ? pageColors.accent : primaryColor),
+                                                backgroundColor: isDarkMode ? pageColors.accent : (withRisk ? pageColors.accent : primaryColor),
                                                 color: '#ffffff',
                                                 border: isDarkMode ? '1px solid rgba(255,255,255,0.3)' : 'none',
                                             }}

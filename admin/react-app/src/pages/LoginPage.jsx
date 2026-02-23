@@ -48,7 +48,7 @@ const LoginPage = () => {
           pwd: formData.password,
           rememberme: formData.remember ? 'forever' : '',
           'wp-submit': 'Log In',
-          redirect_to: window.location.href,
+          redirect_to: window.location.origin + window.location.pathname,
           testcookie: '1'
         })
       });

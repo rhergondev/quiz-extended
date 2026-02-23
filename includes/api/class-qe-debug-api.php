@@ -144,7 +144,8 @@ class QE_Debug_API extends QE_API_Base
             'callback' => [$this, 'provider_lessons'],
             'permission_callback' => [$this, 'permissions_check'],
             'args' => [
-                'provider' => ['required' => true]
+                'provider' => ['required' => true],
+                'category' => ['required' => false]
             ]
         ]);
 
@@ -890,6 +891,24 @@ class QE_Debug_API extends QE_API_Base
                AND p.post_status != 'trash'",
             $term->term_id
         ));
+
+        // Optional category filter — narrow question IDs to those also in the given category
+        $category_param = $request->get_param('category');
+        if (!empty($category_param) && is_numeric($category_param)) {
+            $category_term_id = (int) $category_param;
+            $category_question_ids = $wpdb->get_col($wpdb->prepare(
+                "SELECT tr.object_id
+                 FROM {$wpdb->term_relationships} tr
+                 JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+                 JOIN {$wpdb->posts} p ON tr.object_id = p.ID
+                 WHERE tt.term_id = %d
+                   AND tt.taxonomy = 'qe_category'
+                   AND p.post_type = 'qe_question'
+                   AND p.post_status != 'trash'",
+                $category_term_id
+            ));
+            $question_ids = array_values(array_intersect($question_ids, $category_question_ids));
+        }
 
         if (empty($question_ids)) {
             return new WP_REST_Response([

@@ -194,27 +194,25 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
       className="w-full"
     >
       <div className="flex items-center justify-between px-3 sm:px-4 lg:px-10 py-2 w-full max-w-full">
-        {/* Left: Hamburger (mobile only, course routes only) + Logo */}
+        {/* Left: Hamburger (mobile only) + Logo */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {isInCourseRoute && (
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden flex items-center justify-center p-2 rounded-lg transition-all duration-200"
-              style={{ 
-                backgroundColor: 'transparent',
-                color: topbarColors.text
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = `${topbarColors.hoverBg}20`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-              aria-label="Toggle menu"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-          )}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="lg:hidden flex items-center justify-center p-2 rounded-lg transition-all duration-200"
+            style={{
+              backgroundColor: 'transparent',
+              color: topbarColors.text
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = `${primary}20`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+            aria-label="Toggle menu"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
           
           {/* Logo clickeable que lleva a la URL principal */}
           <a 

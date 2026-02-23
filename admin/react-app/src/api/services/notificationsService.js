@@ -66,6 +66,27 @@ export const markAllNotificationsAsRead = async (courseId) => {
 };
 
 /**
+ * Create a notification for a course (admin only)
+ * @param {Object} data - { course_id, notification_type, title, message, related_object_id?, related_object_type? }
+ * @returns {Promise}
+ */
+export const createNotification = async (data) => {
+  const baseUrl = getQeApiUrl();
+  const url = `${baseUrl}/notifications`;
+
+  try {
+    const response = await makeApiRequest(url, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response;
+  } catch (error) {
+    console.error('Error creating notification:', error);
+    throw error;
+  }
+};
+
+/**
  * Get unread notification count for a course
  * @param {number} courseId 
  * @returns {Promise}
@@ -88,4 +109,5 @@ export default {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   getUnreadNotificationCount,
+  createNotification,
 };
