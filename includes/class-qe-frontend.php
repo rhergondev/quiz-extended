@@ -43,9 +43,30 @@ class QE_Frontend
     /**
      * Constructor.
      */
+    /**
+     * Resolve the LMS page ID robustly.
+     * Falls back to searching by slug 'campus' when the stored option is stale,
+     * and auto-heals the option so subsequent requests are fast.
+     */
+    private function get_lms_page_id()
+    {
+        if ($this->lms_page_id > 0 && get_post($this->lms_page_id)) {
+            return $this->lms_page_id;
+        }
+
+        $campus_page = get_page_by_path('campus');
+        if ($campus_page) {
+            $this->lms_page_id = $campus_page->ID;
+            update_option('quiz_extended_lms_page_id', $campus_page->ID);
+            return $this->lms_page_id;
+        }
+
+        return 0;
+    }
+
     private function __construct()
     {
-        $this->lms_page_id = get_option('quiz_extended_lms_page_id', 0);
+        $this->lms_page_id = (int) get_option('quiz_extended_lms_page_id', 0);
 
         add_action('init', [$this, 'register_shortcode']);
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
@@ -78,14 +99,28 @@ class QE_Frontend
         if (is_admin()) {
             return $template;
         }
-        // Check if we are on the specific LMS page
-        if (is_page($this->lms_page_id) && $this->lms_page_id > 0) {
-            $new_template = QUIZ_EXTENDED_PLUGIN_DIR . 'includes/templates/lms-template.php';
-            if (file_exists($new_template)) {
-                return $new_template; // Use our custom template
-            }
+
+        $new_template = QUIZ_EXTENDED_PLUGIN_DIR . 'includes/templates/lms-template.php';
+        if (!file_exists($new_template)) {
+            return $template;
         }
-        return $template; // Otherwise, use the default theme template
+
+        // Primary: match by stored page ID
+        if ($this->lms_page_id > 0 && is_page($this->lms_page_id)) {
+            return $new_template;
+        }
+
+        // Fallback: match by slug and auto-heal the stale option
+        if (is_page('campus')) {
+            $page = get_queried_object();
+            if ($page && isset($page->ID) && $page->ID > 0) {
+                update_option('quiz_extended_lms_page_id', $page->ID);
+                $this->lms_page_id = $page->ID;
+            }
+            return $new_template;
+        }
+
+        return $template;
     }
 
     /**
@@ -297,7 +332,8 @@ class QE_Frontend
      */
     public function enqueue_assets()
     {
-        if (!is_page($this->lms_page_id) && get_the_ID() != $this->lms_page_id) {
+        $lms_page_id = $this->get_lms_page_id();
+        if (!is_page($lms_page_id) && get_the_ID() != $lms_page_id) {
             return;
         }
 
@@ -614,7 +650,8 @@ class QE_Frontend
 
         // If user object is provided, make sure it's a valid user
         if ($user && isset($user->ID)) {
-            $lms_page_url = get_permalink(get_option('quiz_extended_lms_page_id'));
+            $lms_page_id  = $this->get_lms_page_id();
+            $lms_page_url = $lms_page_id > 0 ? get_permalink($lms_page_id) : '';
 
             if (!empty($lms_page_url)) {
                 return $lms_page_url;
@@ -637,7 +674,8 @@ class QE_Frontend
      */
     public function custom_login_failed($username)
     {
-        $lms_page_url = get_permalink($this->lms_page_id);
+        $lms_page_id  = $this->get_lms_page_id();
+        $lms_page_url = $lms_page_id > 0 ? get_permalink($lms_page_id) : '';
 
         if (empty($lms_page_url)) {
             return;
