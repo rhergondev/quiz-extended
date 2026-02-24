@@ -262,6 +262,7 @@ class QE_Frontend
         );
 
         $custom_css = "
+            header.elementor-location-header { display: none !important; }
             footer.elementor-location-footer { display: none !important; }
             
             /* WP Media Library Fixes for Frontend - Isolation from Tailwind/App styles */
