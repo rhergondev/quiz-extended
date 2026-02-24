@@ -75,18 +75,28 @@ const PendingHashRestorer = () => {
   return null;
 };
 
+// Redirects unauthenticated users to the WooCommerce login page.
+// Saves the intended hash to sessionStorage so PendingHashRestorer can
+// navigate back after the user logs in and lands on /campus/.
+const redirectToLogin = (intendedHash) => {
+  if (intendedHash && intendedHash !== '#/' && intendedHash !== '#/login') {
+    sessionStorage.setItem('qe_pending_hash', intendedHash);
+  }
+  const lmsUrl = window.qe_data?.lms_url || (window.location.origin + window.location.pathname);
+  const loginBase = window.qe_data?.login_url || (window.location.origin + '/mi-cuenta/');
+  const loginUrl = loginBase + '?redirect_to=' + encodeURIComponent(lmsUrl);
+  window.location.replace(loginUrl);
+};
+
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const isLoggedIn = window.qe_data?.user?.id > 0;
   const location = useLocation();
 
   if (!isLoggedIn) {
-    // Save the intended destination so PendingHashRestorer can restore it after login
     const intended = '#' + location.pathname + (location.search || '');
-    if (intended !== '#/' && intended !== '#/login') {
-      sessionStorage.setItem('qe_pending_hash', intended);
-    }
-    return <Navigate to="/login" replace />;
+    redirectToLogin(intended);
+    return null;
   }
 
   return children;
@@ -101,10 +111,8 @@ const AdminRoute = ({ children }) => {
 
   if (!isLoggedIn) {
     const intended = '#' + location.pathname + (location.search || '');
-    if (intended !== '#/' && intended !== '#/login') {
-      sessionStorage.setItem('qe_pending_hash', intended);
-    }
-    return <Navigate to="/login" replace />;
+    redirectToLogin(intended);
+    return null;
   }
 
   if (!isAdmin) {

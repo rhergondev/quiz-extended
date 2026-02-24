@@ -81,8 +81,8 @@ class QE_Frontend
         add_action('wp_login_failed', [$this, 'custom_login_failed']);
         add_filter('authenticate', [$this, 'custom_authenticate_username_password'], 30, 3);
 
-        // Hook to override the page template
-        add_filter('template_include', [$this, 'override_lms_page_template']);
+        // Hook to override the page template — priority 99 ensures it runs after Elementor Canvas
+        add_filter('template_include', [$this, 'override_lms_page_template'], 99);
 
 
         register_activation_hook(QUIZ_EXTENDED_BASENAME, [$this, 'create_lms_page']);
@@ -611,6 +611,7 @@ class QE_Frontend
                 'nonce' => wp_create_nonce('wp_rest'),
                 'lms_url' => get_permalink($this->lms_page_id),
                 'home_url' => home_url(),
+                'login_url' => function_exists('wc_get_page_permalink') ? wc_get_page_permalink('myaccount') : wp_login_url(),
                 'user' => $user_data,
                 'logout_url' => wp_logout_url(home_url()),
                 'logoUrl' => $logo_url,
