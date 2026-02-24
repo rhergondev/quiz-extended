@@ -264,6 +264,13 @@ class QE_Frontend
         $custom_css = "
             header.elementor-location-header { display: none !important; }
             footer.elementor-location-footer { display: none !important; }
+
+            /* Compensate for WP admin bar — lms-template.php resets html margin to 0,
+               so the fixed admin bar overlaps content. Push the React root down instead. */
+            body.admin-bar #qe-frontend-root { padding-top: 32px; }
+            @media screen and (max-width: 782px) {
+                body.admin-bar #qe-frontend-root { padding-top: 46px; }
+            }
             
             /* WP Media Library Fixes for Frontend - Isolation from Tailwind/App styles */
             .media-modal-backdrop {
