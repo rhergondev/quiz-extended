@@ -8,7 +8,6 @@ import { MessagesProvider } from './contexts/MessagesContext';
 
 // Layout y Páginas del Frontend
 import FrontendLayout from './components/layout/FrontendLayout';
-import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/frontend/DashboardPage';
 import QuizAttemptDetailsPage from './pages/frontend/QuizAttemptDetailsPage';
 import CoursesPage from './pages/frontend/CoursesPage';
@@ -66,12 +65,22 @@ const PendingHashRestorer = () => {
       sessionStorage.removeItem('qe_pending_hash');
       // Parse the hash to get the path (e.g., "#/messages?messageId=123" -> "/messages?messageId=123")
       const hashPath = pendingHash.startsWith('#') ? pendingHash.substring(1) : pendingHash;
-      if (hashPath && hashPath !== '/') {
+      if (hashPath && hashPath !== '/' && hashPath !== '/login') {
         navigate(hashPath, { replace: true });
       }
     }
   }, [navigate, location.pathname]);
   
+  return null;
+};
+
+// Handles the /login hash route — redirects to WooCommerce instead of rendering
+// the old React LoginPage. If the user is already logged in, sends them home.
+const LoginRouteHandler = () => {
+  const isLoggedIn = window.qe_data?.user?.id > 0;
+  if (isLoggedIn) return <Navigate to="/" replace />;
+  // Not logged in: redirect to WooCommerce login (same as ProtectedRoute)
+  redirectToLogin('');
   return null;
 };
 
@@ -126,8 +135,6 @@ const AdminRoute = ({ children }) => {
 const FrontendAdminLayout = lazy(() => import('./components/layout/FrontendAdminLayout'));
 
 function FrontendApp() {
-  const isLoggedIn = window.qe_data?.user?.id > 0;
-
   return (
     <ThemeProvider>
       <ScoreFormatProvider>
@@ -136,8 +143,8 @@ function FrontendApp() {
             <PendingHashRestorer />
             <Suspense fallback={<LazyLoadSpinner />}>
               <Routes>
-                {/* Public Routes */}
-                <Route path="/login" element={isLoggedIn ? <Navigate to="/" replace /> : <LoginPage />} />
+                {/* /login route — always redirect to WooCommerce, never render old React LoginPage */}
+                <Route path="/login" element={<LoginRouteHandler />} />
                 
                 {/* Admin Routes - Only for admins, lazy loaded */}
                 <Route path="/admin" element={<AdminRoute><FrontendLayout /></AdminRoute>}>

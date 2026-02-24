@@ -37,7 +37,7 @@ if (!is_user_logged_in()) {
             // Save the hash fragment before redirecting — the server never sees URL fragments,
             // so we stash it in sessionStorage for PendingHashRestorer to restore after login.
             var hash = window.location.hash;
-            if (hash && hash.length > 1 && hash !== '#/') {
+            if (hash && hash.length > 1 && hash !== '#/' && hash !== '#/login') {
                 sessionStorage.setItem('qe_pending_hash', hash);
             }
             window.location.replace('<?php echo esc_js($login_redirect_url); ?>');

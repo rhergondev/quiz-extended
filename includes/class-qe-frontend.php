@@ -296,7 +296,7 @@ class QE_Frontend
                 (function() {
                     // Store the current hash in sessionStorage before form submission
                     var currentHash = window.location.hash;
-                    if (currentHash && currentHash.length > 1) {
+                    if (currentHash && currentHash.length > 1 && currentHash !== '#/' && currentHash !== '#/login') {
                         sessionStorage.setItem('qe_pending_hash', currentHash);
                     }
                     
