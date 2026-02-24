@@ -294,6 +294,7 @@ class QE_Messages_API extends QE_API_Base
             $question_id = $request->get_param('question_id');
             $feedback_type = $request->get_param('feedback_type');
             $message = $request->get_param('message');
+            $course_id = absint($request->get_param('course_id'));
 
             // Validate question exists
             $question = get_post($question_id);
@@ -328,6 +329,7 @@ class QE_Messages_API extends QE_API_Base
             $this->send_email_notification([
                 'feedback_type' => $feedback_type,
                 'question_id' => $question_id,
+                'course_id'   => $course_id,
                 'user_id' => $user_id,
                 'message' => $message,
                 'message_id' => $message_id  // Para deep linking en el email
@@ -358,6 +360,7 @@ class QE_Messages_API extends QE_API_Base
             $video_title = sanitize_text_field($request->get_param('video_title'));
             $video_url = esc_url_raw($request->get_param('video_url'));
             $message = $request->get_param('message');
+            $course_id = absint($request->get_param('course_id'));
 
             // Validate lesson exists
             $lesson = get_post($lesson_id);
@@ -397,6 +400,7 @@ class QE_Messages_API extends QE_API_Base
             $this->send_email_notification([
                 'feedback_type' => 'video_feedback',
                 'question_id' => 0,
+                'course_id'   => $course_id,
                 'user_id' => $user_id,
                 'message' => $message,
                 'message_id' => $message_id

@@ -70,6 +70,7 @@ const QuestionFeedbackModal = ({
         question_id: question.id,
         feedback_type: feedbackType,
         message: fullMessage,
+        course_id: courseId || 0,
       });
       setSuccess(true);
       setMessage('');
