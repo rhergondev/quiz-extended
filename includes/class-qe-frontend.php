@@ -202,129 +202,25 @@ class QE_Frontend
             return '<div id="qe-frontend-root" class="qe-lms-app"></div>';
         }
 
-        // User is not logged in, show a styled login form.
-        $lms_page_url = get_permalink($this->lms_page_id);
+        // User is not logged in — redirect to WooCommerce login (same logic as lms-template.php).
+        // Headers may already be sent here (shortcode context), so we use a JS redirect.
+        $lms_page_url    = get_permalink($this->lms_page_id) ?: home_url('/campus/');
+        $login_base_url  = function_exists('wc_get_page_permalink')
+            ? wc_get_page_permalink('myaccount')
+            : wp_login_url();
+        $login_redirect_url = add_query_arg('redirect_to', urlencode($lms_page_url), $login_base_url);
 
-        $login_form_args = array(
-            'echo' => false,
-            'redirect' => $lms_page_url,
-            'form_id' => 'qe-lms-login-form',
-            'label_username' => __('Correo electrónico o nombre de usuario', 'quiz-extended'),
-            'label_password' => __('Contraseña', 'quiz-extended'),
-            'label_remember' => __('Recuérdame', 'quiz-extended'),
-            'label_log_in' => __('Acceder', 'quiz-extended'),
-            'id_username' => 'user_login',
-            'id_password' => 'user_pass',
-            'id_remember' => 'rememberme',
-            'id_submit' => 'wp-submit',
-            'remember' => true,
-            'value_username' => NULL,
-            'value_remember' => false,
-        );
-
-        $login_form = wp_login_form($login_form_args);
-
-        // Add some basic styling to center the form.
-        $styles = "
-            <style>
-                .qe-login-container {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    min-height: 60vh;
-                    padding: 2rem 1rem;
-                }
-                #qe-lms-login-form {
-                    width: 100%;
-                    max-width: 380px;
-                    padding: 2rem;
-                    border: 1px solid #e2e8f0;
-                    border-radius: 0.5rem;
-                    background-color: #ffffff;
-                    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-                }
-                #qe-lms-login-form p { margin-bottom: 1rem; }
-                #qe-lms-login-form label {
-                    display: block;
-                    font-weight: 600;
-                    margin-bottom: 0.5rem;
-                }
-                #qe-lms-login-form input[type='text'],
-                #qe-lms-login-form input[type='password'] {
-                    width: 100%;
-                    padding: 0.75rem;
-                    border: 1px solid #cbd5e1;
-                    border-radius: 0.375rem;
-                }
-                #qe-lms-login-form .login-remember {
-                    display: flex;
-                    align-items: center;
-                    margin-bottom: 1rem;
-                }
-                #qe-lms-login-form .login-remember label {
-                    margin-bottom: 0;
-                    font-weight: normal;
-                }
-                #qe-lms-login-form .login-remember input {
-                    margin-right: 0.5rem;
-                }
-                #qe-lms-login-form .login-submit input {
-                    width: 100%;
-                    padding: 0.75rem;
-                    border-radius: 0.375rem;
-                    background-color: #24375A; /* Color primario */
-                    color: white;
-                    font-weight: 600;
-                    border: none;
-                    cursor: pointer;
-                    transition: background-color 0.2s;
-                }
-                #qe-lms-login-form .login-submit input:hover {
-                    background-color: #1a2841; /* Un poco más oscuro */
-                }
-                .login-lost-password {
-                    margin-top: 1rem;
-                    text-align: center;
-                }
-            </style>
-        ";
-
-        // JavaScript to preserve hash fragment after login redirect
-        $hash_script = "
+        return '
             <script>
-                (function() {
-                    // Store the current hash in sessionStorage before form submission
-                    var currentHash = window.location.hash;
-                    if (currentHash && currentHash.length > 1 && currentHash !== '#/' && currentHash !== '#/login') {
-                        sessionStorage.setItem('qe_pending_hash', currentHash);
-                    }
-                    
-                    // On page load, check if there's a pending hash to restore
-                    var pendingHash = sessionStorage.getItem('qe_pending_hash');
-                    if (pendingHash && !currentHash) {
-                        sessionStorage.removeItem('qe_pending_hash');
-                        // If user is now logged in (React app would load), redirect with hash
-                        // This script only runs on login page, so we just store it
-                    }
-                    
-                    // Intercept form submission to append hash to redirect URL
-                    document.addEventListener('DOMContentLoaded', function() {
-                        var form = document.getElementById('qe-lms-login-form');
-                        if (form && currentHash) {
-                            // Find the redirect_to hidden field and append the hash
-                            var redirectInput = form.querySelector('input[name=\"redirect_to\"]');
-                            if (redirectInput && redirectInput.value) {
-                                // Store hash for after redirect since fragments don't survive server redirect
-                                sessionStorage.setItem('qe_pending_hash', currentHash);
-                            }
-                        }
-                    });
-                })();
+            (function () {
+                var hash = window.location.hash;
+                if (hash && hash.length > 1 && hash !== "#/" && hash !== "#/login") {
+                    sessionStorage.setItem("qe_pending_hash", hash);
+                }
+                window.location.replace("' . esc_js($login_redirect_url) . '");
+            })();
             </script>
-        ";
-
-        return $styles . $hash_script . '<div class="qe-login-container">' . $login_form . '</div>';
+        ';
     }
 
     /**

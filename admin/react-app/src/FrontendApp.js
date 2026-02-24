@@ -65,7 +65,7 @@ const PendingHashRestorer = () => {
       sessionStorage.removeItem('qe_pending_hash');
       // Parse the hash to get the path (e.g., "#/messages?messageId=123" -> "/messages?messageId=123")
       const hashPath = pendingHash.startsWith('#') ? pendingHash.substring(1) : pendingHash;
-      if (hashPath && hashPath !== '/' && hashPath !== '/login') {
+      if (hashPath && hashPath !== '/' && !hashPath.startsWith('/login')) {
         navigate(hashPath, { replace: true });
       }
     }
