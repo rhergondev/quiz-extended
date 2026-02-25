@@ -4,7 +4,6 @@ import { Search, Filter, ChevronDown, CheckCircle, Circle, Loader2, X, ExternalL
 import { toast } from 'react-toastify';
 import { useTheme } from '../../contexts/ThemeContext';
 import useQuestionsAdmin from '../../hooks/useQuestionsAdmin';
-import useQuizzes from '../../hooks/useQuizzes';
 import { useTaxonomyOptions } from '../../hooks/useTaxonomyOptions';
 import { makeApiRequest } from '../../api/services/baseService';
 import { getApiConfig } from '../../api/config/apiConfig';
@@ -88,8 +87,6 @@ const QuestionSelector = ({
     debounceMs: 300
   });
 
-  const { quizzes: quizList = [] } = useQuizzes({ autoFetch: true });
-  
   const { options: taxonomyOptions } = useTaxonomyOptions(['qe_category', 'qe_provider']);
   const [allLessons, setAllLessons] = useState([]);
   // Lessons filtered to only those that have questions for the selected provider.
@@ -100,6 +97,32 @@ const QuestionSelector = ({
   // Set of provider IDs whose questions are allowed in tests.
   // null = loading (fail open), empty Set = no restrictions (fail open), Set with IDs = restriction active.
   const [allowedProviderIds, setAllowedProviderIds] = useState(null);
+
+  // Map of questionId → [{id, title}] for the currently displayed questions
+  const [quizMembership, setQuizMembership] = useState({});
+
+  // Fetch quiz membership whenever the displayed question list changes
+  useEffect(() => {
+    const ids = questionsHook.questions.map(q => q.id).filter(Boolean);
+    if (ids.length === 0) {
+      setQuizMembership({});
+      return;
+    }
+    let cancelled = false;
+    const fetchMembership = async () => {
+      try {
+        const config = getApiConfig();
+        const res = await makeApiRequest(`${config.apiUrl}/qe/v1/questions/quiz-membership?ids=${ids.join(',')}`);
+        if (!cancelled) setQuizMembership(res.data || {});
+      } catch {
+        // non-critical — badges just won't show if the request fails
+      }
+    };
+    fetchMembership();
+    return () => { cancelled = true; };
+  // Use a stable key so the effect only re-runs when the set of IDs actually changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionsHook.questions.map(q => q.id).join(',')]);
 
   useEffect(() => {
     const fetchAllowedProviders = async () => {
@@ -613,19 +636,14 @@ const QuestionSelector = ({
                               : 'Sin proveedor';
                           })()}
                         </span>
-                        {(question.meta?._quiz_ids || []).map(qId => {
-                          const quiz = quizList.find(q => q.id === qId);
-                          if (!quiz) return null;
-                          return (
-                            <span
-                              key={qId}
-                              className="text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none"
-                              style={{ backgroundColor: `${colors.primary}15`, color: colors.primary }}
-                            >
-                              {quiz.title?.rendered || quiz.title || `Quiz ${qId}`}
-                            </span>
-                          );
-                        })}
+                        {(quizMembership[question.id] || []).map(quiz => (
+                          <span
+                            key={quiz.id}
+                            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-100 dark:border-blue-800"
+                          >
+                            {quiz.title}
+                          </span>
+                        ))}
                         {question.difficulty && (
                           <span className={`px-1.5 py-0.5 rounded text-[10px] ${
                             question.difficulty === 'hard' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
@@ -724,19 +742,14 @@ const QuestionSelector = ({
                           {tag}
                         </span>
                       ))}
-                      {(question.meta?._quiz_ids || []).map(qId => {
-                        const quiz = quizList.find(q => q.id === qId);
-                        if (!quiz) return null;
-                        return (
-                          <span
-                            key={qId}
-                            className="text-[9px] font-medium px-1.5 py-0.5 rounded-full leading-none"
-                            style={{ backgroundColor: `${colors.primary}15`, color: colors.primary }}
-                          >
-                            {quiz.title?.rendered || quiz.title || `Quiz ${qId}`}
-                          </span>
-                        );
-                      })}
+                      {(quizMembership[question.id] || []).map(quiz => (
+                        <span
+                          key={quiz.id}
+                          className="text-[9px] font-medium px-1.5 py-0.5 rounded-full leading-none bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-100 dark:border-blue-800"
+                        >
+                          {quiz.title}
+                        </span>
+                      ))}
                     </div>
                   </div>
                   {onEditQuestion ? (
