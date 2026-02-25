@@ -607,15 +607,26 @@ const QuestionSelector = ({
               const allowed = isQuestionAllowed(question);
 
               if (!allowed) {
-                // Restricted: show edit link instead of selection
+                // Restricted: cannot be added to a test, but can still be batch-edited
                 return (
                   <div
                     key={question.id}
-                    className="flex items-start gap-3 p-3"
-                    style={{ opacity: 0.6 }}
+                    onClick={batchMode ? () => toggleBatchSelect(question.id) : undefined}
+                    className={`flex items-start gap-3 p-3 ${batchMode ? 'cursor-pointer' : ''}`}
+                    style={{
+                      opacity: batchMode ? 1 : 0.6,
+                      backgroundColor: batchMode && batchSelected.has(question.id)
+                        ? (isDarkMode ? 'rgba(59,130,246,0.15)' : '#eff6ff')
+                        : 'transparent'
+                    }}
                   >
-                    <div className="mt-0.5 text-gray-300 dark:text-gray-600">
-                      <Lock size={16} />
+                    <div className="mt-0.5">
+                      {batchMode
+                        ? batchSelected.has(question.id)
+                          ? <CheckSquare size={18} className="text-blue-500" />
+                          : <Square size={18} className="text-gray-400 dark:text-gray-600" />
+                        : <Lock size={16} className="text-gray-300 dark:text-gray-600" />
+                      }
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm line-clamp-2 mb-0.5" style={{ color: colors.text }}>
