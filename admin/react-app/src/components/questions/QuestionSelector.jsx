@@ -639,7 +639,11 @@ const QuestionSelector = ({
                         {(quizMembership[question.id] || []).map(quiz => (
                           <span
                             key={quiz.id}
-                            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-100 dark:border-blue-800"
+                            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none border"
+                            style={isDarkMode
+                              ? { backgroundColor: `${colors.accent}15`, color: colors.accent, borderColor: `${colors.accent}40` }
+                              : { backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#bfdbfe' }
+                            }
                           >
                             {quiz.title}
                           </span>
@@ -745,7 +749,11 @@ const QuestionSelector = ({
                       {(quizMembership[question.id] || []).map(quiz => (
                         <span
                           key={quiz.id}
-                          className="text-[9px] font-medium px-1.5 py-0.5 rounded-full leading-none bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-100 dark:border-blue-800"
+                          className="text-[9px] font-medium px-1.5 py-0.5 rounded-full leading-none border"
+                          style={isDarkMode
+                            ? { backgroundColor: `${colors.accent}15`, color: colors.accent, borderColor: `${colors.accent}40` }
+                            : { backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#bfdbfe' }
+                          }
                         >
                           {quiz.title}
                         </span>

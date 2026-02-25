@@ -77,7 +77,7 @@ class QE_Questions_API extends QE_API_Base
                 continue;
             }
 
-            $quiz_title = get_the_title($quiz_id);
+            $quiz_title = html_entity_decode(get_the_title($quiz_id), ENT_QUOTES | ENT_HTML5, 'UTF-8');
             foreach ($matching as $question_id) {
                 $result[(string) $question_id][] = [
                     'id'    => $quiz_id,
