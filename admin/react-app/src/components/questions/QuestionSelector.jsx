@@ -233,9 +233,15 @@ const QuestionSelector = ({
       try {
         setProviderLessonsLoading(true);
         const config = getApiConfig();
+        // Provider takes precedence: when provider is selected, filter Temas by provider only.
+        // Category-only: filter Temas by category only.
+        // Never intersect both — that would hide lessons when questions aren't in both simultaneously.
         const params = new URLSearchParams();
-        if (hasProvider) params.set('provider', provider);
-        if (hasCategory) params.set('category', category);
+        if (hasProvider) {
+          params.set('provider', provider);
+        } else {
+          params.set('category', category);
+        }
         const url = `${config.apiUrl}/quiz-extended/v1/debug/provider-lessons?${params}`;
         const res = await makeApiRequest(url);
         if (cancelled) return;

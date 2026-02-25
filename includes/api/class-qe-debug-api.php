@@ -962,6 +962,58 @@ class QE_Debug_API extends QE_API_Base
 
         $all_lesson_ids = array_values(array_unique(array_filter($all_lesson_ids)));
 
+        // Secondary path: question → quiz → lesson.
+        // Catches questions embedded in lesson quizzes whose _question_lesson
+        // denormalized cache was never written or is out of date.
+        $quiz_meta_rows = $wpdb->get_results(
+            "SELECT post_id, meta_value
+             FROM {$wpdb->postmeta}
+             WHERE meta_key = '_quiz_question_ids'
+               AND meta_value != ''",
+            ARRAY_A
+        );
+
+        $quiz_ids_for_questions = [];
+        foreach ($quiz_meta_rows as $row) {
+            $parsed = @maybe_unserialize($row['meta_value']);
+            if ($parsed === $row['meta_value']) {
+                $parsed = json_decode($row['meta_value'], true);
+            }
+            if (!is_array($parsed)) continue;
+            $qids = array_map('intval', $parsed);
+            if (!empty(array_intersect($question_ids, $qids))) {
+                $quiz_ids_for_questions[] = (int) $row['post_id'];
+            }
+        }
+
+        if (!empty($quiz_ids_for_questions)) {
+            $lesson_meta_rows = $wpdb->get_results(
+                "SELECT pm.post_id, pm.meta_value
+                 FROM {$wpdb->postmeta} pm
+                 JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+                 WHERE pm.meta_key IN ('_quiz_ids', '_lesson_steps')
+                   AND p.post_type = 'qe_lesson'
+                   AND p.post_status IN ('publish', 'draft', 'private')",
+                ARRAY_A
+            );
+
+            foreach ($lesson_meta_rows as $lrow) {
+                $meta_str = $lrow['meta_value'];
+                foreach ($quiz_ids_for_questions as $qzid) {
+                    // Match both PHP-serialized integers (`:5;`) and JSON integers (`"5"`)
+                    if (
+                        strpos($meta_str, ':' . $qzid . ';') !== false ||
+                        strpos($meta_str, '"' . $qzid . '"') !== false
+                    ) {
+                        $all_lesson_ids[] = (int) $lrow['post_id'];
+                        break;
+                    }
+                }
+            }
+
+            $all_lesson_ids = array_values(array_unique(array_filter($all_lesson_ids)));
+        }
+
         if (empty($all_lesson_ids)) {
             return new WP_REST_Response([
                 'success' => true,
