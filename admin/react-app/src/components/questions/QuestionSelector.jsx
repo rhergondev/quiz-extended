@@ -219,7 +219,10 @@ const QuestionSelector = ({
     // Always clear the lesson selection when provider or category changes
     questionsHook.updateFilter('lessons', null);
 
-    if (!provider || provider === 'all') {
+    const hasProvider = provider && provider !== 'all';
+    const hasCategory = category && category !== 'all';
+
+    if (!hasProvider && !hasCategory) {
       setProviderLessons(null);
       return;
     }
@@ -230,10 +233,10 @@ const QuestionSelector = ({
       try {
         setProviderLessonsLoading(true);
         const config = getApiConfig();
-        let url = `${config.apiUrl}/quiz-extended/v1/debug/provider-lessons?provider=${provider}`;
-        if (category && category !== 'all') {
-          url += `&category=${category}`;
-        }
+        const params = new URLSearchParams();
+        if (hasProvider) params.set('provider', provider);
+        if (hasCategory) params.set('category', category);
+        const url = `${config.apiUrl}/quiz-extended/v1/debug/provider-lessons?${params}`;
         const res = await makeApiRequest(url);
         if (cancelled) return;
         const lessons = res.data?.data?.lessons || [];

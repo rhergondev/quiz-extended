@@ -864,38 +864,42 @@ class QE_Debug_API extends QE_API_Base
         global $wpdb;
 
         $provider_param = $request->get_param('provider');
-        if (empty($provider_param)) {
-            return new WP_REST_Response(['success' => false, 'message' => 'provider parameter required'], 400);
-        }
-
-        // Resolve by term ID or slug
-        if (is_numeric($provider_param)) {
-            $term = get_term((int) $provider_param, 'qe_provider');
-        } else {
-            $term = get_term_by('slug', sanitize_title($provider_param), 'qe_provider');
-        }
-
-        if (!$term || is_wp_error($term)) {
-            return new WP_REST_Response(['success' => false, 'message' => "Provider '{$provider_param}' not found"], 404);
-        }
-
-        // Get all question IDs for this provider
-        $question_ids = $wpdb->get_col($wpdb->prepare(
-            "SELECT tr.object_id
-             FROM {$wpdb->term_relationships} tr
-             JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
-             JOIN {$wpdb->posts} p ON tr.object_id = p.ID
-             WHERE tt.term_id = %d
-               AND tt.taxonomy = 'qe_provider'
-               AND p.post_type = 'qe_question'
-               AND p.post_status != 'trash'",
-            $term->term_id
-        ));
-
-        // Optional category filter — narrow question IDs to those also in the given category
         $category_param = $request->get_param('category');
+
+        if (empty($provider_param) && empty($category_param)) {
+            return new WP_REST_Response(['success' => false, 'message' => 'provider or category parameter required'], 400);
+        }
+
+        // Start with no restriction (null = not yet filtered)
+        $question_ids = null;
+
+        // Filter by provider if provided
+        if (!empty($provider_param)) {
+            if (is_numeric($provider_param)) {
+                $term = get_term((int) $provider_param, 'qe_provider');
+            } else {
+                $term = get_term_by('slug', sanitize_title($provider_param), 'qe_provider');
+            }
+
+            if (!$term || is_wp_error($term)) {
+                return new WP_REST_Response(['success' => false, 'message' => "Provider '{$provider_param}' not found"], 404);
+            }
+
+            $question_ids = $wpdb->get_col($wpdb->prepare(
+                "SELECT tr.object_id
+                 FROM {$wpdb->term_relationships} tr
+                 JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+                 JOIN {$wpdb->posts} p ON tr.object_id = p.ID
+                 WHERE tt.term_id = %d
+                   AND tt.taxonomy = 'qe_provider'
+                   AND p.post_type = 'qe_question'
+                   AND p.post_status != 'trash'",
+                $term->term_id
+            ));
+        }
+
+        // Filter by category if provided — intersect with provider results when both are set
         if (!empty($category_param) && is_numeric($category_param)) {
-            $category_term_id = (int) $category_param;
             $category_question_ids = $wpdb->get_col($wpdb->prepare(
                 "SELECT tr.object_id
                  FROM {$wpdb->term_relationships} tr
@@ -905,19 +909,20 @@ class QE_Debug_API extends QE_API_Base
                    AND tt.taxonomy = 'qe_category'
                    AND p.post_type = 'qe_question'
                    AND p.post_status != 'trash'",
-                $category_term_id
+                (int) $category_param
             ));
-            $question_ids = array_values(array_intersect($question_ids, $category_question_ids));
+
+            $question_ids = $question_ids === null
+                ? $category_question_ids
+                : array_values(array_intersect($question_ids, $category_question_ids));
         }
+
+        $question_ids = array_values(array_filter((array) $question_ids));
 
         if (empty($question_ids)) {
             return new WP_REST_Response([
                 'success' => true,
-                'data' => [
-                    'provider'       => ['id' => $term->term_id, 'name' => $term->name, 'slug' => $term->slug],
-                    'lessons'        => [],
-                    'question_count' => 0,
-                ]
+                'data' => ['lessons' => [], 'question_count' => 0]
             ], 200);
         }
 
@@ -960,11 +965,7 @@ class QE_Debug_API extends QE_API_Base
         if (empty($all_lesson_ids)) {
             return new WP_REST_Response([
                 'success' => true,
-                'data' => [
-                    'provider'       => ['id' => $term->term_id, 'name' => $term->name, 'slug' => $term->slug],
-                    'lessons'        => [],
-                    'question_count' => count($question_ids),
-                ]
+                'data' => ['lessons' => [], 'question_count' => count($question_ids)]
             ], 200);
         }
 
@@ -988,7 +989,6 @@ class QE_Debug_API extends QE_API_Base
         return new WP_REST_Response([
             'success' => true,
             'data' => [
-                'provider'       => ['id' => $term->term_id, 'name' => $term->name, 'slug' => $term->slug],
                 'lessons'        => $lessons,
                 'question_count' => count($question_ids),
             ]
