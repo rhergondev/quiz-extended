@@ -873,29 +873,46 @@ class QE_Debug_API extends QE_API_Base
         // Start with no restriction (null = not yet filtered)
         $question_ids = null;
 
-        // Filter by provider if provided
+        // Filter by provider if provided.
+        // Accepts a single ID/slug OR a comma-separated list of IDs (used for "all providers" when
+        // only category is selected, so we can re-use the proven provider→quiz→lesson chain).
         if (!empty($provider_param)) {
-            if (is_numeric($provider_param)) {
-                $term = get_term((int) $provider_param, 'qe_provider');
+            $raw_ids = array_values(array_filter(array_map('intval', explode(',', $provider_param))));
+
+            if (!empty($raw_ids)) {
+                // Numeric list path (single or multiple IDs)
+                $placeholders = implode(',', array_fill(0, count($raw_ids), '%d'));
+                $question_ids = $wpdb->get_col(
+                    $wpdb->prepare(
+                        "SELECT tr.object_id
+                         FROM {$wpdb->term_relationships} tr
+                         JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+                         JOIN {$wpdb->posts} p ON tr.object_id = p.ID
+                         WHERE tt.term_id IN ({$placeholders})
+                           AND tt.taxonomy = 'qe_provider'
+                           AND p.post_type = 'qe_question'
+                           AND p.post_status != 'trash'",
+                        ...$raw_ids
+                    )
+                );
             } else {
+                // Slug path (single slug, original behaviour)
                 $term = get_term_by('slug', sanitize_title($provider_param), 'qe_provider');
+                if (!$term || is_wp_error($term)) {
+                    return new WP_REST_Response(['success' => false, 'message' => "Provider '{$provider_param}' not found"], 404);
+                }
+                $question_ids = $wpdb->get_col($wpdb->prepare(
+                    "SELECT tr.object_id
+                     FROM {$wpdb->term_relationships} tr
+                     JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+                     JOIN {$wpdb->posts} p ON tr.object_id = p.ID
+                     WHERE tt.term_id = %d
+                       AND tt.taxonomy = 'qe_provider'
+                       AND p.post_type = 'qe_question'
+                       AND p.post_status != 'trash'",
+                    $term->term_id
+                ));
             }
-
-            if (!$term || is_wp_error($term)) {
-                return new WP_REST_Response(['success' => false, 'message' => "Provider '{$provider_param}' not found"], 404);
-            }
-
-            $question_ids = $wpdb->get_col($wpdb->prepare(
-                "SELECT tr.object_id
-                 FROM {$wpdb->term_relationships} tr
-                 JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
-                 JOIN {$wpdb->posts} p ON tr.object_id = p.ID
-                 WHERE tt.term_id = %d
-                   AND tt.taxonomy = 'qe_provider'
-                   AND p.post_type = 'qe_question'
-                   AND p.post_status != 'trash'",
-                $term->term_id
-            ));
         }
 
         // Filter by category if provided — intersect with provider results when both are set

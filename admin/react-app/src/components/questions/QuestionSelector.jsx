@@ -233,9 +233,20 @@ const QuestionSelector = ({
       try {
         setProviderLessonsLoading(true);
         const config = getApiConfig();
-        // Send whichever filters are active; backend intersects both when both are provided.
+        // Build params using the proven provider→quiz→lesson chain.
+        // When only category is selected, pass ALL provider IDs so the backend runs through
+        // the same working path (provider→questions→quizzes) filtered by that category.
         const params = new URLSearchParams();
-        if (hasProvider) params.set('provider', provider);
+        if (hasProvider) {
+          params.set('provider', provider);
+        } else if (hasCategory) {
+          // "All providers" — use every known provider ID so the backend's provider path fires
+          const allProviderIds = providerOptions
+            .filter(o => o.value !== 'all')
+            .map(o => o.value)
+            .join(',');
+          if (allProviderIds) params.set('provider', allProviderIds);
+        }
         if (hasCategory) params.set('category', category);
         const url = `${config.apiUrl}/quiz-extended/v1/debug/provider-lessons?${params}`;
         const res = await makeApiRequest(url);
