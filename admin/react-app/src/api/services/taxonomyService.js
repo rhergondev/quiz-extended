@@ -82,7 +82,7 @@ export const getTaxonomyTerms = async (taxonomy, options = {}) => {
     const queryParams = new URLSearchParams({
       per_page: perPage.toString(),
       hide_empty: hideEmpty.toString(),
-      _fields: 'id,name,slug,description,count,parent'
+      _fields: 'id,name,slug,description,count,parent,meta'
     });
 
     if (search) {

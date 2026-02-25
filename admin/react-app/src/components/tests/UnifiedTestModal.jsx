@@ -134,6 +134,7 @@ const UnifiedTestModal = ({
   const [selectorKey, setSelectorKey] = useState(0); // Increment to force QuestionSelector remount/refetch
   const [questionOverrides, setQuestionOverrides] = useState({}); // Map of id → updated question, refreshes individual cards
   const [quizMembership, setQuizMembership] = useState({}); // Map of questionId → [{id, title}] — fetched separately
+  const [providerRefreshKey, setProviderRefreshKey] = useState(0); // Incremented when QuestionModal closes to re-sync provider locks
 
   // Filter assigned questions by search term, with match metadata per question
   const filteredSelectedQuestions = useMemo(() => {
@@ -391,6 +392,7 @@ const UnifiedTestModal = ({
 
   const closeQuestionModal = () => {
     setQuestionModal(prev => ({ ...prev, isOpen: false }));
+    setProviderRefreshKey(k => k + 1);
   };
 
   const handleSaveQuestion = async (questionData, nextAction) => {
@@ -775,6 +777,7 @@ const UnifiedTestModal = ({
                     colors={colors}
                     onEditQuestion={openEditQuestion}
                     questionOverrides={questionOverrides}
+                    providerRefreshKey={providerRefreshKey}
                  />
               </div>
             </div>
@@ -825,7 +828,7 @@ const UnifiedTestModal = ({
 };
 
 // Wrapper ensuring we get objects not just IDs
-const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, onEditQuestion, questionOverrides }) => {
+const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, onEditQuestion, questionOverrides, providerRefreshKey }) => {
   return (
     <QuestionSelector
        selectedIds={currentSelected.map(q => q.id)}
@@ -842,6 +845,7 @@ const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, onEditQue
        }}
        onEditQuestion={onEditQuestion}
        questionOverrides={questionOverrides}
+       providerRefreshKey={providerRefreshKey}
     />
   );
 }

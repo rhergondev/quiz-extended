@@ -17,6 +17,7 @@ const QuestionSelector = ({
   excludedIds = [],
   onEditQuestion = null, // Optional: open the in-app edit modal for a question
   questionOverrides = {}, // Map of id → updated question data, used to refresh individual cards without reloading the list
+  providerRefreshKey = 0, // Increment to re-fetch allowedProviderIds (e.g. after toggling a provider lock)
 }) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
@@ -114,7 +115,7 @@ const QuestionSelector = ({
       }
     };
     fetchAllowedProviders();
-  }, []);
+  }, [providerRefreshKey]);
 
   // Colors
   const colors = useMemo(() => ({

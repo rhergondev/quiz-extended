@@ -114,6 +114,9 @@ const QuestionModal = ({
   const [newCategoryName, setNewCategoryName] = useState('');
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState(false);
+  const [showEditCategoryForm, setShowEditCategoryForm] = useState(false);
+  const [editCategoryName, setEditCategoryName] = useState('');
+  const [renamingCategory, setRenamingCategory] = useState(false);
   const [deletingProvider, setDeletingProvider] = useState(false);
 
   const quillRef = useRef(null);
@@ -293,6 +296,32 @@ const QuestionModal = ({
     setEditProviderName(prov?.label || '');
     setShowEditProviderForm(true);
     setShowNewProviderForm(false);
+  };
+
+  const openEditCategoryForm = () => {
+    const cat = categories.find(c => c.value == formData.category);
+    setEditCategoryName(cat?.label || '');
+    setShowEditCategoryForm(true);
+    setShowNewCategoryForm(false);
+  };
+
+  const renameCategory = async () => {
+    const trimmedName = editCategoryName.trim();
+    if (!trimmedName || !formData.category) return;
+    setRenamingCategory(true);
+    try {
+      const slug = trimmedName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const updatedTerm = await updateTaxonomyTerm('qe_category', formData.category, { name: trimmedName, slug });
+      setCategories(prev => prev.map(c =>
+        c.value == formData.category ? { ...c, label: updatedTerm.name, slug: updatedTerm.slug } : c
+      ));
+      setShowEditCategoryForm(false);
+      setEditCategoryName('');
+    } catch (error) {
+      console.error('Error renaming category:', error);
+    } finally {
+      setRenamingCategory(false);
+    }
   };
 
   const toggleProviderTestLock = async () => {
@@ -676,29 +705,49 @@ const QuestionModal = ({
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold uppercase" style={{ color: pageColors.text }}>Categoría</label>
-                {!isReadOnly && !showNewCategoryForm && (
+                {!isReadOnly && !showNewCategoryForm && !showEditCategoryForm && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                     {formData.category && (
-                      <button
-                        type="button"
-                        onClick={deleteCategory}
-                        disabled={deletingCategory}
-                        title="Borrar esta categoría"
-                        style={{
-                          padding: '2px',
-                          backgroundColor: 'transparent',
-                          border: 'none',
-                          color: '#ef4444',
-                          cursor: deletingCategory ? 'not-allowed' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          opacity: deletingCategory ? 0.5 : 1
-                        }}
-                        onMouseEnter={(e) => { if (!deletingCategory) e.currentTarget.style.opacity = '0.7'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.opacity = deletingCategory ? '0.5' : '1'; }}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={openEditCategoryForm}
+                          title="Renombrar esta categoría"
+                          style={{
+                            padding: '2px',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: pageColors.accent,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={deleteCategory}
+                          disabled={deletingCategory}
+                          title="Borrar esta categoría"
+                          style={{
+                            padding: '2px',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: '#ef4444',
+                            cursor: deletingCategory ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            opacity: deletingCategory ? 0.5 : 1
+                          }}
+                          onMouseEnter={(e) => { if (!deletingCategory) e.currentTarget.style.opacity = '0.7'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.opacity = deletingCategory ? '0.5' : '1'; }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </>
                     )}
                     <button
                       type="button"
@@ -751,6 +800,60 @@ const QuestionModal = ({
                     <button
                       type="button"
                       onClick={() => setShowNewCategoryForm(false)}
+                      style={{
+                        padding: '6px 10px',
+                        backgroundColor: pageColors.inputBg,
+                        color: pageColors.text,
+                        border: `1px solid ${pageColors.inputBorder}`,
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                    >
+                      X
+                    </button>
+                  </div>
+                </div>
+              )}
+              {showEditCategoryForm && (
+                <div style={{ marginBottom: '8px', padding: '8px', backgroundColor: isDarkMode ? '#111827' : '#f9fafb', border: `1px solid ${pageColors.accent}`, borderRadius: '6px' }}>
+                  <div style={{ fontSize: '10px', fontWeight: '600', color: pageColors.accent, marginBottom: '6px', textTransform: 'uppercase' }}>
+                    Renombrar categoría
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={editCategoryName}
+                      onChange={(e) => setEditCategoryName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') renameCategory(); if (e.key === 'Escape') setShowEditCategoryForm(false); }}
+                      placeholder="Nombre de la categoría..."
+                      autoFocus
+                      style={{ flex: 1, padding: '6px 10px', border: `1px solid ${pageColors.inputBorder}`, borderRadius: '4px', fontSize: '13px', backgroundColor: pageColors.inputBg, color: pageColors.text }}
+                    />
+                    <button
+                      type="button"
+                      onClick={renameCategory}
+                      disabled={renamingCategory || !editCategoryName.trim()}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: pageColors.accent,
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        cursor: (renamingCategory || !editCategoryName.trim()) ? 'not-allowed' : 'pointer',
+                        opacity: (renamingCategory || !editCategoryName.trim()) ? 0.6 : 1
+                      }}
+                    >
+                      {renamingCategory ? '...' : 'OK'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowEditCategoryForm(false); setEditCategoryName(''); }}
                       style={{
                         padding: '6px 10px',
                         backgroundColor: pageColors.inputBg,
