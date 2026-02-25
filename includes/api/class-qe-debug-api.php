@@ -870,11 +870,10 @@ class QE_Debug_API extends QE_API_Base
             return new WP_REST_Response(['success' => false, 'message' => 'provider or category parameter required'], 400);
         }
 
-        // ── PROVIDER PATH: qe_provider taxonomy on questions → quiz IDs ──────
-        // null = filter not active; [] = active but no matches found.
-        $provider_quiz_ids     = null;
-        $provider_question_ids = [];
+        // Start with no restriction (null = not yet filtered)
+        $question_ids = null;
 
+        // Filter by provider if provided
         if (!empty($provider_param)) {
             if (is_numeric($provider_param)) {
                 $term = get_term((int) $provider_param, 'qe_provider');
@@ -886,7 +885,7 @@ class QE_Debug_API extends QE_API_Base
                 return new WP_REST_Response(['success' => false, 'message' => "Provider '{$provider_param}' not found"], 404);
             }
 
-            $provider_question_ids = array_map('intval', $wpdb->get_col($wpdb->prepare(
+            $question_ids = $wpdb->get_col($wpdb->prepare(
                 "SELECT tr.object_id
                  FROM {$wpdb->term_relationships} tr
                  JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
@@ -896,137 +895,143 @@ class QE_Debug_API extends QE_API_Base
                    AND p.post_type = 'qe_question'
                    AND p.post_status != 'trash'",
                 $term->term_id
-            )));
-
-            // Trace questions → quizzes via _quiz_question_ids meta
-            $provider_quiz_ids = [];
-            if (!empty($provider_question_ids)) {
-                $quiz_meta_rows = $wpdb->get_results(
-                    "SELECT post_id, meta_value
-                     FROM {$wpdb->postmeta}
-                     WHERE meta_key = '_quiz_question_ids'
-                       AND meta_value != ''",
-                    ARRAY_A
-                );
-
-                foreach ($quiz_meta_rows as $row) {
-                    $parsed = @maybe_unserialize($row['meta_value']);
-                    if ($parsed === $row['meta_value']) {
-                        $parsed = json_decode($row['meta_value'], true);
-                    }
-                    if (!is_array($parsed)) continue;
-                    $qids = array_map('intval', $parsed);
-                    if (!empty(array_intersect($provider_question_ids, $qids))) {
-                        $provider_quiz_ids[] = (int) $row['post_id'];
-                    }
-                }
-                $provider_quiz_ids = array_values(array_unique($provider_quiz_ids));
-            }
+            ));
         }
 
-        // ── CATEGORY PATH: qe_category taxonomy on qe_quiz posts directly ────
-        // Category lives on quizzes (tests), not on questions.
-        // null = filter not active; [] = active but no matches found.
-        $category_quiz_ids = null;
-
+        // Filter by category if provided — intersect with provider results when both are set
         if (!empty($category_param) && is_numeric($category_param)) {
-            $category_quiz_ids = array_map('intval', $wpdb->get_col($wpdb->prepare(
+            $category_question_ids = $wpdb->get_col($wpdb->prepare(
                 "SELECT tr.object_id
                  FROM {$wpdb->term_relationships} tr
                  JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
                  JOIN {$wpdb->posts} p ON tr.object_id = p.ID
                  WHERE tt.term_id = %d
                    AND tt.taxonomy = 'qe_category'
-                   AND p.post_type = 'qe_quiz'
+                   AND p.post_type = 'qe_question'
                    AND p.post_status != 'trash'",
                 (int) $category_param
-            )));
+            ));
+
+            $question_ids = $question_ids === null
+                ? $category_question_ids
+                : array_values(array_intersect($question_ids, $category_question_ids));
         }
 
-        // ── Resolve the final set of quiz IDs ─────────────────────────────────
-        if ($provider_quiz_ids === null && $category_quiz_ids === null) {
-            return new WP_REST_Response(['success' => true, 'data' => ['lessons' => [], 'question_count' => 0]], 200);
-        }
+        $question_ids = array_values(array_filter((array) $question_ids));
 
-        if ($provider_quiz_ids === null) {
-            $quiz_ids = $category_quiz_ids;
-        } elseif ($category_quiz_ids === null) {
-            $quiz_ids = $provider_quiz_ids;
-        } else {
-            // Both active: quiz must satisfy both — intersect at the quiz level.
-            $quiz_ids = array_values(array_intersect($provider_quiz_ids, $category_quiz_ids));
-        }
-
-        $quiz_ids = array_values(array_filter($quiz_ids));
-
-        if (empty($quiz_ids)) {
+        if (empty($question_ids)) {
             return new WP_REST_Response([
                 'success' => true,
-                'data' => ['lessons' => [], 'question_count' => count($provider_question_ids)]
+                'data' => ['lessons' => [], 'question_count' => 0]
             ], 200);
         }
 
-        // ── Find lessons that contain those quizzes ───────────────────────────
-        $all_lesson_ids = [];
+        $ids_str = implode(',', array_map('intval', $question_ids));
 
-        // Legacy: when provider is active, also check _question_lesson denormalized meta
-        if (!empty($provider_question_ids)) {
-            $ids_str = implode(',', $provider_question_ids);
-            $lesson_ids_legacy = $wpdb->get_col(
-                "SELECT DISTINCT meta_value FROM {$wpdb->postmeta}
-                 WHERE post_id IN ({$ids_str})
-                   AND meta_key = '_question_lesson'
-                   AND meta_value != ''
-                   AND meta_value != '0'"
-            );
-            $all_lesson_ids = array_map('intval', $lesson_ids_legacy);
-        }
-
-        // Main path: scan all lesson _lesson_steps for matching quiz IDs
-        $lesson_meta_rows = $wpdb->get_results(
-            "SELECT pm.post_id, pm.meta_key, pm.meta_value
-             FROM {$wpdb->postmeta} pm
-             JOIN {$wpdb->posts} p ON p.ID = pm.post_id
-             WHERE pm.meta_key IN ('_quiz_ids', '_lesson_steps')
-               AND p.post_type = 'qe_lesson'
-               AND p.post_status IN ('publish', 'draft', 'private')",
-            ARRAY_A
+        // Collect all lesson IDs from _question_lesson (legacy) and _lesson_ids (new)
+        $lesson_ids_legacy = $wpdb->get_col(
+            "SELECT DISTINCT meta_value FROM {$wpdb->postmeta}
+             WHERE post_id IN ({$ids_str})
+               AND meta_key = '_question_lesson'
+               AND meta_value != ''
+               AND meta_value != '0'"
         );
 
-        foreach ($lesson_meta_rows as $lrow) {
-            $parsed = @maybe_unserialize($lrow['meta_value']);
-            if ($parsed === $lrow['meta_value']) {
-                $parsed = json_decode($lrow['meta_value'], true);
+        $lesson_ids_new_raw = $wpdb->get_col(
+            "SELECT DISTINCT meta_value FROM {$wpdb->postmeta}
+             WHERE post_id IN ({$ids_str})
+               AND meta_key = '_lesson_ids'
+               AND meta_value != ''"
+        );
+
+        $all_lesson_ids = array_map('intval', $lesson_ids_legacy);
+
+        foreach ($lesson_ids_new_raw as $raw) {
+            $decoded = @maybe_unserialize($raw);
+            if (!is_array($decoded)) {
+                $decoded = json_decode($raw, true);
             }
-            if (!is_array($parsed)) continue;
-
-            $quiz_ids_in_lesson = [];
-
-            if ($lrow['meta_key'] === '_quiz_ids') {
-                $quiz_ids_in_lesson = array_map('intval', $parsed);
-            } elseif ($lrow['meta_key'] === '_lesson_steps') {
-                foreach ($parsed as $step) {
-                    if (
-                        is_array($step) &&
-                        ($step['type'] ?? '') === 'quiz' &&
-                        !empty($step['data']['quiz_id'])
-                    ) {
-                        $quiz_ids_in_lesson[] = (int) $step['data']['quiz_id'];
-                    }
+            if (is_array($decoded)) {
+                foreach ($decoded as $lid) {
+                    $all_lesson_ids[] = (int) $lid;
                 }
-            }
-
-            if (!empty(array_intersect($quiz_ids_in_lesson, $quiz_ids))) {
-                $all_lesson_ids[] = (int) $lrow['post_id'];
+            } elseif (is_numeric($raw) && (int) $raw > 0) {
+                $all_lesson_ids[] = (int) $raw;
             }
         }
 
         $all_lesson_ids = array_values(array_unique(array_filter($all_lesson_ids)));
 
+        // Secondary path: question → quiz → lesson.
+        // Catches questions embedded in lesson quizzes whose _question_lesson
+        // denormalized cache was never written or is out of date.
+        $quiz_meta_rows = $wpdb->get_results(
+            "SELECT post_id, meta_value
+             FROM {$wpdb->postmeta}
+             WHERE meta_key = '_quiz_question_ids'
+               AND meta_value != ''",
+            ARRAY_A
+        );
+
+        $quiz_ids_for_questions = [];
+        foreach ($quiz_meta_rows as $row) {
+            $parsed = @maybe_unserialize($row['meta_value']);
+            if ($parsed === $row['meta_value']) {
+                $parsed = json_decode($row['meta_value'], true);
+            }
+            if (!is_array($parsed)) continue;
+            $qids = array_map('intval', $parsed);
+            if (!empty(array_intersect($question_ids, $qids))) {
+                $quiz_ids_for_questions[] = (int) $row['post_id'];
+            }
+        }
+
+        if (!empty($quiz_ids_for_questions)) {
+            $lesson_meta_rows = $wpdb->get_results(
+                "SELECT pm.post_id, pm.meta_key, pm.meta_value
+                 FROM {$wpdb->postmeta} pm
+                 JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+                 WHERE pm.meta_key IN ('_quiz_ids', '_lesson_steps')
+                   AND p.post_type = 'qe_lesson'
+                   AND p.post_status IN ('publish', 'draft', 'private')",
+                ARRAY_A
+            );
+
+            foreach ($lesson_meta_rows as $lrow) {
+                $parsed = @maybe_unserialize($lrow['meta_value']);
+                if ($parsed === $lrow['meta_value']) {
+                    $parsed = json_decode($lrow['meta_value'], true);
+                }
+                if (!is_array($parsed)) continue;
+
+                $quiz_ids_in_lesson = [];
+
+                if ($lrow['meta_key'] === '_quiz_ids') {
+                    $quiz_ids_in_lesson = array_map('intval', $parsed);
+                } elseif ($lrow['meta_key'] === '_lesson_steps') {
+                    foreach ($parsed as $step) {
+                        if (
+                            is_array($step) &&
+                            ($step['type'] ?? '') === 'quiz' &&
+                            !empty($step['data']['quiz_id'])
+                        ) {
+                            $quiz_ids_in_lesson[] = (int) $step['data']['quiz_id'];
+                        }
+                    }
+                }
+
+                if (!empty(array_intersect($quiz_ids_in_lesson, $quiz_ids_for_questions))) {
+                    $all_lesson_ids[] = (int) $lrow['post_id'];
+                }
+            }
+
+            $all_lesson_ids = array_values(array_unique(array_filter($all_lesson_ids)));
+        }
+
         if (empty($all_lesson_ids)) {
             return new WP_REST_Response([
                 'success' => true,
-                'data' => ['lessons' => [], 'question_count' => count($provider_question_ids)]
+                'data' => ['lessons' => [], 'question_count' => count($question_ids)]
             ], 200);
         }
 
@@ -1051,7 +1056,7 @@ class QE_Debug_API extends QE_API_Base
             'success' => true,
             'data' => [
                 'lessons'        => $lessons,
-                'question_count' => count($provider_question_ids),
+                'question_count' => count($question_ids),
             ]
         ], 200);
     }
