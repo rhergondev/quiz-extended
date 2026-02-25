@@ -364,7 +364,7 @@ const SelfPacedTestsPage = () => {
           }`}
         >
           <div className="h-full overflow-y-auto">
-            <div className="mx-auto pt-8 pb-24" style={{ paddingLeft: '3rem', paddingRight: '3rem' }}>
+            <div className="mx-auto pt-8 pb-24 px-4 sm:px-12">
               {isLoading ? (
                 <div 
                   className="rounded-lg border"

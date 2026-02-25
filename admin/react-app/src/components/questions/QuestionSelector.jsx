@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Filter, ChevronDown, CheckCircle, Circle, Loader2, X, ExternalLink, Lock } from 'lucide-react';
+import { Search, Filter, ChevronDown, CheckCircle, Circle, Loader2, X, ExternalLink, Lock, Tag, Square, CheckSquare } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { useTheme } from '../../contexts/ThemeContext';
 import useQuestionsAdmin from '../../hooks/useQuestionsAdmin';
 import useQuizzes from '../../hooks/useQuizzes';
@@ -15,6 +16,7 @@ const QuestionSelector = ({
   multiSelect = true,
   excludedIds = [],
   onEditQuestion = null, // Optional: open the in-app edit modal for a question
+  questionOverrides = {}, // Map of id → updated question data, used to refresh individual cards without reloading the list
 }) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
@@ -30,6 +32,53 @@ const QuestionSelector = ({
   useEffect(() => {
     setLocalSelected(new Set(selectedIds));
   }, [selectedIds]);
+
+  // Batch category-change mode
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchSelected, setBatchSelected] = useState(new Set());
+  const [batchCategory, setBatchCategory] = useState('');
+  const [updatingBatch, setUpdatingBatch] = useState(false);
+
+  const toggleBatchSelect = (questionId) => {
+    setBatchSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(questionId)) next.delete(questionId); else next.add(questionId);
+      return next;
+    });
+  };
+
+  const cancelBatch = () => {
+    setBatchMode(false);
+    setBatchSelected(new Set());
+    setBatchCategory('');
+  };
+
+  const confirmBatchCategory = async () => {
+    if (!batchCategory || batchSelected.size === 0) return;
+    setUpdatingBatch(true);
+    try {
+      const config = window.qe_data || {};
+      const endpoint = config.endpoints?.questions;
+      if (!endpoint) throw new Error('No questions endpoint');
+      await Promise.all(
+        Array.from(batchSelected).map(id =>
+          fetch(`${endpoint}/${id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': config.nonce },
+            credentials: 'same-origin',
+            body: JSON.stringify({ qe_category: [parseInt(batchCategory)] }),
+          })
+        )
+      );
+      toast.success(`Categoría actualizada en ${batchSelected.size} pregunta${batchSelected.size !== 1 ? 's' : ''}`, { autoClose: 2000, position: 'bottom-right' });
+      cancelBatch();
+    } catch (err) {
+      console.error('Error updating batch categories:', err);
+      toast.error('Error al actualizar categorías', { position: 'bottom-right' });
+    } finally {
+      setUpdatingBatch(false);
+    }
+  };
 
   // Hooks
   const questionsHook = useQuestionsAdmin({
@@ -47,23 +96,24 @@ const QuestionSelector = ({
   const [providerLessons, setProviderLessons] = useState(null);
   const [providerLessonsLoading, setProviderLessonsLoading] = useState(false);
 
-  // Term ID for the "uniforme-azul" provider — questions without it are restricted.
-  // null = loading (fail open), 0 = not found (fail open), >0 = restriction active.
-  const [uniformeAzulTermId, setUniformeAzulTermId] = useState(null);
+  // Set of provider IDs whose questions are allowed in tests.
+  // null = loading (fail open), empty Set = no restrictions (fail open), Set with IDs = restriction active.
+  const [allowedProviderIds, setAllowedProviderIds] = useState(null);
 
   useEffect(() => {
-    const fetchTerm = async () => {
+    const fetchAllowedProviders = async () => {
       try {
         const config = getApiConfig();
-        const res = await makeApiRequest(`${config.apiUrl}/wp/v2/qe_provider?slug=uniforme-azul`);
+        const res = await makeApiRequest(`${config.apiUrl}/wp/v2/qe_provider?per_page=100&_fields=id,meta`);
         const terms = Array.isArray(res.data) ? res.data : [];
-        setUniformeAzulTermId(terms.length > 0 ? terms[0].id : 0);
+        const ids = terms.filter(t => t.meta?._test_unlocked).map(t => t.id);
+        setAllowedProviderIds(new Set(ids));
       } catch (err) {
-        console.error('Error fetching uniforme-azul term:', err);
-        setUniformeAzulTermId(0); // fail open
+        console.error('Error fetching allowed providers:', err);
+        setAllowedProviderIds(new Set()); // fail open
       }
     };
-    fetchTerm();
+    fetchAllowedProviders();
   }, []);
 
   // Colors
@@ -217,11 +267,13 @@ const QuestionSelector = ({
   }, [questionsHook.filters?.lessons, topicOptions]);
 
   // Returns true if this question can be added to a test.
-  // Restriction is active only when uniformeAzulTermId is a positive number.
+  // Restriction is active only when at least one provider is marked as _test_unlocked.
+  // If none are marked, fail open so the system is not accidentally restrictive.
   const isQuestionAllowed = useCallback((question) => {
-    if (!uniformeAzulTermId) return true; // loading or term not found → fail open
-    return (question.qe_provider || []).includes(uniformeAzulTermId);
-  }, [uniformeAzulTermId]);
+    if (allowedProviderIds === null) return true; // still loading → fail open
+    if (allowedProviderIds.size === 0) return true; // no providers unlocked → fail open
+    return (question.qe_provider || []).some(id => allowedProviderIds.has(id));
+  }, [allowedProviderIds]);
 
   // Build the WP admin edit URL for a question
   const getWpEditUrl = (questionId) => {
@@ -259,14 +311,74 @@ const QuestionSelector = ({
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="p-2 rounded-lg border transition-colors shadow-sm"
-            style={showFilters 
+            style={showFilters
               ? { backgroundColor: colors.accent, borderColor: colors.accent, color: '#ffffff' }
               : { backgroundColor: isDarkMode ? '#1f2937' : '#ffffff', borderColor: colors.border, color: colors.text }
             }
+            title="Filtros"
           >
             <Filter size={18} />
           </button>
+          <button
+            onClick={() => { setBatchMode(prev => !prev); setBatchSelected(new Set()); setBatchCategory(''); }}
+            className="p-2 rounded-lg border transition-colors shadow-sm"
+            style={batchMode
+              ? { backgroundColor: '#3b82f6', borderColor: '#3b82f6', color: '#ffffff' }
+              : { backgroundColor: isDarkMode ? '#1f2937' : '#ffffff', borderColor: colors.border, color: colors.text }
+            }
+            title="Cambiar categoría en lote"
+          >
+            <Tag size={18} />
+          </button>
         </div>
+
+        {/* Batch category controls */}
+        {batchMode && (
+          <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-1.5 text-xs font-medium" style={{ color: '#3b82f6' }}>
+              <Tag size={12} />
+              <span>
+                {batchSelected.size === 0
+                  ? 'Selecciona preguntas de la lista'
+                  : `${batchSelected.size} pregunta${batchSelected.size !== 1 ? 's' : ''} seleccionada${batchSelected.size !== 1 ? 's' : ''}`
+                }
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={batchCategory}
+                onChange={e => setBatchCategory(e.target.value)}
+                className="flex-1 px-2 py-1.5 rounded-lg text-sm outline-none"
+                style={{
+                  border: `2px solid #3b82f6`,
+                  backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                  color: colors.text
+                }}
+              >
+                <option value="">Seleccionar categoría...</option>
+                {categoryOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <button
+                onClick={confirmBatchCategory}
+                disabled={!batchCategory || batchSelected.size === 0 || updatingBatch}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ backgroundColor: '#3b82f6' }}
+              >
+                {updatingBatch ? '...' : 'Aplicar'}
+              </button>
+              <button
+                onClick={cancelBatch}
+                disabled={updatingBatch}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                style={{ border: `1px solid ${colors.border}`, color: colors.textMuted, backgroundColor: 'transparent' }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Filters Panel */}
         {showFilters && (
@@ -441,7 +553,13 @@ const QuestionSelector = ({
           </div>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {questionsHook.questions.map(question => {
+            {questionsHook.questions.map(baseQuestion => {
+              // Merge any locally-edited override so individual cards reflect changes
+              // (e.g. lock disappears after provider is changed) without reloading the list
+              const question = questionOverrides[baseQuestion.id]
+                ? { ...baseQuestion, ...questionOverrides[baseQuestion.id] }
+                : baseQuestion;
+
               const isSelected = localSelected.has(question.id);
               const isExcluded = excludedIds.includes(question.id);
 
@@ -557,19 +675,33 @@ const QuestionSelector = ({
               return (
                 <div
                   key={question.id}
-                  onClick={() => handleToggleSelect(question)}
-                  className={`flex items-start gap-3 p-3 cursor-pointer transition-colors ${isSelected ? '' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
-                  style={{ backgroundColor: isSelected ? colors.selectedBg : 'transparent' }}
+                  onClick={() => batchMode ? toggleBatchSelect(question.id) : handleToggleSelect(question)}
+                  className={`flex items-start gap-3 p-3 cursor-pointer transition-colors ${
+                    batchMode
+                      ? batchSelected.has(question.id) ? '' : 'hover:bg-blue-50/50 dark:hover:bg-blue-900/10'
+                      : isSelected ? '' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                  }`}
+                  style={{
+                    backgroundColor: batchMode
+                      ? batchSelected.has(question.id) ? (isDarkMode ? 'rgba(59,130,246,0.15)' : '#eff6ff') : 'transparent'
+                      : isSelected ? colors.selectedBg : 'transparent'
+                  }}
                 >
-                  <div className={`mt-0.5 ${isSelected ? 'text-amber-500' : 'text-gray-400 dark:text-gray-600'}`}>
-                    {isSelected ? <CheckCircle size={18} className="text-amber-500" /> : <Circle size={18} />}
+                  <div className="mt-0.5">
+                    {batchMode
+                      ? batchSelected.has(question.id)
+                        ? <CheckSquare size={18} className="text-blue-500" />
+                        : <Square size={18} className="text-gray-400 dark:text-gray-600" />
+                      : isSelected
+                        ? <CheckCircle size={18} className="text-amber-500" />
+                        : <Circle size={18} className="text-gray-400 dark:text-gray-600" />
+                    }
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm line-clamp-2 mb-0.5" style={{ color: colors.text }}>
                       {question.title?.rendered || question.title || 'Sin título'}
                     </p>
                     <div className="flex items-center gap-2 text-xs opacity-70 flex-wrap" style={{ color: colors.textMuted }}>
-                      <span className="capitalize">{question.type || 'multiple_choice'}</span>
                       {question.difficulty && (
                         <>
                           <span>•</span>

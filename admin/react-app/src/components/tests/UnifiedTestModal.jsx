@@ -17,9 +17,10 @@ import QuestionModal from '../questions/QuestionModal';
 import { getOne as getQuiz } from '../../api/services/quizService';
 
 // Sortable Item Component with Edit button and search match tags
-const SortableQuestionItem = ({ question, onRemove, onEdit, colors }) => {
+const SortableQuestionItem = ({ question, onRemove, onEdit, colors, quizMembership = {} }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: question.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
+  const memberQuizzes = quizMembership[question.id] || [];
 
   return (
     <div
@@ -47,6 +48,18 @@ const SortableQuestionItem = ({ question, onRemove, onEdit, colors }) => {
                   }}
                 >
                   {m}
+                </span>
+              ))}
+            </div>
+          )}
+          {memberQuizzes.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              {memberQuizzes.map(quiz => (
+                <span
+                  key={quiz.id}
+                  className="text-[9px] font-medium px-1.5 py-0.5 rounded-full leading-none bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-100 dark:border-blue-800"
+                >
+                  {quiz.title}
                 </span>
               ))}
             </div>
@@ -119,6 +132,8 @@ const UnifiedTestModal = ({
   const [selectedQuestions, setSelectedQuestions] = useState([]); // Array of question objects
   const [questionSearch, setQuestionSearch] = useState('');
   const [selectorKey, setSelectorKey] = useState(0); // Increment to force QuestionSelector remount/refetch
+  const [questionOverrides, setQuestionOverrides] = useState({}); // Map of id → updated question, refreshes individual cards
+  const [quizMembership, setQuizMembership] = useState({}); // Map of questionId → [{id, title}] — fetched separately
 
   // Filter assigned questions by search term, with match metadata per question
   const filteredSelectedQuestions = useMemo(() => {
@@ -175,7 +190,8 @@ const UnifiedTestModal = ({
         start_date: '',
       });
       setSelectedQuestions([]);
-      
+      setQuestionOverrides({});
+
       if (mode === 'edit' && test) {
         setIsLoading(true);
         try {
@@ -220,6 +236,33 @@ const UnifiedTestModal = ({
     
     loadData();
   }, [isOpen, mode, test]);
+
+  // Fetch quiz membership for all selected questions (non-blocking second call)
+  useEffect(() => {
+    const ids = selectedQuestions.map(q => q.id).filter(Boolean);
+    if (ids.length === 0) {
+      setQuizMembership({});
+      return;
+    }
+    let cancelled = false;
+    const fetchMembership = async () => {
+      try {
+        const { apiUrl } = getApiConfig();
+        const res = await fetch(`${apiUrl}/qe/v1/questions/quiz-membership?ids=${ids.join(',')}`, {
+          headers: getDefaultHeaders(),
+          credentials: 'same-origin',
+        });
+        if (!cancelled && res.ok) {
+          const data = await res.json();
+          setQuizMembership(data);
+        }
+      } catch {
+        // Non-critical — tags just won't appear if the request fails
+      }
+    };
+    fetchMembership();
+    return () => { cancelled = true; };
+  }, [selectedQuestions]);
 
   // Handlers
   const handleSave = async () => {
@@ -364,6 +407,8 @@ const UnifiedTestModal = ({
         const updatedQuestion = await questionsAdminHook.updateQuestion(questionModal.question.id, questionData);
         // Update local list
         setSelectedQuestions(prev => prev.map(q => q.id === updatedQuestion.id ? updatedQuestion : q));
+        // Refresh only this question's card in the selector (e.g. lock disappears after provider change)
+        setQuestionOverrides(prev => ({ ...prev, [updatedQuestion.id]: updatedQuestion }));
         toast.success('Pregunta actualizada');
         closeQuestionModal();
       }
@@ -686,6 +731,7 @@ const UnifiedTestModal = ({
                                   onRemove={(id) => setSelectedQuestions(items => items.filter(i => i.id !== id))}
                                   onEdit={openEditQuestion}
                                   colors={colors}
+                                  quizMembership={quizMembership}
                                 />
                               ))}
                             </SortableContext>
@@ -728,6 +774,7 @@ const UnifiedTestModal = ({
                     onSelectionChange={setSelectedQuestions}
                     colors={colors}
                     onEditQuestion={openEditQuestion}
+                    questionOverrides={questionOverrides}
                  />
               </div>
             </div>
@@ -778,7 +825,7 @@ const UnifiedTestModal = ({
 };
 
 // Wrapper ensuring we get objects not just IDs
-const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, colors, onEditQuestion }) => {
+const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, onEditQuestion, questionOverrides }) => {
   return (
     <QuestionSelector
        selectedIds={currentSelected.map(q => q.id)}
@@ -794,6 +841,7 @@ const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, colors, o
           }
        }}
        onEditQuestion={onEditQuestion}
+       questionOverrides={questionOverrides}
     />
   );
 }

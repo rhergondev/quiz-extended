@@ -1,6 +1,6 @@
 // admin/react-app/src/components/modals/QuestionModal.jsx
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { X, Plus, Trash2, Save, Eye, AlertCircle, ChevronDown, Database } from 'lucide-react';
+import { X, Plus, Trash2, Save, Eye, AlertCircle, ChevronDown, Database, Edit2, KeyRound } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import '../../styles/quill-explanation.css';
@@ -15,7 +15,7 @@ import {
 import { SortableOption } from './SortableOption';
 import QuizSelector from '../questions/QuizSelector';
 import { useTheme } from '../../contexts/ThemeContext';
-import { getTaxonomyTerms, createTaxonomyTerm, deleteTaxonomyTerm } from '../../api/services/taxonomyService';
+import { getTaxonomyTerms, createTaxonomyTerm, deleteTaxonomyTerm, updateTaxonomyTerm } from '../../api/services/taxonomyService';
 
 /**
  * Normalize HTML so Quill can render line breaks properly.
@@ -103,6 +103,9 @@ const QuestionModal = ({
   const [showNewProviderForm, setShowNewProviderForm] = useState(false);
   const [newProviderName, setNewProviderName] = useState('');
   const [creatingProvider, setCreatingProvider] = useState(false);
+  const [showEditProviderForm, setShowEditProviderForm] = useState(false);
+  const [editProviderName, setEditProviderName] = useState('');
+  const [renamingProvider, setRenamingProvider] = useState(false);
 
   // 🔥 NUEVO: State para Categorías
   const [categories, setCategories] = useState([]);
@@ -168,7 +171,8 @@ const QuestionModal = ({
       const providerOptions = terms.map(term => ({
         value: term.id,
         label: term.name,
-        slug: term.slug
+        slug: term.slug,
+        isTestUnlocked: term.meta?._test_unlocked || false
       }));
       setProviders(providerOptions);
     } catch (error) {
@@ -281,6 +285,47 @@ const QuestionModal = ({
       console.error('Error deleting provider:', error);
     } finally {
       setDeletingProvider(false);
+    }
+  };
+
+  const openEditProviderForm = () => {
+    const prov = providers.find(p => p.value == formData.provider);
+    setEditProviderName(prov?.label || '');
+    setShowEditProviderForm(true);
+    setShowNewProviderForm(false);
+  };
+
+  const toggleProviderTestLock = async () => {
+    if (!formData.provider) return;
+    const current = providers.find(p => p.value == formData.provider);
+    const newValue = !current?.isTestUnlocked;
+    try {
+      await updateTaxonomyTerm('qe_provider', formData.provider, { meta: { _test_unlocked: newValue } });
+      setProviders(prev => prev.map(p =>
+        p.value == formData.provider ? { ...p, isTestUnlocked: newValue } : p
+      ));
+    } catch (error) {
+      console.error('Error toggling provider test lock:', error);
+    }
+  };
+
+  const renameProvider = async () => {
+    const trimmedName = editProviderName.trim();
+    if (!trimmedName || !formData.provider) return;
+    setRenamingProvider(true);
+    try {
+      // Send both name and slug so WordPress updates them together
+      const slug = trimmedName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const updatedTerm = await updateTaxonomyTerm('qe_provider', formData.provider, { name: trimmedName, slug });
+      setProviders(prev => prev.map(p =>
+        p.value == formData.provider ? { ...p, label: updatedTerm.name, slug: updatedTerm.slug } : p
+      ));
+      setShowEditProviderForm(false);
+      setEditProviderName('');
+    } catch (error) {
+      console.error('Error renaming provider:', error);
+    } finally {
+      setRenamingProvider(false);
     }
   };
 
@@ -769,29 +814,73 @@ const QuestionModal = ({
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold uppercase" style={{ color: pageColors.text }}>Proveedor</label>
-                {!isReadOnly && !showNewProviderForm && (
+                {!isReadOnly && !showNewProviderForm && !showEditProviderForm && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                     {formData.provider && (
-                      <button
-                        type="button"
-                        onClick={deleteProvider}
-                        disabled={deletingProvider}
-                        title="Borrar este proveedor"
-                        style={{
-                          padding: '2px',
-                          backgroundColor: 'transparent',
-                          border: 'none',
-                          color: '#ef4444',
-                          cursor: deletingProvider ? 'not-allowed' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          opacity: deletingProvider ? 0.5 : 1
-                        }}
-                        onMouseEnter={(e) => { if (!deletingProvider) e.currentTarget.style.opacity = '0.7'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.opacity = deletingProvider ? '0.5' : '1'; }}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={toggleProviderTestLock}
+                          title={(() => {
+                            const p = providers.find(p => p.value == formData.provider);
+                            return p?.isTestUnlocked
+                              ? 'Este proveedor puede añadir preguntas a tests (clic para bloquear)'
+                              : 'Este proveedor no puede añadir preguntas a tests (clic para desbloquear)';
+                          })()}
+                          style={{
+                            padding: '2px',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: providers.find(p => p.value == formData.provider)?.isTestUnlocked ? '#10b981' : pageColors.textMuted,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            opacity: 1
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                        >
+                          <KeyRound size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={openEditProviderForm}
+                          title="Renombrar este proveedor"
+                          style={{
+                            padding: '2px',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: pageColors.accent,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={deleteProvider}
+                          disabled={deletingProvider}
+                          title="Borrar este proveedor"
+                          style={{
+                            padding: '2px',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: '#ef4444',
+                            cursor: deletingProvider ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            opacity: deletingProvider ? 0.5 : 1
+                          }}
+                          onMouseEnter={(e) => { if (!deletingProvider) e.currentTarget.style.opacity = '0.7'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.opacity = deletingProvider ? '0.5' : '1'; }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </>
                     )}
                     <button
                       type="button"
@@ -844,6 +933,60 @@ const QuestionModal = ({
                     <button
                       type="button"
                       onClick={() => setShowNewProviderForm(false)}
+                      style={{
+                        padding: '6px 10px',
+                        backgroundColor: pageColors.inputBg,
+                        color: pageColors.text,
+                        border: `1px solid ${pageColors.inputBorder}`,
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                    >
+                      X
+                    </button>
+                  </div>
+                </div>
+              )}
+              {showEditProviderForm && (
+                <div style={{ marginBottom: '8px', padding: '8px', backgroundColor: isDarkMode ? '#111827' : '#f9fafb', border: `1px solid ${pageColors.accent}`, borderRadius: '6px' }}>
+                  <div style={{ fontSize: '10px', fontWeight: '600', color: pageColors.accent, marginBottom: '6px', textTransform: 'uppercase' }}>
+                    Renombrar proveedor
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={editProviderName}
+                      onChange={(e) => setEditProviderName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') renameProvider(); if (e.key === 'Escape') setShowEditProviderForm(false); }}
+                      placeholder="Nombre del proveedor..."
+                      autoFocus
+                      style={{ flex: 1, padding: '6px 10px', border: `1px solid ${pageColors.inputBorder}`, borderRadius: '4px', fontSize: '13px', backgroundColor: pageColors.inputBg, color: pageColors.text }}
+                    />
+                    <button
+                      type="button"
+                      onClick={renameProvider}
+                      disabled={renamingProvider || !editProviderName.trim()}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: pageColors.accent,
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        cursor: (renamingProvider || !editProviderName.trim()) ? 'not-allowed' : 'pointer',
+                        opacity: (renamingProvider || !editProviderName.trim()) ? 0.6 : 1
+                      }}
+                    >
+                      {renamingProvider ? '...' : 'OK'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowEditProviderForm(false); setEditProviderName(''); }}
                       style={{
                         padding: '6px 10px',
                         backgroundColor: pageColors.inputBg,

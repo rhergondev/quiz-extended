@@ -335,32 +335,32 @@ const SelfPacedQuestion = ({
       </div>
 
       {/* Navigation Footer */}
-      <div className="mt-6 flex items-center justify-center gap-3">
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
         <button
           onClick={handlePrevious}
           disabled={currentIndex === 0}
-          className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+          className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium flex items-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm text-sm"
           style={{
             backgroundColor: colors.bg,
             color: isDarkMode ? '#ffffff' : colors.primary,
             border: `2px solid ${isDarkMode ? '#ffffff' : colors.primary}`
           }}
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={18} />
           <span>{t('common.previous')}</span>
         </button>
 
         {!showResult && (
           <button
             onClick={handleSkip}
-            className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all shadow-sm"
+            className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium flex items-center gap-2 transition-all shadow-sm text-sm"
             style={{
               backgroundColor: colors.bg,
               color: isDarkMode ? '#ffffff' : colors.textMuted,
               border: `2px solid ${colors.border}`
             }}
           >
-            <SkipForward size={20} />
+            <SkipForward size={18} />
             <span>{t('common.skip')}</span>
           </button>
         )}
@@ -368,14 +368,14 @@ const SelfPacedQuestion = ({
         <button
           onClick={handleNext}
           disabled={currentIndex === questions.length - 1}
-          className="px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-          style={{ 
+          className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-bold flex items-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm text-sm"
+          style={{
             backgroundColor: getColor('accent', '#f59e0b'),
             color: '#ffffff'
           }}
         >
           <span>{currentIndex === questions.length - 1 ? t('common.finish') : t('common.next')}</span>
-          <ChevronRight size={20} />
+          <ChevronRight size={18} />
         </button>
       </div>
     </div>

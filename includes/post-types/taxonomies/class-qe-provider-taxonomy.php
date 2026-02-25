@@ -63,4 +63,23 @@ class QE_Provider_Taxonomy extends QE_Taxonomy_Base
         // Merge with default REST args
         return array_merge($args, $this->get_default_rest_args());
     }
+
+    /**
+     * Register the taxonomy and its term meta.
+     * Called by the loader inside add_action('init').
+     */
+    public function register()
+    {
+        parent::register();
+
+        register_term_meta('qe_provider', '_test_unlocked', [
+            'show_in_rest'  => true,
+            'type'          => 'boolean',
+            'default'       => false,
+            'single'        => true,
+            'auth_callback' => function () {
+                return current_user_can('manage_categories');
+            },
+        ]);
+    }
 }

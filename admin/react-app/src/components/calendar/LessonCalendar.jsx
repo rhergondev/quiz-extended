@@ -203,7 +203,7 @@ const CustomYearView = ({ date, events, pageColors, getColor, isDarkMode, t, onS
   return (
     <div className="relative">
       <div 
-        className="grid grid-cols-3 md:grid-cols-4 gap-4 p-4 rounded-xl border-2"
+        className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl border-2"
         style={{ 
           backgroundColor: pageColors.bgCard,
           borderColor: getColor('borderColor', '#e5e7eb')
