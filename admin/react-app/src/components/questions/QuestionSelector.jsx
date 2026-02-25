@@ -8,6 +8,13 @@ import { useTaxonomyOptions } from '../../hooks/useTaxonomyOptions';
 import { makeApiRequest } from '../../api/services/baseService';
 import { getApiConfig } from '../../api/config/apiConfig';
 
+const decodeHtml = (str) => {
+  if (!str) return '';
+  const txt = document.createElement('textarea');
+  txt.innerHTML = str;
+  return txt.value;
+};
+
 const QuestionSelector = ({
   selectedIds = [],
   onSelect,
@@ -195,7 +202,7 @@ const QuestionSelector = ({
           const pageRes = await makeApiRequest(`${baseUrl}?${params}`);
           if (Array.isArray(pageRes.data)) lessons = lessons.concat(pageRes.data);
         }
-        setAllLessons(lessons.map(l => ({ value: l.id, label: l.title?.rendered || l.title || `Lesson #${l.id}` })));
+        setAllLessons(lessons.map(l => ({ value: l.id, label: decodeHtml(l.title?.rendered || l.title || `Lesson #${l.id}`) })));
       } catch (err) {
         console.error('Error fetching all lessons:', err);
       }
@@ -230,7 +237,7 @@ const QuestionSelector = ({
         const res = await makeApiRequest(url);
         if (cancelled) return;
         const lessons = res.data?.data?.lessons || [];
-        setProviderLessons(lessons.map(l => ({ value: l.id, label: l.title || `Lesson #${l.id}` })));
+        setProviderLessons(lessons.map(l => ({ value: l.id, label: decodeHtml(l.title || `Lesson #${l.id}`) })));
       } catch (err) {
         if (!cancelled) {
           console.error('Error fetching provider lessons:', err);
