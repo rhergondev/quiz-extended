@@ -980,6 +980,7 @@ class QE_Debug_API extends QE_API_Base
                 $parsed = json_decode($row['meta_value'], true);
             }
             if (!is_array($parsed)) continue;
+            // _quiz_question_ids is a flat array of question IDs
             $qids = array_map('intval', $parsed);
             if (!empty(array_intersect($question_ids, $qids))) {
                 $quiz_ids_for_questions[] = (int) $row['post_id'];
@@ -987,8 +988,9 @@ class QE_Debug_API extends QE_API_Base
         }
 
         if (!empty($quiz_ids_for_questions)) {
+            // Select meta_key too so we can parse each field correctly.
             $lesson_meta_rows = $wpdb->get_results(
-                "SELECT pm.post_id, pm.meta_value
+                "SELECT pm.post_id, pm.meta_key, pm.meta_value
                  FROM {$wpdb->postmeta} pm
                  JOIN {$wpdb->posts} p ON p.ID = pm.post_id
                  WHERE pm.meta_key IN ('_quiz_ids', '_lesson_steps')
@@ -998,16 +1000,32 @@ class QE_Debug_API extends QE_API_Base
             );
 
             foreach ($lesson_meta_rows as $lrow) {
-                $meta_str = $lrow['meta_value'];
-                foreach ($quiz_ids_for_questions as $qzid) {
-                    // Match both PHP-serialized integers (`:5;`) and JSON integers (`"5"`)
-                    if (
-                        strpos($meta_str, ':' . $qzid . ';') !== false ||
-                        strpos($meta_str, '"' . $qzid . '"') !== false
-                    ) {
-                        $all_lesson_ids[] = (int) $lrow['post_id'];
-                        break;
+                $parsed = @maybe_unserialize($lrow['meta_value']);
+                if ($parsed === $lrow['meta_value']) {
+                    $parsed = json_decode($lrow['meta_value'], true);
+                }
+                if (!is_array($parsed)) continue;
+
+                $quiz_ids_in_lesson = [];
+
+                if ($lrow['meta_key'] === '_quiz_ids') {
+                    // Flat array of quiz IDs: [5, 10, 15] or ["5", "10"]
+                    $quiz_ids_in_lesson = array_map('intval', $parsed);
+                } elseif ($lrow['meta_key'] === '_lesson_steps') {
+                    // Array of step objects: [{type: 'quiz', data: {quiz_id: 5}}, ...]
+                    foreach ($parsed as $step) {
+                        if (
+                            is_array($step) &&
+                            ($step['type'] ?? '') === 'quiz' &&
+                            !empty($step['data']['quiz_id'])
+                        ) {
+                            $quiz_ids_in_lesson[] = (int) $step['data']['quiz_id'];
+                        }
                     }
+                }
+
+                if (!empty(array_intersect($quiz_ids_in_lesson, $quiz_ids_for_questions))) {
+                    $all_lesson_ids[] = (int) $lrow['post_id'];
                 }
             }
 
