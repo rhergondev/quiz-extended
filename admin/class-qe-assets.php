@@ -79,7 +79,12 @@ class QE_Assets
                 padding: 0 !important;
                 overflow: hidden !important;
             }
-            
+
+            .toplevel_page_quiz-extended-lms #root {
+                height: 100% !important;
+                overflow: hidden !important;
+            }
+
             .toplevel_page_quiz-extended-lms .qe-lms-admin-app {
                 height: 100% !important;
                 overflow: hidden !important;

@@ -206,7 +206,10 @@ const SelfPacedQuestion = ({
         <button
           onClick={handleToggleFavorite}
           disabled={isTogglingFavorite}
-          className="p-2 rounded-lg transition-all hover:bg-gray-100"
+          className="p-2 rounded-lg transition-all"
+          style={{ backgroundColor: 'transparent' }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           title={isFavorite ? t('common.removeFromFavorites') : t('common.addToFavorites')}
         >
           <Star 
