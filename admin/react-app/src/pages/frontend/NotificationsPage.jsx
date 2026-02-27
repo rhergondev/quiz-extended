@@ -99,7 +99,9 @@ const NotificationsPage = () => {
       
       if (response.data?.success) {
         const { notifications: newNotifications, pagination: pag } = response.data.data;
-        const filtered = newNotifications.filter(n => !n.type.includes('_updated'));
+        const filtered = newNotifications
+          .filter(n => !n.type.includes('_updated'))
+          .filter(n => String(n.course_id) === String(courseId));
         const filteredUnread = filtered.filter(n => !n.is_read).length;
 
         if (append) {
