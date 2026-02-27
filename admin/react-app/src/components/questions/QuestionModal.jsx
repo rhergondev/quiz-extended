@@ -158,14 +158,14 @@ const QuestionModal = ({
     }
   }, [isOpen]);
 
-  // Pre-select "uniforme-azul" provider when creating a new question
+  // Pre-select "uniforme-azul" provider when no provider is set (create or edit)
   useEffect(() => {
-    if (mode !== 'create' || !isOpen || providers.length === 0) return;
+    if (!isOpen || providers.length === 0) return;
     const uniformeAzul = providers.find(p => p.slug === 'uniforme-azul');
     if (uniformeAzul) {
-      setFormData(prev => prev.provider ? prev : { ...prev, provider: uniformeAzul.value });
+      setFormData(prev => ({ ...prev, provider: uniformeAzul.value }));
     }
-  }, [providers, mode, isOpen]);
+  }, [providers, isOpen]);
 
   const loadProviders = async () => {
     setLoadingProviders(true);
@@ -924,24 +924,7 @@ const QuestionModal = ({
                         <button
                           type="button"
                           onClick={toggleProviderTestLock}
-                          title={(() => {
-                            const p = providers.find(p => p.value == formData.provider);
-                            return p?.isTestUnlocked
-                              ? 'Este proveedor puede añadir preguntas a tests (clic para bloquear)'
-                              : 'Este proveedor no puede añadir preguntas a tests (clic para desbloquear)';
-                          })()}
-                          style={{
-                            padding: '2px',
-                            backgroundColor: 'transparent',
-                            border: 'none',
-                            color: providers.find(p => p.value == formData.provider)?.isTestUnlocked ? '#10b981' : pageColors.textMuted,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            opacity: 1
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                          style={{ display: 'none' }}
                         >
                           <KeyRound size={13} />
                         </button>

@@ -99,7 +99,7 @@ const NotificationsPage = () => {
       
       if (response.data?.success) {
         const { notifications: newNotifications, pagination: pag } = response.data.data;
-        const filtered = newNotifications.filter(n => n.type !== 'question_updated');
+        const filtered = newNotifications.filter(n => !n.type.includes('_updated'));
         const filteredUnread = filtered.filter(n => !n.is_read).length;
 
         if (append) {
@@ -286,9 +286,9 @@ const NotificationsPage = () => {
               onClick={handleMarkAllAsRead}
               disabled={markingAllRead}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
-              style={{ 
-                backgroundColor: isDarkMode ? `${pageColors.primary}20` : `${pageColors.primary}10`,
-                color: pageColors.primary
+              style={{
+                backgroundColor: isDarkMode ? pageColors.accent : `${pageColors.primary}10`,
+                color: isDarkMode ? '#ffffff' : pageColors.primary
               }}
             >
               {markingAllRead ? (

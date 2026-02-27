@@ -105,6 +105,11 @@ const QuestionSelector = ({
   // NOT sent to the questions query (questions are not filtered by category taxonomy).
   const [selectedCategory, setSelectedCategory] = useState('all');
 
+  // Provider IDs that have at least one question in the selected category.
+  // null = no category selected → show all providers.
+  const [categoryProviderIds, setCategoryProviderIds] = useState(null);
+  const [categoryProvidersLoading, setCategoryProvidersLoading] = useState(false);
+
   // Set of provider IDs whose questions are allowed in tests.
   // null = loading (fail open), empty Set = no restrictions (fail open), Set with IDs = restriction active.
   const [allowedProviderIds, setAllowedProviderIds] = useState(null);
@@ -268,20 +273,34 @@ const QuestionSelector = ({
             `${config.apiUrl}/wp/v2/qe_course?qe_category=${selectedCategory}&per_page=100&_fields=id,meta&status=publish,draft,private`
           );
           if (cancelled) return;
-          const courses = Array.isArray(coursesRes.data) ? coursesRes.data : [];
-          // Step 2: collect all lesson IDs from every course (deduplicated)
-          const lessonIds = [...new Set(courses.flatMap(c => c.meta?._lesson_ids || []).filter(Boolean))];
+          // Step 2: sort courses by ID ascending so lesson order is course_1[1,2,3], course_2[1,2,3]…
+          const courses = (Array.isArray(coursesRes.data) ? coursesRes.data : [])
+            .sort((a, b) => a.id - b.id);
+          // Build ordered, deduplicated lesson ID list (first occurrence wins)
+          const seen = new Set();
+          const lessonIds = [];
+          for (const course of courses) {
+            for (const id of (course.meta?._lesson_ids || [])) {
+              if (id && !seen.has(id)) { seen.add(id); lessonIds.push(id); }
+            }
+          }
           if (lessonIds.length === 0) {
             if (!cancelled) setProviderLessons([]);
             return;
           }
-          // Step 3: fetch lesson titles for those IDs
+          // Step 3: fetch lesson titles, then re-order to match lessonIds sequence
           const lessonsRes = await makeApiRequest(
             `${config.apiUrl}/wp/v2/qe_lesson?include=${lessonIds.join(',')}&per_page=100&_fields=id,title&status=publish,draft,private`
           );
           if (cancelled) return;
-          const lessons = Array.isArray(lessonsRes.data) ? lessonsRes.data : [];
-          setProviderLessons(lessons.map(l => ({ value: l.id, label: decodeHtml(l.title?.rendered || l.title || `Lesson #${l.id}`) })));
+          const lessonMap = new Map(
+            (Array.isArray(lessonsRes.data) ? lessonsRes.data : []).map(l => [l.id, l])
+          );
+          const ordered = lessonIds
+            .map(id => lessonMap.get(id))
+            .filter(Boolean)
+            .map(l => ({ value: l.id, label: decodeHtml(l.title?.rendered || l.title || `Lesson #${l.id}`) }));
+          setProviderLessons(ordered);
         } catch (err) {
           if (!cancelled) {
             console.error('Error fetching category lessons:', err);
@@ -298,18 +317,79 @@ const QuestionSelector = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questionsHook.filters?.provider, selectedCategory]);
 
+  // When the category changes, find which providers have questions in that category.
+  // Queries questions tagged with the selected category and collects their qe_provider IDs.
+  useEffect(() => {
+    if (!selectedCategory || selectedCategory === 'all') {
+      setCategoryProviderIds(null);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchProviderIdsForCategory = async () => {
+      setCategoryProvidersLoading(true);
+      try {
+        const config = getApiConfig();
+        const baseUrl = `${config.apiUrl}/wp/v2/qe_question`;
+        const params = new URLSearchParams({
+          qe_category: selectedCategory,
+          per_page: '100',
+          _fields: 'id,qe_provider',
+          status: 'publish,draft,private',
+        });
+
+        const firstRes = await makeApiRequest(`${baseUrl}?${params}`);
+        if (cancelled) return;
+        let questions = Array.isArray(firstRes.data) ? firstRes.data : [];
+        const totalPages = parseInt(firstRes.headers?.['X-WP-TotalPages'] || '1', 10);
+        for (let page = 2; page <= totalPages; page++) {
+          params.set('page', page.toString());
+          const pageRes = await makeApiRequest(`${baseUrl}?${params}`);
+          if (cancelled) return;
+          if (Array.isArray(pageRes.data)) questions = questions.concat(pageRes.data);
+        }
+
+        const ids = new Set(questions.flatMap(q => q.qe_provider || []).filter(Boolean));
+        if (!cancelled) setCategoryProviderIds(ids);
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Error fetching providers for category:', err);
+          setCategoryProviderIds(null); // fail open on error
+        }
+      } finally {
+        if (!cancelled) setCategoryProvidersLoading(false);
+      }
+    };
+
+    fetchProviderIdsForCategory();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory]);
+
   // Filter Handling
   const categoryOptions = useMemo(() => taxonomyOptions.qe_category || [], [taxonomyOptions]);
   const providerOptions = useMemo(() => taxonomyOptions.qe_provider || [], [taxonomyOptions]);
+
+  // Providers visible in the dropdown — filtered to those with questions in the selected category.
+  const visibleProviderOptions = useMemo(() => {
+    if (categoryProviderIds === null) return providerOptions;
+    return providerOptions.filter(p => p.value === 'all' || categoryProviderIds.has(p.value));
+  }, [providerOptions, categoryProviderIds]);
+
+  // If the currently selected provider is no longer in the visible set, reset it.
+  useEffect(() => {
+    const current = questionsHook.filters?.provider;
+    if (!current || current === 'all') return;
+    if (categoryProviderIds !== null && !categoryProviderIds.has(current)) {
+      questionsHook.updateFilter('provider', 'all');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryProviderIds]);
+
   // When a provider is selected, topicOptions is limited to lessons that have
   // questions for that provider. Otherwise show all lessons.
   const topicOptions = providerLessons !== null ? providerLessons : allLessons;
-  const difficultyOptions = [
-    { value: 'all', label: 'Todas' },
-    { value: 'easy', label: 'Fácil' },
-    { value: 'medium', label: 'Media' },
-    { value: 'hard', label: 'Difícil' },
-  ];
+
 
   // Filtered topic options for searchable dropdown
   const filteredTopicOptions = useMemo(() => {
@@ -458,39 +538,62 @@ const QuestionSelector = ({
 
         {/* Filters Panel */}
         {showFilters && (
-          <div className="grid grid-cols-2 gap-2 text-sm animate-in fade-in slide-in-from-top-2">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
-              style={{
-                border: `2px solid ${selectedCategory !== 'all' ? colors.accent : colors.border}`,
-                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                color: selectedCategory !== 'all' ? colors.accent : colors.text
-              }}
-            >
-              <option value="all">Categorías</option>
-              {categoryOptions.filter(o => o.value !== 'all').map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-            <select
-              value={questionsHook.filters?.provider || 'all'}
-              onChange={(e) => questionsHook.updateFilter('provider', e.target.value)}
-              className="px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
-              style={{
-                border: `2px solid ${colors.border}`,
-                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                color: colors.text
-              }}
-            >
-              <option value="all">Proveedores</option>
-              {providerOptions.filter(o => o.value !== 'all').map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-             {/* Searchable Topic Dropdown */}
-             <div className="relative" ref={topicDropdownRef}>
+          <div className="flex flex-col gap-2 text-sm animate-in fade-in slide-in-from-top-2">
+
+            {/* Row 1: Category (entry point) + Difficulty (always available) */}
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+                style={{
+                  border: `2px solid ${selectedCategory !== 'all' ? colors.accent : colors.border}`,
+                  backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                  color: selectedCategory !== 'all' ? colors.accent : colors.text
+                }}
+              >
+                <option value="all">Categorías</option>
+                {categoryOptions.filter(o => o.value !== 'all').map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <select
+                value={questionsHook.filters?.difficulty || 'all'}
+                onChange={(e) => questionsHook.updateFilter('difficulty', e.target.value)}
+                className="px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+                style={{
+                  border: `2px solid ${questionsHook.filters?.difficulty && questionsHook.filters.difficulty !== 'all' ? colors.accent : colors.border}`,
+                  backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                  color: questionsHook.filters?.difficulty && questionsHook.filters.difficulty !== 'all' ? colors.accent : colors.text
+                }}
+              >
+                <option value="all">Dificultad</option>
+                {[{ value: 'easy', label: 'Fácil' }, { value: 'medium', label: 'Media' }, { value: 'hard', label: 'Difícil' }].map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Row 2: Provider + Temas — only available once a category is selected */}
+            {selectedCategory !== 'all' && (
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={questionsHook.filters?.provider || 'all'}
+                  onChange={(e) => questionsHook.updateFilter('provider', e.target.value)}
+                  className="px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+                  style={{
+                    border: `2px solid ${categoryProvidersLoading ? colors.border : (questionsHook.filters?.provider && questionsHook.filters.provider !== 'all' ? colors.accent : colors.border)}`,
+                    backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                    color: questionsHook.filters?.provider && questionsHook.filters.provider !== 'all' ? colors.accent : colors.text
+                  }}
+                >
+                  <option value="all">{categoryProvidersLoading ? 'Cargando...' : 'Proveedores'}</option>
+                  {visibleProviderOptions.filter(o => o.value !== 'all').map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                {/* Searchable Topic Dropdown */}
+                <div className="relative" ref={topicDropdownRef}>
               <button
                 type="button"
                 onClick={() => { setTopicDropdownOpen(!topicDropdownOpen); setTopicSearch(''); }}
@@ -579,22 +682,9 @@ const QuestionSelector = ({
                   </div>
                 </div>
               )}
-             </div>
-            <select
-              value={questionsHook.filters?.difficulty || 'all'}
-              onChange={(e) => questionsHook.updateFilter('difficulty', e.target.value)}
-              className="px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
-              style={{
-                border: `2px solid ${colors.border}`,
-                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                color: colors.text
-              }}
-            >
-               <option value="all">Dificultad</option>
-              {difficultyOptions.filter(o => o.value !== 'all').map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
