@@ -101,6 +101,10 @@ const QuestionSelector = ({
   const [providerLessons, setProviderLessons] = useState(null);
   const [providerLessonsLoading, setProviderLessonsLoading] = useState(false);
 
+  // Local category state — used only to drive the Temas dropdown.
+  // NOT sent to the questions query (questions are not filtered by category taxonomy).
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
   // Set of provider IDs whose questions are allowed in tests.
   // null = loading (fail open), empty Set = no restrictions (fail open), Set with IDs = restriction active.
   const [allowedProviderIds, setAllowedProviderIds] = useState(null);
@@ -210,17 +214,18 @@ const QuestionSelector = ({
     fetchAllLessons();
   }, []);
 
-  // When provider or category changes, fetch lessons that have questions for that combination.
-  // Also resets the lesson filter so the user picks from the updated Temas list.
+  // When provider or category changes, update the Temas dropdown and clear lesson filter.
+  //
+  // - Provider selected → use the existing provider-lessons endpoint (questions→quiz→lesson chain)
+  // - Category only → fetch courses in that category, collect their _lesson_ids, then fetch lesson names
+  // - Neither → show all lessons
   useEffect(() => {
     const provider = questionsHook.filters?.provider;
-    const category = questionsHook.filters?.category;
+    const hasProvider = provider && provider !== 'all';
+    const hasCategory = selectedCategory && selectedCategory !== 'all';
 
     // Always clear the lesson selection when provider or category changes
     questionsHook.updateFilter('lessons', null);
-
-    const hasProvider = provider && provider !== 'all';
-    const hasCategory = category && category !== 'all';
 
     if (!hasProvider && !hasCategory) {
       setProviderLessons(null);
@@ -229,44 +234,69 @@ const QuestionSelector = ({
 
     let cancelled = false;
 
-    const fetchProviderLessons = async () => {
-      try {
+    if (hasProvider) {
+      // Provider path: use the existing provider→quiz→lesson endpoint
+      const fetchProviderLessons = async () => {
         setProviderLessonsLoading(true);
-        const config = getApiConfig();
-        // Build params using the proven provider→quiz→lesson chain.
-        // When only category is selected, pass ALL provider IDs so the backend runs through
-        // the same working path (provider→questions→quizzes) filtered by that category.
-        const params = new URLSearchParams();
-        if (hasProvider) {
+        try {
+          const config = getApiConfig();
+          const params = new URLSearchParams();
           params.set('provider', provider);
-        } else if (hasCategory) {
-          // "All providers" — use every known provider ID so the backend's provider path fires
-          const allProviderIds = providerOptions
-            .filter(o => o.value !== 'all')
-            .map(o => o.value)
-            .join(',');
-          if (allProviderIds) params.set('provider', allProviderIds);
+          if (hasCategory) params.set('category', selectedCategory);
+          const res = await makeApiRequest(`${config.apiUrl}/quiz-extended/v1/debug/provider-lessons?${params}`);
+          if (cancelled) return;
+          const lessons = res.data?.data?.lessons || [];
+          setProviderLessons(lessons.map(l => ({ value: l.id, label: decodeHtml(l.title || `Lesson #${l.id}`) })));
+        } catch (err) {
+          if (!cancelled) {
+            console.error('Error fetching provider lessons:', err);
+            setProviderLessons([]);
+          }
+        } finally {
+          if (!cancelled) setProviderLessonsLoading(false);
         }
-        if (hasCategory) params.set('category', category);
-        const url = `${config.apiUrl}/quiz-extended/v1/debug/provider-lessons?${params}`;
-        const res = await makeApiRequest(url);
-        if (cancelled) return;
-        const lessons = res.data?.data?.lessons || [];
-        setProviderLessons(lessons.map(l => ({ value: l.id, label: decodeHtml(l.title || `Lesson #${l.id}`) })));
-      } catch (err) {
-        if (!cancelled) {
-          console.error('Error fetching provider lessons:', err);
-          setProviderLessons([]);
+      };
+      fetchProviderLessons();
+    } else {
+      // Category-only path: courses in that category → their lesson IDs → lesson names
+      const fetchCategoryLessons = async () => {
+        setProviderLessonsLoading(true);
+        try {
+          const config = getApiConfig();
+          // Step 1: fetch courses tagged with this category
+          const coursesRes = await makeApiRequest(
+            `${config.apiUrl}/wp/v2/qe_course?qe_category=${selectedCategory}&per_page=100&_fields=id,meta&status=publish,draft,private`
+          );
+          if (cancelled) return;
+          const courses = Array.isArray(coursesRes.data) ? coursesRes.data : [];
+          // Step 2: collect all lesson IDs from every course (deduplicated)
+          const lessonIds = [...new Set(courses.flatMap(c => c.meta?._lesson_ids || []).filter(Boolean))];
+          if (lessonIds.length === 0) {
+            if (!cancelled) setProviderLessons([]);
+            return;
+          }
+          // Step 3: fetch lesson titles for those IDs
+          const lessonsRes = await makeApiRequest(
+            `${config.apiUrl}/wp/v2/qe_lesson?include=${lessonIds.join(',')}&per_page=100&_fields=id,title&status=publish,draft,private`
+          );
+          if (cancelled) return;
+          const lessons = Array.isArray(lessonsRes.data) ? lessonsRes.data : [];
+          setProviderLessons(lessons.map(l => ({ value: l.id, label: decodeHtml(l.title?.rendered || l.title || `Lesson #${l.id}`) })));
+        } catch (err) {
+          if (!cancelled) {
+            console.error('Error fetching category lessons:', err);
+            setProviderLessons([]);
+          }
+        } finally {
+          if (!cancelled) setProviderLessonsLoading(false);
         }
-      } finally {
-        if (!cancelled) setProviderLessonsLoading(false);
-      }
-    };
+      };
+      fetchCategoryLessons();
+    }
 
-    fetchProviderLessons();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questionsHook.filters?.provider, questionsHook.filters?.category]);
+  }, [questionsHook.filters?.provider, selectedCategory]);
 
   // Filter Handling
   const categoryOptions = useMemo(() => taxonomyOptions.qe_category || [], [taxonomyOptions]);
@@ -430,13 +460,13 @@ const QuestionSelector = ({
         {showFilters && (
           <div className="grid grid-cols-2 gap-2 text-sm animate-in fade-in slide-in-from-top-2">
             <select
-              value={questionsHook.filters?.category || 'all'}
-              onChange={(e) => questionsHook.updateFilter('category', e.target.value)}
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
               className="px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
               style={{
-                border: `2px solid ${colors.border}`,
+                border: `2px solid ${selectedCategory !== 'all' ? colors.accent : colors.border}`,
                 backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                color: colors.text
+                color: selectedCategory !== 'all' ? colors.accent : colors.text
               }}
             >
               <option value="all">Categorías</option>

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
+import { getTaxonomyTerms } from '../../api/services/taxonomyService';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
@@ -55,22 +56,35 @@ const CourseEditorModal = ({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     status: 'publish',
     featured_media: null,
     featured_image_url: null,
-    _course_position: 0
+    _course_position: 0,
+    qe_category: []
   });
 
   // Lessons are managed inside the course, not here
 
+  // Load categories when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    setLoadingCategories(true);
+    getTaxonomyTerms('qe_category')
+      .then(terms => setCategories(terms.map(t => ({ value: t.id, label: t.name }))))
+      .catch(() => setCategories([]))
+      .finally(() => setLoadingCategories(false));
+  }, [isOpen]);
+
   // Load course data if editing
   useEffect(() => {
     if (!isOpen) return;
-    
+
     if (mode === 'edit' && courseId) {
       // Get course is now a prop that passes the full course object
       const loadCourse = async () => {
@@ -85,7 +99,8 @@ const CourseEditorModal = ({
               status: course.status || 'publish',
               featured_media: course.featured_media || null,
               featured_image_url: course._embedded?.['wp:featuredmedia']?.[0]?.source_url || null,
-              _course_position: parseInt(course.meta?._course_position) || 0
+              _course_position: parseInt(course.meta?._course_position) || 0,
+              qe_category: course.qe_category || []
             });
           }
         } catch (err) {
@@ -104,7 +119,8 @@ const CourseEditorModal = ({
         status: 'publish',
         featured_media: null,
         featured_image_url: null,
-        _course_position: 0
+        _course_position: 0,
+        qe_category: []
       });
       setError(null);
       setLoading(false);
@@ -168,6 +184,7 @@ const CourseEditorModal = ({
         content: formData.content,
         status: formData.status,
         featured_media: formData.featured_media,
+        qe_category: formData.qe_category,
         meta: {
           _course_position: formData._course_position
         }
@@ -272,6 +289,29 @@ const CourseEditorModal = ({
                     <option value="publish">Publicado</option>
                     <option value="draft">Borrador</option>
                     <option value="private">Privado</option>
+                  </select>
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-xs font-bold uppercase mb-1.5" style={{ color: colors.text }}>
+                    Categoría
+                  </label>
+                  <select
+                    value={formData.qe_category[0] ?? ''}
+                    onChange={(e) => handleFieldChange('qe_category', e.target.value ? [parseInt(e.target.value, 10)] : [])}
+                    disabled={loadingCategories}
+                    className="w-full p-2.5 rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                    style={{
+                      border: `1px solid ${colors.inputBorder}`,
+                      backgroundColor: colors.inputBg,
+                      color: colors.text
+                    }}
+                  >
+                    <option value="">— Sin categoría —</option>
+                    {categories.map(cat => (
+                      <option key={cat.value} value={cat.value}>{cat.label}</option>
+                    ))}
                   </select>
                 </div>
 
