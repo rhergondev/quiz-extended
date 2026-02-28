@@ -158,11 +158,6 @@ const QuestionEditorPanel = ({
     autoResizeTextarea(titleRef.current);
   }, [formData.title, autoResizeTextarea]);
 
-  // Set Quill content via DOM to preserve intentional empty lines (<p><br></p>).
-  // clipboard.convert / dangerouslyPasteHTML strip empty <p> tags.
-  // innerHTML + update('silent') preserves them, but only after stripping whitespace
-  // text nodes between </p> and <p> — those stray \n chars get normalised into
-  // extra blank paragraphs by Quill's Parchment normalizer otherwise.
   useEffect(() => {
     if (quillInitialized.current) return;
     if (!quillRef.current || !formData.explanation) return;
@@ -171,8 +166,7 @@ const QuestionEditorPanel = ({
     if (!editor) return;
 
     const cleanHtml = formData.explanation.replace(/<\/p>\s+<p/gi, '</p><p');
-    editor.root.innerHTML = cleanHtml;
-    editor.update('silent');
+    editor.clipboard.dangerouslyPasteHTML(0, cleanHtml);
     quillInitialized.current = true;
   }, [formData.explanation]);
   

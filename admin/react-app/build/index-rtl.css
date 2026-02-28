@@ -2808,6 +2808,8 @@ body.qe-quiz-focus-mode #qe-topbar {
 }
 
 .explanation-editor .ql-editor li[data-list="ordered"]::before {
+  content: '' counter(list-0, decimal) '. ' !important;
+  counter-increment: list-0 !important;
   display: inline !important;
   margin-left: 0.375rem;
   font-size: inherit;

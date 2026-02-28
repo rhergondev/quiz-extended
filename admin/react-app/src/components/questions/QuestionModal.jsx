@@ -421,8 +421,7 @@ const QuestionModal = ({
     if (!editor) return;
 
     const cleanHtml = formData.explanation.replace(/<\/p>\s+<p/gi, '</p><p');
-    editor.root.innerHTML = cleanHtml;
-    editor.update('silent');
+    editor.clipboard.dangerouslyPasteHTML(0, cleanHtml);
     quillInitialized.current = true;
   }, [formData.explanation]);
 
