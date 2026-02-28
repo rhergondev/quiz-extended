@@ -101,6 +101,12 @@ const QuestionSelector = ({
   const [providerLessons, setProviderLessons] = useState(null);
   const [providerLessonsLoading, setProviderLessonsLoading] = useState(false);
 
+  // Course filter — narrows Temas dropdown to only lessons in the selected course
+  const [selectedCourse, setSelectedCourse] = useState('all');
+  const [allCourses, setAllCourses] = useState([]); // { value, label, categoryIds }
+  const [courseLessons, setCourseLessons] = useState(null); // null = not filtering by course
+  const [courseLessonsLoading, setCourseLessonsLoading] = useState(false);
+
   // Local category state — used only to drive the Temas dropdown.
   // NOT sent to the questions query (questions are not filtered by category taxonomy).
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -219,6 +225,86 @@ const QuestionSelector = ({
     fetchAllLessons();
   }, []);
 
+  // Fetch all courses sorted by menu_order (matching CoursesPage ordering)
+  useEffect(() => {
+    const fetchAllCourses = async () => {
+      try {
+        const config = getApiConfig();
+        const params = new URLSearchParams({
+          per_page: '100',
+          _fields: 'id,title,menu_order,qe_category',
+          status: 'publish,draft,private',
+          orderby: 'menu_order',
+          order: 'asc',
+        });
+        const res = await makeApiRequest(`${config.apiUrl}/wp/v2/qe_course?${params}`);
+        const courses = Array.isArray(res.data) ? res.data : [];
+        // Sort by menu_order, fallback to title (same as CoursesPage)
+        const sorted = [...courses].sort((a, b) => {
+          const orderA = parseInt(a.menu_order) || 0;
+          const orderB = parseInt(b.menu_order) || 0;
+          if (orderA !== orderB) return orderA - orderB;
+          const titleA = (a.title?.rendered || a.title || '').toLowerCase();
+          const titleB = (b.title?.rendered || b.title || '').toLowerCase();
+          return titleA.localeCompare(titleB);
+        });
+        setAllCourses(sorted.map(c => ({
+          value: c.id,
+          label: decodeHtml(c.title?.rendered || c.title || `Curso #${c.id}`),
+          categoryIds: c.qe_category || [],
+        })));
+      } catch (err) {
+        console.error('Error fetching all courses:', err);
+      }
+    };
+    fetchAllCourses();
+  }, []);
+
+  // When category changes, reset the course selection
+  useEffect(() => {
+    setSelectedCourse('all');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory]);
+
+  // When course changes, fetch its lessons (ordered as stored in the course)
+  useEffect(() => {
+    if (selectedCourse === 'all') {
+      setCourseLessons(null);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchCourseLessons = async () => {
+      setCourseLessonsLoading(true);
+      questionsHook.updateFilter('lessons', null);
+      try {
+        const config = getApiConfig();
+        const params = new URLSearchParams({ per_page: '100', status: 'publish,draft,private' });
+        const res = await makeApiRequest(
+          `${config.apiUrl}/qe/v1/courses/${selectedCourse}/lessons?${params}`
+        );
+        if (cancelled) return;
+        const lessons = res.data?.data || [];
+        setCourseLessons(
+          lessons.map(l => ({
+            value: l.id,
+            label: decodeHtml(l.title?.rendered || l.title || `Lesson #${l.id}`),
+          }))
+        );
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Error fetching course lessons:', err);
+          setCourseLessons([]);
+        }
+      } finally {
+        if (!cancelled) setCourseLessonsLoading(false);
+      }
+    };
+    fetchCourseLessons();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCourse]);
+
   // When provider or category changes, update the Temas dropdown and clear lesson filter.
   //
   // - Provider selected → use the existing provider-lessons endpoint (questions→quiz→lesson chain)
@@ -270,12 +356,19 @@ const QuestionSelector = ({
           const config = getApiConfig();
           // Step 1: fetch courses tagged with this category
           const coursesRes = await makeApiRequest(
-            `${config.apiUrl}/wp/v2/qe_course?qe_category=${selectedCategory}&per_page=100&_fields=id,meta&status=publish,draft,private`
+            `${config.apiUrl}/wp/v2/qe_course?qe_category=${selectedCategory}&per_page=100&_fields=id,meta,menu_order&status=publish,draft,private`
           );
           if (cancelled) return;
-          // Step 2: sort courses by ID ascending so lesson order is course_1[1,2,3], course_2[1,2,3]…
+          // Step 2: sort courses by menu_order (same as CoursesPage) so lesson order mirrors the platform order
           const courses = (Array.isArray(coursesRes.data) ? coursesRes.data : [])
-            .sort((a, b) => a.id - b.id);
+            .sort((a, b) => {
+              const orderA = parseInt(a.menu_order) || 0;
+              const orderB = parseInt(b.menu_order) || 0;
+              if (orderA !== orderB) return orderA - orderB;
+              const titleA = (a.title?.rendered || a.title || '').toLowerCase();
+              const titleB = (b.title?.rendered || b.title || '').toLowerCase();
+              return titleA.localeCompare(titleB);
+            });
           // Build ordered, deduplicated lesson ID list (first occurrence wins)
           const seen = new Set();
           const lessonIds = [];
@@ -370,6 +463,12 @@ const QuestionSelector = ({
   const categoryOptions = useMemo(() => taxonomyOptions.qe_category || [], [taxonomyOptions]);
   const providerOptions = useMemo(() => taxonomyOptions.qe_provider || [], [taxonomyOptions]);
 
+  // Courses visible in the dropdown — when a category is selected, only show courses in that category
+  const visibleCourseOptions = useMemo(() => {
+    if (selectedCategory === 'all') return allCourses;
+    return allCourses.filter(c => c.categoryIds.includes(parseInt(selectedCategory)));
+  }, [allCourses, selectedCategory]);
+
   // Providers visible in the dropdown — filtered to those with questions in the selected category.
   const visibleProviderOptions = useMemo(() => {
     if (categoryProviderIds === null) return providerOptions;
@@ -386,9 +485,10 @@ const QuestionSelector = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryProviderIds]);
 
-  // When a provider is selected, topicOptions is limited to lessons that have
-  // questions for that provider. Otherwise show all lessons.
-  const topicOptions = providerLessons !== null ? providerLessons : allLessons;
+  // Temas dropdown source: course lessons > provider/category lessons > all lessons
+  const topicOptions = courseLessons !== null
+    ? courseLessons
+    : (providerLessons !== null ? providerLessons : allLessons);
 
 
   // Filtered topic options for searchable dropdown
@@ -557,12 +657,29 @@ const QuestionSelector = ({
               ))}
             </select>
 
-            {/* Provider + Temas + Difficulty — always visible, disabled until category is selected */}
+            {/* Course — always accessible; filters Temas to lessons in the selected course */}
+            <select
+              value={selectedCourse}
+              onChange={(e) => setSelectedCourse(e.target.value)}
+              className="w-full px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+              style={{
+                border: `2px solid ${selectedCourse !== 'all' ? colors.accent : colors.border}`,
+                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                color: selectedCourse !== 'all' ? colors.accent : colors.text
+              }}
+            >
+              <option value="all">Cursos</option>
+              {visibleCourseOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+
+            {/* Provider + Temas + Difficulty — disabled until category OR course is selected */}
             <div
               className="flex flex-col gap-2"
               style={{
-                opacity: selectedCategory === 'all' ? 0.38 : 1,
-                pointerEvents: selectedCategory === 'all' ? 'none' : 'auto',
+                opacity: selectedCategory === 'all' && selectedCourse === 'all' ? 0.38 : 1,
+                pointerEvents: selectedCategory === 'all' && selectedCourse === 'all' ? 'none' : 'auto',
                 transition: 'opacity 0.2s'
               }}
             >
@@ -596,9 +713,9 @@ const QuestionSelector = ({
                     }}
                   >
                     <span className="truncate text-sm">
-                      {providerLessonsLoading ? 'Cargando temas...' : selectedTopicLabel}
+                      {(providerLessonsLoading || courseLessonsLoading) ? 'Cargando temas...' : selectedTopicLabel}
                     </span>
-                    {providerLessonsLoading
+                    {(providerLessonsLoading || courseLessonsLoading)
                       ? <Loader2 size={14} className="flex-shrink-0 animate-spin opacity-50" />
                       : <ChevronDown size={14} className={`flex-shrink-0 transition-transform ${topicDropdownOpen ? 'rotate-180' : ''}`} />
                     }
@@ -638,8 +755,8 @@ const QuestionSelector = ({
                         </button>
                         {filteredTopicOptions.length === 0 ? (
                           <div className="px-3 py-2 text-sm" style={{ color: colors.textMuted }}>
-                            {providerLessons !== null && providerLessons.length === 0
-                              ? 'Sin temas para este proveedor'
+                            {(courseLessons !== null && courseLessons.length === 0) || (courseLessons === null && providerLessons !== null && providerLessons.length === 0)
+                              ? 'Sin temas para este filtro'
                               : 'Sin resultados'
                             }
                           </div>
