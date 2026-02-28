@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { BookOpen, FileText, User, LogOut, Home, Sun, Moon, Menu, Bell, MessageSquare, BarChart3, Building2, ChevronDown, CreditCard, Book, Settings, Users } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { getUnreadNotificationCount } from '../../api/services/notificationsService';
+import { getCourseNotifications } from '../../api/services/notificationsService';
 import { getApiConfig } from '../../api/config/apiConfig';
 import { makeApiRequest } from '../../api/services/baseService';
 import useCourse from '../../hooks/useCourse';
@@ -51,9 +51,18 @@ const Topbar = ({ isMobileMenuOpen, setIsMobileMenuOpen, isInCourseRoute, course
     const fetchUnreadNotifications = async () => {
       if (parsedCourseId && isInCourseRoute) {
         try {
-          const response = await getUnreadNotificationCount(parsedCourseId);
-          const count = response?.data?.data?.unread_count || response?.data?.unread_count || response?.unread_count || 0;
-          setUnreadNotifications(count);
+          const response = await getCourseNotifications(parsedCourseId, { page: 1, per_page: 100 });
+          if (response?.data?.success) {
+            const { notifications: allNotifications } = response.data.data;
+            const count = allNotifications
+              .filter(n => !n.type.includes('_updated'))
+              .filter(n => String(n.course_id) === String(parsedCourseId))
+              .filter(n => !n.is_read)
+              .length;
+            setUnreadNotifications(count);
+          } else {
+            setUnreadNotifications(0);
+          }
         } catch (error) {
           console.error('Error fetching unread notifications:', error);
           setUnreadNotifications(0);

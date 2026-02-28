@@ -31,15 +31,14 @@ const SelfPacedQuestion = ({
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showResult, setShowResult] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(question?.is_favorite || false);
 
   // Reset state when question changes
   useEffect(() => {
     setSelectedAnswer(null);
     setShowResult(false);
+    setIsFavorite(question?.is_favorite || false);
   }, [currentIndex, question?.id]);
-
-  // Always use the question's is_favorite from the backend
-  const isFavorite = question?.is_favorite || false;
 
   if (!question) {
     return (
@@ -103,21 +102,27 @@ const SelfPacedQuestion = ({
     handleNext();
   };
 
-  const handleToggleFavorite = async () => {
+  const handleToggleFavorite = () => {
     if (isTogglingFavorite) return;
-    
+
+    const newValue = !isFavorite;
+    setIsFavorite(newValue);
+    question.is_favorite = newValue;
+
     setIsTogglingFavorite(true);
-    try {
-      const result = await toggleFavoriteQuestion(question.id);
-      // Update the question object's is_favorite property
-      question.is_favorite = result.is_favorited;
-      // Force re-render
-      setShowResult(prev => prev);
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-    } finally {
-      setIsTogglingFavorite(false);
-    }
+    toggleFavoriteQuestion(question.id)
+      .then(result => {
+        setIsFavorite(result.is_favorited);
+        question.is_favorite = result.is_favorited;
+      })
+      .catch(error => {
+        console.error('Error toggling favorite:', error);
+        setIsFavorite(!newValue);
+        question.is_favorite = !newValue;
+      })
+      .finally(() => {
+        setIsTogglingFavorite(false);
+      });
   };
 
   const getDifficultyColor = () => {
@@ -212,9 +217,9 @@ const SelfPacedQuestion = ({
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           title={isFavorite ? t('common.removeFromFavorites') : t('common.addToFavorites')}
         >
-          <Star 
-            size={20} 
-            style={{ color: '#fbbf24' }}
+          <Star
+            size={20}
+            style={{ color: isFavorite ? '#fbbf24' : colors.textMuted }}
             fill={isFavorite ? '#fbbf24' : 'none'}
           />
         </button>
