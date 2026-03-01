@@ -11,18 +11,19 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { 
-  Save, 
-  X, 
+import {
+  Save,
+  X,
   Trash2,
   Plus,
+  Check,
   Image as ImageIcon,
   AlertCircle,
   Loader2
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
-import { getTaxonomyTerms } from '../../api/services/taxonomyService';
+import { getTaxonomyTerms, createCategory } from '../../api/services/taxonomyService';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
@@ -58,6 +59,9 @@ const CourseEditorModal = ({
   const [error, setError] = useState(null);
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [savingCategory, setSavingCategory] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -68,8 +72,6 @@ const CourseEditorModal = ({
     _course_position: 0,
     qe_category: []
   });
-
-  // Lessons are managed inside the course, not here
 
   // Load categories when modal opens
   useEffect(() => {
@@ -134,6 +136,23 @@ const CourseEditorModal = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleCreateCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    setSavingCategory(true);
+    try {
+      const newTerm = await createCategory({ name });
+      setCategories(prev => [...prev, { value: newTerm.id, label: newTerm.name }]);
+      handleFieldChange('qe_category', [newTerm.id]);
+      setNewCategoryName('');
+      setShowNewCategory(false);
+    } catch (err) {
+      console.error('Error creating category:', err);
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
   const handleSelectFeaturedImage = async () => {
     try {
       const media = await openMediaSelector({
@@ -172,6 +191,11 @@ const CourseEditorModal = ({
     
     if (!formData.title.trim()) {
       setError('El título es obligatorio');
+      return;
+    }
+
+    if (!formData.qe_category.length) {
+      setError('La categoría es obligatoria');
       return;
     }
 
@@ -295,24 +319,68 @@ const CourseEditorModal = ({
                 {/* Category */}
                 <div>
                   <label className="block text-xs font-bold uppercase mb-1.5" style={{ color: colors.text }}>
-                    Categoría
+                    Categoría *
                   </label>
-                  <select
-                    value={formData.qe_category[0] ?? ''}
-                    onChange={(e) => handleFieldChange('qe_category', e.target.value ? [parseInt(e.target.value, 10)] : [])}
-                    disabled={loadingCategories}
-                    className="w-full p-2.5 rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
-                    style={{
-                      border: `1px solid ${colors.inputBorder}`,
-                      backgroundColor: colors.inputBg,
-                      color: colors.text
-                    }}
-                  >
-                    <option value="">— Sin categoría —</option>
-                    {categories.map(cat => (
-                      <option key={cat.value} value={cat.value}>{cat.label}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={formData.qe_category[0] ?? ''}
+                      onChange={(e) => handleFieldChange('qe_category', e.target.value ? [parseInt(e.target.value, 10)] : [])}
+                      disabled={loadingCategories}
+                      className="flex-1 p-2.5 rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                      style={{ border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text }}
+                    >
+                      <option value="">— Sin categoría —</option>
+                      {categories.map(cat => (
+                        <option key={cat.value} value={cat.value}>{cat.label}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => { setShowNewCategory(v => !v); setNewCategoryName(''); }}
+                      className="p-2.5 rounded-lg transition-colors flex-shrink-0"
+                      title="Crear nueva categoría"
+                      style={{
+                        border: `1px solid ${showNewCategory ? colors.accent : colors.inputBorder}`,
+                        backgroundColor: showNewCategory ? `${colors.accent}15` : colors.inputBg,
+                        color: showNewCategory ? colors.accent : colors.textMuted
+                      }}
+                    >
+                      <Plus size={15} />
+                    </button>
+                  </div>
+                  {showNewCategory && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <input
+                        type="text"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateCategory(); } if (e.key === 'Escape') { setShowNewCategory(false); setNewCategoryName(''); } }}
+                        placeholder="Nombre de la nueva categoría..."
+                        autoFocus
+                        className="flex-1 p-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                        style={{ border: `1px solid ${colors.accent}`, backgroundColor: colors.inputBg, color: colors.text }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateCategory}
+                        disabled={!newCategoryName.trim() || savingCategory}
+                        className="p-2 rounded-lg transition-colors flex-shrink-0 disabled:opacity-40"
+                        title="Guardar categoría"
+                        style={{ backgroundColor: colors.accent, color: '#ffffff' }}
+                      >
+                        {savingCategory ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}
+                        className="p-2 rounded-lg transition-colors flex-shrink-0"
+                        title="Cancelar"
+                        style={{ border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.textMuted }}
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Image and Description Grid */}

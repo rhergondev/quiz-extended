@@ -73,7 +73,7 @@ const QuestionSelector = ({
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': config.nonce },
             credentials: 'same-origin',
-            body: JSON.stringify({ qe_category: [parseInt(batchCategory)] }),
+            body: JSON.stringify({ qe_category: batchCategory === 'none' ? [] : [parseInt(batchCategory)] }),
           })
         )
       );
@@ -270,6 +270,7 @@ const QuestionSelector = ({
   useEffect(() => {
     if (selectedCourse === 'all') {
       setCourseLessons(null);
+      questionsHook.updateFilter('lessons', null);
       return;
     }
 
@@ -285,12 +286,14 @@ const QuestionSelector = ({
         );
         if (cancelled) return;
         const lessons = res.data?.data || [];
-        setCourseLessons(
-          lessons.map(l => ({
-            value: l.id,
-            label: decodeHtml(l.title?.rendered || l.title || `Lesson #${l.id}`),
-          }))
-        );
+        const mapped = lessons.map(l => ({
+          value: l.id,
+          label: decodeHtml(l.title?.rendered || l.title || `Lesson #${l.id}`),
+        }));
+        setCourseLessons(mapped);
+        // Auto-filter questions to all lessons in this course
+        const lessonIds = mapped.map(l => l.value);
+        questionsHook.updateFilter('lessons', lessonIds.length > 0 ? lessonIds : null);
       } catch (err) {
         if (!cancelled) {
           console.error('Error fetching course lessons:', err);
@@ -516,7 +519,8 @@ const QuestionSelector = ({
   const selectedTopicLabel = useMemo(() => {
     const val = questionsHook.filters?.lessons;
     if (!val || val === 'all' || val === null) return 'Temas';
-    // lessons filter can be a single ID or array
+    // Multiple IDs = course-level filter, not a specific lesson selection
+    if (Array.isArray(val) && val.length !== 1) return 'Temas';
     const lessonId = Array.isArray(val) ? val[0] : val;
     const found = topicOptions.find(o => String(o.value) === String(lessonId));
     return found ? found.label : 'Temas';
@@ -612,6 +616,7 @@ const QuestionSelector = ({
                 }}
               >
                 <option value="">Seleccionar categoría...</option>
+                <option value="none">— Sin categoría —</option>
                 {categoryOptions.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
@@ -745,7 +750,14 @@ const QuestionSelector = ({
                       <div className="max-h-48 overflow-y-auto">
                         <button
                           type="button"
-                          onClick={() => { questionsHook.updateFilter('lessons', null); setTopicDropdownOpen(false); }}
+                          onClick={() => {
+                            if (selectedCourse !== 'all' && courseLessons && courseLessons.length > 0) {
+                              questionsHook.updateFilter('lessons', courseLessons.map(l => l.value));
+                            } else {
+                              questionsHook.updateFilter('lessons', null);
+                            }
+                            setTopicDropdownOpen(false);
+                          }}
                           className="w-full text-left px-3 py-1.5 text-sm transition-colors"
                           style={{ color: colors.textMuted, fontStyle: 'italic', backgroundColor: 'transparent' }}
                           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = colors.hoverBg; }}

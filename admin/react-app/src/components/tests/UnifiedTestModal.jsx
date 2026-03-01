@@ -357,7 +357,11 @@ const UnifiedTestModal = ({
   const handleSaveQuestion = async (questionData, nextAction) => {
     try {
       if (questionModal.mode === 'create') {
-        const newQuestion = await questionsAdminHook.createQuestion(questionData);
+        // Inject lesson context so _question_lesson is written on the initial CREATE call,
+        // even if the question is later removed from this test before saving.
+        const dataWithLesson = lessonId ? { ...questionData, lessonId: String(lessonId) } : questionData;
+        const newQuestion = await questionsAdminHook.createQuestion(dataWithLesson);
+
         setSelectedQuestions(prev => [...prev, newQuestion]);
         toast.success('Pregunta creada y añadida');
         
@@ -777,8 +781,7 @@ const UnifiedTestModal = ({
           onDelete={questionModal.mode === 'edit' ? handleDeleteQuestion : undefined}
           onDeleteFromDB={questionModal.mode === 'edit' ? handleDeleteQuestionFromDB : undefined}
           isSimplified={true}
-          /* parent information to help context */
-          parentQuizId={null} // We are editing transiently, not really tied to a saved quiz yet
+          parentQuizId={mode === 'edit' ? (test?.data?.quiz_id || null) : null}
         />
       )}
     </div>

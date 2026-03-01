@@ -699,9 +699,9 @@ const QuestionModal = ({
           </div>
 
           {/* Fila 1: Categoría, Proveedor, Dificultad */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className={`grid grid-cols-1 gap-3 ${isSimplified ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
             {/* Categoría */}
-            <div>
+            {!isSimplified && <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold uppercase" style={{ color: pageColors.text }}>Categoría</label>
                 {!isReadOnly && !showNewCategoryForm && !showEditCategoryForm && (
@@ -910,7 +910,7 @@ const QuestionModal = ({
                   }} 
                 />
               </div>
-            </div>
+            </div>}
 
             {/* Proveedor */}
             <div>
