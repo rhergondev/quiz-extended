@@ -418,6 +418,7 @@ const QuestionSelector = ({
   useEffect(() => {
     if (!selectedCategory || selectedCategory === 'all') {
       setCategoryProviderIds(null);
+      setCategoryProvidersLoading(false);
       return;
     }
 
