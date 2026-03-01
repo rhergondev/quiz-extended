@@ -274,6 +274,12 @@ const QuestionSelector = ({
       return;
     }
 
+    if (selectedCourse === 'orphaned') {
+      setCourseLessons([]);
+      questionsHook.updateFilter('lessons', 'none');
+      return;
+    }
+
     let cancelled = false;
     const fetchCourseLessons = async () => {
       setCourseLessonsLoading(true);
@@ -675,6 +681,7 @@ const QuestionSelector = ({
               }}
             >
               <option value="all">Cursos</option>
+              <option value="orphaned">— Sin curso —</option>
               {visibleCourseOptions.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
@@ -752,7 +759,9 @@ const QuestionSelector = ({
                         <button
                           type="button"
                           onClick={() => {
-                            if (selectedCourse !== 'all' && courseLessons && courseLessons.length > 0) {
+                            if (selectedCourse === 'orphaned') {
+                              questionsHook.updateFilter('lessons', 'none');
+                            } else if (selectedCourse !== 'all' && courseLessons && courseLessons.length > 0) {
                               questionsHook.updateFilter('lessons', courseLessons.map(l => l.value));
                             } else {
                               questionsHook.updateFilter('lessons', null);

@@ -97,6 +97,15 @@ class QE_Lesson_Type extends QE_Post_Types_Base
             $updated_ids = array_diff($lesson_ids, [$post_id]);
             update_post_meta($course_id, '_lesson_ids', array_values($updated_ids));
         }
+
+        // Clear _question_lesson on all questions that pointed to this lesson,
+        // so they don't become unreachable through course/lesson filters.
+        global $wpdb;
+        $wpdb->delete(
+            $wpdb->postmeta,
+            ['meta_key' => '_question_lesson', 'meta_value' => $post_id],
+            ['%s', '%d']
+        );
     }
 
     /**

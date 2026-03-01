@@ -149,37 +149,68 @@ class QE_Question_Type extends QE_Post_Types_Base
         // Union both so questions found by either method are included.
         if ($request->get_param('lessons')) {
             $lessons = $request->get_param('lessons');
-            if (is_string($lessons)) {
-                $lessons = explode(',', $lessons);
-            }
 
-            if (!empty($lessons) && is_array($lessons)) {
-                $lessons = array_map('absint', $lessons);
+            if ($lessons === 'none') {
+                // Special case: orphaned questions — no lesson assigned
+                // Find questions where _question_lesson meta is missing, empty, or 0
+                $orphaned_ids = $wpdb->get_col(
+                    "SELECT p.ID FROM {$wpdb->posts} p
+                     WHERE p.post_type = 'qe_question'
+                     AND p.post_status != 'trash'
+                     AND p.ID NOT IN (
+                         SELECT post_id FROM {$wpdb->postmeta}
+                         WHERE meta_key = '_question_lesson'
+                         AND meta_value != ''
+                         AND meta_value != '0'
+                     )"
+                );
+                $orphaned_ids = array_map('absint', $orphaned_ids);
 
-                // Source A: chain through quizzes
-                $chain_ids = [];
-                $quiz_ids  = $this->get_quiz_ids_for_lessons($lessons);
-                if (!empty($quiz_ids)) {
-                    $chain_ids = $this->get_question_ids_from_quizzes($quiz_ids);
-                }
-
-                // Source B: direct _question_lesson meta
-                $meta_ids = $this->get_question_ids_by_lesson_meta($lessons);
-
-                // Union
-                $question_ids = array_unique(array_merge($chain_ids, $meta_ids));
-
-                if (!empty($question_ids)) {
+                if (!empty($orphaned_ids)) {
                     if (isset($args['post__in']) && !empty($args['post__in']) && $args['post__in'] !== [0]) {
-                        $args['post__in'] = array_intersect($args['post__in'], $question_ids);
+                        $args['post__in'] = array_intersect($args['post__in'], $orphaned_ids);
                         if (empty($args['post__in'])) {
                             $args['post__in'] = [0];
                         }
                     } else {
-                        $args['post__in'] = $question_ids;
+                        $args['post__in'] = $orphaned_ids;
                     }
                 } else {
                     $args['post__in'] = [0];
+                }
+            } else {
+                if (is_string($lessons)) {
+                    $lessons = explode(',', $lessons);
+                }
+
+                if (!empty($lessons) && is_array($lessons)) {
+                    $lessons = array_map('absint', $lessons);
+
+                    // Source A: chain through quizzes
+                    $chain_ids = [];
+                    $quiz_ids  = $this->get_quiz_ids_for_lessons($lessons);
+                    if (!empty($quiz_ids)) {
+                        $chain_ids = $this->get_question_ids_from_quizzes($quiz_ids);
+                    }
+
+                    // Source B: direct _question_lesson meta
+                    $meta_ids = $this->get_question_ids_by_lesson_meta($lessons);
+
+                    // Union
+                    $question_ids = array_unique(array_merge($chain_ids, $meta_ids));
+
+                    if (!empty($question_ids)) {
+                        if (isset($args['post__in']) && !empty($args['post__in']) && $args['post__in'] !== [0]) {
+                            $args['post__in'] = array_intersect($args['post__in'], $question_ids);
+                            if (empty($args['post__in'])) {
+                                $args['post__in'] = [0];
+                            }
+                        } else {
+                            $args['post__in'] = $question_ids;
+                        }
+                    } else {
+                        $args['post__in'] = [0];
+                    }
                 }
             }
         }
