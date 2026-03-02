@@ -96,9 +96,11 @@ export const useUsers = (options = {}) => {
 
   // --- FETCH USERS WITH DUPLICATE PREVENTION ---
   const fetchUsers = useCallback(async (fetchOptions = {}) => {
-    const { 
+    const {
       reset = false,
       page = 1,
+      search: searchOverride = null,
+      perPage: perPageOverride = null,
       additionalFilters = {}
     } = fetchOptions;
 
@@ -110,22 +112,25 @@ export const useUsers = (options = {}) => {
 
       const config = getApiConfig();
       const currentFilters = currentFiltersRef.current;
-      
+
       console.log('🔍 Current API Config:', config);
       console.log('🔍 Current Filters:', currentFilters);
-      
+
+      const effectiveSearch = searchOverride !== null ? searchOverride : currentFilters.search;
+      const effectivePerPage = perPageOverride !== null ? perPageOverride.toString() : '20';
+
       // Build query params for WordPress Users API
       const queryParams = new URLSearchParams({
         page: page.toString(),
-        per_page: '20',
+        per_page: effectivePerPage,
         orderby: currentFilters.orderBy || 'registered_date',
         order: currentFilters.order || 'desc',
         context: 'edit' // Get more user details
       });
 
       // Add search
-      if (currentFilters.search) {
-        queryParams.append('search', currentFilters.search);
+      if (effectiveSearch) {
+        queryParams.append('search', effectiveSearch);
       }
 
       // Add role filter

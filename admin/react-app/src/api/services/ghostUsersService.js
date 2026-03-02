@@ -93,7 +93,7 @@ export const getGhostUsers = async (courseId) => {
 export const getGhostUserCount = async (courseId) => {
   const url = `${getCustomApiUrl()}/ghost-users/${courseId}/count`;
   const result = await makeApiRequest(url);
-  return result?.count ?? 0;
+  return result?.data?.count ?? result?.count ?? 0;
 };
 
 /**
