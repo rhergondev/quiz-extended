@@ -92,7 +92,6 @@ const UnifiedTestModal = ({
   // State
   const [activeTab, setActiveTab] = useState('content'); // 'content' | 'settings' | 'selector'
   const [isSaving, setIsSaving] = useState(false);
-  const [isRenamingTitle, setIsRenamingTitle] = useState(false);
   const [courseLessons, setCourseLessons] = useState([]);
   const [selectedLessonId, setSelectedLessonId] = useState(null);
   const [isReassigning, setIsReassigning] = useState(false);
@@ -364,20 +363,6 @@ const UnifiedTestModal = ({
     }
   };
 
-  const handleRenameTitle = async () => {
-    if (!formData.title.trim() || !test?.data?.quiz_id) return;
-    setIsRenamingTitle(true);
-    try {
-      await quizzesHook.updateQuiz(test.data.quiz_id, { title: formData.title });
-      toast.success('Nombre actualizado');
-      handleClose();
-    } catch (error) {
-      console.error('Error renaming title:', error);
-      toast.error('Error al actualizar el nombre');
-    } finally {
-      setIsRenamingTitle(false);
-    }
-  };
 
   const handleReassignLesson = async () => {
     if (!selectedLessonId || !lessonId || !test?.data?.quiz_id) return;
@@ -546,13 +531,11 @@ const UnifiedTestModal = ({
                         <label className="block text-[10px] font-bold uppercase mb-1" style={{ color: colors.textMuted }}>
                           Título del Test
                         </label>
-                        <div className="flex items-center gap-1.5">
-                          <input
+                        <input
                             type="text"
                             value={formData.title}
                             onChange={e => setFormData({...formData, title: e.target.value})}
-                            onKeyDown={e => { if (e.key === 'Enter' && mode === 'edit') handleRenameTitle(); }}
-                            className="flex-1 text-sm font-medium p-2 rounded-lg focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+                            className="w-full text-sm font-medium p-2 rounded-lg focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
                             placeholder="Ej: Evaluación Final del Módulo 1"
                             style={{
                               border: `2px solid ${colors.border}`,
@@ -561,23 +544,6 @@ const UnifiedTestModal = ({
                             }}
                             autoFocus
                           />
-                          {mode === 'edit' && test?.data?.quiz_id && (
-                            <button
-                              type="button"
-                              onClick={handleRenameTitle}
-                              disabled={isRenamingTitle || !formData.title.trim()}
-                              title="Guardar solo el nombre"
-                              className="flex-shrink-0 p-2 rounded-lg transition-all disabled:opacity-40"
-                              style={{
-                                color: colors.accent,
-                                border: `2px solid ${colors.border}`,
-                                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff'
-                              }}
-                            >
-                              {isRenamingTitle ? <span className="text-xs leading-none">⌛</span> : <Check size={14} />}
-                            </button>
-                          )}
-                        </div>
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold uppercase mb-1" style={{ color: colors.textMuted }}>

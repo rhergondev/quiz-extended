@@ -340,7 +340,7 @@ export const getLessonStatistics = async (options = {}) => {
  */
 export const moveQuizToLesson = async (quizId, sourceLessonId, targetLessonId) => {
   const config = window.qe_data || {};
-  const apiUrl = config.endpoints?.custom_api || `${config.api_url}/qe/v1`;
+  const apiUrl = `${config.api_url}/qe/v1`;
   const response = await fetch(`${apiUrl}/lessons/move-quiz`, {
     method: 'POST',
     credentials: 'same-origin',
