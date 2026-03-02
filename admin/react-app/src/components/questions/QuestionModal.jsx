@@ -158,7 +158,7 @@ const QuestionModal = ({
     }
   }, [isOpen]);
 
-  // Pre-select "uniforme-azul" provider when no provider is set (create or edit)
+  // Always force "uniforme-azul" as the provider
   useEffect(() => {
     if (!isOpen || providers.length === 0) return;
     const uniformeAzul = providers.find(p => p.slug === 'uniforme-azul');
@@ -912,8 +912,8 @@ const QuestionModal = ({
               </div>
             </div>}
 
-            {/* Proveedor */}
-            <div>
+            {/* Proveedor - hidden from UI; auto-assigned silently via useEffect */}
+            <div style={{ display: 'none' }}>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold uppercase" style={{ color: pageColors.text }}>Proveedor</label>
                 {!isReadOnly && !showNewProviderForm && !showEditProviderForm && (

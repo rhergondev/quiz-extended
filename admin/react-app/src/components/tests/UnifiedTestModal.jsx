@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Save, Plus, Settings, FileQuestion, Clock, CheckCircle, AlertCircle, Trash2, GripVertical, ChevronRight, Edit2, Eye, EyeOff, Calendar, Search } from 'lucide-react';
+import { X, Save, Plus, Settings, FileQuestion, Clock, CheckCircle, AlertCircle, Trash2, GripVertical, ChevronRight, Edit2, Eye, EyeOff, Calendar, Search, Check } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'react-toastify';
 import { DndContext, closestCenter } from '@dnd-kit/core';
@@ -12,6 +12,7 @@ import useQuizzes from '../../hooks/useQuizzes';
 import useQuestionsAdmin from '../../hooks/useQuestionsAdmin';
 import { getQuestionsByIds } from '../../api/services/questionService';
 import { getApiConfig, getDefaultHeaders } from '../../api/config/apiConfig';
+import { moveQuizToLesson } from '../../api/services/lessonService';
 import QuestionSelector from '../questions/QuestionSelector';
 import QuestionModal from '../questions/QuestionModal';
 import { getOne as getQuiz } from '../../api/services/quizService';
@@ -91,6 +92,10 @@ const UnifiedTestModal = ({
   // State
   const [activeTab, setActiveTab] = useState('content'); // 'content' | 'settings' | 'selector'
   const [isSaving, setIsSaving] = useState(false);
+  const [isRenamingTitle, setIsRenamingTitle] = useState(false);
+  const [courseLessons, setCourseLessons] = useState([]);
+  const [selectedLessonId, setSelectedLessonId] = useState(null);
+  const [isReassigning, setIsReassigning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(false); // For slide animation
   const mouseDownOnOverlayRef = useRef(false);
@@ -178,6 +183,8 @@ const UnifiedTestModal = ({
       });
       setSelectedQuestions([]);
       setQuestionOverrides({});
+      setSelectedLessonId(lessonId || null);
+      setCourseLessons([]);
 
       if (mode === 'edit' && test) {
         setIsLoading(true);
@@ -187,8 +194,16 @@ const UnifiedTestModal = ({
           const quizId = test.data?.quiz_id;
           
           if (quizId) {
-            // Fetch complete test data
-            const quiz = await getQuiz(quizId);
+            // Fetch quiz data and course lessons in parallel
+            const { apiUrl } = getApiConfig();
+            const [quiz, lessonsRes] = await Promise.all([
+              getQuiz(quizId),
+              courseId
+                ? fetch(`${apiUrl}/qe/v1/courses/${courseId}/lessons?per_page=100`, { headers: getDefaultHeaders() })
+                    .then(r => r.json()).catch(() => ({ data: [] }))
+                : Promise.resolve({ data: [] }),
+            ]);
+            setCourseLessons((lessonsRes?.data || []).map(l => ({ id: l.id, title: l.title?.rendered || l.title || `Lección ${l.id}` })));
             const meta = quiz.meta || {};
             
             setFormData({
@@ -266,38 +281,59 @@ const UnifiedTestModal = ({
         resultQuizId = newQuiz.id;
       }
 
-      // 3. Sync _question_lesson on all assigned questions (fire-and-forget, non-blocking)
-      if (lessonId && selectedQuestions.length > 0) {
-        try {
-          const { apiUrl } = getApiConfig();
-          await fetch(`${apiUrl}/quiz-extended/v1/batch/sync-question-lessons`, {
-            method: 'POST',
-            headers: getDefaultHeaders(),
-            body: JSON.stringify({
-              question_ids: selectedQuestions.map(q => q.id),
-              lesson_id: lessonId,
-            }),
-          });
-        } catch (syncError) {
-          console.warn('Could not sync question lesson associations:', syncError);
-        }
-      }
-
-      // 4. Update difficulty on all assigned questions
+      // 3, 4 & 5. Run lesson-sync, difficulty and provider updates in parallel
       const difficulty = formData.difficulty_level;
-      if (selectedQuestions.length > 0) {
-        await Promise.all(
-          selectedQuestions.map(q => {
-            const currentDifficulty = q.meta?._difficulty_level || q.difficulty;
-            if (currentDifficulty !== difficulty) {
-              return questionsAdminHook.updateQuestion(q.id, {
-                meta: { _difficulty_level: difficulty }
-              });
-            }
-            return Promise.resolve();
-          })
-        );
-      }
+      const questionIds = selectedQuestions.map(q => q.id);
+
+      await Promise.all([
+        // 3. Sync _question_lesson on all assigned questions
+        lessonId && questionIds.length > 0
+          ? (async () => {
+              try {
+                const { apiUrl } = getApiConfig();
+                await fetch(`${apiUrl}/quiz-extended/v1/batch/sync-question-lessons`, {
+                  method: 'POST',
+                  headers: getDefaultHeaders(),
+                  body: JSON.stringify({ question_ids: questionIds, lesson_id: lessonId }),
+                });
+              } catch (syncError) {
+                console.warn('Could not sync question lesson associations:', syncError);
+              }
+            })()
+          : Promise.resolve(),
+
+        // 4. Batch-update difficulty on all assigned questions (single request)
+        questionIds.length > 0
+          ? (async () => {
+              try {
+                const { apiUrl } = getApiConfig();
+                await fetch(`${apiUrl}/quiz-extended/v1/batch/set-question-difficulty`, {
+                  method: 'POST',
+                  headers: getDefaultHeaders(),
+                  body: JSON.stringify({ question_ids: questionIds, difficulty }),
+                });
+              } catch (diffError) {
+                console.warn('Could not batch-update question difficulty:', diffError);
+              }
+            })()
+          : Promise.resolve(),
+
+        // 5. Ensure all questions are assigned to the uniforme-azul provider
+        questionIds.length > 0
+          ? (async () => {
+              try {
+                const { apiUrl } = getApiConfig();
+                await fetch(`${apiUrl}/quiz-extended/v1/batch/set-question-provider`, {
+                  method: 'POST',
+                  headers: getDefaultHeaders(),
+                  body: JSON.stringify({ question_ids: questionIds, provider_slug: 'uniforme-azul' }),
+                });
+              } catch (providerError) {
+                console.warn('Could not batch-update question provider:', providerError);
+              }
+            })()
+          : Promise.resolve(),
+      ]);
 
       // 4. Calculate test metadata for display
       const questionCount = selectedQuestions.length;
@@ -325,6 +361,37 @@ const UnifiedTestModal = ({
       toast.error('Error al guardar el test');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRenameTitle = async () => {
+    if (!formData.title.trim() || !test?.data?.quiz_id) return;
+    setIsRenamingTitle(true);
+    try {
+      await quizzesHook.updateQuiz(test.data.quiz_id, { title: formData.title });
+      toast.success('Nombre actualizado');
+      handleClose();
+    } catch (error) {
+      console.error('Error renaming title:', error);
+      toast.error('Error al actualizar el nombre');
+    } finally {
+      setIsRenamingTitle(false);
+    }
+  };
+
+  const handleReassignLesson = async () => {
+    if (!selectedLessonId || !lessonId || !test?.data?.quiz_id) return;
+    if (String(selectedLessonId) === String(lessonId)) return;
+    setIsReassigning(true);
+    try {
+      await moveQuizToLesson(test.data.quiz_id, lessonId, selectedLessonId);
+      toast.success('Test reasignado a la nueva lección');
+      handleClose();
+    } catch (error) {
+      console.error('Error reassigning lesson:', error);
+      toast.error('Error al reasignar el test');
+    } finally {
+      setIsReassigning(false);
     }
   };
 
@@ -479,19 +546,38 @@ const UnifiedTestModal = ({
                         <label className="block text-[10px] font-bold uppercase mb-1" style={{ color: colors.textMuted }}>
                           Título del Test
                         </label>
-                        <input
-                          type="text"
-                          value={formData.title}
-                          onChange={e => setFormData({...formData, title: e.target.value})}
-                          className="w-full text-sm font-medium p-2 rounded-lg focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                          placeholder="Ej: Evaluación Final del Módulo 1"
-                          style={{
-                            border: `2px solid ${colors.border}`,
-                            color: colors.text,
-                            backgroundColor: isDarkMode ? '#1f2937' : '#ffffff'
-                          }}
-                          autoFocus
-                        />
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            value={formData.title}
+                            onChange={e => setFormData({...formData, title: e.target.value})}
+                            onKeyDown={e => { if (e.key === 'Enter' && mode === 'edit') handleRenameTitle(); }}
+                            className="flex-1 text-sm font-medium p-2 rounded-lg focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+                            placeholder="Ej: Evaluación Final del Módulo 1"
+                            style={{
+                              border: `2px solid ${colors.border}`,
+                              color: colors.text,
+                              backgroundColor: isDarkMode ? '#1f2937' : '#ffffff'
+                            }}
+                            autoFocus
+                          />
+                          {mode === 'edit' && test?.data?.quiz_id && (
+                            <button
+                              type="button"
+                              onClick={handleRenameTitle}
+                              disabled={isRenamingTitle || !formData.title.trim()}
+                              title="Guardar solo el nombre"
+                              className="flex-shrink-0 p-2 rounded-lg transition-all disabled:opacity-40"
+                              style={{
+                                color: colors.accent,
+                                border: `2px solid ${colors.border}`,
+                                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff'
+                              }}
+                            >
+                              {isRenamingTitle ? <span className="text-xs leading-none">⌛</span> : <Check size={14} />}
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold uppercase mb-1" style={{ color: colors.textMuted }}>
@@ -513,6 +599,47 @@ const UnifiedTestModal = ({
                         </select>
                       </div>
                     </div>
+
+                    {/* Lesson Reassignment — edit mode only, when lessons are available */}
+                    {mode === 'edit' && courseLessons.length > 0 && (
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase mb-1" style={{ color: colors.textMuted }}>
+                          Lección
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={selectedLessonId || ''}
+                            onChange={e => setSelectedLessonId(e.target.value)}
+                            className="flex-1 text-sm p-2 rounded-lg focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+                            style={{
+                              border: `2px solid ${colors.border}`,
+                              color: colors.text,
+                              backgroundColor: isDarkMode ? '#1f2937' : '#ffffff'
+                            }}
+                          >
+                            {courseLessons.map(l => (
+                              <option key={l.id} value={l.id}>{l.title}</option>
+                            ))}
+                          </select>
+                          {String(selectedLessonId) !== String(lessonId) && (
+                            <button
+                              type="button"
+                              onClick={handleReassignLesson}
+                              disabled={isReassigning}
+                              title="Reasignar a esta lección"
+                              className="flex-shrink-0 p-2 rounded-lg transition-all disabled:opacity-40"
+                              style={{
+                                color: colors.accent,
+                                border: `2px solid ${colors.border}`,
+                                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff'
+                              }}
+                            >
+                              {isReassigning ? <span className="text-xs leading-none">⌛</span> : <Check size={14} />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Visibility & Unlock Date */}
                     <div

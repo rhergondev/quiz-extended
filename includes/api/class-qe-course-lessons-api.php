@@ -72,7 +72,112 @@ class QE_Course_Lessons_API extends QE_API_Base
             ]
         ]);
 
+        // POST /qe/v1/lessons/move-quiz
+        register_rest_route($this->namespace, '/lessons/move-quiz', [
+            'methods' => WP_REST_Server::CREATABLE,
+            'callback' => [$this, 'move_quiz_to_lesson'],
+            'permission_callback' => [$this, 'check_admin_permission'],
+            'args' => [
+                'quiz_id'          => ['required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint'],
+                'source_lesson_id' => ['required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint'],
+                'target_lesson_id' => ['required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint'],
+            ],
+        ]);
+
         $this->log_info("Course Lessons API routes registered");
+    }
+
+    /**
+     * Move a quiz step from one lesson to another atomically.
+     * Removes the step from the source lesson's _lesson_steps, appends it to the target,
+     * syncs the legacy _quiz_ids field on both lessons, and updates _question_lesson
+     * and _lesson_ids on all questions assigned to the quiz.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response|WP_Error
+     */
+    public function move_quiz_to_lesson(WP_REST_Request $request)
+    {
+        $quiz_id          = absint($request->get_param('quiz_id'));
+        $source_lesson_id = absint($request->get_param('source_lesson_id'));
+        $target_lesson_id = absint($request->get_param('target_lesson_id'));
+
+        if ($source_lesson_id === $target_lesson_id) {
+            return new WP_Error('same_lesson', 'Source and target lessons are the same', ['status' => 400]);
+        }
+
+        // --- 1. Remove step from source lesson ---
+        $source_steps = maybe_unserialize(get_post_meta($source_lesson_id, '_lesson_steps', true));
+        if (!is_array($source_steps)) $source_steps = [];
+
+        $quiz_step        = null;
+        $new_source_steps = [];
+        foreach ($source_steps as $step) {
+            if (isset($step['type']) && $step['type'] === 'quiz'
+                && isset($step['data']['quiz_id']) && (int) $step['data']['quiz_id'] === $quiz_id
+            ) {
+                $quiz_step = $step;
+            } else {
+                $new_source_steps[] = $step;
+            }
+        }
+
+        if (!$quiz_step) {
+            return new WP_Error('step_not_found', 'Quiz step not found in source lesson', ['status' => 404]);
+        }
+
+        // --- 2. Append step to target lesson ---
+        $target_steps   = maybe_unserialize(get_post_meta($target_lesson_id, '_lesson_steps', true));
+        if (!is_array($target_steps)) $target_steps = [];
+
+        $quiz_step['order'] = count($target_steps) + 1;
+        $target_steps[]     = $quiz_step;
+
+        // --- 3. Persist both lessons ---
+        update_post_meta($source_lesson_id, '_lesson_steps', $new_source_steps);
+        update_post_meta($target_lesson_id, '_lesson_steps', $target_steps);
+
+        // --- 4. Sync legacy _quiz_ids ---
+        $source_quiz_ids = maybe_unserialize(get_post_meta($source_lesson_id, '_quiz_ids', true));
+        if (!is_array($source_quiz_ids)) $source_quiz_ids = [];
+        $source_quiz_ids = array_values(array_filter($source_quiz_ids, fn($id) => (int) $id !== $quiz_id));
+        update_post_meta($source_lesson_id, '_quiz_ids', $source_quiz_ids);
+
+        $target_quiz_ids = maybe_unserialize(get_post_meta($target_lesson_id, '_quiz_ids', true));
+        if (!is_array($target_quiz_ids)) $target_quiz_ids = [];
+        if (!in_array($quiz_id, array_map('intval', $target_quiz_ids))) {
+            $target_quiz_ids[] = $quiz_id;
+        }
+        update_post_meta($target_lesson_id, '_quiz_ids', $target_quiz_ids);
+
+        // --- 5. Sync question-lesson associations ---
+        $question_ids = get_post_meta($quiz_id, '_quiz_question_ids', true);
+        if (is_array($question_ids) && !empty($question_ids)) {
+            foreach ($question_ids as $question_id) {
+                $question_id = absint($question_id);
+                update_post_meta($question_id, '_question_lesson', $target_lesson_id);
+
+                $lesson_ids = get_post_meta($question_id, '_lesson_ids', true);
+                if (!is_array($lesson_ids)) $lesson_ids = [];
+                $lesson_ids = array_values(array_unique(array_merge(
+                    array_filter($lesson_ids, fn($id) => (int) $id !== $source_lesson_id),
+                    [$target_lesson_id]
+                )));
+                update_post_meta($question_id, '_lesson_ids', $lesson_ids);
+            }
+        }
+
+        // --- 6. Fire action for notifications ---
+        $course_id = (int) get_post_meta($source_lesson_id, '_course_id', true);
+        if ($course_id) {
+            do_action('qe_quiz_moved', $quiz_id, $source_lesson_id, $target_lesson_id, $course_id);
+        }
+
+        return $this->success_response([
+            'quiz_id'          => $quiz_id,
+            'source_lesson_id' => $source_lesson_id,
+            'target_lesson_id' => $target_lesson_id,
+        ]);
     }
 
     /**

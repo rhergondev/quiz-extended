@@ -5,7 +5,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import useCourse from '../../../hooks/useCourse';
 import { useUsers } from '../../../hooks/useUsers';
 import { getEnrolledUsers, enrollUserInCourse, unenrollUserFromCourse } from '../../../api/services/userEnrollmentService';
-import { generateGhostUsers, deleteGhostUsers } from '../../../api/services/ghostUsersService';
+import { generateGhostUsers, deleteGhostUsers, getGhostUserCount } from '../../../api/services/ghostUsersService';
 import CoursePageTemplate from '../../../components/course/CoursePageTemplate';
 import { Users, Search, UserPlus, UserMinus, Mail, Trophy, X, Check, Loader2, AlertTriangle, Ghost, Trash2, Sparkles } from 'lucide-react';
 import { isUserAdmin } from '../../../utils/userUtils';
@@ -49,6 +49,7 @@ const CourseStudentsPage = () => {
   // Ghost users state
   const [isGhostModalOpen, setIsGhostModalOpen] = useState(false);
   const [ghostCount, setGhostCount] = useState(20);
+  const [ghostUserCount, setGhostUserCount] = useState(0);
   const [generatingGhosts, setGeneratingGhosts] = useState(false);
   const [confirmDeleteGhosts, setConfirmDeleteGhosts] = useState(false);
   const [deletingGhosts, setDeletingGhosts] = useState(false);
@@ -73,10 +74,14 @@ const CourseStudentsPage = () => {
     setLoading(true);
     try {
       console.log('📚 Fetching enrolled students for course:', courseId);
-      const result = await getEnrolledUsers(parseInt(courseId, 10), { 
-        perPage: 100,
-        includeGhosts: true // Include ghost users to see all enrolled
-      });
+      const [result, count] = await Promise.all([
+        getEnrolledUsers(parseInt(courseId, 10), {
+          perPage: 100,
+          includeGhosts: true
+        }),
+        getGhostUserCount(parseInt(courseId, 10)),
+      ]);
+      setGhostUserCount(count);
       console.log('📚 Enrolled students result:', result);
       console.log('📚 Students data:', result.data);
       console.log('📚 Meta info:', result.meta);
@@ -178,7 +183,7 @@ const CourseStudentsPage = () => {
         toast.success(t('courses.students.ghostUsers.generateSuccess', { count: createdCount }));
         setIsGhostModalOpen(false);
         setGhostCount(20);
-        await fetchEnrolledStudents();
+        await fetchEnrolledStudents(); // also refreshes ghostUserCount via the count endpoint
       } else {
         toast.error(result?.error || t('courses.students.ghostUsers.errors.generate'));
       }
@@ -213,10 +218,7 @@ const CourseStudentsPage = () => {
     }
   };
 
-  // Count ghost users in current list
-  const ghostUserCount = useMemo(() => {
-    return enrolledStudents.filter(s => s.is_ghost).length;
-  }, [enrolledStudents]);
+  // ghostUserCount comes from dedicated count endpoint, set in fetchEnrolledStudents
 
   // Format score for display - score comes in base 10 (0-10), not percentage
   const formatScore = (score) => {

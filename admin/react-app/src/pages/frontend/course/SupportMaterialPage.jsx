@@ -784,6 +784,8 @@ const SupportMaterialPage = () => {
                                 style={{
                                   color: isFirst ? pageColors.textMuted : pageColors.accent
                                 }}
+                                onMouseEnter={(e) => { if (!isFirst && !isUpdatingOrder) e.currentTarget.style.color = pageColors.text; }}
+                                onMouseLeave={(e) => { if (!isFirst && !isUpdatingOrder) e.currentTarget.style.color = pageColors.accent; }}
                                 title={t('supportMaterial.moveUp')}
                               >
                                 <ChevronUp size={16} />
@@ -798,6 +800,8 @@ const SupportMaterialPage = () => {
                                 style={{
                                   color: isLast ? pageColors.textMuted : pageColors.accent
                                 }}
+                                onMouseEnter={(e) => { if (!isLast && !isUpdatingOrder) e.currentTarget.style.color = pageColors.text; }}
+                                onMouseLeave={(e) => { if (!isLast && !isUpdatingOrder) e.currentTarget.style.color = pageColors.accent; }}
                                 title={t('supportMaterial.moveDown')}
                               >
                                 <ChevronDown size={16} />

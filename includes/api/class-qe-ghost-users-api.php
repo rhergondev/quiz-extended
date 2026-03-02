@@ -171,6 +171,20 @@ class QE_Ghost_Users_API extends QE_API_Base
             ],
         ]);
 
+        // Get ghost user count for a course (lightweight SQL COUNT)
+        register_rest_route($this->namespace, '/ghost-users/(?P<course_id>\d+)/count', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_ghost_user_count'],
+            'permission_callback' => [$this, 'check_admin_permission'],
+            'args' => [
+                'course_id' => [
+                    'required' => true,
+                    'type' => 'integer',
+                    'sanitize_callback' => 'absint',
+                ],
+            ],
+        ]);
+
         // Delete ghost users for a course
         register_rest_route($this->namespace, '/ghost-users/(?P<course_id>\d+)', [
             'methods' => 'DELETE',
@@ -358,6 +372,31 @@ class QE_Ghost_Users_API extends QE_API_Base
         shuffle($scores);
 
         return $scores;
+    }
+
+    /**
+     * Get ghost user count for a course (single SQL COUNT, no user data loaded)
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function get_ghost_user_count(WP_REST_Request $request)
+    {
+        $course_id = absint($request->get_param('course_id'));
+
+        global $wpdb;
+
+        $count = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*)
+             FROM {$wpdb->users} u
+             INNER JOIN {$wpdb->usermeta} um1 ON u.ID = um1.user_id
+                AND um1.meta_key = '_qe_ghost_user' AND um1.meta_value = '1'
+             INNER JOIN {$wpdb->usermeta} um2 ON u.ID = um2.user_id
+                AND um2.meta_key = %s",
+            "_enrolled_course_{$course_id}"
+        ));
+
+        return $this->success_response(['count' => $count]);
     }
 
     /**

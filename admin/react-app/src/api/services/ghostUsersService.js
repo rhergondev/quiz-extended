@@ -86,6 +86,17 @@ export const getGhostUsers = async (courseId) => {
 };
 
 /**
+ * Get ghost user count for a course (lightweight SQL COUNT, no user data loaded)
+ * @param {number} courseId - Course ID
+ * @returns {Promise<number>} Ghost user count
+ */
+export const getGhostUserCount = async (courseId) => {
+  const url = `${getCustomApiUrl()}/ghost-users/${courseId}/count`;
+  const result = await makeApiRequest(url);
+  return result?.count ?? 0;
+};
+
+/**
  * Delete all ghost users for a course
  * @param {number} courseId - Course ID
  * @returns {Promise<Object>} Deletion result
@@ -98,5 +109,6 @@ export const deleteGhostUsers = async (courseId) => {
 export default {
   generateGhostUsers,
   getGhostUsers,
+  getGhostUserCount,
   deleteGhostUsers,
 };

@@ -91,6 +91,9 @@ class QE_Notification_Hooks
         // Hook before quiz update to capture previous state
         add_action('rest_pre_insert_qe_quiz', [$this, 'capture_previous_quiz_state'], 10, 2);
 
+        // Hook for quiz moved between lessons (fired from move_quiz_to_lesson endpoint)
+        add_action('qe_quiz_moved', [$this, 'handle_quiz_moved'], 10, 4);
+
         // Clear debug log on init (keep last 50 entries)
         $this->trim_debug_log();
     }
@@ -285,7 +288,7 @@ class QE_Notification_Hooks
             $title = __('Lección actualizada', 'quiz-extended');
 
             $message = sprintf(
-                __('Se ha actualizado la lección "%s" (%s).', 'quiz-extended'),
+                __('Se ha actualizado el tema "%s" (%s).', 'quiz-extended'),
                 $post->post_title,
                 implode(', ', $change_details)
             );
@@ -398,6 +401,19 @@ class QE_Notification_Hooks
         foreach ($modified_steps as $step) {
             $this->notify_modified_step($lesson_id, $course_id, $step);
         }
+
+        // 3. Check for REMOVED steps (existed before but no longer present)
+        $removed_steps = [];
+        foreach ($previous_steps as $step) {
+            $key = ($step['type'] ?? '') . '::' . ($step['title'] ?? '');
+            if (!isset($current_hashes[$key])) {
+                $removed_steps[] = $step;
+            }
+        }
+
+        foreach ($removed_steps as $step) {
+            $this->notify_removed_step($lesson_id, $course_id, $step);
+        }
     }
 
     /**
@@ -411,6 +427,99 @@ class QE_Notification_Hooks
         $data = $step['data'] ?? [];
         // Serialize the data array to get a consistent string
         return md5(serialize($data));
+    }
+
+    /**
+     * Create notification for a removed step from a lesson
+     *
+     * @param int $lesson_id
+     * @param int $course_id
+     * @param array $step Step data
+     */
+    private function notify_removed_step($lesson_id, $course_id, $step)
+    {
+        if (!class_exists('QE_Notifications_API')) {
+            require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/api/class-qe-notifications-api.php';
+        }
+
+        $lesson = get_post($lesson_id);
+        if (!$lesson) return;
+
+        $step_type  = $step['type'] ?? 'text';
+        $step_title = $step['title'] ?? '';
+
+        $type_config = [
+            'quiz'  => ['label' => __('cuestionario', 'quiz-extended'), 'label_un' => __('el cuestionario', 'quiz-extended')],
+            'video' => ['label' => __('video', 'quiz-extended'),        'label_un' => __('el video', 'quiz-extended')],
+            'pdf'   => ['label' => __('documento PDF', 'quiz-extended'), 'label_un' => __('el documento PDF', 'quiz-extended')],
+            'text'  => ['label' => __('contenido', 'quiz-extended'),    'label_un' => __('el contenido', 'quiz-extended')],
+        ];
+
+        $config = $type_config[$step_type] ?? $type_config['text'];
+        $title  = sprintf(__('%s eliminado', 'quiz-extended'), ucfirst($config['label']));
+
+        if ($step_title) {
+            $message = sprintf(
+                __('Se ha eliminado %s: "%s" del tema "%s".', 'quiz-extended'),
+                $config['label_un'],
+                $step_title,
+                $lesson->post_title
+            );
+        } else {
+            $message = sprintf(
+                __('Se ha eliminado %s del tema "%s".', 'quiz-extended'),
+                $config['label_un'],
+                $lesson->post_title
+            );
+        }
+
+        QE_Notifications_API::create_notification_record(
+            $course_id,
+            'lesson_updated',
+            $title,
+            $message,
+            $lesson_id,
+            'lesson'
+        );
+    }
+
+    /**
+     * Handle quiz moved between lessons — fires via qe_quiz_moved action
+     *
+     * @param int $quiz_id
+     * @param int $source_lesson_id
+     * @param int $target_lesson_id
+     * @param int $course_id
+     */
+    public function handle_quiz_moved($quiz_id, $source_lesson_id, $target_lesson_id, $course_id)
+    {
+        if (!class_exists('QE_Notifications_API')) {
+            require_once QUIZ_EXTENDED_PLUGIN_DIR . 'includes/api/class-qe-notifications-api.php';
+        }
+
+        $quiz           = get_post($quiz_id);
+        $source_lesson  = get_post($source_lesson_id);
+        $target_lesson  = get_post($target_lesson_id);
+
+        if (!$quiz || !$source_lesson || !$target_lesson) return;
+
+        $quiz_title = $quiz->post_title;
+
+        $message = sprintf(
+            __('El cuestionario "%s" ha sido movido de "%s" a "%s".', 'quiz-extended'),
+            $quiz_title,
+            $source_lesson->post_title,
+            $target_lesson->post_title
+        );
+
+        QE_Notifications_API::create_notification_record(
+            $course_id,
+            QE_Notifications_API::TYPE_NEW_QUIZ,
+            __('Cuestionario movido', 'quiz-extended'),
+            $message,
+            $target_lesson_id,
+            'lesson'
+        );
     }
 
     /**
@@ -449,14 +558,14 @@ class QE_Notification_Hooks
 
         if (!empty($step_title)) {
             $message = sprintf(
-                __('Se ha actualizado el %s: "%s" en la lección "%s".', 'quiz-extended'),
+                __('Se ha actualizado el %s: "%s" en el tema "%s".', 'quiz-extended'),
                 $config['label'],
                 $step_title,
                 $lesson->post_title
             );
         } else {
             $message = sprintf(
-                __('Se ha actualizado el %s en la lección "%s".', 'quiz-extended'),
+                __('Se ha actualizado el %s en el tema "%s".', 'quiz-extended'),
                 $config['label'],
                 $lesson->post_title
             );
@@ -489,9 +598,9 @@ class QE_Notification_Hooks
         if (!$lesson)
             return;
 
-        $title = __('Nueva lección disponible', 'quiz-extended');
+        $title = __('Nuevo tema disponible', 'quiz-extended');
         $message = sprintf(
-            __('Se ha añadido una nueva lección: "%s".', 'quiz-extended'),
+            __('Se ha añadido un nuevo tema: "%s".', 'quiz-extended'),
             $lesson->post_title
         );
 
@@ -556,14 +665,14 @@ class QE_Notification_Hooks
 
         if ($step_title) {
             $message = sprintf(
-                __('Se ha añadido %s: "%s" en la lección "%s".', 'quiz-extended'),
+                __('Se ha añadido %s: "%s" en el tema "%s".', 'quiz-extended'),
                 $config['label_un'],
                 $step_title,
                 $lesson->post_title
             );
         } else {
             $message = sprintf(
-                __('Se ha añadido %s en la lección "%s".', 'quiz-extended'),
+                __('Se ha añadido %s en el tema "%s".', 'quiz-extended'),
                 $config['label_un'],
                 $lesson->post_title
             );

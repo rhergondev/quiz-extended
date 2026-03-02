@@ -38,6 +38,45 @@ class QE_Batch_API extends QE_API_Base
             },
         ]);
 
+        register_rest_route('quiz-extended/v1', '/batch/set-question-provider', [
+            'methods' => 'POST',
+            'callback' => [$this, 'set_question_provider'],
+            'permission_callback' => function () {
+                return current_user_can('edit_posts');
+            },
+            'args' => [
+                'question_ids' => [
+                    'required' => true,
+                    'type' => 'array',
+                    'items' => ['type' => 'integer'],
+                ],
+                'provider_slug' => [
+                    'required' => true,
+                    'type' => 'string',
+                ],
+            ],
+        ]);
+
+        register_rest_route('quiz-extended/v1', '/batch/set-question-difficulty', [
+            'methods' => 'POST',
+            'callback' => [$this, 'set_question_difficulty'],
+            'permission_callback' => function () {
+                return current_user_can('edit_posts');
+            },
+            'args' => [
+                'question_ids' => [
+                    'required' => true,
+                    'type' => 'array',
+                    'items' => ['type' => 'integer'],
+                ],
+                'difficulty' => [
+                    'required' => true,
+                    'type' => 'string',
+                    'enum' => ['easy', 'medium', 'hard'],
+                ],
+            ],
+        ]);
+
         register_rest_route('quiz-extended/v1', '/batch/sync-question-lessons', [
             'methods' => 'POST',
             'callback' => [$this, 'sync_question_lessons'],
@@ -131,6 +170,83 @@ class QE_Batch_API extends QE_API_Base
                 $stats['questions_skipped']
             ),
             'stats' => $stats
+        ], 200);
+    }
+
+    /**
+     * Set a specific provider taxonomy term on a given list of questions.
+     * Resolves the provider by slug and applies it via wp_set_post_terms.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response|WP_Error
+     */
+    public function set_question_provider($request)
+    {
+        $question_ids  = array_filter(array_map('absint', (array) $request->get_param('question_ids')));
+        $provider_slug = sanitize_text_field($request->get_param('provider_slug'));
+
+        if (empty($question_ids) || empty($provider_slug)) {
+            return new WP_REST_Response(['success' => false, 'message' => 'Invalid parameters'], 400);
+        }
+
+        $term = get_term_by('slug', $provider_slug, 'qe_provider');
+
+        if (!$term) {
+            return new WP_REST_Response(['success' => false, 'message' => "Provider '{$provider_slug}' not found"], 404);
+        }
+
+        $updated = 0;
+        $errors  = 0;
+
+        foreach ($question_ids as $question_id) {
+            $result = wp_set_post_terms($question_id, [$term->term_id], 'qe_provider');
+            if (is_wp_error($result)) {
+                $errors++;
+            } else {
+                $updated++;
+            }
+        }
+
+        return new WP_REST_Response([
+            'success' => true,
+            'updated' => $updated,
+            'errors'  => $errors,
+        ], 200);
+    }
+
+    /**
+     * Set a specific difficulty on a given list of questions.
+     * Skips questions that already have the target difficulty.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response|WP_Error
+     */
+    public function set_question_difficulty($request)
+    {
+        $question_ids = array_filter(array_map('absint', (array) $request->get_param('question_ids')));
+        $difficulty   = sanitize_text_field($request->get_param('difficulty'));
+
+        if (empty($question_ids) || empty($difficulty)) {
+            return new WP_REST_Response(['success' => false, 'message' => 'Invalid parameters'], 400);
+        }
+
+        $updated = 0;
+        $skipped = 0;
+
+        foreach ($question_ids as $question_id) {
+            $current = get_post_meta($question_id, '_difficulty_level', true);
+            if ($current === $difficulty) {
+                $skipped++;
+            } else {
+                update_post_meta($question_id, '_difficulty_level', $difficulty);
+                $updated++;
+            }
+        }
+
+        return new WP_REST_Response([
+            'success' => true,
+            'updated' => $updated,
+            'skipped' => $skipped,
         ], 200);
     }
 

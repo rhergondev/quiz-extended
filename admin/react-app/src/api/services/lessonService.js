@@ -331,6 +331,29 @@ export const getLessonStatistics = async (options = {}) => {
     throw error;
   }
 };
+/**
+ * Move a quiz step from one lesson to another (atomic server-side operation).
+ * @param {number} quizId
+ * @param {number} sourceLessonId
+ * @param {number} targetLessonId
+ * @returns {Promise<Object>}
+ */
+export const moveQuizToLesson = async (quizId, sourceLessonId, targetLessonId) => {
+  const config = window.qe_data || {};
+  const apiUrl = config.endpoints?.custom_api || `${config.api_url}/qe/v1`;
+  const response = await fetch(`${apiUrl}/lessons/move-quiz`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': config.nonce },
+    body: JSON.stringify({ quiz_id: quizId, source_lesson_id: sourceLessonId, target_lesson_id: targetLessonId }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || `HTTP ${response.status}`);
+  }
+  return response.json();
+};
+
 // Backward compatibility aliases
 export const getLessons = getAll;
 export const getLesson = getOne;
