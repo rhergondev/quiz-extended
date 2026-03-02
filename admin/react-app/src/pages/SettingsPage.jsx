@@ -70,6 +70,12 @@ const SettingsPage = () => {
   const [dbConsultError, setDbConsultError] = useState(null);
   const [dbConsultLoading, setDbConsultLoading] = useState(false);
   const [dbConsultCopied, setDbConsultCopied] = useState(false);
+  const [listCoursesResult, setListCoursesResult] = useState(null);
+  const [listCoursesError, setListCoursesError] = useState(null);
+  const [listCoursesLoading, setListCoursesLoading] = useState(false);
+  const [deletedCoursesResult, setDeletedCoursesResult] = useState(null);
+  const [deletedCoursesError, setDeletedCoursesError] = useState(null);
+  const [deletedCoursesLoading, setDeletedCoursesLoading] = useState(false);
 
   // Question chain analysis state
   const [chainId, setChainId] = useState('');
@@ -271,6 +277,44 @@ const SettingsPage = () => {
     navigator.clipboard.writeText(JSON.stringify(dbConsultResult, null, 2));
     setDbConsultCopied(true);
     setTimeout(() => setDbConsultCopied(false), 2000);
+  };
+
+  const handleListCourses = async () => {
+    setListCoursesLoading(true);
+    setListCoursesResult(null);
+    setListCoursesError(null);
+    try {
+      const response = await fetch(
+        '/wp-json/quiz-extended/v1/debug/list-courses',
+        { headers: { 'X-WP-Nonce': window.qe_data?.nonce || '' } }
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+      setListCoursesResult(data?.data ?? data);
+    } catch (err) {
+      setListCoursesError(err.message || 'Network error');
+    } finally {
+      setListCoursesLoading(false);
+    }
+  };
+
+  const handleDeletedCourses = async () => {
+    setDeletedCoursesLoading(true);
+    setDeletedCoursesResult(null);
+    setDeletedCoursesError(null);
+    try {
+      const response = await fetch(
+        '/wp-json/quiz-extended/v1/debug/deleted-courses',
+        { headers: { 'X-WP-Nonce': window.qe_data?.nonce || '' } }
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+      setDeletedCoursesResult(data?.data ?? data);
+    } catch (err) {
+      setDeletedCoursesError(err.message || 'Network error');
+    } finally {
+      setDeletedCoursesLoading(false);
+    }
   };
 
   const handleChainAnalysis = async () => {
@@ -1630,6 +1674,174 @@ const SettingsPage = () => {
                 </pre>
               </div>
             )}
+
+            {/* ── List All Courses ─────────────────────────────────────────── */}
+            <div
+              className="p-6 rounded-xl"
+              style={{
+                backgroundColor: pageColors.bgCard,
+                border: `1px solid ${pageColors.cardBorder}`,
+                boxShadow: pageColors.shadowSm
+              }}
+            >
+              <h2 className="text-lg font-semibold mb-1" style={{ color: pageColors.text }}>
+                List All Courses
+              </h2>
+              <p className="text-sm mb-4" style={{ color: pageColors.textMuted }}>
+                Returns every <code>qe_course</code> post in the DB regardless of status.
+              </p>
+              <button
+                onClick={handleListCourses}
+                disabled={listCoursesLoading}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all focus:outline-none disabled:opacity-50"
+                style={{ backgroundColor: pageColors.accent, color: '#fff' }}
+              >
+                {listCoursesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                List all courses
+              </button>
+
+              {listCoursesError && (
+                <div
+                  className="mt-4 p-4 rounded-xl flex items-start gap-3"
+                  style={{
+                    backgroundColor: isDarkMode ? 'rgba(239,68,68,0.1)' : '#fee2e2',
+                    border: `1px solid ${isDarkMode ? 'rgba(239,68,68,0.3)' : '#fca5a5'}`
+                  }}
+                >
+                  <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: pageColors.error }} />
+                  <p className="text-sm" style={{ color: pageColors.error }}>{listCoursesError}</p>
+                </div>
+              )}
+
+              {listCoursesResult && (
+                <div className="mt-4 overflow-x-auto rounded-xl" style={{ border: `1px solid ${pageColors.cardBorder}` }}>
+                  <div
+                    className="px-4 py-2 text-xs font-semibold"
+                    style={{ borderBottom: `1px solid ${pageColors.cardBorder}`, color: pageColors.textMuted, backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)' }}
+                  >
+                    {listCoursesResult.total ?? listCoursesResult.courses?.length ?? 0} courses found
+                  </div>
+                  <table className="w-full text-xs font-mono">
+                    <thead>
+                      <tr style={{ borderBottom: `1px solid ${pageColors.cardBorder}`, color: pageColors.textMuted }}>
+                        <th className="px-4 py-2 text-left font-semibold">ID</th>
+                        <th className="px-4 py-2 text-left font-semibold">Title</th>
+                        <th className="px-4 py-2 text-left font-semibold">Status</th>
+                        <th className="px-4 py-2 text-left font-semibold">Date</th>
+                        <th className="px-4 py-2 text-right font-semibold">Order</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(listCoursesResult.courses || []).map((c, i) => (
+                        <tr
+                          key={c.id}
+                          style={{
+                            borderBottom: i < (listCoursesResult.courses.length - 1) ? `1px solid ${pageColors.cardBorder}` : 'none',
+                            color: pageColors.text,
+                            backgroundColor: i % 2 === 0 ? 'transparent' : (isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)')
+                          }}
+                        >
+                          <td className="px-4 py-2">{c.id}</td>
+                          <td className="px-4 py-2">{c.title}</td>
+                          <td className="px-4 py-2">
+                            <span
+                              className="px-1.5 py-0.5 rounded text-xs"
+                              style={{
+                                backgroundColor: c.status === 'publish' ? (isDarkMode ? 'rgba(34,197,94,0.2)' : '#dcfce7') : (isDarkMode ? 'rgba(156,163,175,0.2)' : '#f3f4f6'),
+                                color: c.status === 'publish' ? pageColors.success : pageColors.textMuted
+                              }}
+                            >
+                              {c.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2">{c.date?.split(' ')[0]}</td>
+                          <td className="px-4 py-2 text-right">{c.menu_order}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Deleted courses from audit log */}
+              <div className="mt-6 pt-6" style={{ borderTop: `1px solid ${pageColors.cardBorder}` }}>
+                <h3 className="text-base font-semibold mb-1" style={{ color: pageColors.text }}>
+                  Deleted Courses (Audit Log)
+                </h3>
+                <p className="text-sm mb-4" style={{ color: pageColors.textMuted }}>
+                  Courses permanently deleted, who deleted them, and when.
+                </p>
+                <button
+                  onClick={handleDeletedCourses}
+                  disabled={deletedCoursesLoading}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all focus:outline-none disabled:opacity-50"
+                  style={{ backgroundColor: isDarkMode ? 'rgba(239,68,68,0.15)' : '#fee2e2', color: isDarkMode ? '#f87171' : '#dc2626', border: `1px solid ${isDarkMode ? 'rgba(239,68,68,0.3)' : '#fca5a5'}` }}
+                >
+                  {deletedCoursesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                  Check deleted courses
+                </button>
+
+                {deletedCoursesError && (
+                  <div
+                    className="mt-4 p-4 rounded-xl flex items-start gap-3"
+                    style={{
+                      backgroundColor: isDarkMode ? 'rgba(239,68,68,0.1)' : '#fee2e2',
+                      border: `1px solid ${isDarkMode ? 'rgba(239,68,68,0.3)' : '#fca5a5'}`
+                    }}
+                  >
+                    <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: pageColors.error }} />
+                    <p className="text-sm" style={{ color: pageColors.error }}>{deletedCoursesError}</p>
+                  </div>
+                )}
+
+                {deletedCoursesResult && (
+                  <div className="mt-4 overflow-x-auto rounded-xl" style={{ border: `1px solid ${pageColors.cardBorder}` }}>
+                    <div
+                      className="px-4 py-2 text-xs font-semibold"
+                      style={{ borderBottom: `1px solid ${pageColors.cardBorder}`, color: pageColors.textMuted, backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)' }}
+                    >
+                      {deletedCoursesResult.total ?? 0} deletion{(deletedCoursesResult.total ?? 0) !== 1 ? 's' : ''} found in audit log
+                    </div>
+                    {(deletedCoursesResult.deleted || []).length === 0 ? (
+                      <p className="px-4 py-3 text-xs" style={{ color: pageColors.textMuted }}>No deleted courses found in audit log.</p>
+                    ) : (
+                      <table className="w-full text-xs font-mono">
+                        <thead>
+                          <tr style={{ borderBottom: `1px solid ${pageColors.cardBorder}`, color: pageColors.textMuted }}>
+                            <th className="px-4 py-2 text-left font-semibold">Post ID</th>
+                            <th className="px-4 py-2 text-left font-semibold">Title</th>
+                            <th className="px-4 py-2 text-left font-semibold">Deleted by</th>
+                            <th className="px-4 py-2 text-left font-semibold">IP</th>
+                            <th className="px-4 py-2 text-left font-semibold">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(deletedCoursesResult.deleted || []).map((d, i) => (
+                            <tr
+                              key={d.log_id}
+                              style={{
+                                borderBottom: i < (deletedCoursesResult.deleted.length - 1) ? `1px solid ${pageColors.cardBorder}` : 'none',
+                                color: pageColors.text,
+                                backgroundColor: i % 2 === 0 ? 'transparent' : (isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)')
+                              }}
+                            >
+                              <td className="px-4 py-2" style={{ color: pageColors.textMuted }}>{d.post_id || '—'}</td>
+                              <td className="px-4 py-2">{d.post_title}</td>
+                              <td className="px-4 py-2">
+                                <span style={{ color: pageColors.accent }}>{d.deleted_by}</span>
+                                <span className="ml-1" style={{ color: pageColors.textMuted }}>(#{d.user_id})</span>
+                              </td>
+                              <td className="px-4 py-2" style={{ color: pageColors.textMuted }}>{d.ip_address}</td>
+                              <td className="px-4 py-2">{d.deleted_at?.split(' ')[0]} <span style={{ color: pageColors.textMuted }}>{d.deleted_at?.split(' ')[1]}</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* ── Question Chain Analysis ─────────────────────────────────── */}
             <div

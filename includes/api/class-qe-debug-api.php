@@ -163,6 +163,20 @@ class QE_Debug_API extends QE_API_Base
             ]
         ]);
 
+        // 📋 List all qe_course posts
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/list-courses', [
+            'methods' => 'GET',
+            'callback' => [$this, 'list_all_courses'],
+            'permission_callback' => [$this, 'permissions_check']
+        ]);
+
+        // 🗑️ Audit log: deleted qe_course entries
+        register_rest_route($this->namespace, '/' . $this->rest_base . '/deleted-courses', [
+            'methods' => 'GET',
+            'callback' => [$this, 'list_deleted_courses'],
+            'permission_callback' => [$this, 'permissions_check']
+        ]);
+
         // 🧹 Endpoint para limpieza de opciones autoload
         register_rest_route($this->namespace, '/' . $this->rest_base . '/cleanup-autoload', [
             'methods' => 'POST',
@@ -1925,6 +1939,100 @@ class QE_Debug_API extends QE_API_Base
             'success' => true,
             'message' => 'Limpieza completada exitosamente',
             'data' => $results
+        ], 200);
+    }
+
+    /**
+     * List all qe_course posts regardless of status.
+     *
+     * GET /wp-json/quiz-extended/v1/debug/list-courses
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function list_all_courses($request)
+    {
+        global $wpdb;
+
+        $courses = $wpdb->get_results(
+            "SELECT ID, post_title, post_status, post_date, menu_order
+               FROM {$wpdb->posts}
+              WHERE post_type = 'qe_course'
+              ORDER BY menu_order ASC, ID ASC",
+            ARRAY_A
+        );
+
+        $rows = array_map(function ($row) {
+            return [
+                'id'         => (int) $row['ID'],
+                'title'      => $row['post_title'],
+                'status'     => $row['post_status'],
+                'date'       => $row['post_date'],
+                'menu_order' => (int) $row['menu_order'],
+            ];
+        }, $courses ?: []);
+
+        return new WP_REST_Response([
+            'success' => true,
+            'data'    => [
+                'courses' => $rows,
+                'total'   => count($rows),
+            ]
+        ], 200);
+    }
+
+    /**
+     * List permanently deleted qe_course entries from the audit log.
+     *
+     * GET /wp-json/quiz-extended/v1/debug/deleted-courses
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public function list_deleted_courses($request)
+    {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'qe_audit_log';
+
+        // Check table exists
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))) !== $table) {
+            return new WP_REST_Response([
+                'success' => false,
+                'message' => 'Audit log table does not exist.'
+            ], 404);
+        }
+
+        $rows = $wpdb->get_results(
+            "SELECT a.log_id, a.event_data, a.user_id, a.ip_address, a.created_at,
+                    u.display_name, u.user_login
+               FROM {$table} a
+          LEFT JOIN {$wpdb->users} u ON u.ID = a.user_id
+              WHERE a.event_type = 'post_deleted'
+                AND a.event_data LIKE '%\"post_type\":\"qe_course\"%'
+              ORDER BY a.created_at DESC",
+            ARRAY_A
+        );
+
+        $entries = array_map(function ($row) {
+            $data = json_decode($row['event_data'], true) ?: [];
+            return [
+                'log_id'       => (int) $row['log_id'],
+                'post_id'      => (int) ($data['post_id'] ?? 0),
+                'post_title'   => $data['post_title'] ?? '(unknown)',
+                'deleted_by'   => $row['display_name'] ?: ($row['user_login'] ?: 'Unknown'),
+                'user_id'      => (int) $row['user_id'],
+                'ip_address'   => $row['ip_address'],
+                'deleted_at'   => $row['created_at'],
+            ];
+        }, $rows ?: []);
+
+        return new WP_REST_Response([
+            'success' => true,
+            'data'    => [
+                'deleted' => $entries,
+                'total'   => count($entries),
+            ]
         ], 200);
     }
 }

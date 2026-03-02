@@ -1197,9 +1197,11 @@ const TestsPage = () => {
                                   }}
                                   disabled={isFirst || isUpdatingOrder}
                                   className="p-0.5 rounded transition-all disabled:opacity-30"
-                                  style={{ 
-                                    color: isFirst ? pageColors.textMuted : pageColors.accent 
+                                  style={{
+                                    color: isFirst ? pageColors.textMuted : pageColors.accent
                                   }}
+                                  onMouseEnter={(e) => { if (!isFirst && !isUpdatingOrder) e.currentTarget.style.color = pageColors.text; }}
+                                  onMouseLeave={(e) => { if (!isFirst && !isUpdatingOrder) e.currentTarget.style.color = pageColors.accent; }}
                                   title={t('tests.moveUp')}
                                 >
                                   <ChevronUp size={16} />
@@ -1211,9 +1213,11 @@ const TestsPage = () => {
                                   }}
                                   disabled={isLast || isUpdatingOrder}
                                   className="p-0.5 rounded transition-all disabled:opacity-30"
-                                  style={{ 
-                                    color: isLast ? pageColors.textMuted : pageColors.accent 
+                                  style={{
+                                    color: isLast ? pageColors.textMuted : pageColors.accent
                                   }}
+                                  onMouseEnter={(e) => { if (!isLast && !isUpdatingOrder) e.currentTarget.style.color = pageColors.text; }}
+                                  onMouseLeave={(e) => { if (!isLast && !isUpdatingOrder) e.currentTarget.style.color = pageColors.accent; }}
                                   title={t('tests.moveDown')}
                                 >
                                   <ChevronDown size={16} />
