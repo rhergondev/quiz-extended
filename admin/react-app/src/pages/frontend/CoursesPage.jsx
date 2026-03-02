@@ -50,7 +50,7 @@ const CoursesPage = () => {
   const coursesHook = useCourses({ 
     autoFetch: true,
     embed: true,
-    status: userIsAdmin ? 'publish,draft,private' : 'publish',
+    status: userIsAdmin ? 'publish,draft,private,pending' : 'publish',
     enrolledOnly: !userIsAdmin
   });
 
