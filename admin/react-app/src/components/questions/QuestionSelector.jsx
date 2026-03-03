@@ -24,6 +24,7 @@ const QuestionSelector = ({
   onEditQuestion = null, // Optional: open the in-app edit modal for a question
   questionOverrides = {}, // Map of id → updated question data, used to refresh individual cards without reloading the list
   providerRefreshKey = 0, // Increment to re-fetch allowedProviderIds (e.g. after toggling a provider lock)
+  questionsRefreshKey = 0, // Increment to soft re-fetch the question list (preserves filters)
 }) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
@@ -161,6 +162,16 @@ const QuestionSelector = ({
     };
     fetchAllowedProviders();
   }, [providerRefreshKey]);
+
+  // Soft re-fetch the question list when the parent signals a change (e.g. after a batch
+  // set-question-provider completes or a question is edited). Preserves current filters.
+  useEffect(() => {
+    if (questionsRefreshKey > 0) {
+      questionsHook.refresh();
+    }
+  // questionsHook.refresh is a stable useCallback — safe to omit from deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionsRefreshKey]);
 
   // Colors
   const colors = useMemo(() => ({

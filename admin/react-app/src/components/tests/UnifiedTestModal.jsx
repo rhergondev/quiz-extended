@@ -121,6 +121,7 @@ const UnifiedTestModal = ({
   const [selectorKey, setSelectorKey] = useState(0); // Increment to force QuestionSelector remount/refetch
   const [questionOverrides, setQuestionOverrides] = useState({}); // Map of id → updated question, refreshes individual cards
   const [providerRefreshKey, setProviderRefreshKey] = useState(0); // Incremented when QuestionModal closes to re-sync provider locks
+  const [questionsRefreshKey, setQuestionsRefreshKey] = useState(0); // Incremented to trigger a soft re-fetch of the selector's question list
 
   // Filter assigned questions by search term, with match metadata per question
   const filteredSelectedQuestions = useMemo(() => {
@@ -232,12 +233,14 @@ const UnifiedTestModal = ({
 
     setIsSaving(true);
     try {
+      const questionIds = selectedQuestions.map(q => q.id);
+
       // 1. Prepare Test Data
       const quizData = {
-        title: formData.title, // Test title same as step title
+        title: formData.title,
         content: formData.description,
         status: 'publish',
-        qe_course: courseId ? [parseInt(courseId)] : [], 
+        qe_course: courseId ? [parseInt(courseId)] : [],
         meta: {
           _course_id: courseId,
           _difficulty_level: formData.difficulty_level,
@@ -246,86 +249,89 @@ const UnifiedTestModal = ({
           _max_attempts: formData.max_attempts,
           _randomize_questions: formData.randomize,
           _show_results: formData.show_results,
-          _quiz_question_ids: selectedQuestions.map(q => q.id)
+          _quiz_question_ids: questionIds
         }
       };
 
       let resultQuizId;
 
       // 2. Create or Update Test
-      // Logic: If editing test step with existing test, update it. If new, create it.
-      // But wait... mode='edit' implies editing the LESSON STEP. The lesson step points to a Quiz ID.
-      // If we are editing, we update the Quiz ID pointed to.
-      
       if (mode === 'edit' && test?.data?.quiz_id) {
-        await quizzesHook.updateQuiz(test.data.quiz_id, quizData);
+        // Retry once on failure — update_post_meta is idempotent so this is safe
+        let updatedQuiz = null;
+        let lastError;
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            updatedQuiz = await quizzesHook.updateQuiz(test.data.quiz_id, quizData);
+            break;
+          } catch (err) {
+            lastError = err;
+            if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
+          }
+        }
+        if (!updatedQuiz) throw lastError;
         resultQuizId = test.data.quiz_id;
+
+        // Verify the server actually persisted every question ID we sent.
+        // If there's any mismatch, keep the modal open so the user doesn't lose their work.
+        const savedIds = new Set(updatedQuiz?.meta?._quiz_question_ids || []);
+        const missingIds = questionIds.filter(id => !savedIds.has(id));
+        if (missingIds.length > 0) {
+          toast.error(
+            `Error al guardar: ${missingIds.length} pregunta(s) no quedaron vinculadas al test. Intenta guardar de nuevo.`
+          );
+          setIsSaving(false);
+          return;
+        }
       } else {
         const newQuiz = await quizzesHook.createQuiz(quizData);
         resultQuizId = newQuiz.id;
       }
 
-      // 3, 4 & 5. Run lesson-sync, difficulty and provider updates in parallel
+      // 3. Secondary batch updates — fire in the background, don't block the save.
+      // Chunks of 10 processed sequentially to avoid server load spikes.
+      // All 3 operations run in parallel per chunk since they're independent.
       const difficulty = formData.difficulty_level;
-      const questionIds = selectedQuestions.map(q => q.id);
+      if (questionIds.length > 0) {
+        const CHUNK_SIZE = 10;
+        const { apiUrl } = getApiConfig();
 
-      await Promise.all([
-        // 3. Sync _question_lesson on all assigned questions
-        lessonId && questionIds.length > 0
-          ? (async () => {
-              try {
-                const { apiUrl } = getApiConfig();
-                await fetch(`${apiUrl}/quiz-extended/v1/batch/sync-question-lessons`, {
-                  method: 'POST',
-                  headers: getDefaultHeaders(),
-                  body: JSON.stringify({ question_ids: questionIds, lesson_id: lessonId }),
-                });
-              } catch (syncError) {
-                console.warn('Could not sync question lesson associations:', syncError);
-              }
-            })()
-          : Promise.resolve(),
+        const chunks = [];
+        for (let i = 0; i < questionIds.length; i += CHUNK_SIZE) {
+          chunks.push(questionIds.slice(i, i + CHUNK_SIZE));
+        }
 
-        // 4. Batch-update difficulty on all assigned questions (single request)
-        questionIds.length > 0
-          ? (async () => {
-              try {
-                const { apiUrl } = getApiConfig();
-                await fetch(`${apiUrl}/quiz-extended/v1/batch/set-question-difficulty`, {
-                  method: 'POST',
-                  headers: getDefaultHeaders(),
-                  body: JSON.stringify({ question_ids: questionIds, difficulty }),
-                });
-              } catch (diffError) {
-                console.warn('Could not batch-update question difficulty:', diffError);
-              }
-            })()
-          : Promise.resolve(),
+        const batchFetch = (endpoint, body) =>
+          fetch(`${apiUrl}/quiz-extended/v1/batch/${endpoint}`, {
+            method: 'POST',
+            headers: getDefaultHeaders(),
+            body: JSON.stringify(body),
+          });
 
-        // 5. Ensure all questions are assigned to the uniforme-azul provider
-        questionIds.length > 0
-          ? (async () => {
-              try {
-                const { apiUrl } = getApiConfig();
-                await fetch(`${apiUrl}/quiz-extended/v1/batch/set-question-provider`, {
-                  method: 'POST',
-                  headers: getDefaultHeaders(),
-                  body: JSON.stringify({ question_ids: questionIds, provider_slug: 'uniforme-azul' }),
-                });
-              } catch (providerError) {
-                console.warn('Could not batch-update question provider:', providerError);
-              }
-            })()
-          : Promise.resolve(),
-      ]);
+        // Not awaited — runs in the background after modal closes.
+        // When done, bumps questionsRefreshKey so the selector re-fetches
+        // and shows the updated provider on all affected question cards.
+        (async () => {
+          for (const chunk of chunks) {
+            await Promise.all([
+              lessonId
+                ? batchFetch('sync-question-lessons', { question_ids: chunk, lesson_id: lessonId })
+                    .catch(e => console.warn('Could not sync question lesson associations:', e))
+                : Promise.resolve(),
+              batchFetch('set-question-difficulty', { question_ids: chunk, difficulty })
+                .catch(e => console.warn('Could not batch-update question difficulty:', e)),
+              batchFetch('set-question-provider', { question_ids: chunk, provider_slug: 'uniforme-azul' })
+                .catch(e => console.warn('Could not batch-update question provider:', e)),
+            ]);
+          }
+          setQuestionsRefreshKey(k => k + 1);
+        })();
+      }
 
       // 4. Calculate test metadata for display
       const questionCount = selectedQuestions.length;
-      // Calculate time limit: half the number of questions (same logic as QuizGeneratorPage)
       const timeLimit = questionCount > 0 ? Math.max(1, Math.ceil(questionCount / 2)) : null;
-      
-      // 4. Call Parent onSave with the specific structure needed by TestsPage
-      // TestsPage expects: { type: 'quiz', title: '...', data: { quiz_id: ..., difficulty: ..., ... } }
+
       await onSave({
         type: 'quiz',
         title: formData.title,
@@ -335,7 +341,7 @@ const UnifiedTestModal = ({
           difficulty: difficulty,
           question_count: questionCount,
           time_limit: timeLimit,
-          start_date: new Date().toISOString() // Set current date as start date
+          start_date: new Date().toISOString()
         }
       });
 
@@ -394,8 +400,10 @@ const UnifiedTestModal = ({
         const updatedQuestion = await questionsAdminHook.updateQuestion(questionModal.question.id, questionData);
         // Update local list
         setSelectedQuestions(prev => prev.map(q => q.id === updatedQuestion.id ? updatedQuestion : q));
-        // Refresh only this question's card in the selector (e.g. lock disappears after provider change)
+        // Refresh this question's card in the selector immediately via override,
+        // then trigger a full soft re-fetch so other cards also pick up any server-side changes
         setQuestionOverrides(prev => ({ ...prev, [updatedQuestion.id]: updatedQuestion }));
+        setQuestionsRefreshKey(k => k + 1);
         toast.success('Pregunta actualizada');
         closeQuestionModal();
       }
@@ -763,6 +771,7 @@ const UnifiedTestModal = ({
                     onEditQuestion={openEditQuestion}
                     questionOverrides={questionOverrides}
                     providerRefreshKey={providerRefreshKey}
+                    questionsRefreshKey={questionsRefreshKey}
                  />
               </div>
             </div>
@@ -812,7 +821,7 @@ const UnifiedTestModal = ({
 };
 
 // Wrapper ensuring we get objects not just IDs
-const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, onEditQuestion, questionOverrides, providerRefreshKey }) => {
+const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, onEditQuestion, questionOverrides, providerRefreshKey, questionsRefreshKey }) => {
   return (
     <QuestionSelector
        selectedIds={currentSelected.map(q => q.id)}
@@ -830,6 +839,7 @@ const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, onEditQue
        onEditQuestion={onEditQuestion}
        questionOverrides={questionOverrides}
        providerRefreshKey={providerRefreshKey}
+       questionsRefreshKey={questionsRefreshKey}
     />
   );
 }
