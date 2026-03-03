@@ -174,6 +174,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   const [sendingReply, setSendingReply] = useState(false);
   const [replies, setReplies] = useState([]);
   const [loadingReplies, setLoadingReplies] = useState(false);
+  const [viewportH, setViewportH] = useState(null);
   
   // Courses with messages (for course selector)
   const [coursesWithMessages, setCoursesWithMessages] = useState([]);
@@ -438,6 +439,24 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   };
 
   const isPanelOpen = selectedMessage !== null;
+
+  // Track the visual viewport height so the detail panel shrinks correctly when
+  // the mobile soft keyboard opens (keyboard covers the layout viewport bottom,
+  // but visualViewport.height gives us the actually-usable screen height).
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv || !isPanelOpen) {
+      setViewportH(null);
+      return;
+    }
+    const update = () => setViewportH(vv.height);
+    update();
+    vv.addEventListener('resize', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      setViewportH(null);
+    };
+  }, [isPanelOpen]);
 
   const formatTableDate = (dateString) => {
     const date = new Date(dateString);
@@ -870,11 +889,11 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
         </div>
 
         {/* DETAIL VIEW - Slides in from right */}
-        <div 
-          className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${
+        <div
+          className={`absolute inset-x-0 top-0 flex flex-col transition-transform duration-300 ease-in-out ${
             isPanelOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
-          style={{ backgroundColor: pageColors.bgPage }}
+          style={{ backgroundColor: pageColors.bgPage, height: viewportH ? `${viewportH}px` : '100%' }}
         >
           {selectedMessage && (
             <>
@@ -990,17 +1009,17 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
               </div>
 
               {/* Reply input */}
-              <div className="p-2 sm:p-3 flex-shrink-0" style={{ backgroundColor: pageColors.bgCard, borderTop: `1px solid ${pageColors.cardBorder}` }}>
-                <div className="flex flex-col gap-2 max-w-4xl mx-auto">
-                  <div className="flex gap-2 items-end">
-                    <textarea 
-                      value={replyText} 
-                      onChange={(e) => setReplyText(e.target.value)} 
-                      placeholder="Escribe tu respuesta..." 
-                      rows={3} 
+              <div className="p-2 sm:p-3 flex-shrink-0 overflow-x-hidden" style={{ backgroundColor: pageColors.bgCard, borderTop: `1px solid ${pageColors.cardBorder}` }}>
+                <div className="flex flex-col gap-2 w-full max-w-4xl mx-auto">
+                  <div className="flex gap-2 items-end min-w-0">
+                    <textarea
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      placeholder="Escribe tu respuesta..."
+                      rows={3}
                       maxLength={5000}
-                      className="flex-1 px-3 py-2 text-sm rounded-lg resize-none focus:outline-none focus:ring-2" 
-                      style={{ backgroundColor: pageColors.inputBg, border: `1px solid ${pageColors.cardBorder}`, color: pageColors.text, '--tw-ring-color': pageColors.accent }} 
+                      className="flex-1 min-w-0 px-3 py-2 text-sm rounded-lg resize-none focus:outline-none focus:ring-2"
+                      style={{ backgroundColor: pageColors.inputBg, border: `1px solid ${pageColors.cardBorder}`, color: pageColors.text, '--tw-ring-color': pageColors.accent }}
                     />
                     <button onClick={handleSendReply} disabled={!replyText.trim() || sendingReply} className="px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 text-sm font-medium disabled:opacity-50" style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)`, color: '#fff' }}>
                       {sendingReply ? <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }} /> : <><Send size={14} /><span className="hidden sm:inline">Enviar</span></>}

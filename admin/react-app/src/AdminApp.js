@@ -3,6 +3,7 @@ import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ThemeProvider } from './contexts/ThemeContext';
+import SessionExpiredOverlay from './components/SessionExpiredOverlay';
 
 // Layout
 import AdminLayout from './components/layout/AdminLayout';
@@ -59,6 +60,7 @@ function AdminApp() {
             draggable
             pauseOnHover
           />
+          <SessionExpiredOverlay />
         </div>
       </Router>
     </ThemeProvider>

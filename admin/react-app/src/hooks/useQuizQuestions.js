@@ -132,7 +132,7 @@ export const useQuizQuestions = (questionIds, options = {}) => {
       return loadedQuestions;
     } catch (err) {
       console.error('❌ Error loading question page:', err);
-      setError(err.message || 'Failed to load questions');
+      setError(err.userMessage || 'No se pudieron cargar las preguntas del test.');
       return [];
     } finally {
       isLoadingRef.current = false;

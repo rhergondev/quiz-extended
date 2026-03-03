@@ -75,7 +75,7 @@ const QuestionFeedbackModal = ({
       setSuccess(true);
       setMessage('');
     } catch (err) {
-      setError(err.message || t('quizzes.feedbackModal.errorSending'));
+      setError(err.userMessage || t('quizzes.feedbackModal.errorSending'));
     } finally {
       setLoading(false);
     }

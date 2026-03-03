@@ -344,7 +344,8 @@ class QE_Notifications_API extends QE_API_Base
         $count = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$notifications_table} n
              LEFT JOIN {$reads_table} nr ON n.id = nr.notification_id AND nr.user_id = %d
-             WHERE n.course_id = %d AND nr.id IS NULL",
+             WHERE n.course_id = %d AND nr.id IS NULL
+             AND n.notification_type NOT LIKE '%\_updated%'",
             $user_id,
             $course_id
         ));

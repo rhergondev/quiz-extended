@@ -49,6 +49,7 @@ const Quiz = ({
   const [userAnswers, setUserAnswers] = useState({});
   const [riskedAnswers, setRiskedAnswers] = useState([]);
   const [quizState, setQuizState] = useState('loading');
+  const [quizErrorMessage, setQuizErrorMessage] = useState('');
   const [attemptId, setAttemptId] = useState(null);
   const [quizResult, setQuizResult] = useState(null);
   const [finalQuestions, setFinalQuestions] = useState([]); // Full question list used for results
@@ -247,7 +248,8 @@ const Quiz = ({
         }
       } catch (error) {
         console.error("Error fetching or starting quiz:", error);
-        activeQuizAttempts.delete(quizKey); // Clear on error
+        activeQuizAttempts.delete(quizKey);
+        setQuizErrorMessage(error.userMessage || 'No se pudo cargar el test. Por favor, recarga la página o contacta con soporte.');
         setQuizState('error');
       }
     };
@@ -498,7 +500,8 @@ const Quiz = ({
           }
       } catch (error) {
           console.error('❌ Error submitting quiz:', error);
-          activeSubmissions.delete(attemptId); // Clear guard on error to allow retry
+          activeSubmissions.delete(attemptId);
+          setQuizErrorMessage(error.userMessage || 'No se pudo enviar el test. Por favor, inténtalo de nuevo o contacta con soporte.');
           setQuizState('error');
       }
   }, [attemptId, quizQuestions, questionIds, userAnswers, riskedAnswers, customQuiz, startTime, quizId, lessonId, clearAutosave, onQuizComplete, quizInfo]);
@@ -520,7 +523,7 @@ const Quiz = ({
     );
   }
   if (quizState === 'error' || questionsError) {
-      const errorMessage = questionsError?.message || t('quizzes.quiz.errorLoadingQuiz');
+      const errorMessage = quizErrorMessage || questionsError || t('quizzes.quiz.errorLoadingQuiz');
       return (
         <div className="text-center p-8" style={{ color: '#ef4444' }}>
           <p className="font-semibold mb-2">{t('quizzes.quiz.errorTitle')}</p>

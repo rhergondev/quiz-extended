@@ -160,6 +160,33 @@ class QE_Settings_API extends QE_API_Base
                 'permission_callback' => [$this, 'check_admin_permissions']
             ]
         );
+
+        // GET /refresh-nonce - Return a fresh WP REST nonce for the current user.
+        // Called WITHOUT the X-WP-Nonce header so WordPress falls back to session-cookie
+        // auth. This allows clients with an expired nonce to silently get a new one
+        // as long as their login session (auth cookie) is still valid.
+        register_rest_route(
+            $this->namespace,
+            '/refresh-nonce',
+            [
+                'methods'             => WP_REST_Server::READABLE,
+                'callback'            => [$this, 'refresh_nonce'],
+                'permission_callback' => 'is_user_logged_in',
+            ]
+        );
+    }
+
+    /**
+     * Return a fresh wp_rest nonce for the authenticated user.
+     *
+     * @return WP_REST_Response
+     */
+    public function refresh_nonce()
+    {
+        return rest_ensure_response([
+            'success' => true,
+            'data'    => ['nonce' => wp_create_nonce('wp_rest')],
+        ]);
     }
 
     /**

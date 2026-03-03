@@ -821,7 +821,7 @@ const UnifiedTestModal = ({
 };
 
 // Wrapper ensuring we get objects not just IDs
-const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, onEditQuestion, questionOverrides, providerRefreshKey, questionsRefreshKey }) => {
+const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, onEditQuestion, questionOverrides, providerRefreshKey }) => {
   return (
     <QuestionSelector
        selectedIds={currentSelected.map(q => q.id)}
@@ -839,7 +839,6 @@ const QuestionSelectorWrapper = ({ currentSelected, onSelectionChange, onEditQue
        onEditQuestion={onEditQuestion}
        questionOverrides={questionOverrides}
        providerRefreshKey={providerRefreshKey}
-       questionsRefreshKey={questionsRefreshKey}
     />
   );
 }

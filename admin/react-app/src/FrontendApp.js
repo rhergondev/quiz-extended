@@ -35,6 +35,7 @@ import NotificationsPage from './pages/frontend/NotificationsPage';
 
 // MessagesManager - Available for admins in frontend
 import MessagesManager from './components/messages/MessagesManager';
+import SessionExpiredOverlay from './components/SessionExpiredOverlay';
 
 // Admin Pages - Lazy loaded (only loaded when admin navigates to /admin)
 const AdminDashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -198,6 +199,7 @@ function FrontendApp() {
               </Routes>
             </Suspense>
             <ToastContainer position="bottom-right" autoClose={5000} hideProgressBar />
+            <SessionExpiredOverlay />
           </Router>
         </MessagesProvider>
       </ScoreFormatProvider>

@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import useCourse from '../../hooks/useCourse';
 import CoursePageTemplate from '../../components/course/CoursePageTemplate';
-import { 
-  getCourseNotifications, 
-  markNotificationAsRead, 
-  markAllNotificationsAsRead 
+import {
+  getCourseNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  getUnreadNotificationCount,
 } from '../../api/services/notificationsService';
 import { 
   Bell, 
@@ -86,6 +87,18 @@ const NotificationsPage = () => {
     return colors[type] || pageColors.primary;
   };
 
+  // Fetch the accurate unread count from the dedicated endpoint
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const response = await getUnreadNotificationCount(courseId);
+      if (response?.data?.success) {
+        setUnreadCount(response.data.data.unread_count ?? 0);
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, [courseId]);
+
   // Fetch notifications
   const fetchNotifications = useCallback(async (page = 1, append = false) => {
     if (page === 1) {
@@ -96,20 +109,17 @@ const NotificationsPage = () => {
 
     try {
       const response = await getCourseNotifications(courseId, { page, per_page: 20 });
-      
+
       if (response.data?.success) {
         const { notifications: newNotifications, pagination: pag } = response.data.data;
         const filtered = newNotifications
           .filter(n => !n.type.includes('_updated'))
           .filter(n => String(n.course_id) === String(courseId));
-        const filteredUnread = filtered.filter(n => !n.is_read).length;
 
         if (append) {
           setNotifications(prev => [...prev, ...filtered]);
-          setUnreadCount(prev => prev + filteredUnread);
         } else {
           setNotifications(filtered);
-          setUnreadCount(filteredUnread);
         }
 
         setPagination(pag);
@@ -125,8 +135,9 @@ const NotificationsPage = () => {
   useEffect(() => {
     if (courseId) {
       fetchNotifications(1);
+      fetchUnreadCount();
     }
-  }, [courseId, fetchNotifications]);
+  }, [courseId, fetchNotifications, fetchUnreadCount]);
 
   // Load more notifications
   const handleLoadMore = () => {
@@ -139,11 +150,10 @@ const NotificationsPage = () => {
   const handleMarkAsRead = async (notificationId) => {
     try {
       await markNotificationAsRead(notificationId);
-      setNotifications(prev => 
+      setNotifications(prev =>
         prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
-      
+      fetchUnreadCount();
       // Emit event to update Topbar badge
       window.dispatchEvent(new CustomEvent('notificationRead'));
     } catch (error) {
@@ -158,7 +168,6 @@ const NotificationsPage = () => {
       await markAllNotificationsAsRead(courseId);
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
       setUnreadCount(0);
-      
       // Emit event to update Topbar badge
       window.dispatchEvent(new CustomEvent('notificationsMarkedAllRead'));
     } catch (error) {

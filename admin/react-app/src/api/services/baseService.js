@@ -15,16 +15,51 @@ import { getApiConfig } from '../config/apiConfig.js';
  */
 const getWpConfig = () => {
   const config = window.qe_data || {};
-  
+
   if (!config.nonce) {
     throw new Error('WordPress configuration not found. Ensure qe_data is loaded.');
   }
-  
+
   if (!config.endpoints) {
     throw new Error('API endpoints not configured in WordPress');
   }
-  
+
   return config;
+};
+
+// Shared promise so concurrent 403s only trigger one refresh call
+let _nonceRefreshPromise = null;
+
+/**
+ * Silently fetch a fresh wp_rest nonce using session-cookie auth (no X-WP-Nonce sent).
+ * Updates window.qe_data.nonce in place so subsequent makeApiRequest calls use it.
+ * Throws if the user's login session has also expired.
+ */
+const refreshWpNonce = () => {
+  if (!_nonceRefreshPromise) {
+    const wpData = window.qe_data || window.qeApiConfig || {};
+    const url = `${wpData.api_url}/quiz-extended/v1/refresh-nonce`;
+
+    _nonceRefreshPromise = fetch(url, {
+      method: 'GET',
+      credentials: 'same-origin',
+      // No X-WP-Nonce header — WP falls back to session-cookie auth
+      headers: { 'Content-Type': 'application/json' },
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Session expired');
+        return res.json();
+      })
+      .then(data => {
+        const newNonce = data?.data?.nonce;
+        if (!newNonce) throw new Error('No nonce returned');
+        if (window.qe_data) window.qe_data.nonce = newNonce;
+        if (window.qeApiConfig) window.qeApiConfig.nonce = newNonce;
+        return newNonce;
+      })
+      .finally(() => { _nonceRefreshPromise = null; });
+  }
+  return _nonceRefreshPromise;
 };
 
 /**
@@ -36,25 +71,49 @@ const getWpConfig = () => {
 const makeApiRequest = async (url, options = {}) => {
   try {
     const config = getWpConfig();
-    
+    const { _isRetry, ...fetchOptions } = options;
+
     const defaultOptions = {
       headers: {
         'Content-Type': 'application/json',
         'X-WP-Nonce': config.nonce,
       },
       credentials: 'same-origin',
-      ...options
+      ...fetchOptions
     };
 
     const response = await fetch(url, defaultOptions);
 
     if (!response.ok) {
+      // On 403 (expired nonce), try to silently refresh and retry once
+      if (response.status === 403 && !_isRetry) {
+        try {
+          await refreshWpNonce();
+          return await makeApiRequest(url, { ...options, _isRetry: true });
+        } catch {
+          // Nonce refresh failed — session is truly expired
+          window.dispatchEvent(new CustomEvent('qe-session-expired'));
+          throw new Error('Sesión expirada. Por favor, inicia sesión de nuevo.');
+        }
+      }
       const errorData = await response.text();
-      throw new Error(`API Error ${response.status}: ${response.statusText} - ${errorData}`);
+      const technicalError = new Error(`API Error ${response.status}: ${response.statusText} - ${errorData}`);
+      technicalError.status = response.status;
+      technicalError.userMessage = {
+        400: 'La solicitud no fue válida. Por favor, inténtalo de nuevo.',
+        401: 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.',
+        403: 'No tienes permiso para realizar esta acción.',
+        404: 'El recurso solicitado no existe.',
+        429: 'Demasiadas solicitudes. Por favor, espera un momento e inténtalo de nuevo.',
+        500: 'Error en el servidor. Por favor, inténtalo más tarde.',
+        502: 'Servidor no disponible temporalmente. Por favor, inténtalo más tarde.',
+        503: 'Servicio no disponible. Por favor, inténtalo más tarde.',
+      }[response.status] || 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.';
+      throw technicalError;
     }
 
     const data = await response.json();
-    
+
     return {
       data,
       headers: {

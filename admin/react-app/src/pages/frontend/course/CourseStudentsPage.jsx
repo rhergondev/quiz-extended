@@ -545,8 +545,8 @@ const CourseStudentsPage = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('courses.students.searchPlaceholder')}
-                  className="flex-1 bg-transparent outline-none text-sm"
-                  style={{ color: pageColors.text }}
+                  className="flex-1 outline-none text-sm"
+                  style={{ color: pageColors.text, backgroundColor: 'transparent' }}
                   autoFocus
                 />
                 {usersLoading && (
