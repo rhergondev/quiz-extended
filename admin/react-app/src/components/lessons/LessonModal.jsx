@@ -1182,7 +1182,7 @@ const StepModal = ({ isOpen, onClose, onSave, step, mode, stepTypes, pageColors,
   const handleQuizSearch = (e) => {
     e.preventDefault();
     if (quizSearchQuery.trim()) {
-      quizSearchHook.fetchQuizzes({ search: quizSearchQuery.trim(), per_page: 10 });
+      quizSearchHook.fetchQuizzes(true, { search: quizSearchQuery.trim(), perPage: 10 });
     }
   };
 
