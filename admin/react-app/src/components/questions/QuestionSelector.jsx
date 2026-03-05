@@ -243,7 +243,7 @@ const QuestionSelector = ({
         const config = getApiConfig();
         const params = new URLSearchParams({
           per_page: '100',
-          _fields: 'id,title,menu_order,qe_category',
+          _fields: 'id,title,menu_order,qe_category,meta',
           status: 'publish,draft,private',
           orderby: 'menu_order',
           order: 'asc',
@@ -263,6 +263,7 @@ const QuestionSelector = ({
           value: c.id,
           label: decodeHtml(c.title?.rendered || c.title || `Curso #${c.id}`),
           categoryIds: c.qe_category || [],
+          lessonIds: c.meta?._lesson_ids || [],
         })));
       } catch (err) {
         console.error('Error fetching all courses:', err);
@@ -357,7 +358,40 @@ const QuestionSelector = ({
           const res = await makeApiRequest(`${config.apiUrl}/quiz-extended/v1/debug/provider-lessons?${params}`);
           if (cancelled) return;
           const lessons = res.data?.data?.lessons || [];
-          setProviderLessons(lessons.map(l => ({ value: l.id, label: decodeHtml(l.title || `Lesson #${l.id}`) })));
+
+          // Re-sort lessons by course order (same logic as fetchCategoryLessons).
+          // The backend endpoint returns lessons ordered by position within each lesson,
+          // which interleaves courses. We fix this by walking allCourses in menu_order
+          // and emitting each lesson the first time we encounter it.
+          const lessonMap = new Map(lessons.map(l => [l.id, l]));
+          const relevantCourses = hasCategory
+            ? allCourses.filter(c => c.categoryIds.includes(parseInt(selectedCategory)))
+            : allCourses;
+          const seen = new Set();
+          const seenNames = new Set();
+          const ordered = [];
+          for (const course of relevantCourses) {
+            for (const id of (course.lessonIds || [])) {
+              if (lessonMap.has(id) && !seen.has(id)) {
+                const lesson = lessonMap.get(id);
+                const name = decodeHtml(lesson.title || '').toLowerCase().trim();
+                if (!seenNames.has(name)) {
+                  seen.add(id);
+                  seenNames.add(name);
+                  ordered.push(lesson);
+                }
+              }
+            }
+          }
+          // Append any lessons not found in any course's lesson list (edge case)
+          for (const l of lessons) {
+            if (!seen.has(l.id)) {
+              const name = decodeHtml(l.title || '').toLowerCase().trim();
+              if (!seenNames.has(name)) { seenNames.add(name); ordered.push(l); }
+            }
+          }
+
+          setProviderLessons(ordered.map(l => ({ value: l.id, label: decodeHtml(l.title || `Lesson #${l.id}`) })));
         } catch (err) {
           if (!cancelled) {
             console.error('Error fetching provider lessons:', err);
@@ -409,9 +443,16 @@ const QuestionSelector = ({
           const lessonMap = new Map(
             (Array.isArray(lessonsRes.data) ? lessonsRes.data : []).map(l => [l.id, l])
           );
+          const seenNames = new Set();
           const ordered = lessonIds
             .map(id => lessonMap.get(id))
             .filter(Boolean)
+            .filter(l => {
+              const name = decodeHtml(l.title?.rendered || l.title || '').toLowerCase().trim();
+              if (seenNames.has(name)) return false;
+              seenNames.add(name);
+              return true;
+            })
             .map(l => ({ value: l.id, label: decodeHtml(l.title?.rendered || l.title || `Lesson #${l.id}`) }));
           setProviderLessons(ordered);
         } catch (err) {
@@ -659,178 +700,176 @@ const QuestionSelector = ({
           </div>
         )}
 
-        {/* Filters Panel */}
+        {/* Filters Panel — 2 compact rows */}
         {showFilters && (
-          <div className="flex flex-col gap-2 text-sm animate-in fade-in slide-in-from-top-2">
+          <div className="flex flex-col gap-1.5 text-sm animate-in fade-in slide-in-from-top-2">
 
-            {/* Category — always enabled, unlocks all other filters */}
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
-              style={{
-                border: `2px solid ${selectedCategory !== 'all' ? colors.accent : colors.border}`,
-                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                color: selectedCategory !== 'all' ? colors.accent : colors.text
-              }}
-            >
-              <option value="all">Categorías</option>
-              {categoryOptions.filter(o => o.value !== 'all').map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+            {/* Row 1: Category + Course */}
+            <div className="grid grid-cols-2 gap-1.5">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-2 py-1.5 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 transition-all text-xs"
+                style={{
+                  border: `2px solid ${selectedCategory !== 'all' ? colors.accent : colors.border}`,
+                  backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                  color: selectedCategory !== 'all' ? colors.accent : colors.text
+                }}
+              >
+                <option value="all">Categorías</option>
+                {categoryOptions.filter(o => o.value !== 'all').map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
 
-            {/* Course — always accessible; filters Temas to lessons in the selected course */}
-            <select
-              value={selectedCourse}
-              onChange={(e) => setSelectedCourse(e.target.value)}
-              className="w-full px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
-              style={{
-                border: `2px solid ${selectedCourse !== 'all' ? colors.accent : colors.border}`,
-                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                color: selectedCourse !== 'all' ? colors.accent : colors.text
-              }}
-            >
-              <option value="all">Cursos</option>
-              <option value="orphaned">— Sin curso —</option>
-              {visibleCourseOptions.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+              <select
+                value={selectedCourse}
+                onChange={(e) => setSelectedCourse(e.target.value)}
+                className="w-full px-2 py-1.5 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 transition-all text-xs"
+                style={{
+                  border: `2px solid ${selectedCourse !== 'all' ? colors.accent : colors.border}`,
+                  backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                  color: selectedCourse !== 'all' ? colors.accent : colors.text
+                }}
+              >
+                <option value="all">Cursos</option>
+                <option value="orphaned">— Sin curso —</option>
+                {visibleCourseOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
 
-            {/* Provider + Temas + Difficulty — disabled until category OR course is selected */}
+            {/* Row 2: Provider + Temas + Difficulty — disabled until row 1 has a selection */}
             <div
-              className="flex flex-col gap-2"
+              className="grid grid-cols-3 gap-1.5"
               style={{
                 opacity: selectedCategory === 'all' && selectedCourse === 'all' ? 0.38 : 1,
                 pointerEvents: selectedCategory === 'all' && selectedCourse === 'all' ? 'none' : 'auto',
                 transition: 'opacity 0.2s'
               }}
             >
-              {/* Provider + Temas row */}
-              <div className="grid grid-cols-2 gap-2">
-                <select
-                  value={questionsHook.filters?.provider || 'all'}
-                  onChange={(e) => questionsHook.updateFilter('provider', e.target.value)}
-                  className="px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+              <select
+                value={questionsHook.filters?.provider || 'all'}
+                onChange={(e) => questionsHook.updateFilter('provider', e.target.value)}
+                className="w-full px-2 py-1.5 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 transition-all text-xs"
+                style={{
+                  border: `2px solid ${categoryProvidersLoading ? colors.border : (questionsHook.filters?.provider && questionsHook.filters.provider !== 'all' ? colors.accent : colors.border)}`,
+                  backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                  color: questionsHook.filters?.provider && questionsHook.filters.provider !== 'all' ? colors.accent : colors.text
+                }}
+              >
+                <option value="all">{categoryProvidersLoading ? '...' : 'Proveedores'}</option>
+                {visibleProviderOptions.filter(o => o.value !== 'all').map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+
+              {/* Searchable Topic Dropdown */}
+              <div className="relative" ref={topicDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => { setTopicDropdownOpen(!topicDropdownOpen); setTopicSearch(''); }}
+                  className="w-full px-2 py-1.5 rounded-lg text-left flex items-center justify-between gap-1 outline-none focus:ring-2 focus:ring-amber-500/20 transition-all text-xs"
                   style={{
-                    border: `2px solid ${categoryProvidersLoading ? colors.border : (questionsHook.filters?.provider && questionsHook.filters.provider !== 'all' ? colors.accent : colors.border)}`,
+                    border: `2px solid ${topicDropdownOpen ? colors.accent : (questionsHook.filters?.lessons && questionsHook.filters.lessons !== null ? colors.accent : colors.border)}`,
                     backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                    color: questionsHook.filters?.provider && questionsHook.filters.provider !== 'all' ? colors.accent : colors.text
+                    color: questionsHook.filters?.lessons && questionsHook.filters.lessons !== null ? colors.accent : colors.text
                   }}
                 >
-                  <option value="all">{categoryProvidersLoading ? 'Cargando...' : 'Proveedores'}</option>
-                  {visibleProviderOptions.filter(o => o.value !== 'all').map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-                {/* Searchable Topic Dropdown */}
-                <div className="relative" ref={topicDropdownRef}>
-                  <button
-                    type="button"
-                    onClick={() => { setTopicDropdownOpen(!topicDropdownOpen); setTopicSearch(''); }}
-                    className="w-full px-2 py-2 rounded-lg text-left flex items-center justify-between gap-1 outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                  <span className="truncate">
+                    {(providerLessonsLoading || courseLessonsLoading) ? '...' : selectedTopicLabel}
+                  </span>
+                  {(providerLessonsLoading || courseLessonsLoading)
+                    ? <Loader2 size={12} className="flex-shrink-0 animate-spin opacity-50" />
+                    : <ChevronDown size={12} className={`flex-shrink-0 transition-transform ${topicDropdownOpen ? 'rotate-180' : ''}`} />
+                  }
+                </button>
+                {topicDropdownOpen && (
+                  <div
+                    className="absolute z-[200] left-0 right-0 mt-1 rounded-lg shadow-xl overflow-hidden"
                     style={{
-                      border: `2px solid ${topicDropdownOpen ? colors.accent : colors.border}`,
                       backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                      color: questionsHook.filters?.lessons && questionsHook.filters.lessons !== null ? colors.accent : colors.text
+                      border: `1px solid ${colors.border}`
                     }}
                   >
-                    <span className="truncate text-sm">
-                      {(providerLessonsLoading || courseLessonsLoading) ? 'Cargando temas...' : selectedTopicLabel}
-                    </span>
-                    {(providerLessonsLoading || courseLessonsLoading)
-                      ? <Loader2 size={14} className="flex-shrink-0 animate-spin opacity-50" />
-                      : <ChevronDown size={14} className={`flex-shrink-0 transition-transform ${topicDropdownOpen ? 'rotate-180' : ''}`} />
-                    }
-                  </button>
-                  {topicDropdownOpen && (
-                    <div
-                      className="absolute z-50 left-0 right-0 mt-1 rounded-lg shadow-xl overflow-hidden"
-                      style={{
-                        backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                        border: `1px solid ${colors.border}`
-                      }}
-                    >
-                      <div className="p-1.5">
-                        <input
-                          type="text"
-                          value={topicSearch}
-                          onChange={e => setTopicSearch(e.target.value)}
-                          placeholder="Buscar tema..."
-                          autoFocus
-                          className="w-full text-sm px-2 py-1.5 rounded outline-none"
-                          style={{
-                            backgroundColor: isDarkMode ? '#111827' : '#f3f4f6',
-                            color: colors.text
-                          }}
-                        />
-                      </div>
-                      <div className="max-h-48 overflow-y-auto">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (selectedCourse === 'orphaned') {
-                              questionsHook.updateFilter('lessons', 'none');
-                            } else if (selectedCourse !== 'all' && courseLessons && courseLessons.length > 0) {
-                              questionsHook.updateFilter('lessons', courseLessons.map(l => l.value));
-                            } else {
-                              questionsHook.updateFilter('lessons', null);
-                            }
-                            setTopicDropdownOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-1.5 text-sm transition-colors"
-                          style={{ color: colors.textMuted, fontStyle: 'italic', backgroundColor: 'transparent' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = colors.hoverBg; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                        >
-                          Todos los temas
-                        </button>
-                        {filteredTopicOptions.length === 0 ? (
-                          <div className="px-3 py-2 text-sm" style={{ color: colors.textMuted }}>
-                            {(courseLessons !== null && courseLessons.length === 0) || (courseLessons === null && providerLessons !== null && providerLessons.length === 0)
-                              ? 'Sin temas para este filtro'
-                              : 'Sin resultados'
-                            }
-                          </div>
-                        ) : (
-                          filteredTopicOptions.map(opt => {
-                            const currentLesson = questionsHook.filters?.lessons;
-                            const currentLessonId = Array.isArray(currentLesson) ? currentLesson[0] : currentLesson;
-                            const isActive = currentLessonId != null && String(currentLessonId) === String(opt.value);
-                            return (
-                              <button
-                                key={opt.value}
-                                type="button"
-                                onClick={() => { questionsHook.updateFilter('lessons', [opt.value]); setTopicDropdownOpen(false); }}
-                                className="w-full text-left px-3 py-1.5 text-sm transition-colors flex items-center justify-between"
-                                style={{
-                                  color: isActive ? colors.accent : colors.text,
-                                  fontWeight: isActive ? 600 : 400,
-                                  backgroundColor: isActive ? `${colors.accent}15` : 'transparent'
-                                }}
-                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isActive ? `${colors.accent}25` : colors.hoverBg; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isActive ? `${colors.accent}15` : 'transparent'; }}
-                              >
-                                <span className="truncate">{opt.label}</span>
-                                {isActive && (
-                                  <CheckCircle size={12} style={{ color: colors.accent, flexShrink: 0 }} />
-                                )}
-                              </button>
-                            );
-                          }))
-                        }
-                      </div>
+                    <div className="p-1.5">
+                      <input
+                        type="text"
+                        value={topicSearch}
+                        onChange={e => setTopicSearch(e.target.value)}
+                        placeholder="Buscar tema..."
+                        autoFocus
+                        className="w-full text-xs px-2 py-1.5 rounded outline-none"
+                        style={{
+                          backgroundColor: isDarkMode ? '#111827' : '#f3f4f6',
+                          color: colors.text
+                        }}
+                      />
                     </div>
-                  )}
-                </div>
+                    <div className="max-h-32 overflow-y-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedCourse === 'orphaned') {
+                            questionsHook.updateFilter('lessons', 'none');
+                          } else if (selectedCourse !== 'all' && courseLessons && courseLessons.length > 0) {
+                            questionsHook.updateFilter('lessons', courseLessons.map(l => l.value));
+                          } else {
+                            questionsHook.updateFilter('lessons', null);
+                          }
+                          setTopicDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-1.5 text-xs transition-colors"
+                        style={{ color: colors.textMuted, fontStyle: 'italic', backgroundColor: 'transparent' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = colors.hoverBg; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      >
+                        Todos los temas
+                      </button>
+                      {filteredTopicOptions.length === 0 ? (
+                        <div className="px-3 py-2 text-xs" style={{ color: colors.textMuted }}>
+                          {(courseLessons !== null && courseLessons.length === 0) || (courseLessons === null && providerLessons !== null && providerLessons.length === 0)
+                            ? 'Sin temas para este filtro'
+                            : 'Sin resultados'
+                          }
+                        </div>
+                      ) : (
+                        filteredTopicOptions.map(opt => {
+                          const currentLesson = questionsHook.filters?.lessons;
+                          const currentLessonId = Array.isArray(currentLesson) ? currentLesson[0] : currentLesson;
+                          const isActive = currentLessonId != null && String(currentLessonId) === String(opt.value);
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => { questionsHook.updateFilter('lessons', [opt.value]); setTopicDropdownOpen(false); }}
+                              className="w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center justify-between"
+                              style={{
+                                color: isActive ? colors.accent : colors.text,
+                                fontWeight: isActive ? 600 : 400,
+                                backgroundColor: isActive ? `${colors.accent}15` : 'transparent'
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isActive ? `${colors.accent}25` : colors.hoverBg; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isActive ? `${colors.accent}15` : 'transparent'; }}
+                            >
+                              <span className="truncate">{opt.label}</span>
+                              {isActive && (
+                                <CheckCircle size={12} style={{ color: colors.accent, flexShrink: 0 }} />
+                              )}
+                            </button>
+                          );
+                        }))
+                      }
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Difficulty — final question filter */}
               <select
                 value={questionsHook.filters?.difficulty || 'all'}
                 onChange={(e) => questionsHook.updateFilter('difficulty', e.target.value)}
-                className="w-full px-2 py-2 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                className="w-full px-2 py-1.5 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 transition-all text-xs"
                 style={{
                   border: `2px solid ${questionsHook.filters?.difficulty && questionsHook.filters.difficulty !== 'all' ? colors.accent : colors.border}`,
                   backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',

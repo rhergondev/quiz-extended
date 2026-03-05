@@ -17,13 +17,14 @@ import {
   Trash2,
   Plus,
   Check,
+  Pencil,
   Image as ImageIcon,
   AlertCircle,
   Loader2
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
-import { getTaxonomyTerms, createCategory } from '../../api/services/taxonomyService';
+import { getTaxonomyTerms, createCategory, updateTaxonomyTerm } from '../../api/services/taxonomyService';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
@@ -62,6 +63,9 @@ const CourseEditorModal = ({
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [savingCategory, setSavingCategory] = useState(false);
+  const [showEditCategory, setShowEditCategory] = useState(false);
+  const [editCategoryName, setEditCategoryName] = useState('');
+  const [savingEditCategory, setSavingEditCategory] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -150,6 +154,23 @@ const CourseEditorModal = ({
       console.error('Error creating category:', err);
     } finally {
       setSavingCategory(false);
+    }
+  };
+
+  const handleUpdateCategory = async () => {
+    const name = editCategoryName.trim();
+    const id = formData.qe_category[0];
+    if (!name || !id) return;
+    setSavingEditCategory(true);
+    try {
+      const updated = await updateTaxonomyTerm('qe_category', id, { name });
+      setCategories(prev => prev.map(c => c.value === id ? { ...c, label: updated.name } : c));
+      setShowEditCategory(false);
+      setEditCategoryName('');
+    } catch (err) {
+      console.error('Error updating category:', err);
+    } finally {
+      setSavingEditCategory(false);
     }
   };
 
@@ -324,7 +345,11 @@ const CourseEditorModal = ({
                   <div className="flex items-center gap-2">
                     <select
                       value={formData.qe_category[0] ?? ''}
-                      onChange={(e) => handleFieldChange('qe_category', e.target.value ? [parseInt(e.target.value, 10)] : [])}
+                      onChange={(e) => {
+                        handleFieldChange('qe_category', e.target.value ? [parseInt(e.target.value, 10)] : []);
+                        setShowEditCategory(false);
+                        setShowNewCategory(false);
+                      }}
                       disabled={loadingCategories}
                       className="flex-1 p-2.5 rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
                       style={{ border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text }}
@@ -334,9 +359,31 @@ const CourseEditorModal = ({
                         <option key={cat.value} value={cat.value}>{cat.label}</option>
                       ))}
                     </select>
+                    {/* Edit selected category */}
+                    {formData.qe_category[0] && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = categories.find(c => c.value === formData.qe_category[0]);
+                          setEditCategoryName(current?.label || '');
+                          setShowEditCategory(v => !v);
+                          setShowNewCategory(false);
+                        }}
+                        className="p-2.5 rounded-lg transition-colors flex-shrink-0"
+                        title="Editar nombre de categoría"
+                        style={{
+                          border: `1px solid ${showEditCategory ? colors.accent : colors.inputBorder}`,
+                          backgroundColor: showEditCategory ? `${colors.accent}15` : colors.inputBg,
+                          color: showEditCategory ? colors.accent : colors.textMuted
+                        }}
+                      >
+                        <Pencil size={15} />
+                      </button>
+                    )}
+                    {/* Create new category */}
                     <button
                       type="button"
-                      onClick={() => { setShowNewCategory(v => !v); setNewCategoryName(''); }}
+                      onClick={() => { setShowNewCategory(v => !v); setNewCategoryName(''); setShowEditCategory(false); }}
                       className="p-2.5 rounded-lg transition-colors flex-shrink-0"
                       title="Crear nueva categoría"
                       style={{
@@ -348,6 +395,40 @@ const CourseEditorModal = ({
                       <Plus size={15} />
                     </button>
                   </div>
+                  {/* Edit category inline form */}
+                  {showEditCategory && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <input
+                        type="text"
+                        value={editCategoryName}
+                        onChange={(e) => setEditCategoryName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUpdateCategory(); } if (e.key === 'Escape') { setShowEditCategory(false); setEditCategoryName(''); } }}
+                        placeholder="Nuevo nombre de la categoría..."
+                        autoFocus
+                        className="flex-1 p-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                        style={{ border: `1px solid ${colors.accent}`, backgroundColor: colors.inputBg, color: colors.text }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleUpdateCategory}
+                        disabled={!editCategoryName.trim() || savingEditCategory}
+                        className="p-2 rounded-lg transition-colors flex-shrink-0 disabled:opacity-40"
+                        title="Guardar nombre"
+                        style={{ backgroundColor: colors.accent, color: '#ffffff' }}
+                      >
+                        {savingEditCategory ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowEditCategory(false); setEditCategoryName(''); }}
+                        className="p-2 rounded-lg transition-colors flex-shrink-0"
+                        title="Cancelar"
+                        style={{ border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.textMuted }}
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                  )}
                   {showNewCategory && (
                     <div className="flex items-center gap-2 mt-2">
                       <input

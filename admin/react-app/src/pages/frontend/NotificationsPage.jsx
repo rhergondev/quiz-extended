@@ -184,52 +184,51 @@ const NotificationsPage = () => {
     const isUnread = !notification.is_read;
 
     return (
-      <div 
-        className={`p-4 rounded-xl border transition-all duration-200 ${isUnread ? 'cursor-pointer' : ''}`}
-        style={{ 
-          backgroundColor: isUnread 
-            ? (isDarkMode ? 'rgba(255,255,255,0.05)' : `${pageColors.primary}05`)
-            : pageColors.cardBg,
-          borderColor: isUnread ? `${pageColors.primary}30` : pageColors.border,
+      <div
+        className={`p-4 rounded-xl border transition-all duration-200 ${isUnread ? 'cursor-pointer hover:opacity-90' : ''}`}
+        style={{
+          backgroundColor: pageColors.cardBg,
+          borderColor: pageColors.border,
         }}
         onClick={() => isUnread && handleMarkAsRead(notification.id)}
       >
         <div className="flex items-start gap-4">
           {/* Icon */}
-          <div 
+          <div
             className="flex-shrink-0 p-3 rounded-xl"
-            style={{ 
+            style={{
               backgroundColor: isDarkMode ? `${iconColor}20` : `${iconColor}15`,
             }}
           >
             <Icon size={22} style={{ color: iconColor }} />
           </div>
-          
+
           {/* Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2 mb-1">
-              <h3 
-                className={`font-semibold text-sm ${isUnread ? '' : 'opacity-80'}`}
+              <h3
+                className="font-semibold text-sm"
                 style={{ color: pageColors.text }}
               >
                 {notification.title}
               </h3>
               {isUnread && (
-                <span 
-                  className="flex-shrink-0 w-2 h-2 rounded-full"
+                <span
+                  className="flex-shrink-0 w-2.5 h-2.5 rounded-full"
+                  title="No leída"
                   style={{ backgroundColor: pageColors.accent }}
                 />
               )}
             </div>
-            
-            <p 
+
+            <p
               className="text-sm mb-2"
               style={{ color: pageColors.textMuted }}
             >
               {notification.message}
             </p>
-            
-            <span 
+
+            <span
               className="text-xs"
               style={{ color: pageColors.textMuted, opacity: 0.7 }}
             >

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -28,6 +28,7 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
 
   const { course } = useCourse(courseId);
   const courseName = course?.title?.rendered || course?.title || '';
+  const titleRef = useRef(null);
   
   // Get global data
   const homeUrl = window.qe_data?.home_url || '';
@@ -100,6 +101,20 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
       })
       .catch(() => setNextLiveClass(null));
   }, [courseId]);
+
+  // Scale course title font size to fit container
+  useEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    el.style.fontSize = '';
+    requestAnimationFrame(() => {
+      if (!el) return;
+      if (el.scrollWidth > el.offsetWidth) {
+        const ratio = el.offsetWidth / el.scrollWidth;
+        el.style.fontSize = Math.max(10, 16 * ratio) + 'px';
+      }
+    });
+  }, [courseName, isCollapsed]);
 
   // Menu items with stats (Dashboard and Statistics moved to header)
   const menuItems = useMemo(() => {
@@ -259,13 +274,13 @@ const CourseSidebar = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
           <div className="p-4">
             <div className={`flex gap-2 mb-2 justify-between ${isCollapsed ? 'lg:justify-center' : 'lg:justify-between'}`} style={{ alignItems: 'center', minHeight: '40px' }}>
               {!isCollapsed && (
-                <h2 
-                  className="text-base font-bold truncate flex-1"
-                  style={{ 
+                <h2
+                  ref={titleRef}
+                  className="font-bold flex-1 whitespace-nowrap overflow-hidden"
+                  style={{
                     color: sidebarColors.text,
+                    fontSize: '1rem',
                     lineHeight: '24px',
-                    display: 'flex',
-                    alignItems: 'center'
                   }}
                   title={courseName}
                 >
