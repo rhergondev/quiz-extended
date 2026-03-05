@@ -100,6 +100,9 @@ const NotificationsPage = () => {
   }, [courseId]);
 
   // Fetch notifications
+  // Loops through consecutive pages until at least one notification passes the filter,
+  // or all pages are exhausted. This prevents "load more" from silently returning nothing
+  // when a whole batch consists only of filtered-out (_updated) types.
   const fetchNotifications = useCallback(async (page = 1, append = false) => {
     if (page === 1) {
       setLoading(true);
@@ -108,21 +111,34 @@ const NotificationsPage = () => {
     }
 
     try {
-      const response = await getCourseNotifications(courseId, { page, per_page: 20 });
+      let currentPage = page;
+      let lastPagination = null;
+      const accumulated = [];
 
-      if (response.data?.success) {
+      while (true) {
+        const response = await getCourseNotifications(courseId, { page: currentPage, per_page: 20 });
+        if (!response.data?.success) break;
+
         const { notifications: newNotifications, pagination: pag } = response.data.data;
+        lastPagination = { ...pag, page: currentPage };
+
         const filtered = newNotifications
           .filter(n => !n.type.includes('_updated'))
           .filter(n => String(n.course_id) === String(courseId));
 
-        if (append) {
-          setNotifications(prev => [...prev, ...filtered]);
-        } else {
-          setNotifications(filtered);
-        }
+        accumulated.push(...filtered);
 
-        setPagination(pag);
+        // Stop as soon as we have results, or there are no more pages to fetch
+        if (accumulated.length > 0 || currentPage >= pag.total_pages) break;
+        currentPage++;
+      }
+
+      if (lastPagination) setPagination(lastPagination);
+
+      if (append) {
+        setNotifications(prev => [...prev, ...accumulated]);
+      } else {
+        setNotifications(accumulated);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
