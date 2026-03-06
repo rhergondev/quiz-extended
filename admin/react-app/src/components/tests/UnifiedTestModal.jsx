@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Save, Plus, Settings, FileQuestion, Clock, CheckCircle, AlertCircle, Trash2, GripVertical, ChevronRight, Edit2, Eye, EyeOff, Calendar, Search } from 'lucide-react';
+import { X, Save, Plus, Settings, FileQuestion, Clock, CheckCircle, AlertCircle, Trash2, GripVertical, ChevronRight, Edit2, Eye, EyeOff, Calendar, Search, MoveRight, Loader2 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'react-toastify';
 import { DndContext, closestCenter } from '@dnd-kit/core';
@@ -15,6 +15,7 @@ import { getApiConfig, getDefaultHeaders } from '../../api/config/apiConfig';
 import QuestionSelector from '../questions/QuestionSelector';
 import QuestionModal from '../questions/QuestionModal';
 import { getOne as getQuiz } from '../../api/services/quizService';
+import { getLessonsByCourse, moveQuizToLesson } from '../../api/services/lessonService';
 
 // Sortable Item Component with Edit button and search match tags
 const SortableQuestionItem = ({ question, onRemove, onEdit, colors }) => {
@@ -83,7 +84,9 @@ const UnifiedTestModal = ({
   test = null, // The lesson step object if editing
   courseId,
   lessonId = null,
-  onSave
+  onSave,
+  availableCourses = [],
+  onMoved,
 }) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
@@ -122,6 +125,56 @@ const UnifiedTestModal = ({
   const [questionOverrides, setQuestionOverrides] = useState({}); // Map of id → updated question, refreshes individual cards
   const [providerRefreshKey, setProviderRefreshKey] = useState(0); // Incremented when QuestionModal closes to re-sync provider locks
   const [questionsRefreshKey, setQuestionsRefreshKey] = useState(0); // Incremented to trigger a soft re-fetch of the selector's question list
+
+  // Move Test state (edit mode only)
+  const [showMove, setShowMove] = useState(false);
+  const [moveTargetCourseId, setMoveTargetCourseId] = useState('');
+  const [moveLessons, setMoveLessons] = useState([]);
+  const [moveTargetLessonId, setMoveTargetLessonId] = useState('');
+  const [loadingMoveLessons, setLoadingMoveLessons] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
+
+  // Fetch lessons when move target course changes
+  useEffect(() => {
+    if (!showMove || !moveTargetCourseId) { setMoveLessons([]); return; }
+    setLoadingMoveLessons(true);
+    setMoveTargetLessonId('');
+    getLessonsByCourse(Number(moveTargetCourseId))
+      .then(res => {
+        const list = res?.data || res || [];
+        const filtered = list.filter(l => l.id !== lessonId);
+        setMoveLessons(filtered.map(l => ({ value: l.id, label: l.title?.rendered || l.title || `Lección #${l.id}` })));
+      })
+      .catch(() => setMoveLessons([]))
+      .finally(() => setLoadingMoveLessons(false));
+  }, [showMove, moveTargetCourseId, lessonId]);
+
+  const handleToggleMove = () => {
+    setShowMove(v => {
+      if (!v) {
+        setMoveTargetCourseId(courseId?.toString() || '');
+        setMoveTargetLessonId('');
+        setMoveLessons([]);
+      }
+      return !v;
+    });
+  };
+
+  const handleConfirmMove = async () => {
+    const quizId = test?.data?.quiz_id;
+    if (!quizId || !moveTargetLessonId) return;
+    setIsMoving(true);
+    try {
+      await moveQuizToLesson(quizId, lessonId, Number(moveTargetLessonId));
+      toast.success('Test movido correctamente', { autoClose: 2000, position: 'bottom-right' });
+      if (onMoved) onMoved();
+      handleClose();
+    } catch (err) {
+      toast.error('Error al mover el test', { autoClose: 3000, position: 'bottom-right' });
+    } finally {
+      setIsMoving(false);
+    }
+  };
 
   // Filter assigned questions by search term, with match metadata per question
   const filteredSelectedQuestions = useMemo(() => {
@@ -166,6 +219,10 @@ const UnifiedTestModal = ({
       // Reset
       setActiveTab('content');
       setQuestionSearch('');
+      setShowMove(false);
+      setMoveTargetCourseId(courseId?.toString() || '');
+      setMoveTargetLessonId('');
+      setMoveLessons([]);
       setFormData({
         title: '',
         description: '',
@@ -779,26 +836,83 @@ const UnifiedTestModal = ({
         </div>
 
         {/* FOOTER */}
-        <div className="px-5 py-4 border-t flex items-center justify-end gap-3 flex-shrink-0" style={{ borderColor: colors.border, backgroundColor: colors.bgCard }}>
-           {/* Hint count */}
-           <div className="mr-auto text-xs" style={{ color: colors.textMuted }}>
-             {selectedQuestions.length} preguntas seleccionadas
-           </div>
-          <button
-            onClick={handleClose}
-            className="px-4 py-2 rounded-lg text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="px-4 py-2 rounded-lg text-white text-xs font-bold shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
-            style={{ backgroundColor: colors.accent }}
-          >
-            {isSaving ? <span className="animate-spin">⌛</span> : <Save size={14} />}
-            {mode === 'create' ? 'Crear Test' : 'Guardar Cambios'}
-          </button>
+        <div className="flex-shrink-0" style={{ borderTop: `1px solid ${colors.border}`, backgroundColor: colors.bgCard }}>
+          {/* Move Test Panel (edit mode only) */}
+          {mode === 'edit' && showMove && (
+            <div className="px-5 py-3 flex flex-wrap items-center gap-2 border-b" style={{ borderColor: colors.border, backgroundColor: isDarkMode ? 'rgba(245,158,11,0.05)' : 'rgba(245,158,11,0.04)' }}>
+              <MoveRight size={14} className="flex-shrink-0" style={{ color: '#f59e0b' }} />
+              <select
+                value={moveTargetCourseId}
+                onChange={e => setMoveTargetCourseId(e.target.value)}
+                className="flex-1 min-w-[130px] text-xs rounded-md px-2 py-1.5 border"
+                style={{ backgroundColor: colors.bgCard, color: colors.text, borderColor: colors.border }}
+              >
+                <option value="">Seleccionar curso</option>
+                {availableCourses.map(c => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+              <select
+                value={moveTargetLessonId}
+                onChange={e => setMoveTargetLessonId(e.target.value)}
+                disabled={!moveTargetCourseId || loadingMoveLessons}
+                className="flex-1 min-w-[130px] text-xs rounded-md px-2 py-1.5 border"
+                style={{ backgroundColor: colors.bgCard, color: colors.text, borderColor: colors.border, opacity: (!moveTargetCourseId || loadingMoveLessons) ? 0.6 : 1 }}
+              >
+                <option value="">{loadingMoveLessons ? 'Cargando...' : 'Seleccionar lección'}</option>
+                {moveLessons.map(l => (
+                  <option key={l.value} value={l.value}>{l.label}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleConfirmMove}
+                disabled={!moveTargetLessonId || isMoving}
+                className="px-3 py-1.5 rounded-md text-white text-xs font-semibold flex items-center gap-1.5 flex-shrink-0"
+                style={{ backgroundColor: (!moveTargetLessonId || isMoving) ? '#9ca3af' : '#f59e0b', cursor: (!moveTargetLessonId || isMoving) ? 'not-allowed' : 'pointer' }}
+              >
+                {isMoving ? <Loader2 size={12} className="animate-spin" /> : <MoveRight size={12} />}
+                Mover
+              </button>
+              <button onClick={() => setShowMove(false)} className="p-1.5 rounded-md bg-transparent flex-shrink-0" style={{ color: colors.textMuted }}>
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          <div className="px-5 py-4 flex items-center justify-end gap-3">
+            {/* Hint count */}
+            <div className="mr-auto text-xs" style={{ color: colors.textMuted }}>
+              {selectedQuestions.length} preguntas seleccionadas
+            </div>
+            {mode === 'edit' && (
+              <button
+                onClick={handleToggleMove}
+                className="px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
+                style={{
+                  backgroundColor: showMove ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.1)',
+                  color: '#f59e0b',
+                }}
+              >
+                <MoveRight size={13} />
+                Mover Test
+              </button>
+            )}
+            <button
+              onClick={handleClose}
+              className="px-4 py-2 rounded-lg text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="px-4 py-2 rounded-lg text-white text-xs font-bold shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
+              style={{ backgroundColor: colors.accent }}
+            >
+              {isSaving ? <span className="animate-spin">⌛</span> : <Save size={14} />}
+              {mode === 'create' ? 'Crear Test' : 'Guardar Cambios'}
+            </button>
+          </div>
         </div>
       </div>
 

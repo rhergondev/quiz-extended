@@ -122,10 +122,15 @@ const TestsPage = () => {
   });
   const deleteModalOverlayRef = useRef(false);
 
-  // Ordering mode state
+  // Ordering mode state (lessons)
   const [isOrderingMode, setIsOrderingMode] = useState(false);
   const [orderingLessons, setOrderingLessons] = useState([]);
   const [isUpdatingOrder, setIsUpdatingOrder] = useState(false);
+
+  // Step reorder mode state (per-lesson)
+  const [reorderingStepsLessonId, setReorderingStepsLessonId] = useState(null);
+  const [reorderingSteps, setReorderingSteps] = useState([]);
+  const [isSavingStepOrder, setIsSavingStepOrder] = useState(false);
 
   // Load quizzes for test modal
   useEffect(() => {
@@ -999,6 +1004,81 @@ const TestsPage = () => {
     }
   };
 
+  // Step reorder handlers
+  const handleStartStepReorder = (lesson) => {
+    // Only reorder quiz steps among themselves
+    setReorderingSteps([...(lesson.quizSteps || [])]);
+    setReorderingStepsLessonId(lesson.id);
+    if (!expandedLessons.has(lesson.id)) toggleLesson(lesson.id);
+  };
+
+  const handleMoveStepUp = (index) => {
+    if (index === 0) return;
+    const next = [...reorderingSteps];
+    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+    setReorderingSteps(next);
+  };
+
+  const handleMoveStepDown = (index) => {
+    if (index >= reorderingSteps.length - 1) return;
+    const next = [...reorderingSteps];
+    [next[index], next[index + 1]] = [next[index + 1], next[index]];
+    setReorderingSteps(next);
+  };
+
+  const handleSaveStepOrder = async () => {
+    const lesson = lessons.find(l => l.id === reorderingStepsLessonId);
+    if (!lesson) return;
+    setIsSavingStepOrder(true);
+    try {
+      const allSteps = lesson.meta?._lesson_steps || [];
+
+      // Find which indices in the full array are quiz steps
+      const quizIndices = allSteps.reduce((acc, step, i) => {
+        if (step.type === 'quiz') acc.push(i);
+        return acc;
+      }, []);
+
+      // Weave reordered quiz steps back into their original slots, leave other steps untouched
+      const newAllSteps = [...allSteps];
+      quizIndices.forEach((originalIndex, i) => {
+        newAllSteps[originalIndex] = reorderingSteps[i];
+      });
+
+      // Renumber orders sequentially
+      const orderedSteps = newAllSteps.map((s, i) => ({ ...s, order: i + 1 }));
+
+      await lessonsManager.updateLesson(lesson.id, {
+        title: lesson.title?.rendered || lesson.title,
+        courseId: lesson.meta?._course_id || courseId,
+        meta: { _lesson_steps: orderedSteps },
+      });
+
+      // Optimistic local update to avoid stale-cache race condition
+      setLessons(prev => prev.map(l => {
+        if (l.id !== lesson.id) return l;
+        const newQuizSteps = orderedSteps
+          .filter(s => s.type === 'quiz')
+          .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0));
+        return { ...l, meta: { ...l.meta, _lesson_steps: orderedSteps }, quizSteps: newQuizSteps };
+      }));
+
+      toast.success(t('tests.orderSaved'));
+      setReorderingStepsLessonId(null);
+      setReorderingSteps([]);
+    } catch (err) {
+      console.error('Error saving step order:', err);
+      toast.error(t('tests.errors.saveOrder'));
+    } finally {
+      setIsSavingStepOrder(false);
+    }
+  };
+
+  const handleExitStepReorder = () => {
+    setReorderingStepsLessonId(null);
+    setReorderingSteps([]);
+  };
+
   // Use orderingLessons when in ordering mode, otherwise use lessons
   const displayLessons = isOrderingMode ? orderingLessons : lessons;
 
@@ -1315,7 +1395,7 @@ const TestsPage = () => {
                                   handleAddTest(lesson.id);
                                 }}
                                 className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all text-xs font-medium flex items-center gap-1.5"
-                                style={{ 
+                                style={{
                                   backgroundColor: pageColors.accent,
                                   color: '#ffffff'
                                 }}
@@ -1328,6 +1408,23 @@ const TestsPage = () => {
                               >
                                 <Plus size={14} />
                                 <span className="hidden sm:inline">{t('tests.addTest') || 'Add Test'}</span>
+                              </button>
+                            )}
+
+                            {/* Admin: Reorder Steps Button - only when this lesson has >1 quiz step */}
+                            {userIsAdmin && !isOrderingMode && (lesson.quizSteps || []).length > 1 && reorderingStepsLessonId !== lesson.id && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStartStepReorder(lesson);
+                                }}
+                                className="p-1.5 rounded-lg transition-all"
+                                style={{ backgroundColor: `${pageColors.accent}15` }}
+                                title="Reordenar tests"
+                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${pageColors.accent}25`; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = `${pageColors.accent}15`; }}
+                              >
+                                <ArrowUpDown size={14} style={{ color: pageColors.accent }} />
                               </button>
                             )}
 
@@ -1373,7 +1470,65 @@ const TestsPage = () => {
                         {/* Quiz Steps */}
                         {isExpanded && (
                           <div>
-                            {lesson.quizSteps
+                            {/* Step reorder mode: show all steps with arrows */}
+                            {reorderingStepsLessonId === lesson.id && (
+                              <div>
+                                {reorderingSteps.map((step, idx) => (
+                                  <div key={idx}>
+                                    <div className="mx-6" style={{ height: '1px', backgroundColor: 'rgba(156,163,175,0.2)' }} />
+                                    <div className="px-4 sm:px-6 py-3 flex items-center gap-3">
+                                      <div className="flex flex-col gap-0.5">
+                                        <button
+                                          onClick={() => handleMoveStepUp(idx)}
+                                          disabled={idx === 0}
+                                          className="p-0.5 rounded transition-all disabled:opacity-30"
+                                          style={{ color: idx === 0 ? pageColors.textMuted : pageColors.accent, background: 'none', border: 'none', cursor: idx === 0 ? 'not-allowed' : 'pointer' }}
+                                        >
+                                          <ChevronUp size={16} />
+                                        </button>
+                                        <button
+                                          onClick={() => handleMoveStepDown(idx)}
+                                          disabled={idx === reorderingSteps.length - 1}
+                                          className="p-0.5 rounded transition-all disabled:opacity-30"
+                                          style={{ color: idx === reorderingSteps.length - 1 ? pageColors.textMuted : pageColors.accent, background: 'none', border: 'none', cursor: idx === reorderingSteps.length - 1 ? 'not-allowed' : 'pointer' }}
+                                        >
+                                          <ChevronDown size={16} />
+                                        </button>
+                                      </div>
+                                      <span className="text-sm font-medium flex-1 truncate" style={{ color: pageColors.text }}>
+                                        {step.title}
+                                      </span>
+                                      <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: pageColors.hoverBg, color: pageColors.textMuted }}>
+                                        Test #{idx + 1}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                                {/* Save / Cancel */}
+                                <div className="flex items-center justify-end gap-2 px-4 sm:px-6 py-3 border-t" style={{ borderColor: 'rgba(156,163,175,0.2)' }}>
+                                  <button
+                                    onClick={handleExitStepReorder}
+                                    disabled={isSavingStepOrder}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all disabled:opacity-50"
+                                    style={{ backgroundColor: 'transparent', color: pageColors.text, borderColor: pageColors.borderSubtle }}
+                                  >
+                                    {t('common.cancel')}
+                                  </button>
+                                  <button
+                                    onClick={handleSaveStepOrder}
+                                    disabled={isSavingStepOrder}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all disabled:opacity-50"
+                                    style={{ backgroundColor: '#22c55e', color: '#ffffff' }}
+                                  >
+                                    <Check size={13} />
+                                    {isSavingStepOrder ? t('common.saving') : t('tests.saveOrder')}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Normal step list (hidden while reordering this lesson) */}
+                            {reorderingStepsLessonId !== lesson.id && lesson.quizSteps
                               .filter(step => {
                                 if (userIsAdmin) return true;
                                 if (isTestHidden(step)) return false;
@@ -2191,6 +2346,11 @@ const TestsPage = () => {
           onSave={handleSaveTest}
           courseId={courseId}
           lessonId={testModalState.lessonId}
+          availableCourses={coursesHook.courses.map(c => ({
+            value: c.id.toString(),
+            label: c.title?.rendered || c.title,
+          }))}
+          onMoved={fetchLessons}
         />
 
         {/* Delete Theme Confirmation Modal */}

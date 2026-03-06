@@ -98,6 +98,11 @@ const SupportMaterialPage = () => {
   const [orderingLessons, setOrderingLessons] = useState([]);
   const [isUpdatingOrder, setIsUpdatingOrder] = useState(false);
 
+  // Step reorder mode state (per-lesson, material steps only)
+  const [reorderingStepsLessonId, setReorderingStepsLessonId] = useState(null);
+  const [reorderingSteps, setReorderingSteps] = useState([]);
+  const [isSavingStepOrder, setIsSavingStepOrder] = useState(false);
+
   // Load courses for lesson modal
   useEffect(() => {
     if (userIsAdmin && coursesHook.courses.length === 0 && !coursesHook.loading) {
@@ -448,6 +453,73 @@ const SupportMaterialPage = () => {
     const unlock = new Date(startDate);
     unlock.setHours(0, 0, 0, 0);
     return unlock > now;
+  };
+
+  // Step reorder handlers (material steps only: pdf + text)
+  const handleStartStepReorder = (lesson) => {
+    setReorderingSteps([...(lesson.materialSteps || [])]);
+    setReorderingStepsLessonId(lesson.id);
+    if (!expandedLessons.has(lesson.id)) toggleLesson(lesson.id);
+  };
+
+  const handleMoveStepUp = (index) => {
+    if (index === 0) return;
+    const next = [...reorderingSteps];
+    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+    setReorderingSteps(next);
+  };
+
+  const handleMoveStepDown = (index) => {
+    if (index >= reorderingSteps.length - 1) return;
+    const next = [...reorderingSteps];
+    [next[index], next[index + 1]] = [next[index + 1], next[index]];
+    setReorderingSteps(next);
+  };
+
+  const handleSaveStepOrder = async () => {
+    const lesson = lessons.find(l => l.id === reorderingStepsLessonId);
+    if (!lesson) return;
+    setIsSavingStepOrder(true);
+    try {
+      const allSteps = lesson.meta?._lesson_steps || [];
+      const materialIndices = allSteps.reduce((acc, step, i) => {
+        if (step.type === 'pdf' || step.type === 'text') acc.push(i);
+        return acc;
+      }, []);
+      const newAllSteps = [...allSteps];
+      materialIndices.forEach((originalIndex, i) => {
+        newAllSteps[originalIndex] = reorderingSteps[i];
+      });
+      const orderedSteps = newAllSteps.map((s, i) => ({ ...s, order: i + 1 }));
+
+      await lessonsManager.updateLesson(lesson.id, {
+        title: lesson.title?.rendered || lesson.title,
+        courseId: lesson.meta?._course_id || courseId,
+        meta: { _lesson_steps: orderedSteps },
+      });
+
+      setLessons(prev => prev.map(l => {
+        if (l.id !== lesson.id) return l;
+        const newMaterialSteps = orderedSteps
+          .filter(s => s.type === 'pdf' || s.type === 'text')
+          .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0));
+        return { ...l, meta: { ...l.meta, _lesson_steps: orderedSteps }, materialSteps: newMaterialSteps };
+      }));
+
+      toast.success(t('supportMaterial.orderSaved'));
+      setReorderingStepsLessonId(null);
+      setReorderingSteps([]);
+    } catch (err) {
+      console.error('Error saving step order:', err);
+      toast.error(t('errors.saveOrder'));
+    } finally {
+      setIsSavingStepOrder(false);
+    }
+  };
+
+  const handleExitStepReorder = () => {
+    setReorderingStepsLessonId(null);
+    setReorderingSteps([]);
   };
 
   // Use orderingLessons when in ordering mode, otherwise use lessons
@@ -861,7 +933,6 @@ const SupportMaterialPage = () => {
                             </button>
                           )}
 
-                          {/* Admin: Add Material Button - icon only on mobile */}
                           {/* Admin: Add Material Button - hide in ordering mode */}
                           {userIsAdmin && !isOrderingMode && (
                             <button
@@ -870,7 +941,7 @@ const SupportMaterialPage = () => {
                                 handleAddMaterial(lesson.id);
                               }}
                               className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all text-xs font-medium flex items-center gap-1.5"
-                              style={{ 
+                              style={{
                                 backgroundColor: pageColors.accent,
                                 color: '#ffffff'
                               }}
@@ -883,6 +954,20 @@ const SupportMaterialPage = () => {
                             >
                               <Plus size={14} />
                               <span className="hidden sm:inline">{t('supportMaterial.addMaterial')}</span>
+                            </button>
+                          )}
+
+                          {/* Admin: Reorder Material Steps Button */}
+                          {userIsAdmin && !isOrderingMode && (lesson.materialSteps || []).length > 1 && reorderingStepsLessonId !== lesson.id && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleStartStepReorder(lesson); }}
+                              className="p-1.5 rounded-lg transition-all"
+                              style={{ backgroundColor: `${pageColors.accent}15` }}
+                              title="Reordenar materiales"
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${pageColors.accent}25`; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = `${pageColors.accent}15`; }}
+                            >
+                              <ArrowUpDown size={14} style={{ color: pageColors.accent }} />
                             </button>
                           )}
 
@@ -930,7 +1015,41 @@ const SupportMaterialPage = () => {
                       {/* Material Steps - expandido */}
                       {isExpanded && (
                         <div>
-                          {lesson.materialSteps
+                          {/* Step reorder mode */}
+                          {reorderingStepsLessonId === lesson.id && (
+                            <div>
+                              {reorderingSteps.map((step, idx) => (
+                                <div key={idx}>
+                                  <div className="mx-6" style={{ height: '1px', backgroundColor: 'rgba(156,163,175,0.2)' }} />
+                                  <div className="px-4 sm:px-6 py-3 flex items-center gap-3">
+                                    <div className="flex flex-col gap-0.5">
+                                      <button onClick={() => handleMoveStepUp(idx)} disabled={idx === 0} className="p-0.5 rounded disabled:opacity-30" style={{ color: idx === 0 ? pageColors.textMuted : pageColors.accent, background: 'none', border: 'none', cursor: idx === 0 ? 'not-allowed' : 'pointer' }}>
+                                        <ChevronUp size={16} />
+                                      </button>
+                                      <button onClick={() => handleMoveStepDown(idx)} disabled={idx === reorderingSteps.length - 1} className="p-0.5 rounded disabled:opacity-30" style={{ color: idx === reorderingSteps.length - 1 ? pageColors.textMuted : pageColors.accent, background: 'none', border: 'none', cursor: idx === reorderingSteps.length - 1 ? 'not-allowed' : 'pointer' }}>
+                                        <ChevronDown size={16} />
+                                      </button>
+                                    </div>
+                                    <span className="text-sm font-medium flex-1 truncate" style={{ color: pageColors.text }}>{step.title}</span>
+                                    <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0 uppercase" style={{ backgroundColor: `${pageColors.accent}15`, color: pageColors.accent }}>
+                                      {step.type}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                              <div className="flex items-center justify-end gap-2 px-4 sm:px-6 py-3 border-t" style={{ borderColor: 'rgba(156,163,175,0.2)' }}>
+                                <button onClick={handleExitStepReorder} disabled={isSavingStepOrder} className="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all disabled:opacity-50" style={{ backgroundColor: 'transparent', color: pageColors.text, borderColor: '#e5e7eb' }}>
+                                  {t('common.cancel')}
+                                </button>
+                                <button onClick={handleSaveStepOrder} disabled={isSavingStepOrder} className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all disabled:opacity-50" style={{ backgroundColor: '#22c55e', color: '#ffffff' }}>
+                                  <Check size={13} />
+                                  {isSavingStepOrder ? t('common.saving') : t('supportMaterial.saveOrder')}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {reorderingStepsLessonId !== lesson.id && lesson.materialSteps
                             .filter(step => {
                               // Non-admin users: hide materials that are hidden or date-locked
                               if (userIsAdmin) return true;

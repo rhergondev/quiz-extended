@@ -525,4 +525,16 @@ class QE_Course_Lessons_API extends QE_API_Base
 
         return $access_check;
     }
+
+    public function check_admin_permission()
+    {
+        if (!current_user_can('manage_options') && !current_user_can('manage_lms')) {
+            return new WP_Error(
+                'rest_forbidden',
+                __('You do not have permission to perform this action.', 'quiz-extended'),
+                ['status' => 403]
+            );
+        }
+        return true;
+    }
 }

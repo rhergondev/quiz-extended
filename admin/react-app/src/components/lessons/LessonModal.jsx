@@ -7,7 +7,7 @@ import { openMediaSelector } from '../../api/utils/mediaUtils';
 import {
   X, Plus, Trash2, GripVertical, Video, FileText, Download, Save,
   HelpCircle, AlertCircle, UploadCloud, CheckCircle, Search, Edit2, ExternalLink,
-  Eye, EyeOff, Calendar
+  Eye, EyeOff, Calendar, MoveRight, Loader2
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -33,6 +33,7 @@ import 'react-quill/dist/quill.snow.css';
 // Importar hooks para búsqueda de quizzes en steps
 import useQuizzes from '../../hooks/useQuizzes';
 import { getAll as getQuizzes } from '../../api/services/quizService';
+import { getLessonsByCourse, moveQuizToLesson } from '../../api/services/lessonService';
 
 const LessonModal = ({
   isOpen,
@@ -270,6 +271,15 @@ const LessonModal = ({
     setFormData(prev => ({
       ...prev,
       steps: prev.steps.filter(step => step.id !== stepId).map((step, index) => ({ ...step, order: index + 1 }))
+    }));
+  };
+
+  const handleMoveStep = async (step, sourceLessonId, targetLessonId) => {
+    await moveQuizToLesson(step.data.quiz_id, sourceLessonId, targetLessonId);
+    // Remove step from local state
+    setFormData(prev => ({
+      ...prev,
+      steps: prev.steps.filter(s => s.id !== step.id).map((s, i) => ({ ...s, order: i + 1 })),
     }));
   };
 
@@ -697,16 +707,20 @@ const LessonModal = ({
                       <SortableContext items={formData.steps.map(s => s.id)} strategy={verticalListSortingStrategy}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           {formData.steps.map((step) => (
-                            <SortableStepItem 
-                              key={step.id} 
+                            <SortableStepItem
+                              key={step.id}
                               step={step}
                               onRemove={removeStep}
                               onEdit={openEditStepModal}
-                              isViewMode={isViewMode} 
-                              stepTypes={stepTypes} 
+                              isViewMode={isViewMode}
+                              stepTypes={stepTypes}
                               pageColors={pageColors}
                               isDarkMode={isDarkMode}
-                              t={t} 
+                              t={t}
+                              lessonId={lesson?.id}
+                              currentCourseId={formData.courseId}
+                              availableCourses={availableCourses}
+                              onMoveStep={handleMoveStep}
                             />
                           ))}
                         </div>
@@ -936,11 +950,56 @@ const LessonModal = ({
 
 
 // Simplified Step Item - No expansion, edit via modal
-const SortableStepItem = ({ step, onRemove, onEdit, isViewMode, stepTypes, pageColors, isDarkMode, t }) => {
+const SortableStepItem = ({ step, onRemove, onEdit, isViewMode, stepTypes, pageColors, isDarkMode, t, currentCourseId, availableCourses, lessonId, onMoveStep }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: step.id });
   const Icon = stepTypes[step.type]?.icon || FileText;
   const config = stepTypes[step.type] || stepTypes.text;
   const style = { transform: CSS.Transform.toString(transform), transition };
+
+  // Move step state (only for quiz steps)
+  const [showMove, setShowMove] = useState(false);
+  const [moveTargetCourseId, setMoveTargetCourseId] = useState(currentCourseId || '');
+  const [moveLessons, setMoveLessons] = useState([]);
+  const [moveTargetLessonId, setMoveTargetLessonId] = useState('');
+  const [loadingMoveLessons, setLoadingMoveLessons] = useState(false);
+  const [moving, setMoving] = useState(false);
+
+  const handleToggleMove = () => {
+    setShowMove(v => {
+      if (!v) {
+        setMoveTargetCourseId(currentCourseId || '');
+        setMoveTargetLessonId('');
+        setMoveLessons([]);
+      }
+      return !v;
+    });
+  };
+
+  // Fetch lessons when course changes
+  useEffect(() => {
+    if (!showMove || !moveTargetCourseId) { setMoveLessons([]); return; }
+    setLoadingMoveLessons(true);
+    setMoveTargetLessonId('');
+    getLessonsByCourse(Number(moveTargetCourseId))
+      .then(res => {
+        const list = res?.data || res || [];
+        const filtered = list.filter(l => l.id !== lessonId);
+        setMoveLessons(filtered.map(l => ({ value: l.id, label: l.title?.rendered || l.title || `Lección #${l.id}` })));
+      })
+      .catch(() => setMoveLessons([]))
+      .finally(() => setLoadingMoveLessons(false));
+  }, [showMove, moveTargetCourseId, lessonId]);
+
+  const handleConfirmMove = async () => {
+    if (!moveTargetLessonId || !step.data?.quiz_id) return;
+    setMoving(true);
+    try {
+      await onMoveStep(step, lessonId, Number(moveTargetLessonId));
+      setShowMove(false);
+    } finally {
+      setMoving(false);
+    }
+  };
 
   // Get preview info based on step type
   const getPreviewInfo = () => {
@@ -1044,6 +1103,30 @@ const SortableStepItem = ({ step, onRemove, onEdit, isViewMode, stepTypes, pageC
             <Edit2 size={12} />
             {t('common.edit')}
           </button>
+          {!isViewMode && step.type === 'quiz' && (
+            <button
+              type="button"
+              onClick={handleToggleMove}
+              style={{
+                padding: '6px 10px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: showMove
+                  ? (isDarkMode ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.15)')
+                  : (isDarkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.08)'),
+                color: '#f59e0b',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <MoveRight size={12} />
+              {t('admin.lessonModal.moveTest', 'Mover Test')}
+            </button>
+          )}
           {!isViewMode && (
             <button
               type="button"
@@ -1062,6 +1145,100 @@ const SortableStepItem = ({ step, onRemove, onEdit, isViewMode, stepTypes, pageC
           )}
         </div>
       </div>
+
+      {/* Move Test Panel */}
+      {showMove && step.type === 'quiz' && (
+        <div style={{
+          padding: '12px 14px',
+          borderTop: `1px solid ${isDarkMode ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.15)'}`,
+          backgroundColor: isDarkMode ? 'rgba(245,158,11,0.05)' : 'rgba(245,158,11,0.04)',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          <MoveRight size={14} style={{ color: '#f59e0b', flexShrink: 0 }} />
+          <select
+            value={moveTargetCourseId}
+            onChange={e => setMoveTargetCourseId(e.target.value)}
+            style={{
+              flex: '1 1 140px',
+              padding: '6px 8px',
+              borderRadius: '6px',
+              border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'}`,
+              backgroundColor: pageColors.inputBg,
+              color: pageColors.text,
+              fontSize: '12px',
+            }}
+          >
+            <option value="">{t('admin.lessonModal.selectCourse', 'Seleccionar curso')}</option>
+            {availableCourses.map(c => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+          <select
+            value={moveTargetLessonId}
+            onChange={e => setMoveTargetLessonId(e.target.value)}
+            disabled={!moveTargetCourseId || loadingMoveLessons}
+            style={{
+              flex: '1 1 140px',
+              padding: '6px 8px',
+              borderRadius: '6px',
+              border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'}`,
+              backgroundColor: pageColors.inputBg,
+              color: pageColors.text,
+              fontSize: '12px',
+              opacity: (!moveTargetCourseId || loadingMoveLessons) ? 0.6 : 1,
+            }}
+          >
+            <option value="">
+              {loadingMoveLessons
+                ? t('common.loading', 'Cargando...')
+                : t('admin.lessonModal.selectLesson', 'Seleccionar lección')}
+            </option>
+            {moveLessons.map(l => (
+              <option key={l.value} value={l.value}>{l.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={handleConfirmMove}
+            disabled={!moveTargetLessonId || moving}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '6px',
+              border: 'none',
+              backgroundColor: (!moveTargetLessonId || moving) ? '#9ca3af' : '#f59e0b',
+              color: 'white',
+              cursor: (!moveTargetLessonId || moving) ? 'not-allowed' : 'pointer',
+              fontSize: '12px',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              flexShrink: 0,
+            }}
+          >
+            {moving ? <Loader2 size={12} className="animate-spin" /> : <MoveRight size={12} />}
+            {t('admin.lessonModal.move', 'Mover')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowMove(false)}
+            style={{
+              padding: '6px',
+              borderRadius: '6px',
+              border: 'none',
+              backgroundColor: 'transparent',
+              color: pageColors.textMuted,
+              cursor: 'pointer',
+              fontSize: '12px',
+            }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
