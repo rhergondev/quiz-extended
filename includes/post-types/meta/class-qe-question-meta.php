@@ -72,6 +72,16 @@ class QE_Question_Meta
             ],
         ]);
 
+        // Global failure rate: % of all students who answered this question incorrectly
+        register_rest_field($this->post_type, '_question_fail_rate', [
+            'get_callback' => [$this, 'get_question_fail_rate'],
+            'schema' => [
+                'description' => __('Global failure rate: percentage of all students who answered this question incorrectly', 'quiz-extended'),
+                'type' => 'number',
+                'context' => ['view', 'edit'],
+            ],
+        ]);
+
         // 🔥 FORCE: Hook into rest_prepare to ensure is_favorite is always included
         add_filter("rest_prepare_{$this->post_type}", [$this, 'force_is_favorite_in_response'], 10, 3);
     }
@@ -125,6 +135,64 @@ class QE_Question_Meta
         error_log("🔍 get_is_favorite Q#{$object['id']} U#{$user_id}: " . ($is_fav ? 'TRUE' : 'FALSE') . " (favorite_id={$exists})");
 
         return $is_fav;
+    }
+
+    /**
+     * Get global failure rate for a question.
+     * Aggregates times_incorrect / times_answered across ALL users from qe_user_question_stats.
+     * Returns a percentage 0–100 rounded to one decimal place, or 0 if no data.
+     *
+     * Uses a static per-request cache to avoid N+1 queries when listing questions.
+     *
+     * @param array $object REST object with 'id' key.
+     * @return float
+     */
+    public function get_question_fail_rate($object)
+    {
+        static $cache = [];
+
+        global $wpdb;
+        $question_id = (int) $object['id'];
+
+        if (array_key_exists($question_id, $cache)) {
+            return $cache[$question_id];
+        }
+
+        $stats_table = $wpdb->prefix . 'qe_user_question_stats';
+
+        // Check table exists (graceful degradation)
+        if (!$wpdb->get_var("SHOW TABLES LIKE '{$stats_table}'")) {
+            $cache[$question_id] = 0;
+            return 0;
+        }
+
+        // Only consider the last attempt per user (is_correct reflects the latest answer).
+        // Exclude rows where the user left the question unanswered.
+        // Exclude ghost users (_qe_ghost_user = '1') — they are synthetic comparison data.
+        $row = $wpdb->get_row($wpdb->prepare(
+            "SELECT
+                COUNT(*) AS total_users,
+                SUM(CASE WHEN s.is_correct = 0 THEN 1 ELSE 0 END) AS failed_users
+             FROM {$stats_table} s
+             WHERE s.question_id = %d
+               AND s.last_answer_status NOT IN ('unanswered')
+               AND NOT EXISTS (
+                   SELECT 1 FROM {$wpdb->usermeta} um
+                   WHERE um.user_id = s.user_id
+                     AND um.meta_key = '_qe_ghost_user'
+                     AND um.meta_value = '1'
+               )",
+            $question_id
+        ));
+
+        if ($row && (int) $row->total_users > 0) {
+            $rate = round(((int) $row->failed_users / (int) $row->total_users) * 100, 1);
+        } else {
+            $rate = 0;
+        }
+
+        $cache[$question_id] = $rate;
+        return $rate;
     }
 
     /**

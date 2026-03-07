@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Save, Plus, Settings, FileQuestion, Clock, CheckCircle, AlertCircle, Trash2, GripVertical, ChevronRight, Edit2, Eye, EyeOff, Calendar, Search, MoveRight, Loader2 } from 'lucide-react';
+import { X, Save, Plus, Settings, FileQuestion, Clock, CheckCircle, AlertCircle, Trash2, GripVertical, ChevronRight, Edit2, Eye, EyeOff, Calendar, Search, MoveRight, Loader2, Sparkles, Check } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'react-toastify';
 import { DndContext, closestCenter } from '@dnd-kit/core';
@@ -10,7 +10,7 @@ import { CSS } from '@dnd-kit/utilities';
 // Hooks & Services
 import useQuizzes from '../../hooks/useQuizzes';
 import useQuestionsAdmin from '../../hooks/useQuestionsAdmin';
-import { getQuestionsByIds } from '../../api/services/questionService';
+import { getQuestionsByIds, getAll as getAllQuestions } from '../../api/services/questionService';
 import { getApiConfig, getDefaultHeaders } from '../../api/config/apiConfig';
 import QuestionSelector from '../questions/QuestionSelector';
 import QuestionModal from '../questions/QuestionModal';
@@ -126,6 +126,13 @@ const UnifiedTestModal = ({
   const [providerRefreshKey, setProviderRefreshKey] = useState(0); // Incremented when QuestionModal closes to re-sync provider locks
   const [questionsRefreshKey, setQuestionsRefreshKey] = useState(0); // Incremented to trigger a soft re-fetch of the selector's question list
 
+  // Auto-Generator state
+  const [autoGenConfig, setAutoGenConfig] = useState({ lessons: [], numQuestions: 10, minFailureRate: 0, difficulty: 'all' });
+  const [isAutoGenerating, setIsAutoGenerating] = useState(false);
+  const [autoGenEmpty, setAutoGenEmpty] = useState(false);
+  const [courseLessons, setCourseLessons] = useState([]);
+  const [courseLessonsLoading, setCourseLessonsLoading] = useState(false);
+
   // Move Test state (edit mode only)
   const [showMove, setShowMove] = useState(false);
   const [moveTargetCourseId, setMoveTargetCourseId] = useState('');
@@ -133,6 +140,19 @@ const UnifiedTestModal = ({
   const [moveTargetLessonId, setMoveTargetLessonId] = useState('');
   const [loadingMoveLessons, setLoadingMoveLessons] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
+
+  // Fetch course lessons for the auto-generator panel (lazy, only once per modal open)
+  useEffect(() => {
+    if (activeTab !== 'autogen' || !courseId || courseLessons.length > 0 || courseLessonsLoading) return;
+    setCourseLessonsLoading(true);
+    getLessonsByCourse(Number(courseId))
+      .then(res => {
+        const list = res?.data || res || [];
+        setCourseLessons(list.map(l => ({ id: l.id, label: l.title?.rendered || l.title || `Lección #${l.id}` })));
+      })
+      .catch(() => setCourseLessons([]))
+      .finally(() => setCourseLessonsLoading(false));
+  }, [activeTab, courseId]);
 
   // Fetch lessons when move target course changes
   useEffect(() => {
@@ -220,6 +240,9 @@ const UnifiedTestModal = ({
       setActiveTab('content');
       setQuestionSearch('');
       setShowMove(false);
+      setCourseLessons([]);
+      setAutoGenConfig({ lessons: [], numQuestions: 10, minFailureRate: 0, difficulty: 'all' });
+      setAutoGenEmpty(false);
       setMoveTargetCourseId(courseId?.toString() || '');
       setMoveTargetLessonId('');
       setMoveLessons([]);
@@ -424,6 +447,58 @@ const UnifiedTestModal = ({
     }
   };
 
+  // --- Auto-Generator Handler ---
+  const handleAutoGenerate = async () => {
+    setIsAutoGenerating(true);
+    setAutoGenEmpty(false);
+    try {
+      const allLessonIds = courseLessons.map(l => l.id);
+      const isAllLessons = autoGenConfig.lessons.length === 0 || autoGenConfig.lessons.length === allLessonIds.length;
+      // When all lessons selected, pass all IDs explicitly — course_id is not supported by the endpoint
+      const lessonsFilter = isAllLessons ? (allLessonIds.length > 0 ? allLessonIds : null) : autoGenConfig.lessons;
+
+      // Fetch a large batch so we can filter by failure rate client-side
+      const result = await getAllQuestions({
+        lessons: lessonsFilter,
+        difficulty: autoGenConfig.difficulty !== 'all' ? autoGenConfig.difficulty : null,
+        perPage: 200,
+        status: 'publish',
+      });
+
+      let questions = result.data || [];
+
+      // Filter by minimum failure rate
+      if (autoGenConfig.minFailureRate > 0) {
+        questions = questions.filter(q => (q.meta?._question_fail_rate || 0) >= autoGenConfig.minFailureRate);
+      }
+
+      // Exclude questions already in the test
+      const selectedIds = new Set(selectedQuestions.map(q => q.id));
+      questions = questions.filter(q => !selectedIds.has(q.id));
+
+      // Shuffle (Fisher-Yates) before slicing so selection is random
+      for (let i = questions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [questions[i], questions[j]] = [questions[j], questions[i]];
+      }
+      const toAdd = questions.slice(0, autoGenConfig.numQuestions);
+
+      if (toAdd.length === 0) {
+        setAutoGenEmpty(true);
+        return;
+      }
+
+      setSelectedQuestions(prev => [...prev, ...toAdd]);
+      toast.success(`${toAdd.length} pregunta${toAdd.length !== 1 ? 's' : ''} añadida${toAdd.length !== 1 ? 's' : ''} al test`, { autoClose: 2000, position: 'bottom-right' });
+      setActiveTab('content');
+    } catch (error) {
+      console.error('Error auto-generating questions:', error);
+      toast.error('Error al auto-generar preguntas', { autoClose: 3000, position: 'bottom-right' });
+    } finally {
+      setIsAutoGenerating(false);
+    }
+  };
+
   // --- Question Modal Handlers ---
 
   const openCreateQuestion = () => {
@@ -551,7 +626,7 @@ const UnifiedTestModal = ({
         <div className="flex-1 flex overflow-hidden">
           
           {/* LEFT: FORM & LIST */}
-          <div className={`flex-1 flex flex-col min-w-0 transition-all ${activeTab === 'selector' ? 'hidden md:flex md:w-1/2' : 'w-full'}`}>
+          <div className={`flex-1 flex flex-col min-w-0 transition-all ${(activeTab === 'selector' || activeTab === 'autogen') ? 'hidden md:flex md:w-1/2' : 'w-full'}`}>
              
              {/* No Tabs Needed anymore - Content Only */}
 
@@ -720,6 +795,13 @@ const UnifiedTestModal = ({
                             >
                                 <FileQuestion size={12} /> BUSCAR
                             </button>
+                            <button
+                                onClick={() => setActiveTab('autogen')}
+                                className={`text-[10px] font-bold flex items-center gap-1 hover:underline px-2 py-1 rounded-md transition-colors ${activeTab === 'autogen' ? 'text-white' : 'text-amber-600 dark:text-amber-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                                style={activeTab === 'autogen' ? { backgroundColor: colors.accent } : {}}
+                            >
+                                <Sparkles size={12} /> AUTO
+                            </button>
                         </div>
                       </div>
 
@@ -798,7 +880,7 @@ const UnifiedTestModal = ({
 
           {/* RIGHT: SELECTOR DRAWER */}
           {activeTab === 'selector' && (
-            <div 
+            <div
               className="absolute inset-0 md:static md:w-1/2 flex flex-col border-l shadow-xl z-20 animate-in slide-in-from-right-10 duration-200"
               style={{ backgroundColor: colors.bgCard, borderColor: colors.border }}
             >
@@ -806,7 +888,7 @@ const UnifiedTestModal = ({
                 <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: colors.text }}>
                   <Plus size={16} className="text-amber-500"/> Banco de Preguntas
                 </h3>
-                <button 
+                <button
                   onClick={() => setActiveTab('content')}
                   className="p-1.5 rounded-lg border transition-colors shadow-sm"
                   style={{
@@ -818,7 +900,7 @@ const UnifiedTestModal = ({
                   <ChevronRight size={18} />
                 </button>
               </div>
-              
+
               <div className="flex-1 overflow-hidden relative">
                  <QuestionSelectorWrapper
                     key={selectorKey}
@@ -830,6 +912,212 @@ const UnifiedTestModal = ({
                     providerRefreshKey={providerRefreshKey}
                     questionsRefreshKey={questionsRefreshKey}
                  />
+              </div>
+            </div>
+          )}
+
+          {/* RIGHT: AUTO-GENERATOR DRAWER */}
+          {activeTab === 'autogen' && (
+            <div
+              className="absolute inset-0 md:static md:w-1/2 flex flex-col border-l shadow-xl z-20 animate-in slide-in-from-right-10 duration-200"
+              style={{ backgroundColor: colors.bgCard, borderColor: colors.border }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-3 border-b" style={{ borderColor: colors.border }}>
+                <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: colors.text }}>
+                  <Sparkles size={16} className="text-amber-500" /> Auto-Generar Preguntas
+                </h3>
+                <button
+                  onClick={() => setActiveTab('content')}
+                  className="p-1.5 rounded-lg border transition-colors shadow-sm"
+                  style={{ borderColor: colors.border, backgroundColor: isDarkMode ? colors.bgCard : '#ffffff', color: colors.text }}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+
+              {/* Form */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-5">
+
+                {/* Lecciones */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase mb-2" style={{ color: colors.textMuted }}>
+                    Lecciones
+                  </label>
+                  {courseLessonsLoading ? (
+                    <div className="text-xs animate-pulse" style={{ color: colors.textMuted }}>Cargando lecciones...</div>
+                  ) : courseLessons.length === 0 ? (
+                    <div className="text-xs" style={{ color: colors.textMuted }}>No hay lecciones disponibles</div>
+                  ) : (
+                    <div
+                      className="rounded-lg border overflow-hidden"
+                      style={{ borderColor: colors.border }}
+                    >
+                      {/* Select All row */}
+                      <div
+                        className="flex items-center gap-2 px-3 py-2 cursor-pointer border-b"
+                        style={{ borderColor: colors.border, backgroundColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
+                        onClick={() => {
+                          const allIds = courseLessons.map(l => l.id);
+                          const isAll = autoGenConfig.lessons.length === allIds.length;
+                          setAutoGenEmpty(false); setAutoGenConfig(prev => ({ ...prev, lessons: isAll ? [] : allIds }));
+                        }}
+                      >
+                        <div
+                          className="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors"
+                          style={{
+                            backgroundColor: autoGenConfig.lessons.length === courseLessons.length && courseLessons.length > 0 ? colors.accent : 'transparent',
+                            borderColor: autoGenConfig.lessons.length === courseLessons.length && courseLessons.length > 0 ? colors.accent : colors.border
+                          }}
+                        >
+                          {autoGenConfig.lessons.length === courseLessons.length && courseLessons.length > 0 && <Check size={10} className="text-white" />}
+                        </div>
+                        <span className="text-xs font-semibold" style={{ color: colors.text }}>Todas las lecciones</span>
+                      </div>
+                      {/* Individual lessons (scrollable) */}
+                      <div className="max-h-40 overflow-y-auto">
+                        {courseLessons.map(lesson => {
+                          const isSelected = autoGenConfig.lessons.includes(lesson.id);
+                          return (
+                            <div
+                              key={lesson.id}
+                              className="flex items-center gap-2 px-3 py-2 cursor-pointer"
+                              onClick={() => {
+                                setAutoGenEmpty(false); setAutoGenConfig(prev => ({
+                                  ...prev,
+                                  lessons: isSelected
+                                    ? prev.lessons.filter(id => id !== lesson.id)
+                                    : [...prev.lessons, lesson.id]
+                                }));
+                              }}
+                            >
+                              <div
+                                className="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors"
+                                style={{
+                                  backgroundColor: isSelected ? colors.accent : 'transparent',
+                                  borderColor: isSelected ? colors.accent : colors.border
+                                }}
+                              >
+                                {isSelected && <Check size={10} className="text-white" />}
+                              </div>
+                              <span className="text-xs truncate" style={{ color: colors.text }}>{lesson.label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-[10px] mt-1" style={{ color: colors.textMuted }}>
+                    {autoGenConfig.lessons.length === 0 ? 'Se usarán todas las lecciones del curso' : `${autoGenConfig.lessons.length} lección${autoGenConfig.lessons.length !== 1 ? 'es' : ''} seleccionada${autoGenConfig.lessons.length !== 1 ? 's' : ''}`}
+                  </p>
+                </div>
+
+                {/* Número de preguntas */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase mb-2" style={{ color: colors.textMuted }}>
+                    Número de preguntas
+                  </label>
+                  <select
+                    value={autoGenConfig.numQuestions}
+                    onChange={e => { setAutoGenEmpty(false); setAutoGenConfig(prev => ({ ...prev, numQuestions: Number(e.target.value) })); }}
+                    className="w-full text-sm p-2 rounded-lg outline-none transition-all"
+                    style={{
+                      border: `2px solid ${colors.border}`,
+                      color: colors.text,
+                      backgroundColor: isDarkMode ? '#1f2937' : '#ffffff'
+                    }}
+                  >
+                    {[5, 10, 15, 20, 25, 30, 40, 50, 75, 100].map(n => (
+                      <option key={n} value={n}>{n} preguntas</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Dificultad */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase mb-2" style={{ color: colors.textMuted }}>
+                    Dificultad
+                  </label>
+                  <select
+                    value={autoGenConfig.difficulty}
+                    onChange={e => { setAutoGenEmpty(false); setAutoGenConfig(prev => ({ ...prev, difficulty: e.target.value })); }}
+                    className="w-full text-sm p-2 rounded-lg outline-none transition-all"
+                    style={{
+                      border: `2px solid ${colors.border}`,
+                      color: autoGenConfig.difficulty === 'easy' ? '#10b981' : autoGenConfig.difficulty === 'hard' ? '#ef4444' : autoGenConfig.difficulty === 'medium' ? '#f59e0b' : colors.text,
+                      backgroundColor: isDarkMode ? '#1f2937' : '#ffffff'
+                    }}
+                  >
+                    <option value="all" style={{ color: colors.text }}>Todas</option>
+                    <option value="easy" style={{ color: '#10b981' }}>Fácil</option>
+                    <option value="medium" style={{ color: '#f59e0b' }}>Media</option>
+                    <option value="hard" style={{ color: '#ef4444' }}>Difícil</option>
+                  </select>
+                </div>
+
+                {/* Porcentaje mínimo de fallos */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-[10px] font-bold uppercase" style={{ color: colors.textMuted }}>
+                      % mínimo de fallos
+                    </label>
+                    <span
+                      className="text-sm font-bold tabular-nums"
+                      style={{ color: autoGenConfig.minFailureRate > 0 ? colors.accent : colors.textMuted }}
+                    >
+                      {autoGenConfig.minFailureRate}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={autoGenConfig.minFailureRate}
+                    onChange={e => { setAutoGenEmpty(false); setAutoGenConfig(prev => ({ ...prev, minFailureRate: Number(e.target.value) })); }}
+                    className="w-full accent-amber-500"
+                  />
+                  <p className="text-[10px] mt-1" style={{ color: colors.textMuted }}>
+                    {autoGenConfig.minFailureRate === 0
+                      ? 'Sin filtro — se incluyen todas las preguntas'
+                      : `Solo preguntas donde ≥${autoGenConfig.minFailureRate}% de estudiantes fallaron`}
+                  </p>
+                </div>
+
+                {/* Generate Button */}
+                <button
+                  onClick={handleAutoGenerate}
+                  disabled={isAutoGenerating}
+                  className="w-full py-2.5 rounded-lg font-bold text-sm text-white flex items-center justify-center gap-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: colors.accent }}
+                  onMouseEnter={e => { if (!isAutoGenerating) e.currentTarget.style.opacity = '0.9'; }}
+                  onMouseLeave={e => { if (!isAutoGenerating) e.currentTarget.style.opacity = '1'; }}
+                >
+                  {isAutoGenerating ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Generando...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={14} />
+                      Auto-Generar
+                    </>
+                  )}
+                </button>
+
+                {autoGenEmpty && (
+                  <div
+                    className="rounded-lg p-3 flex items-start gap-2 text-xs"
+                    style={{ backgroundColor: isDarkMode ? 'rgba(239,68,68,0.1)' : '#fef2f2', border: '1px solid #fca5a5' }}
+                  >
+                    <AlertCircle size={14} className="flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />
+                    <div style={{ color: isDarkMode ? '#fca5a5' : '#b91c1c' }}>
+                      <p className="font-semibold mb-0.5">Sin resultados</p>
+                      <p>No se encontraron preguntas con los criterios seleccionados. Prueba a reducir el % de fallos, cambiar la dificultad o seleccionar más lecciones.</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

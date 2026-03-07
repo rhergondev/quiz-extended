@@ -148,6 +148,8 @@ export const sanitizeQuestionData = (questionData) => {
                     isCorrect: sanitizeBoolean(opt.isCorrect)
                 }))
                 : [],
+            // register_rest_field puts this at top-level, not inside meta — map it in
+            ...(questionData._question_fail_rate !== undefined && { _question_fail_rate: Number(questionData._question_fail_rate) }),
         },
         _embedded: questionData._embedded || {},
     };
