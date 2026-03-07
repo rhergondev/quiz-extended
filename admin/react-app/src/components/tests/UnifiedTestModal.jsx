@@ -12,10 +12,11 @@ import useQuizzes from '../../hooks/useQuizzes';
 import useQuestionsAdmin from '../../hooks/useQuestionsAdmin';
 import { getQuestionsByIds, getAll as getAllQuestions } from '../../api/services/questionService';
 import { getApiConfig, getDefaultHeaders } from '../../api/config/apiConfig';
+import { makeApiRequest } from '../../api/services/baseService';
 import QuestionSelector from '../questions/QuestionSelector';
 import QuestionModal from '../questions/QuestionModal';
 import { getOne as getQuiz } from '../../api/services/quizService';
-import { getLessonsByCourse, moveQuizToLesson } from '../../api/services/lessonService';
+import { moveQuizToLesson } from '../../api/services/lessonService';
 
 // Sortable Item Component with Edit button and search match tags
 const SortableQuestionItem = ({ question, onRemove, onEdit, colors }) => {
@@ -144,29 +145,39 @@ const UnifiedTestModal = ({
   // Fetch course lessons for the auto-generator panel (lazy, only once per modal open)
   useEffect(() => {
     if (activeTab !== 'autogen' || !courseId || courseLessons.length > 0 || courseLessonsLoading) return;
+    let cancelled = false;
     setCourseLessonsLoading(true);
-    getLessonsByCourse(Number(courseId))
+    const { apiUrl } = getApiConfig();
+    const params = new URLSearchParams({ per_page: '100', status: 'publish,draft,private' });
+    makeApiRequest(`${apiUrl}/qe/v1/courses/${courseId}/lessons?${params}`)
       .then(res => {
-        const list = res?.data || res || [];
+        if (cancelled) return;
+        const list = res.data?.data || [];
         setCourseLessons(list.map(l => ({ id: l.id, label: l.title?.rendered || l.title || `Lección #${l.id}` })));
       })
-      .catch(() => setCourseLessons([]))
-      .finally(() => setCourseLessonsLoading(false));
+      .catch(() => { if (!cancelled) setCourseLessons([]); })
+      .finally(() => { if (!cancelled) setCourseLessonsLoading(false); });
+    return () => { cancelled = true; };
   }, [activeTab, courseId]);
 
   // Fetch lessons when move target course changes
   useEffect(() => {
     if (!showMove || !moveTargetCourseId) { setMoveLessons([]); return; }
+    let cancelled = false;
     setLoadingMoveLessons(true);
     setMoveTargetLessonId('');
-    getLessonsByCourse(Number(moveTargetCourseId))
+    const { apiUrl } = getApiConfig();
+    const params = new URLSearchParams({ per_page: '100', status: 'publish,draft,private' });
+    makeApiRequest(`${apiUrl}/qe/v1/courses/${moveTargetCourseId}/lessons?${params}`)
       .then(res => {
-        const list = res?.data || res || [];
+        if (cancelled) return;
+        const list = res.data?.data || [];
         const filtered = list.filter(l => l.id !== lessonId);
         setMoveLessons(filtered.map(l => ({ value: l.id, label: l.title?.rendered || l.title || `Lección #${l.id}` })));
       })
-      .catch(() => setMoveLessons([]))
-      .finally(() => setLoadingMoveLessons(false));
+      .catch(() => { if (!cancelled) setMoveLessons([]); })
+      .finally(() => { if (!cancelled) setLoadingMoveLessons(false); });
+    return () => { cancelled = true; };
   }, [showMove, moveTargetCourseId, lessonId]);
 
   const handleToggleMove = () => {
