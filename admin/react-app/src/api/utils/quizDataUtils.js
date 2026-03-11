@@ -323,11 +323,16 @@ export const transformQuizDataForApi = (quizData) => {
     transformed.meta._quiz_instructions = sanitizeString(quizData.meta._quiz_instructions);
   }
 
-  // Apply defaults for missing fields
-  transformed.meta = {
-    ...DEFAULT_QUIZ_META,
-    ...transformed.meta
-  };
+  // Pass through any meta fields from quizData.meta that aren't already
+  // handled by the explicit conditional blocks above. Do NOT spread DEFAULT_QUIZ_META
+  // here — doing so would send fields like _lesson_ids:[] and _quiz_question_ids:[]
+  // on every update, wiping existing associations from WordPress.
+  if (quizData.meta && typeof quizData.meta === 'object') {
+    transformed.meta = {
+      ...quizData.meta,   // pass through provided meta
+      ...transformed.meta // explicitly handled fields take precedence
+    };
+  }
 
   console.log('🔄 transformQuizDataForApi - Output:', transformed);
   console.log('📌 Category in transformed:', transformed.qe_category);

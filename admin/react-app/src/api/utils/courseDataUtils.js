@@ -330,11 +330,16 @@ export const transformCourseDataForApi = (courseData) => {
     transformed.meta._target_audience = sanitizeString(courseData.meta._target_audience);
   }
 
-  // Apply defaults for missing fields
-  transformed.meta = {
-    ...DEFAULT_COURSE_META,
-    ...transformed.meta
-  };
+  // Pass through any meta fields from courseData.meta that aren't already
+  // handled by the explicit conditional blocks above. Do NOT spread DEFAULT_COURSE_META
+  // here — doing so would send fields like _lesson_ids:[] on every update, wiping
+  // existing lesson associations from WordPress.
+  if (courseData.meta && typeof courseData.meta === 'object') {
+    transformed.meta = {
+      ...courseData.meta,   // pass through provided meta (e.g. _course_position)
+      ...transformed.meta   // explicitly handled fields take precedence
+    };
+  }
 
   return transformed;
 };

@@ -733,7 +733,6 @@ const QuestionSelector = ({
                 }}
               >
                 <option value="all">Cursos</option>
-                <option value="orphaned">— Sin curso —</option>
                 {visibleCourseOptions.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
