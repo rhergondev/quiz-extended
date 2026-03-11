@@ -264,6 +264,7 @@ const QuestionSelector = ({
           label: decodeHtml(c.title?.rendered || c.title || `Curso #${c.id}`),
           categoryIds: c.qe_category || [],
           lessonIds: c.meta?._lesson_ids || [],
+          lessonOrderMap: c.meta?._lesson_order_map || {},
         })));
       } catch (err) {
         console.error('Error fetching all courses:', err);
@@ -371,7 +372,15 @@ const QuestionSelector = ({
           const seenNames = new Set();
           const ordered = [];
           for (const course of relevantCourses) {
-            for (const id of (course.lessonIds || [])) {
+            // Sort this course's lesson IDs by their position in _lesson_order_map,
+            // falling back to their index in _lesson_ids for lessons without an entry.
+            const orderMap = course.lessonOrderMap || {};
+            const sortedLessonIds = [...(course.lessonIds || [])].sort((a, b) => {
+              const posA = orderMap[String(a)] ?? orderMap[a] ?? Infinity;
+              const posB = orderMap[String(b)] ?? orderMap[b] ?? Infinity;
+              return posA - posB;
+            });
+            for (const id of sortedLessonIds) {
               if (lessonMap.has(id) && !seen.has(id)) {
                 const lesson = lessonMap.get(id);
                 const name = decodeHtml(lesson.title || '').toLowerCase().trim();
