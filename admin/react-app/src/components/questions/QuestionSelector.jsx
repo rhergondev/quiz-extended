@@ -383,11 +383,15 @@ const QuestionSelector = ({
               }
             }
           }
-          // Append any lessons not found in any course's lesson list (edge case)
-          for (const l of lessons) {
-            if (!seen.has(l.id)) {
-              const name = decodeHtml(l.title || '').toLowerCase().trim();
-              if (!seenNames.has(name)) { seenNames.add(name); ordered.push(l); }
+          // Append any lessons not found in any course's lesson list (edge case).
+          // Only do this when NO category is selected — if a category is active, we must
+          // restrict to lessons that actually belong to courses in that category.
+          if (!hasCategory) {
+            for (const l of lessons) {
+              if (!seen.has(l.id)) {
+                const name = decodeHtml(l.title || '').toLowerCase().trim();
+                if (!seenNames.has(name)) { seenNames.add(name); ordered.push(l); }
+              }
             }
           }
 
