@@ -644,7 +644,7 @@ const UnifiedTestModal = ({
 
              <div className="flex-1 overflow-y-auto p-5">
                 {isLoading ? (
-                  <div className="flex justify-center p-10"><span className="animate-pulse">Cargando...</span></div>
+                  <div className="flex justify-center p-10"><span className="animate-pulse" style={{ color: colors.text }}>Cargando...</span></div>
                 ) : (
                   /* CONTENT FORM */
                   <div className="space-y-4">
