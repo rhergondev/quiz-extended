@@ -73,7 +73,7 @@ class QE_Question_Type extends QE_Post_Types_Base
             }
         }
 
-        // 1b. Handle qe_provider array/comma-separated
+        // 1b. Handle qe_provider array/comma-separated (accepts slugs or term IDs)
         if ($request->get_param('qe_provider')) {
             $providers = $request->get_param('qe_provider');
             if (is_string($providers)) {
@@ -85,10 +85,12 @@ class QE_Question_Type extends QE_Post_Types_Base
                     $args['tax_query'] = [];
                 }
 
+                // Use slug field if any value is non-numeric, term_id otherwise
+                $is_numeric = array_reduce($providers, fn($carry, $v) => $carry && is_numeric($v), true);
                 $args['tax_query'][] = [
                     'taxonomy' => 'qe_provider',
-                    'field' => 'term_id',
-                    'terms' => array_map('absint', $providers),
+                    'field' => $is_numeric ? 'term_id' : 'slug',
+                    'terms' => $is_numeric ? array_map('absint', $providers) : array_map('sanitize_title', $providers),
                     'operator' => 'IN',
                 ];
             }
