@@ -474,6 +474,7 @@ const UnifiedTestModal = ({
         difficulty: autoGenConfig.difficulty !== 'all' ? autoGenConfig.difficulty : null,
         perPage: 200,
         status: 'publish',
+        provider: 'uniforme-azul',
       });
 
       let questions = result.data || [];

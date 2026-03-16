@@ -867,7 +867,19 @@ const TestsPage = () => {
         }
       });
 
-      await fetchLessons();
+      // Update local state directly to avoid stale-cache race condition and preserve lesson order
+      setLessons(prev => prev.map(l => {
+        if (l.id !== lesson.id) return l;
+        const newQuizSteps = updatedSteps
+          .filter(s => s.type === 'quiz')
+          .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0));
+        return {
+          ...l,
+          meta: { ...l.meta, _lesson_steps: updatedSteps },
+          quizSteps: newQuizSteps
+        };
+      }));
+
       toast.success(t('tests.testSaved'));
       handleCloseTestModal();
     } catch (error) {
