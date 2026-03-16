@@ -73,24 +73,35 @@ class QE_Question_Type extends QE_Post_Types_Base
             }
         }
 
-        // 1b. Handle qe_provider array/comma-separated (accepts slugs or term IDs)
-        if ($request->get_param('qe_provider')) {
-            $providers = $request->get_param('qe_provider');
-            if (is_string($providers)) {
-                $providers = explode(',', $providers);
+        // 1b. Handle qe_provider (term IDs) or provider_slug (slugs)
+        $provider_ids   = $request->get_param('qe_provider');
+        $provider_slugs = $request->get_param('provider_slug');
+
+        if ($provider_slugs) {
+            if (is_string($provider_slugs)) {
+                $provider_slugs = explode(',', $provider_slugs);
             }
-
-            if (!empty($providers) && is_array($providers)) {
-                if (!isset($args['tax_query'])) {
-                    $args['tax_query'] = [];
-                }
-
-                // Use slug field if any value is non-numeric, term_id otherwise
-                $is_numeric = array_reduce($providers, fn($carry, $v) => $carry && is_numeric($v), true);
+            $provider_slugs = array_map('sanitize_title', $provider_slugs);
+            if (!empty($provider_slugs)) {
+                if (!isset($args['tax_query'])) $args['tax_query'] = [];
                 $args['tax_query'][] = [
                     'taxonomy' => 'qe_provider',
-                    'field' => $is_numeric ? 'term_id' : 'slug',
-                    'terms' => $is_numeric ? array_map('absint', $providers) : array_map('sanitize_title', $providers),
+                    'field'    => 'slug',
+                    'terms'    => $provider_slugs,
+                    'operator' => 'IN',
+                ];
+            }
+        } elseif ($provider_ids) {
+            if (is_string($provider_ids)) {
+                $provider_ids = explode(',', $provider_ids);
+            }
+            $provider_ids = array_map('absint', $provider_ids);
+            if (!empty($provider_ids)) {
+                if (!isset($args['tax_query'])) $args['tax_query'] = [];
+                $args['tax_query'][] = [
+                    'taxonomy' => 'qe_provider',
+                    'field'    => 'term_id',
+                    'terms'    => $provider_ids,
                     'operator' => 'IN',
                 ];
             }
