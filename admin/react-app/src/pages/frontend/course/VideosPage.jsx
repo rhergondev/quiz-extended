@@ -840,6 +840,7 @@ const VideosPage = () => {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  e.currentTarget.style.color = pageColors.accent;
                                   handleMoveLessonUp(lessonIndex);
                                 }}
                                 disabled={isFirst || isUpdatingOrder}
@@ -856,6 +857,7 @@ const VideosPage = () => {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  e.currentTarget.style.color = pageColors.accent;
                                   handleMoveLessonDown(lessonIndex);
                                 }}
                                 disabled={isLast || isUpdatingOrder}
