@@ -804,7 +804,21 @@ const TestsPage = () => {
       } else {
         await lessonsManager.updateLesson(lessonModalState.lesson.id, data);
         toast.success(t('admin.lessons.updateSuccess'));
-        await fetchLessons();
+
+        // Update local state directly to preserve lesson order and avoid stale-cache race condition
+        setLessons(prev => prev.map(l => {
+          if (l.id !== lessonModalState.lesson.id) return l;
+          const updatedSteps = data.steps ?? l.meta?._lesson_steps ?? [];
+          return {
+            ...l,
+            title: data.title ? { rendered: data.title } : l.title,
+            meta: { ...l.meta, _lesson_steps: updatedSteps },
+            quizSteps: updatedSteps
+              .filter(s => s.type === 'quiz')
+              .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0))
+          };
+        }));
+
         handleCloseLessonModal();
       }
     } catch (error) {
