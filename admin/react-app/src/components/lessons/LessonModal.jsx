@@ -107,7 +107,7 @@ const LessonModal = ({
       setFormData({
         title: lesson.title?.rendered || lesson.title || '',
         content: lesson.content?.rendered || lesson.content || '',
-        courseId: lesson.meta?._course_id?.toString() || '',
+        courseId: lesson.meta?._course_id?.toString() || preselectedCourseId?.toString() || '',
         description: lesson.meta?._lesson_description || '',
         lessonOrder: lesson.meta?._lesson_order?.toString() || '1',
         completionCriteria: lesson.meta?._completion_criteria || 'view_all',

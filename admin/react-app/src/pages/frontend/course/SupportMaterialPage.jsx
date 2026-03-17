@@ -194,8 +194,23 @@ const SupportMaterialPage = () => {
       } else {
         await lessonsManager.updateLesson(lessonModalState.lesson.id, data);
         toast.success(t('admin.lessons.updateSuccess'));
-        await fetchLessons();
-        
+
+        // Update local state directly to preserve lesson order and avoid stale-cache race condition
+        setLessons(prev => prev.map(l => {
+          if (l.id !== lessonModalState.lesson.id) return l;
+          return {
+            ...l,
+            title: data.title ? { rendered: data.title } : l.title,
+            meta: {
+              ...l.meta,
+              _lesson_steps: data.steps ?? l.meta?._lesson_steps ?? []
+            },
+            materialSteps: (data.steps ?? l.meta?._lesson_steps ?? [])
+              .filter(s => s.type === 'pdf' || s.type === 'text')
+              .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0))
+          };
+        }));
+
         if (nextAction !== 'reset') {
           setLessonModalState({ isOpen: false, mode: 'create', lesson: null });
         }
@@ -271,8 +286,16 @@ const SupportMaterialPage = () => {
         }
       });
       
+      // Update local state directly to avoid stale-cache race condition and preserve lesson order
+      setLessons(prev => prev.map(l => {
+        if (l.id !== materialModalState.lessonId) return l;
+        const materialSteps = updatedSteps
+          .filter(step => step.type === 'pdf' || step.type === 'text')
+          .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0));
+        return { ...l, meta: { ...l.meta, _lesson_steps: updatedSteps }, materialSteps };
+      }));
+
       toast.success(t('supportMaterial.materialSaved'));
-      await fetchLessons();
       handleCloseModal();
     } catch (error) {
       console.error('Error saving material:', error);
