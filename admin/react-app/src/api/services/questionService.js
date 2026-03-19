@@ -53,7 +53,7 @@ const buildQuestionQueryParams = (options = {}) => {
   }
 
   if (options.provider && options.provider !== 'all') {
-    params.append('provider_slug', options.provider);
+    params.append('qe_provider', options.provider);
   }
 
   // Añade otros filtros personalizados
@@ -298,7 +298,7 @@ export const getQuestionsForAdmin = async (options = {}) => {
 
   // Provider
   if (provider && provider !== 'all') {
-    params.append('provider_slug', provider);
+    params.append('qe_provider', provider);
   }
 
   // Topic
