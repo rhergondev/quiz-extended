@@ -56,6 +56,12 @@ const buildQuestionQueryParams = (options = {}) => {
     params.append('qe_provider', options.provider);
   }
 
+  // provider_slug: slug-based provider filter (e.g. 'uniforme-azul')
+  // Use this when you have a slug string, not a numeric term ID.
+  if (options.provider_slug && options.provider_slug !== 'all') {
+    params.append('provider_slug', options.provider_slug);
+  }
+
   // Añade otros filtros personalizados
   if (options.type && options.type !== 'all') {
     params.append('type', options.type);

@@ -18,6 +18,13 @@ import QuestionModal from '../questions/QuestionModal';
 import { getOne as getQuiz } from '../../api/services/quizService';
 import { moveQuizToLesson } from '../../api/services/lessonService';
 
+const decodeHtml = (str) => {
+  if (!str) return str;
+  const txt = document.createElement('textarea');
+  txt.innerHTML = str;
+  return txt.value;
+};
+
 // Sortable Item Component with Edit button and search match tags
 const SortableQuestionItem = ({ question, onRemove, onEdit, colors }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: question.id });
@@ -173,7 +180,7 @@ const UnifiedTestModal = ({
         if (cancelled) return;
         const list = res.data?.data || [];
         const filtered = list.filter(l => l.id !== lessonId);
-        setMoveLessons(filtered.map(l => ({ value: l.id, label: l.title?.rendered || l.title || `Lección #${l.id}` })));
+        setMoveLessons(filtered.map(l => ({ value: l.id, label: decodeHtml(l.title?.rendered || l.title) || `Lección #${l.id}` })));
       })
       .catch(() => { if (!cancelled) setMoveLessons([]); })
       .finally(() => { if (!cancelled) setLoadingMoveLessons(false); });
@@ -474,7 +481,7 @@ const UnifiedTestModal = ({
         difficulty: autoGenConfig.difficulty !== 'all' ? autoGenConfig.difficulty : null,
         perPage: 200,
         status: 'publish',
-        provider: 'uniforme-azul',
+        provider_slug: 'uniforme-azul',
       });
 
       let questions = result.data || [];
