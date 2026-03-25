@@ -793,9 +793,16 @@ const TestsPage = () => {
           courseId: courseId // Ensure it's assigned to current course
         });
         toast.success(t('admin.lessons.createSuccess'));
-        
-        await fetchLessons();
-        
+
+        // Add new lesson to local state directly to preserve lesson order
+        const newLessonWithQuizSteps = {
+          ...newLesson,
+          quizSteps: (newLesson.meta?._lesson_steps || [])
+            .filter(s => s.type === 'quiz')
+            .sort((a, b) => (parseInt(a.order) || 0) - (parseInt(b.order) || 0))
+        };
+        setLessons(prev => [...prev, newLessonWithQuizSteps]);
+
         if (nextAction === 'addTest') {
           handleAddTest(newLesson.id);
         }
@@ -861,14 +868,24 @@ const TestsPage = () => {
       let updatedSteps;
 
       if (testModalState.mode === 'create') {
-        updatedSteps = [...currentSteps, testData];
+        // Assign order matching server-side logic (index + 1), so the new step
+        // sorts to the end instead of jumping to position 0 (parseInt(undefined) = 0).
+        const nextOrder = currentSteps.length + 1;
+        updatedSteps = [...currentSteps, { ...testData, order: nextOrder }];
       } else {
-        // Find the quiz step to edit by getting the nth quiz in the array
-        const quizSteps = currentSteps.filter(s => s.type === 'quiz');
-        const targetQuiz = quizSteps[testModalState.testIndex];
-        
-        updatedSteps = currentSteps.map(step => 
-          step === targetQuiz ? testData : step
+        // Find the quiz step to edit by quiz_id (reliable) rather than array index,
+        // because _lesson_steps may be stored in a different order than the sorted UI display.
+        // Using array index against an unsorted filter caused the wrong step to be replaced
+        // (resulting in duplication of the edited quiz_id).
+        const originalQuizId = testModalState.test?.data?.quiz_id;
+        const targetQuiz = currentSteps.find(
+          s => s.type === 'quiz' && s.data?.quiz_id === originalQuizId
+        );
+
+        updatedSteps = currentSteps.map(step =>
+          step === targetQuiz
+            ? { ...testData, order: targetQuiz.order } // preserve original order to avoid sort drift
+            : step
         );
       }
 
