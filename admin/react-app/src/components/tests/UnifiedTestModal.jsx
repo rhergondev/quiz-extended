@@ -438,8 +438,7 @@ const UnifiedTestModal = ({
           quiz_id: resultQuizId,
           difficulty: difficulty,
           question_count: questionCount,
-          time_limit: timeLimit,
-          start_date: new Date().toISOString()
+          time_limit: timeLimit
         }
       });
 
