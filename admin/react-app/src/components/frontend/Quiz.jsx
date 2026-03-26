@@ -459,7 +459,10 @@ const Quiz = ({
 
           // 🔥 FIX: Load questions for the results view after successful submission
           // This is non-blocking - if it fails, we still have the result
-          let fullQuestions = quizQuestions;
+          // Pre-sort loaded questions by original order as fallback (avoids showing shuffled order)
+          const cachedMap = new Map(quizQuestions.map(q => [q.id, q]));
+          let fullQuestions = idsToSubmit.map(id => cachedMap.get(id)).filter(Boolean);
+          if (fullQuestions.length === 0) fullQuestions = quizQuestions;
           try {
             // Load all questions for the results display
             const allQuestionIds = idsToSubmit;
@@ -470,7 +473,7 @@ const Quiz = ({
             }
           } catch (refreshError) {
             console.warn('⚠️ Could not load all questions for results, using cached data:', refreshError);
-            // Use whatever questions we have loaded
+            // fullQuestions already sorted by original order above
           }
 
           setFinalQuestions(fullQuestions);

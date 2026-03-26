@@ -199,7 +199,8 @@ class QE_Quiz_Attempts_API extends QE_API_Base
         if (!is_array($all_question_ids_in_quiz))
             $all_question_ids_in_quiz = [];
 
-        $all_question_ids = array_unique(array_merge($question_ids_from_answers, $all_question_ids_in_quiz));
+        // Use quiz's original order as canonical; append any answered IDs not in meta (edge case)
+        $all_question_ids = array_unique(array_merge($all_question_ids_in_quiz, $question_ids_from_answers));
 
         // Get user favorites
         $user_id = get_current_user_id();
@@ -330,9 +331,17 @@ class QE_Quiz_Attempts_API extends QE_API_Base
         }
 
         // 5. Construir la respuesta final de la API.
+        // Build questions array explicitly in the original quiz order
+        $ordered_questions = [];
+        foreach ($all_question_ids as $qid) {
+            if (isset($questions_data[$qid])) {
+                $ordered_questions[] = $questions_data[$qid];
+            }
+        }
+
         $response_data = [
             'attempt' => $attempt,
-            'questions' => array_values($questions_data), // Devolvemos un array de preguntas
+            'questions' => $ordered_questions,
             'detailed_results' => $detailed_results
         ];
 
