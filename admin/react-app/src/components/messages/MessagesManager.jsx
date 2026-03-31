@@ -174,7 +174,6 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   const [sendingReply, setSendingReply] = useState(false);
   const [replies, setReplies] = useState([]);
   const [loadingReplies, setLoadingReplies] = useState(false);
-  const [viewportH, setViewportH] = useState(null);
   
   // Courses with messages (for course selector)
   const [coursesWithMessages, setCoursesWithMessages] = useState([]);
@@ -440,23 +439,6 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
 
   const isPanelOpen = selectedMessage !== null;
 
-  // Track the visual viewport height so the detail panel shrinks correctly when
-  // the mobile soft keyboard opens (keyboard covers the layout viewport bottom,
-  // but visualViewport.height gives us the actually-usable screen height).
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv || !isPanelOpen) {
-      setViewportH(null);
-      return;
-    }
-    const update = () => setViewportH(vv.height);
-    update();
-    vv.addEventListener('resize', update);
-    return () => {
-      vv.removeEventListener('resize', update);
-      setViewportH(null);
-    };
-  }, [isPanelOpen]);
 
   const formatTableDate = (dateString) => {
     const date = new Date(dateString);
@@ -890,10 +872,10 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
 
         {/* DETAIL VIEW - Slides in from right */}
         <div
-          className={`absolute inset-x-0 top-0 flex flex-col transition-transform duration-300 ease-in-out ${
+          className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${
             isPanelOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
-          style={{ backgroundColor: pageColors.bgPage, height: viewportH ? `${viewportH}px` : '100%' }}
+          style={{ backgroundColor: pageColors.bgPage, overflowX: 'hidden' }}
         >
           {selectedMessage && (
             <>
@@ -933,7 +915,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
               </div>
 
               {/* Chat Content */}
-              <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4 min-h-0" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+              <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-3 sm:space-y-4 min-h-0">
                 {/* Original message */}
                 <div className="flex gap-2 sm:gap-4 max-w-4xl">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${pageColors.accent}, ${pageColors.accent}dd)` }}>
