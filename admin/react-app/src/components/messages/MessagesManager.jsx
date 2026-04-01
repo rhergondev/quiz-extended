@@ -453,28 +453,44 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
     return course?.title || null;
   }, [selectedCourseFilter, coursesWithMessages]);
 
-  // On mobile, dvh may not reliably update when the virtual keyboard closes inside
-  // a WebView (e.g. WordPress embedded). We use visualViewport.resize to directly
-  // set the root element's height on every keyboard open/close so the layout always
-  // fills exactly the visible area — this covers the reply textarea, question editor,
-  // RTF editor, and any other input inside the panel.
+  // Mobile keyboard resize fix.
+  //
+  // Android: visualViewport.resize fires on both open and close — works fine.
+  // iOS Safari (WebKit bug): visualViewport.resize fires on keyboard OPEN but
+  //   NOT reliably on keyboard CLOSE, so the layout stays compacted after dismiss.
+  //
+  // Fix: also listen to document `focusout` (fires when any input/textarea/RTF
+  // editor loses focus, i.e. keyboard is about to close) and schedule an update
+  // after 350ms — enough time for the iOS keyboard slide-out animation to finish
+  // and for visualViewport.height to reflect the restored size.
+  // window.resize and visualViewport.scroll are added as extra fallbacks.
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
     const el = rootRef.current;
     if (!el) return;
-    // Capture the top offset once on mount (height of headers above this component).
+    // Capture once on mount: height of all headers above this component.
     const offsetTop = Math.round(el.getBoundingClientRect().top);
     const update = () => {
       if (!rootRef.current) return;
-      const h = Math.max(100, vv.height - offsetTop);
+      const h = Math.max(100, (window.visualViewport?.height ?? window.innerHeight) - offsetTop);
       rootRef.current.style.height = h + 'px';
       rootRef.current.style.maxHeight = h + 'px';
     };
+    let timer;
+    // iOS: schedule update after keyboard animation (~250ms) completes.
+    const onFocusOut = () => { clearTimeout(timer); timer = setTimeout(update, 350); };
     update();
     vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    document.addEventListener('focusout', onFocusOut);
     return () => {
+      clearTimeout(timer);
       vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+      document.removeEventListener('focusout', onFocusOut);
       if (rootRef.current) {
         rootRef.current.style.height = '';
         rootRef.current.style.maxHeight = '';
@@ -760,7 +776,6 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                   </div>
                 )}
                 {messages.map((message) => {
-                  const isSelected = selectedMessage?.id === message.id;
                   const isChecked = selectedIds.has(message.id);
                   const isUnread = message.status === 'unread' || message.status === 'read';
                   const typeInfo = getTypeInfo(message.type);
