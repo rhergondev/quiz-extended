@@ -168,6 +168,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [showQuestionEditor, setShowQuestionEditor] = useState(false);
   const chatScrollRef = useRef(null);
+  const rootRef = useRef(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [batchLoading, setBatchLoading] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -452,8 +453,37 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
     return course?.title || null;
   }, [selectedCourseFilter, coursesWithMessages]);
 
+  // On mobile, dvh may not reliably update when the virtual keyboard closes inside
+  // a WebView (e.g. WordPress embedded). We use visualViewport.resize to directly
+  // set the root element's height on every keyboard open/close so the layout always
+  // fills exactly the visible area — this covers the reply textarea, question editor,
+  // RTF editor, and any other input inside the panel.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const el = rootRef.current;
+    if (!el) return;
+    // Capture the top offset once on mount (height of headers above this component).
+    const offsetTop = Math.round(el.getBoundingClientRect().top);
+    const update = () => {
+      if (!rootRef.current) return;
+      const h = Math.max(100, vv.height - offsetTop);
+      rootRef.current.style.height = h + 'px';
+      rootRef.current.style.maxHeight = h + 'px';
+    };
+    update();
+    vv.addEventListener('resize', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      if (rootRef.current) {
+        rootRef.current.style.height = '';
+        rootRef.current.style.maxHeight = '';
+      }
+    };
+  }, []);
+
   return (
-    <div className="flex flex-col h-full relative overflow-hidden" style={{ backgroundColor: pageColors.bgPage, maxHeight: '100%' }}>
+    <div ref={rootRef} className="flex flex-col h-full relative overflow-hidden" style={{ backgroundColor: pageColors.bgPage, maxHeight: '100%' }}>
       <div className="flex-1 relative overflow-hidden min-h-0">
         {/* LIST VIEW - Slides out to left when detail is open */}
         <div 
