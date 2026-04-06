@@ -459,27 +459,55 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   // iOS Safari (WebKit bug): visualViewport.resize fires on keyboard OPEN but
   //   NOT reliably on keyboard CLOSE, so the layout stays compacted after dismiss.
   //
-  // Fix: also listen to document `focusout` (fires when any input/textarea/RTF
-  // editor loses focus, i.e. keyboard is about to close) and schedule an update
-  // after 350ms — enough time for the iOS keyboard slide-out animation to finish
-  // and for visualViewport.height to reflect the restored size.
-  // window.resize and visualViewport.scroll are added as extra fallbacks.
+  // Additional iOS issue: when the keyboard opens, iOS scrolls the page to reveal
+  // the focused input. This shifts the element's position in the visual viewport,
+  // making a cached offsetTop stale. We fix this by computing the element's top
+  // dynamically on every update using visualViewport.offsetTop to convert from
+  // layout-viewport coords (getBoundingClientRect) to visual-viewport coords.
+  //
+  // Collapse fix: listen to focusout and run multiple staggered updates to catch
+  // the full keyboard slide-out animation on iOS (can take 300–400 ms).
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
     const el = rootRef.current;
     if (!el) return;
-    // Capture once on mount: height of all headers above this component.
-    const offsetTop = Math.round(el.getBoundingClientRect().top);
+
+    let prevVVHeight = vv.height;
     const update = () => {
       if (!rootRef.current) return;
-      const h = Math.max(100, (window.visualViewport?.height ?? window.innerHeight) - offsetTop);
+      const vvHeight = window.visualViewport?.height ?? window.innerHeight;
+      // getBoundingClientRect().top is in layout-viewport coords.
+      // visualViewport.offsetTop is how far the visual viewport has scrolled from
+      // the top of the layout viewport (grows when iOS scrolls to reveal an input).
+      // Subtracting it gives the element's top in visual-viewport coordinates.
+      const rect = rootRef.current.getBoundingClientRect();
+      const elTopInVisualVP = rect.top - (window.visualViewport?.offsetTop ?? 0);
+      const h = Math.max(100, vvHeight - Math.max(0, elTopInVisualVP));
       rootRef.current.style.height = h + 'px';
       rootRef.current.style.maxHeight = h + 'px';
+      // When keyboard opens (viewport shrinks), scroll the focused element into
+      // view so the user can see where they are typing — handles both textarea
+      // and ReactQuill contenteditable cases.
+      if (vvHeight < prevVVHeight) {
+        setTimeout(() => {
+          const focused = document.activeElement;
+          if (focused && focused !== document.body && rootRef.current?.contains(focused)) {
+            focused.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }, 200);
+      }
+      prevVVHeight = vvHeight;
     };
+
     let timer;
-    // iOS: schedule update after keyboard animation (~250ms) completes.
-    const onFocusOut = () => { clearTimeout(timer); timer = setTimeout(update, 350); };
+    // iOS: keyboard close animation takes ~300 ms. Run two staggered updates
+    // (at 300 ms and 450 ms) so we always catch the final viewport size.
+    const onFocusOut = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { update(); setTimeout(update, 150); }, 300);
+    };
+
     update();
     vv.addEventListener('resize', update);
     vv.addEventListener('scroll', update);
@@ -1042,6 +1070,12 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                     <textarea
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
+                      onFocus={(e) => {
+                        // iOS: after keyboard slides up, scroll this element into view
+                        // so the user can see where they are typing.
+                        const el = e.currentTarget;
+                        setTimeout(() => { el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 350);
+                      }}
                       placeholder="Escribe tu respuesta..."
                       rows={3}
                       maxLength={5000}
