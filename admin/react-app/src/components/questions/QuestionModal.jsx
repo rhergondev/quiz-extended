@@ -122,6 +122,16 @@ const QuestionModal = ({
   const quillRef = useRef(null);
   const quillInitialized = useRef(false);
   const titleRef = useRef(null);
+  const optionInputRefs = useRef([]);
+
+  const handleOptionTabKey = useCallback((index) => {
+    const next = optionInputRefs.current[index + 1];
+    if (next) {
+      next.focus();
+    } else if (quillRef.current) {
+      quillRef.current.getEditor().focus();
+    }
+  }, []);
 
   const autoResizeTextarea = useCallback((el) => {
     if (!el) return;
@@ -381,7 +391,7 @@ const QuestionModal = ({
             lessonId: question.meta?._question_lesson?.toString() || '',
             courseId: question.meta?._course_id?.toString() || '',
             provider: question.qe_provider?.[0] || '', // Usar ID de taxonomía
-            options: question.meta?._question_options || [{ text: '', isCorrect: false }, { text: '', isCorrect: false }],
+            options: question.meta?._question_options || [{ text: '', isCorrect: false }, { text: '', isCorrect: false }, { text: '', isCorrect: false }],
         });
     } else {
       // Reset for create mode - incluir parentQuizId si existe
@@ -399,6 +409,7 @@ const QuestionModal = ({
         provider: '',
         options: [
           { text: '', isCorrect: false },
+          { text: '', isCorrect: false },
           { text: '', isCorrect: false }
         ],
       });
@@ -415,14 +426,19 @@ const QuestionModal = ({
   // or setting innerHTML directly bypasses that limitation.
   useEffect(() => {
     if (quillInitialized.current) return;
-    if (!quillRef.current || !formData.explanation) return;
+    if (!quillRef.current) return;
 
     const editor = quillRef.current.getEditor();
     if (!editor) return;
 
+    // Mark initialized BEFORE the explanation guard so that subsequent
+    // onChange-triggered re-runs don't paste content a second time (double-char bug).
+    quillInitialized.current = true;
+
+    if (!formData.explanation) return;
+
     const cleanHtml = formData.explanation.replace(/<\/p>\s+<p/gi, '</p><p');
     editor.clipboard.dangerouslyPasteHTML(0, cleanHtml);
-    quillInitialized.current = true;
   }, [formData.explanation]);
 
   const handleFieldChange = (field, value) => {
@@ -609,6 +625,21 @@ const QuestionModal = ({
       handlers: {
         'image': imageHandler,
       },
+    },
+    clipboard: {
+      matchVisual: false,
+      matchers: [
+        [Node.ELEMENT_NODE, (node, delta) => {
+          delta.ops = delta.ops.map(op => {
+            if (op.attributes) {
+              delete op.attributes.color;
+              delete op.attributes.background;
+            }
+            return op;
+          });
+          return delta;
+        }]
+      ]
     },
   }), [imageHandler]);
 
@@ -1280,6 +1311,8 @@ const QuestionModal = ({
                         handleOptionChange={handleOptionChange}
                         setCorrectAnswer={setCorrectAnswer}
                         removeOption={removeOption}
+                        inputRef={(el) => { optionInputRefs.current[index] = el; }}
+                        onTabKey={handleOptionTabKey}
                       />
                     ))}
                   </div>
@@ -1341,7 +1374,7 @@ const QuestionModal = ({
               modules={quillModules}
             />
           </div>
-            
+
         </form>
 
         {/* Footer */}

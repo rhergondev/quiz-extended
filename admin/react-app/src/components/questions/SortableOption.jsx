@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Trash2 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
-export const SortableOption = ({ id, option, index, isReadOnly, isMultipleChoice, handleOptionChange, setCorrectAnswer, removeOption }) => {
+export const SortableOption = ({ id, option, index, isReadOnly, isMultipleChoice, handleOptionChange, setCorrectAnswer, removeOption, inputRef, onTabKey }) => {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
     const { getColor, isDarkMode } = useTheme();
     const textareaRef = useRef(null);
@@ -66,9 +66,15 @@ export const SortableOption = ({ id, option, index, isReadOnly, isMultipleChoice
                 }}
             />
             <textarea
-                ref={textareaRef}
+                ref={(el) => { textareaRef.current = el; if (inputRef) inputRef(el); }}
                 value={option.text || ''}
                 onChange={(e) => { handleOptionChange(index, 'text', e.target.value); autoResize(e.target); }}
+                onKeyDown={(e) => {
+                    if (e.key === 'Tab' && !e.shiftKey && onTabKey) {
+                        e.preventDefault();
+                        onTabKey(index);
+                    }
+                }}
                 placeholder={`Opción ${index + 1}`}
                 disabled={isReadOnly}
                 rows={1}
