@@ -121,6 +121,7 @@ const QuestionModal = ({
 
   const quillRef = useRef(null);
   const quillInitialized = useRef(false);
+  const quillPendingContent = useRef('');
   const titleRef = useRef(null);
   const optionInputRefs = useRef([]);
 
@@ -415,7 +416,14 @@ const QuestionModal = ({
       });
     }
     setErrors({});
-    quillInitialized.current = false; // Reset so Quill gets re-initialized
+    // Store content synchronously so the init effect reads the final value
+    // rather than the stale formData.explanation from the previous render.
+    quillPendingContent.current = question && mode !== 'create'
+      ? normalizeHtmlForQuill(
+          (typeof question.content === 'object' ? question.content?.rendered || question.content?.raw : question.content) || question.meta?._explanation || ''
+        )
+      : '';
+    quillInitialized.current = false;
     // Auto-resize title after data loads
     setTimeout(() => autoResizeTextarea(titleRef.current), 0);
   }, [question, mode, isOpen, parentQuizId, autoResizeTextarea]);
@@ -431,13 +439,15 @@ const QuestionModal = ({
     const editor = quillRef.current.getEditor();
     if (!editor) return;
 
-    // Mark initialized BEFORE the explanation guard so that subsequent
-    // onChange-triggered re-runs don't paste content a second time (double-char bug).
+    // Use the ref value (set synchronously in the reset effect) rather than
+    // formData.explanation, which is still stale in the first render cycle
+    // after setFormData is called.
     quillInitialized.current = true;
 
-    if (!formData.explanation) return;
+    const content = quillPendingContent.current;
+    if (!content) return;
 
-    const cleanHtml = formData.explanation.replace(/<\/p>\s+<p/gi, '</p><p');
+    const cleanHtml = content.replace(/<\/p>\s+<p/gi, '</p><p');
     editor.clipboard.dangerouslyPasteHTML(0, cleanHtml);
   }, [formData.explanation]);
 
