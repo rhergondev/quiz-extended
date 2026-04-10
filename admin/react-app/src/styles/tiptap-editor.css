@@ -135,8 +135,31 @@
 }
 
 /* ── Dark mode overrides ── */
+
+/* Force light text colour on every element — WordPress admin overrides
+   color with !important on strong, u, headings, etc. */
+.tiptap-editor-wrap.dark .ProseMirror,
+.tiptap-editor-wrap.dark .ProseMirror p,
+.tiptap-editor-wrap.dark .ProseMirror h1,
+.tiptap-editor-wrap.dark .ProseMirror h2,
+.tiptap-editor-wrap.dark .ProseMirror h3,
+.tiptap-editor-wrap.dark .ProseMirror li,
+.tiptap-editor-wrap.dark .ProseMirror strong,
+.tiptap-editor-wrap.dark .ProseMirror b,
+.tiptap-editor-wrap.dark .ProseMirror em,
+.tiptap-editor-wrap.dark .ProseMirror i,
+.tiptap-editor-wrap.dark .ProseMirror u,
+.tiptap-editor-wrap.dark .ProseMirror span {
+  color: #f9fafb !important;
+}
+
+.tiptap-editor-wrap.dark .ProseMirror a {
+  color: #93c5fd !important; /* blue-300 — readable on dark */
+}
+
 .tiptap-editor-wrap.dark .ProseMirror th {
   background-color: rgba(255, 255, 255, 0.06);
+  color: #f9fafb !important;
 }
 
 .tiptap-editor-wrap.dark .ProseMirror th,
@@ -164,6 +187,20 @@
 .tiptap-toolbar.tiptap-toolbar-table {
   background: rgba(128, 128, 128, 0.04);
   gap: 4px;
+}
+
+/* Dark mode toolbar button text visibility */
+.tiptap-editor-wrap.dark .tiptap-toolbar button,
+.tiptap-editor-wrap.dark .tiptap-toolbar button span {
+  color: #f9fafb !important;
+}
+
+.tiptap-editor-wrap.dark .tiptap-toolbar button:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.tiptap-editor-wrap.dark .tiptap-toolbar .tiptap-divider {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .tiptap-editor-wrap .tiptap-toolbar button {
