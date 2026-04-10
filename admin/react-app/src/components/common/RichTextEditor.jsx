@@ -249,7 +249,8 @@ const RichTextEditor = ({
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      // Disable extensions that StarterKit 3.x includes but we configure separately
+      StarterKit.configure({ underline: false, link: false }),
       Underline,
       Image.configure({ inline: false, allowBase64: true }),
       Link.configure({ openOnClick: false, autolink: true }),

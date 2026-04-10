@@ -92,7 +92,6 @@ const QuestionEditorPanel = ({
   }, []);
 
   useEffect(() => {
-    quillInitialized.current = false; // Reset so Quill gets re-initialized
     const fetchQuestionData = async () => {
       if (questionId && mode === 'edit') {
         setIsLoading(true);
