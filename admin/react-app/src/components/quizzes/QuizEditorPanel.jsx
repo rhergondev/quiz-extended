@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Save, AlertCircle, Trash2, GripVertical, Search, Plus, ArrowLeft, X } from 'lucide-react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import RichTextEditor from '../common/RichTextEditor';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -324,7 +323,7 @@ const QuizEditorPanel = ({ quizId, mode, onSave, onCancel, availableCourses, ava
       </div>
        <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">{t('quizzes.form.instructions')}</label>
-        <ReactQuill theme="snow" value={formData.content || ''} onChange={(val) => handleFieldChange('content', val)} />
+        <RichTextEditor value={formData.content || ''} onChange={(val) => handleFieldChange('content', val)} />
       </div>
 
       <div className="border-t pt-6">

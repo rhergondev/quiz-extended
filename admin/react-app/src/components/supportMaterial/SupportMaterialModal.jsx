@@ -9,7 +9,7 @@
  * @version 1.0.0
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { X, FileText, File, Save, AlertCircle, UploadCloud, CheckCircle, Trash2, Eye, EyeOff, Calendar, Lock } from 'lucide-react';
@@ -17,8 +17,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
 import { uploadMedia, validateFile } from '../../api/services/mediaService';
 import { toast } from 'react-toastify';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import RichTextEditor from '../common/RichTextEditor';
 
 const SupportMaterialModal = ({
   isOpen,
@@ -236,110 +235,23 @@ const SupportMaterialModal = ({
     }
   };
 
-  // Quill editor reference
-  const quillRef = useRef(null);
-
   // Handle image insertion from WordPress Media Library
-  const handleImageInsert = async () => {
-    try {
-      const media = await openMediaSelector({
-        title: t('supportMaterial.selectImage'),
-        buttonText: t('common.select'),
-        type: 'image'
-      });
-
-      if (media && media.url && quillRef.current) {
-        const quill = quillRef.current.getEditor();
-        const range = quill.getSelection(true);
-        quill.insertEmbed(range.index, 'image', media.url);
-        quill.setSelection(range.index + 1);
-      }
-    } catch (error) {
+  const handleImageInsert = useCallback((insertImage) => {
+    openMediaSelector({
+      title: t('supportMaterial.selectImage'),
+      buttonText: t('common.select'),
+      type: 'image'
+    }).then(media => {
+      if (media?.url) insertImage(media.url);
+    }).catch(error => {
       console.error('Error selecting image:', error);
-    }
-  };
-
-  // Quill modules for text editor
-  const quillModules = useMemo(() => ({
-    toolbar: {
-      container: [
-        [{ 'header': [1, 2, 3, false] }],
-        ['bold', 'italic', 'underline', 'strike'],
-        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-        [{ 'align': [] }],
-        [{ 'color': [] }, { 'background': [] }],
-        ['link', 'image'],
-        ['clean']
-      ],
-      handlers: {
-        image: handleImageInsert
-      }
-    }
-  }), [t]);
+    });
+  }, [t]);
 
   if (!isOpen) return null;
 
   const modalContent = (
     <>
-      <style>
-        {`
-          .quill-editor-wrapper .ql-container {
-            border: none !important;
-            font-family: inherit;
-          }
-          
-          .quill-editor-wrapper .ql-editor {
-            min-height: 150px;
-            max-height: 250px;
-            overflow-y: auto;
-          }
-          
-          .quill-editor-wrapper .ql-toolbar {
-            border: none !important;
-            border-bottom: 1px solid ${pageColors.inputBorder} !important;
-          }
-
-          .quill-editor-wrapper .ql-snow .ql-stroke {
-            stroke: ${pageColors.text};
-          }
-
-          .quill-editor-wrapper .ql-snow .ql-fill {
-            fill: ${pageColors.text};
-          }
-
-          .quill-editor-wrapper .ql-snow .ql-picker-label {
-            color: ${pageColors.text};
-          }
-
-          .quill-editor-wrapper .ql-snow.ql-toolbar button:hover,
-          .quill-editor-wrapper .ql-snow .ql-toolbar button:hover,
-          .quill-editor-wrapper .ql-snow.ql-toolbar button:focus,
-          .quill-editor-wrapper .ql-snow .ql-toolbar button:focus,
-          .quill-editor-wrapper .ql-snow.ql-toolbar button.ql-active,
-          .quill-editor-wrapper .ql-snow .ql-toolbar button.ql-active {
-            background-color: ${pageColors.accent}22;
-          }
-
-          .quill-editor-wrapper .ql-snow.ql-toolbar button:hover .ql-stroke,
-          .quill-editor-wrapper .ql-snow .ql-toolbar button:hover .ql-stroke,
-          .quill-editor-wrapper .ql-snow.ql-toolbar button.ql-active .ql-stroke,
-          .quill-editor-wrapper .ql-snow .ql-toolbar button.ql-active .ql-stroke {
-            stroke: ${pageColors.accent};
-          }
-
-          .quill-editor-wrapper .ql-snow.ql-toolbar button:hover .ql-fill,
-          .quill-editor-wrapper .ql-snow .ql-toolbar button:hover .ql-fill,
-          .quill-editor-wrapper .ql-snow.ql-toolbar button.ql-active .ql-fill,
-          .quill-editor-wrapper .ql-snow .ql-toolbar button.ql-active .ql-fill {
-            fill: ${pageColors.accent};
-          }
-
-          .quill-editor-wrapper .ql-editor.ql-blank::before {
-            color: ${pageColors.textSecondary};
-            opacity: 0.5;
-          }
-        `}
-      </style>
       <div 
         style={{ 
           position: 'fixed',
@@ -850,15 +762,10 @@ const SupportMaterialModal = ({
                   }}
                   className="quill-editor-wrapper"
                 >
-                  <ReactQuill
-                    ref={quillRef}
-                    theme="snow"
+                  <RichTextEditor
                     value={formData.data?.content || ''}
                     onChange={(content) => handleDataChange('content', content)}
-                    modules={quillModules}
-                    style={{ 
-                      backgroundColor: pageColors.inputBg
-                    }}
+                    onImageInsert={handleImageInsert}
                   />
                 </div>
                 {errors.content && (

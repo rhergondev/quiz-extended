@@ -1,11 +1,8 @@
 // admin/react-app/src/components/modals/QuestionModal.jsx
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X, Plus, Trash2, Save, Eye, AlertCircle, ChevronDown, Database, Edit2, KeyRound } from 'lucide-react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
-import '../../styles/quill-explanation.css';
+import RichTextEditor from '../common/RichTextEditor';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { uploadMedia } from '../../api/services/mediaService';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
 import {
   arrayMove,
@@ -17,28 +14,13 @@ import QuizSelector from '../questions/QuizSelector';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getTaxonomyTerms, createTaxonomyTerm, deleteTaxonomyTerm, updateTaxonomyTerm } from '../../api/services/taxonomyService';
 
-/**
- * Normalize HTML so Quill can render line breaks properly.
- * Quill expects <p> blocks — standalone <br> or plain \n get collapsed.
- */
-const normalizeHtmlForQuill = (html) => {
-  if (!html || typeof html !== 'string') return '';
-  let result = html.trim();
-
-  // If content has no <p> tags at all, wrap lines in <p> blocks
-  if (!/<p[\s>]/i.test(result)) {
-    // Split on <br> variants and \n, wrap each in <p>
-    result = result
-      .split(/<br\s*\/?>\s*|\n/)
-      .map(line => `<p>${line || '<br>'}</p>`)
-      .join('');
-    return result;
-  }
-
-  // Replace <br> tags that sit between </p> and <p> (stray breaks between paragraphs)
-  result = result.replace(/<\/p>\s*(<br\s*\/?>)+\s*<p/gi, '</p><p><br></p><p');
-
-  return result;
+/** Extract the explanation HTML from a question object (same logic as before). */
+const getExplanationHtml = (question) => {
+  if (!question) return '';
+  const content = typeof question.content === 'object'
+    ? question.content?.rendered || question.content?.raw || ''
+    : question.content || '';
+  return content || question.meta?._explanation || '';
 };
 
 const QuestionModal = ({
@@ -119,19 +101,12 @@ const QuestionModal = ({
   const [renamingCategory, setRenamingCategory] = useState(false);
   const [deletingProvider, setDeletingProvider] = useState(false);
 
-  const quillRef = useRef(null);
-  const quillInitialized = useRef(false);
-  const quillPendingContent = useRef('');
   const titleRef = useRef(null);
   const optionInputRefs = useRef([]);
 
   const handleOptionTabKey = useCallback((index) => {
     const next = optionInputRefs.current[index + 1];
-    if (next) {
-      next.focus();
-    } else if (quillRef.current) {
-      quillRef.current.getEditor().focus();
-    }
+    if (next) next.focus();
   }, []);
 
   const autoResizeTextarea = useCallback((el) => {
@@ -385,9 +360,7 @@ const QuestionModal = ({
             category: question.qe_category?.[0] || '', // Usar ID de taxonomía
             points: question.meta?._points?.toString() || '1',
             pointsIncorrect: question.meta?._points_incorrect?.toString() || '0',
-            explanation: normalizeHtmlForQuill(
-              (typeof question.content === 'object' ? question.content?.rendered || question.content?.raw : question.content) || question.meta?._explanation || ''
-            ),
+            explanation: getExplanationHtml(question),
             quizIds: quizIds,
             lessonId: question.meta?._question_lesson?.toString() || '',
             courseId: question.meta?._course_id?.toString() || '',
@@ -416,40 +389,9 @@ const QuestionModal = ({
       });
     }
     setErrors({});
-    // Store content synchronously so the init effect reads the final value
-    // rather than the stale formData.explanation from the previous render.
-    quillPendingContent.current = question && mode !== 'create'
-      ? normalizeHtmlForQuill(
-          (typeof question.content === 'object' ? question.content?.rendered || question.content?.raw : question.content) || question.meta?._explanation || ''
-        )
-      : '';
-    quillInitialized.current = false;
     // Auto-resize title after data loads
     setTimeout(() => autoResizeTextarea(titleRef.current), 0);
   }, [question, mode, isOpen, parentQuizId, autoResizeTextarea]);
-
-  // Set Quill content directly via its API to preserve blank lines.
-  // ReactQuill's value prop parses HTML through Quill's clipboard module
-  // which strips empty <p> tags. Using the editor's clipboard.dangerouslyPasteHTML
-  // or setting innerHTML directly bypasses that limitation.
-  useEffect(() => {
-    if (quillInitialized.current) return;
-    if (!quillRef.current) return;
-
-    const editor = quillRef.current.getEditor();
-    if (!editor) return;
-
-    // Use the ref value (set synchronously in the reset effect) rather than
-    // formData.explanation, which is still stale in the first render cycle
-    // after setFormData is called.
-    quillInitialized.current = true;
-
-    const content = quillPendingContent.current;
-    if (!content) return;
-
-    const cleanHtml = content.replace(/<\/p>\s+<p/gi, '</p><p');
-    editor.clipboard.dangerouslyPasteHTML(0, cleanHtml);
-  }, [formData.explanation]);
 
   const handleFieldChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -604,54 +546,18 @@ const QuestionModal = ({
     }));
   };
 
-  const imageHandler = useCallback(async () => {
-    try {
-      const media = await openMediaSelector({
-        title: 'Seleccionar imagen',
-        buttonText: 'Insertar imagen',
-        type: 'image'
-      });
-      if (media && media.url && quillRef.current) {
-        const quillEditor = quillRef.current.getEditor();
-        const range = quillEditor.getSelection(true);
-        quillEditor.insertEmbed(range.index, 'image', media.url);
-        quillEditor.setSelection(range.index + 1);
-      }
-    } catch (error) {
+  const handleImageInsert = useCallback((insertImage) => {
+    openMediaSelector({
+      title: 'Seleccionar imagen',
+      buttonText: 'Insertar imagen',
+      type: 'image'
+    }).then(media => {
+      if (media?.url) insertImage(media.url);
+    }).catch(error => {
       console.error("Error al abrir el selector de medios:", error);
       alert("No se pudo abrir la librería de medios de WordPress.");
-    }
+    });
   }, []);
-
-  const quillModules = useMemo(() => ({
-    toolbar: {
-      container: [
-        [{ 'header': [1, 2, 3, false] }],
-        ['bold', 'italic', 'underline'],
-        [{'list': 'ordered'}, {'list': 'bullet'}],
-        ['link', 'image'],
-        ['clean']
-      ],
-      handlers: {
-        'image': imageHandler,
-      },
-    },
-    clipboard: {
-      matchVisual: false,
-      matchers: [
-        [Node.ELEMENT_NODE, (node, delta) => {
-          delta.ops = delta.ops.map(op => {
-            if (op.attributes) {
-              delete op.attributes.color;
-              delete op.attributes.background;
-            }
-            return op;
-          });
-          return delta;
-        }]
-      ]
-    },
-  }), [imageHandler]);
 
 
   if (!isOpen) return null;
@@ -1374,14 +1280,14 @@ const QuestionModal = ({
           )}
             
           {/* Explicación */}
-          <div className="explanation-editor">
+          <div>
             <label className="block text-xs font-bold uppercase mb-1" style={{ color: pageColors.text }}>Explicación (Opcional)</label>
-            <ReactQuill
-              ref={quillRef}
-              theme="snow"
-              defaultValue=""
+            <RichTextEditor
+              value={getExplanationHtml(question)}
+              resetKey={`${question?.id || 'new'}-${mode}-${isOpen}`}
               onChange={(value) => handleFieldChange('explanation', value)}
-              modules={quillModules}
+              onImageInsert={handleImageInsert}
+              minHeight={200}
             />
           </div>
 

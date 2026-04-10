@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Save, X, Plus, Trash2 } from 'lucide-react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
-import '../../styles/quill-explanation.css';
+import RichTextEditor from '../common/RichTextEditor';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
@@ -55,8 +53,7 @@ const QuestionEditorPanel = ({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({});
-  const quillRef = useRef(null);
-  const quillInitialized = useRef(false);
+  const [editorKey, setEditorKey] = useState(0);
 
   const titleRef = useRef(null);
 
@@ -141,7 +138,8 @@ const QuestionEditorPanel = ({
           });
           
           setFormData(newFormData);
-        } catch (err) { 
+          setEditorKey(k => k + 1); // tell RichTextEditor to re-init with new content
+        } catch (err) {
           console.error('Error loading question:', err);
           setError('Failed to load question data.'); 
         }
@@ -158,18 +156,6 @@ const QuestionEditorPanel = ({
     autoResizeTextarea(titleRef.current);
   }, [formData.title, autoResizeTextarea]);
 
-  useEffect(() => {
-    if (quillInitialized.current) return;
-    if (!quillRef.current || !formData.explanation) return;
-
-    const editor = quillRef.current.getEditor();
-    if (!editor) return;
-
-    const cleanHtml = formData.explanation.replace(/<\/p>\s+<p/gi, '</p><p');
-    editor.clipboard.dangerouslyPasteHTML(0, cleanHtml);
-    quillInitialized.current = true;
-  }, [formData.explanation]);
-  
   const handleFieldChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -315,31 +301,17 @@ const QuestionEditorPanel = ({
     finally { setIsSaving(false); }
   };
   
-  const imageHandler = useCallback(async () => {
-    try {
-      const media = await openMediaSelector({
-        title: 'Seleccionar imagen',
-        buttonText: 'Insertar imagen',
-        type: 'image'
-      });
-      if (media && media.url && quillRef.current) {
-        const quillEditor = quillRef.current.getEditor();
-        const range = quillEditor.getSelection(true);
-        quillEditor.insertEmbed(range.index, 'image', media.url);
-        quillEditor.setSelection(range.index + 1);
-      }
-    } catch (error) { console.error("Error al abrir selector de medios:", error); }
+  const handleImageInsert = useCallback((insertImage) => {
+    openMediaSelector({
+      title: 'Seleccionar imagen',
+      buttonText: 'Insertar imagen',
+      type: 'image'
+    }).then(media => {
+      if (media?.url) insertImage(media.url);
+    }).catch(error => {
+      console.error("Error al abrir selector de medios:", error);
+    });
   }, []);
-
-  const quillModules = useMemo(() => ({
-    toolbar: {
-      container: [
-        [{ 'header': [1, 2, false] }], ['bold', 'italic', 'underline'],
-        [{'list': 'ordered'}, {'list': 'bullet'}], ['link', 'image'], ['clean']
-      ],
-      handlers: { 'image': imageHandler },
-    },
-  }), [imageHandler]);
 
   const questionTypes = [
     { value: 'multiple_choice', label: 'Opción Múltiple' },
@@ -521,16 +493,14 @@ const QuestionEditorPanel = ({
           />
         )}
        
-        <div className="explanation-editor">
+        <div>
             <label className="block text-sm font-medium mb-1" style={{ color: pageColors.text }}>{t('questions.fields.explanation')}</label>
-            <ReactQuill
-              key={`quill-${questionId || 'new'}-${mode}`}
-              ref={quillRef}
-              theme="snow"
-              defaultValue=""
+            <RichTextEditor
+              value={formData.explanation || ''}
+              resetKey={editorKey}
               onChange={(val) => handleFieldChange('explanation', val)}
-              modules={quillModules}
-              style={{ minHeight: '200px' }}
+              onImageInsert={handleImageInsert}
+              minHeight={200}
             />
         </div>
       </main>

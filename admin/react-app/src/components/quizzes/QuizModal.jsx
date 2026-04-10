@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Save, GripVertical, Search, Plus, Trash2, ChevronDown, Edit2 } from 'lucide-react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import RichTextEditor from '../common/RichTextEditor';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -698,11 +697,7 @@ const QuizModal = ({
                   {/* Instrucciones */}
                   <div>
                     <label style={labelStyle}>Instrucciones</label>
-                    <ReactQuill 
-                      theme="snow" 
-                      value={formData.content || ''} 
-                      onChange={(val) => handleFieldChange('content', val)} 
-                    />
+                    <RichTextEditor value={formData.content || ''} onChange={(val) => handleFieldChange('content', val)} />
                   </div>
 
                   {/* Opciones */}

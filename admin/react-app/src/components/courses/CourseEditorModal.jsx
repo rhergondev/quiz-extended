@@ -25,8 +25,7 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { openMediaSelector } from '../../api/utils/mediaUtils';
 import { getTaxonomyTerms, createCategory, updateTaxonomyTerm } from '../../api/services/taxonomyService';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import RichTextEditor from '../common/RichTextEditor';
 
 
 
@@ -505,19 +504,7 @@ const CourseEditorModal = ({
                       Descripción
                     </label>
                     <div className="flex-1">
-                      <ReactQuill
-                        theme="snow"
-                        value={formData.content}
-                        onChange={(value) => handleFieldChange('content', value)}
-                        style={{ height: '100px', fontSize: '13px' }}
-                        modules={{
-                          toolbar: [
-                            ['bold', 'italic', 'underline'],
-                            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                            ['link']
-                          ]
-                        }}
-                      />
+                      <RichTextEditor value={formData.content || ''} onChange={(value) => handleFieldChange('content', value)} minHeight={100} />
                     </div>
                   </div>
                 </div>

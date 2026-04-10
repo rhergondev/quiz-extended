@@ -1,0 +1,191 @@
+/* ===================================
+   TIPTAP EDITOR — replaces quill-explanation.css
+   Scoped to .tiptap-editor-wrap so it never
+   leaks into the rest of the WordPress admin.
+   =================================== */
+
+/* ── Editor content area ── */
+.tiptap-editor-wrap .ProseMirror {
+  font-size: 0.75rem;
+  line-height: 1.625;
+  outline: none;
+  min-height: inherit;
+  padding: 0.625rem 0.75rem;
+}
+
+.tiptap-editor-wrap .ProseMirror p {
+  margin-bottom: 0.5rem;
+  min-height: 1.2em;
+}
+
+.tiptap-editor-wrap .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+/* Empty paragraph placeholder line */
+.tiptap-editor-wrap .ProseMirror p.is-empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* ── Headings ── */
+.tiptap-editor-wrap .ProseMirror h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.tiptap-editor-wrap .ProseMirror h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+/* ── Inline ── */
+.tiptap-editor-wrap .ProseMirror strong,
+.tiptap-editor-wrap .ProseMirror b {
+  font-weight: 600;
+}
+
+.tiptap-editor-wrap .ProseMirror em,
+.tiptap-editor-wrap .ProseMirror i {
+  font-style: italic;
+}
+
+.tiptap-editor-wrap .ProseMirror u {
+  text-decoration: underline;
+}
+
+.tiptap-editor-wrap .ProseMirror a {
+  color: #3b82f6;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ── Lists ── */
+.tiptap-editor-wrap .ProseMirror ul {
+  list-style-type: disc;
+  margin-left: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.tiptap-editor-wrap .ProseMirror ol {
+  list-style-type: decimal;
+  margin-left: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.tiptap-editor-wrap .ProseMirror li {
+  margin-bottom: 0.25rem;
+}
+
+/* ── Images ── */
+.tiptap-editor-wrap .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.25rem;
+}
+
+.tiptap-editor-wrap .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid #3b82f6;
+}
+
+/* ── Tables ── */
+.tiptap-editor-wrap .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 0.75rem;
+  font-size: inherit;
+}
+
+.tiptap-editor-wrap .ProseMirror th,
+.tiptap-editor-wrap .ProseMirror td {
+  border: 1px solid #d1d5db;
+  padding: 0.375rem 0.5rem;
+  vertical-align: top;
+  position: relative;
+}
+
+.tiptap-editor-wrap .ProseMirror th {
+  background-color: rgba(0, 0, 0, 0.04);
+  font-weight: 600;
+}
+
+/* Selected cell highlight */
+.tiptap-editor-wrap .ProseMirror .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(59, 130, 246, 0.12);
+  pointer-events: none;
+}
+
+/* Column resize handle */
+.tiptap-editor-wrap .ProseMirror .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: #3b82f6;
+  pointer-events: none;
+}
+
+/* ── Dark mode overrides ── */
+.tiptap-editor-wrap.dark .ProseMirror th {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.tiptap-editor-wrap.dark .ProseMirror th,
+.tiptap-editor-wrap.dark .ProseMirror td {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ── Toolbar ── */
+.tiptap-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 0.375rem 0.5rem;
+  border-bottom: 1px solid;
+}
+
+.tiptap-editor-wrap .tiptap-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  border-radius: 4px;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.tiptap-editor-wrap .tiptap-toolbar button:hover {
+  background: rgba(0, 0, 0, 0.07) !important;
+}
+
+.tiptap-editor-wrap .tiptap-toolbar button.is-active {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #3b82f6 !important;
+}
+
+.tiptap-toolbar .tiptap-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.12);
+  margin: 0 4px;
+  flex-shrink: 0;
+}

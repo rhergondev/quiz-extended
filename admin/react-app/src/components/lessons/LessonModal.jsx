@@ -27,8 +27,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useTheme } from '../../contexts/ThemeContext';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import RichTextEditor from '../common/RichTextEditor';
 
 // Importar hooks para búsqueda de quizzes en steps
 import useQuizzes from '../../hooks/useQuizzes';
@@ -1254,7 +1253,6 @@ const StepModal = ({ isOpen, onClose, onSave, step, mode, stepTypes, pageColors,
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
-  const quillRef = useRef(null);
 
   // Track mousedown to prevent closing on text selection drag
   const stepOverlayMouseDownRef = useRef(null);
@@ -1315,38 +1313,17 @@ const StepModal = ({ isOpen, onClose, onSave, step, mode, stepTypes, pageColors,
     }
   }, [quizSearchHook.quizzes, mode, step, selectedQuiz]);
 
-  const imageHandler = useCallback(async () => {
-    try {
-      const media = await openMediaSelector({
-        title: 'Seleccionar imagen',
-        buttonText: 'Insertar imagen',
-        type: 'image'
-      });
-      if (media && media.url && quillRef.current) {
-        const quillEditor = quillRef.current.getEditor();
-        const range = quillEditor.getSelection(true);
-        quillEditor.insertEmbed(range.index, 'image', media.url);
-        quillEditor.setSelection(range.index + 1);
-      }
-    } catch (error) {
+  const handleImageInsert = useCallback((insertImage) => {
+    openMediaSelector({
+      title: 'Seleccionar imagen',
+      buttonText: 'Insertar imagen',
+      type: 'image'
+    }).then(media => {
+      if (media?.url) insertImage(media.url);
+    }).catch(error => {
       console.error("Error al abrir el selector de medios:", error);
-    }
+    });
   }, []);
-
-  const quillModules = useMemo(() => ({
-    toolbar: {
-      container: [
-        [{ 'header': [1, 2, 3, false] }],
-        ['bold', 'italic', 'underline', 'strike'],
-        [{'list': 'ordered'}, {'list': 'bullet'}],
-        ['link', 'image'],
-        ['clean']
-      ],
-      handlers: {
-        'image': imageHandler,
-      },
-    },
-  }), [imageHandler]);
 
   const handleTypeChange = (type) => {
     setFormData(prev => ({ ...prev, type, data: {} }));
@@ -1610,19 +1587,11 @@ const StepModal = ({ isOpen, onClose, onSave, step, mode, stepTypes, pageColors,
                   overflow: 'hidden',
                   border: `2px solid ${pageColors.inputBorder}`,
                 }}>
-                  <ReactQuill
-                    ref={quillRef}
-                    theme="snow"
+                  <RichTextEditor
                     value={formData.data?.content || ''}
-                    onChange={(content) => setFormData(prev => ({ 
-                      ...prev, 
-                      data: { ...prev.data, content } 
-                    }))}
-                    modules={quillModules}
-                    style={{ 
-                      backgroundColor: pageColors.inputBg,
-                      minHeight: '200px',
-                    }}
+                    onChange={(content) => setFormData(prev => ({ ...prev, data: { ...prev.data, content } }))}
+                    onImageInsert={handleImageInsert}
+                    minHeight={200}
                   />
                 </div>
               </div>

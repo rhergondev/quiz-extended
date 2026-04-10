@@ -194,6 +194,31 @@ body.qe-quiz-focus-mode #qe-topbar {
   text-decoration: underline;
 }
 
+/* Tables — output by TipTap editor.
+   Uses currentColor-relative alpha so borders and header tint work
+   in both light and dark modes without needing a .dark class selector
+   (dark mode is JS-driven via inline styles in this app). */
+.explanation-content table {
+  border-collapse: collapse !important;
+  width: 100% !important;
+  margin-bottom: 0.75rem !important;
+  font-size: inherit !important;
+}
+
+.explanation-content th,
+.explanation-content td {
+  border: 1px solid rgba(128, 128, 128, 0.35) !important;
+  padding: 0.3rem 0.5rem !important;
+  text-align: left !important;
+  vertical-align: top !important;
+  font-size: inherit !important;
+}
+
+.explanation-content th {
+  font-weight: 600 !important;
+  background-color: rgba(128, 128, 128, 0.1) !important;
+}
+
 /* ===================================
    QUILL EDITOR — Match explanation-content
    Placed here; overrides are also repeated

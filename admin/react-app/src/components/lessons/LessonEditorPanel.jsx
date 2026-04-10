@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Save, AlertCircle, Plus, Trash2, GripVertical, Video, FileText, HelpCircle, ChevronDown, ChevronUp, Download, X, Calendar } from 'lucide-react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import RichTextEditor from '../common/RichTextEditor';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -18,32 +17,16 @@ import PdfStepEditor from './PdfStepEditor';
 
 const getLessonTitle = (lesson) => lesson?.title?.rendered || lesson?.title || 'Lección sin título';
 
-const StepRenderer = ({ step, index, onUpdate, quillRef, onTriggerCreation }) => {
-  const imageHandler = useCallback(async () => {
-    try {
-      const media = await openMediaSelector({
-        title: 'Seleccionar imagen',
-        buttonText: 'Insertar imagen',
-        type: 'image'
-      });
-      if (media && media.url && quillRef.current) {
-        const quillEditor = quillRef.current.getEditor();
-        const range = quillEditor.getSelection(true);
-        quillEditor.insertEmbed(range.index, 'image', media.url);
-        quillEditor.setSelection(range.index + 1);
-      }
-    } catch (error) { console.error("Error al abrir el selector de medios:", error); }
-  }, [quillRef]);
-
-  const quillModules = useMemo(() => ({
-    toolbar: {
-      container: [
-        [{ 'header': [1, 2, false] }], ['bold', 'italic', 'underline'],
-        [{'list': 'ordered'}, {'list': 'bullet'}], ['link', 'image'], ['clean']
-      ],
-      handlers: { 'image': imageHandler },
-    },
-  }), [imageHandler]);
+const StepRenderer = ({ step, index, onUpdate, onTriggerCreation }) => {
+  const handleImageInsert = useCallback((insertImage) => {
+    openMediaSelector({
+      title: 'Seleccionar imagen',
+      buttonText: 'Insertar imagen',
+      type: 'image'
+    }).then(media => {
+      if (media?.url) insertImage(media.url);
+    }).catch(error => { console.error("Error al abrir el selector de medios:", error); });
+  }, []);
 
   switch (step.type) {
     case 'video':
@@ -70,7 +53,7 @@ const StepRenderer = ({ step, index, onUpdate, quillRef, onTriggerCreation }) =>
        return <PdfStepEditor step={step} onUpdate={(field, value) => onUpdate(index, field, value)} />;
     case 'text':
     default:
-      return <ReactQuill ref={quillRef} theme="snow" value={step.data?.content || ''} onChange={(content) => onUpdate(index, 'data', { ...step.data, content })} className="bg-white" modules={quillModules} />;
+      return <RichTextEditor value={step.data?.content || ''} onChange={(content) => onUpdate(index, 'data', { ...step.data, content })} onImageInsert={handleImageInsert} />;
   }
 };
 
@@ -78,7 +61,6 @@ const SortableStepItem = ({ step, index, onUpdate, onRemove, onTriggerCreation }
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: step.id });
   const [isExpanded, setIsExpanded] = useState(false);
   const style = { transform: CSS.Transform.toString(transform), transition };
-  const quillRef = useRef(null);
 
   const stepIcons = {
     text: <FileText className="h-4 w-4 text-green-700" />,
@@ -142,7 +124,7 @@ const SortableStepItem = ({ step, index, onUpdate, onRemove, onTriggerCreation }
               <p className="text-xs text-gray-500 mt-1">Este paso aparecerá en el planificador a partir de esta fecha.</p>
             </div>
           </div>
-          <StepRenderer step={step} index={index} onUpdate={onUpdate} quillRef={quillRef} onTriggerCreation={onTriggerCreation} />
+          <StepRenderer step={step} index={index} onUpdate={onUpdate} onTriggerCreation={onTriggerCreation} />
         </div>
       )}
     </div>
@@ -355,7 +337,7 @@ const LessonEditorPanel = ({ lessonId, mode, onSave, onCancel, availableCourses,
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Descripción / Contenido Principal</label>
-        <ReactQuill theme="snow" value={formData.content || ''} onChange={(val) => handleFieldChange('content', val)} />
+        <RichTextEditor value={formData.content || ''} onChange={(val) => handleFieldChange('content', val)} />
       </div>
     </div>
   );
