@@ -145,13 +145,25 @@
 }
 
 /* ── Toolbar ── */
+.tiptap-toolbar-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
 .tiptap-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 2px;
   padding: 0.375rem 0.5rem;
   border-bottom: 1px solid;
+  overflow-x: auto;
+}
+
+/* Second row — table controls + colour swatches */
+.tiptap-toolbar.tiptap-toolbar-table {
+  background: rgba(128, 128, 128, 0.04);
+  gap: 4px;
 }
 
 .tiptap-editor-wrap .tiptap-toolbar button {
