@@ -45,18 +45,23 @@ export const startQuizAttempt = async (quizId, lessonId = null, courseId = null)
  * @param {Array<Object>} answers - Las respuestas del usuario.
  * @returns {Promise<Object>} El resultado de la evaluación.
  */
-export const submitQuizAttempt = async (attemptId, answers) => {
+export const submitQuizAttempt = async (attemptId, answers, questionOrder = null) => {
   try {
     const { endpoints } = getApiConfig();
     const url = `${endpoints.custom_api}/quiz-attempts/submit`;
     console.log(`📤 Submitting answers for attempt ID: ${attemptId}`);
 
+    const body = {
+      attempt_id: attemptId,
+      answers: answers,
+    };
+    if (questionOrder && questionOrder.length > 0) {
+      body.question_order = questionOrder;
+    }
+
     const response = await makeApiRequest(url, {
       method: 'POST',
-      body: JSON.stringify({
-        attempt_id: attemptId,
-        answers: answers,
-      }),
+      body: JSON.stringify(body),
     });
     
     console.log('✅ Attempt submitted successfully:', response.data);

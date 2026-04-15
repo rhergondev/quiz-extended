@@ -449,7 +449,7 @@ const Quiz = ({
               result = await calculateCustomQuizResult(customQuestionIds, formattedAnswers);
               result.duration_seconds = durationInSeconds;
           } else {
-              result = await submitQuizAttempt(attemptId, formattedAnswers);
+              result = await submitQuizAttempt(attemptId, formattedAnswers, orderedQuestionIds);
           }
           
           // Limpiar autoguardado después de completar exitosamente
@@ -457,23 +457,21 @@ const Quiz = ({
             await clearAutosave();
           }
 
-          // 🔥 FIX: Load questions for the results view after successful submission
-          // This is non-blocking - if it fails, we still have the result
-          // Pre-sort loaded questions by original order as fallback (avoids showing shuffled order)
+          // Use the shuffled order the user actually saw for the results display
+          const displayIds = orderedQuestionIds && orderedQuestionIds.length > 0 ? orderedQuestionIds : idsToSubmit;
           const cachedMap = new Map(quizQuestions.map(q => [q.id, q]));
-          let fullQuestions = idsToSubmit.map(id => cachedMap.get(id)).filter(Boolean);
+          let fullQuestions = displayIds.map(id => cachedMap.get(id)).filter(Boolean);
           if (fullQuestions.length === 0) fullQuestions = quizQuestions;
           try {
-            // Load all questions for the results display
-            const allQuestionIds = idsToSubmit;
-            const refreshedQuestions = await getQuestionsByIds(allQuestionIds, { batchSize: 50 });
+            const refreshedQuestions = await getQuestionsByIds(displayIds, { batchSize: 50 });
             if (refreshedQuestions && refreshedQuestions.length > 0) {
-              console.log(`✅ Loaded ${refreshedQuestions.length} questions for results display`);
-              fullQuestions = refreshedQuestions;
+              // getQuestionsByIds may not preserve order, so re-sort by displayIds
+              const refreshedMap = new Map(refreshedQuestions.map(q => [q.id, q]));
+              fullQuestions = displayIds.map(id => refreshedMap.get(id)).filter(Boolean);
+              console.log(`✅ Loaded ${fullQuestions.length} questions for results display`);
             }
           } catch (refreshError) {
             console.warn('⚠️ Could not load all questions for results, using cached data:', refreshError);
-            // fullQuestions already sorted by original order above
           }
 
           setFinalQuestions(fullQuestions);

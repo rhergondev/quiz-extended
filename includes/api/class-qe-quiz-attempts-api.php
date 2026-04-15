@@ -194,13 +194,17 @@ class QE_Quiz_Attempts_API extends QE_API_Base
             return (int) $answer->question_id;
         }, $user_answers);
 
-        // Obtener TODOS los IDs de las preguntas del quiz original para incluir las no contestadas.
-        $all_question_ids_in_quiz = get_post_meta($attempt->quiz_id, '_quiz_question_ids', true);
-        if (!is_array($all_question_ids_in_quiz))
-            $all_question_ids_in_quiz = [];
-
-        // Use quiz's original order as canonical; append any answered IDs not in meta (edge case)
-        $all_question_ids = array_unique(array_merge($all_question_ids_in_quiz, $question_ids_from_answers));
+        // Use the order from when the attempt was taken if available; fall back to quiz creation order.
+        $saved_order = !empty($attempt->question_order) ? json_decode($attempt->question_order, true) : null;
+        if (is_array($saved_order) && !empty($saved_order)) {
+            // Append any answered IDs not captured in the saved order (edge case)
+            $all_question_ids = array_unique(array_merge($saved_order, $question_ids_from_answers));
+        } else {
+            $all_question_ids_in_quiz = get_post_meta($attempt->quiz_id, '_quiz_question_ids', true);
+            if (!is_array($all_question_ids_in_quiz))
+                $all_question_ids_in_quiz = [];
+            $all_question_ids = array_unique(array_merge($all_question_ids_in_quiz, $question_ids_from_answers));
+        }
 
         // Get user favorites
         $user_id = get_current_user_id();
@@ -567,20 +571,23 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                 return $max_attempts_check;
             }
 
+            // Get questions for this attempt (must happen before creating record to capture order)
+            $questions = $this->prepare_quiz_questions($quiz_id);
+            if (is_wp_error($questions)) {
+                return $questions;
+            }
+
+            // Extract ordered question IDs to persist with the attempt
+            $ordered_question_ids = array_column($questions, 'id');
+
             // Create attempt record
-            $attempt_id = $this->create_attempt_record($user_id, $quiz_id, $course_id, $lesson_id);
+            $attempt_id = $this->create_attempt_record($user_id, $quiz_id, $course_id, $lesson_id, $ordered_question_ids);
             if (!$attempt_id) {
                 return $this->error_response(
                     'db_error',
                     __('Could not create quiz attempt. Please try again.', 'quiz-extended'),
                     500
                 );
-            }
-
-            // Get questions for this attempt
-            $questions = $this->prepare_quiz_questions($quiz_id);
-            if (is_wp_error($questions)) {
-                return $questions;
             }
 
             // Get quiz settings
@@ -637,6 +644,7 @@ class QE_Quiz_Attempts_API extends QE_API_Base
         try {
             $attempt_id = $request->get_param('attempt_id');
             $answers = $request->get_param('answers');
+            $question_order = $request->get_param('question_order'); // Actual order seen by the user
             $user_id = get_current_user_id();
 
             // Log API call
@@ -671,6 +679,18 @@ class QE_Quiz_Attempts_API extends QE_API_Base
                     // AÑADIDO: Revertir si hay error
                     $this->get_db()->query('ROLLBACK');
                     return $grading_result;
+                }
+
+                // Save the question order as seen by the user (sent from the frontend)
+                if (!empty($question_order) && is_array($question_order)) {
+                    global $wpdb;
+                    $wpdb->update(
+                        $this->get_table('quiz_attempts'),
+                        ['question_order' => wp_json_encode(array_map('intval', $question_order))],
+                        ['attempt_id' => $attempt_id],
+                        ['%s'],
+                        ['%d']
+                    );
                 }
 
                 // Update attempt record
@@ -985,16 +1005,19 @@ class QE_Quiz_Attempts_API extends QE_API_Base
      * @param int|null $lesson_id Lesson ID
      * @return int|false Attempt ID or false
      */
-    private function create_attempt_record($user_id, $quiz_id, $course_id, $lesson_id = null)
+    private function create_attempt_record($user_id, $quiz_id, $course_id, $lesson_id = null, $question_order = null)
     {
-        return $this->db_insert('quiz_attempts', [
+        $data = [
             'user_id' => $user_id,
             'quiz_id' => $quiz_id,
             'course_id' => $course_id,
             'lesson_id' => $lesson_id,
             'start_time' => $this->get_mysql_timestamp(),
-            'status' => 'in-progress'
-        ], ['%d', '%d', '%d', '%d', '%s', '%s']);
+            'status' => 'in-progress',
+            'question_order' => $question_order ? wp_json_encode($question_order) : null,
+        ];
+        $formats = ['%d', '%d', '%d', '%d', '%s', '%s', '%s'];
+        return $this->db_insert('quiz_attempts', $data, $formats);
     }
 
     /**
