@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -144,6 +144,7 @@ const NoteModal = ({ note, onSave, onDelete, onClose, pageColors, getColor, isDa
   const [noteDate, setNoteDate] = useState(note?.note_date || new Date().toISOString().split('T')[0]);
   const [color, setColor] = useState(note?.color || '#8B5CF6');
   const [saving, setSaving] = useState(false);
+  const mouseDownOnBackdrop = useRef(false);
 
   const colors = [
     '#8B5CF6', // Purple
@@ -174,11 +175,12 @@ const NoteModal = ({ note, onSave, onDelete, onClose, pageColors, getColor, isDa
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
+      onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={() => { if (mouseDownOnBackdrop.current) onClose(); }}
     >
-      <div 
+      <div
         className="rounded-xl shadow-2xl max-w-md w-full p-6"
         style={{ backgroundColor: pageColors.bgCard }}
         onClick={(e) => e.stopPropagation()}
@@ -186,7 +188,7 @@ const NoteModal = ({ note, onSave, onDelete, onClose, pageColors, getColor, isDa
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div 
+            <div
               className="p-3 rounded-xl"
               style={{ backgroundColor: color + '20' }}
             >
@@ -342,6 +344,7 @@ const LiveClassModal = ({ liveClass, onSave, onDelete, onClose, pageColors, getC
   const [link, setLink] = useState(liveClass?.link || '');
   const [color, setColor] = useState(liveClass?.color || '#EF4444');
   const [saving, setSaving] = useState(false);
+  const mouseDownOnBackdrop = useRef(false);
 
   const colors = [
     '#EF4444', // Red
@@ -375,11 +378,12 @@ const LiveClassModal = ({ liveClass, onSave, onDelete, onClose, pageColors, getC
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
+      onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={() => { if (mouseDownOnBackdrop.current) onClose(); }}
     >
-      <div 
+      <div
         className="rounded-xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
         style={{ backgroundColor: pageColors.bgCard }}
         onClick={(e) => e.stopPropagation()}
@@ -639,7 +643,7 @@ const NoteDetailModal = ({ note, onClose, onEdit, pageColors, getColor, isDarkMo
 
         {/* Description */}
         {note.description && (
-          <p className="mb-4" style={{ color: pageColors.textMuted }}>
+          <p className="mb-4 whitespace-pre-wrap" style={{ color: pageColors.textMuted }}>
             {note.description}
           </p>
         )}
