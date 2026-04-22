@@ -769,9 +769,20 @@ const StudyPlannerPage = () => {
   // Navigate to content based on step/lesson type
   const handleNavigateToContent = useCallback((event) => {
     const { lesson, step, isStep, lessonType } = event;
-    
+
     if (!lesson) return;
-    
+
+    // Block non-admin students from accessing future-dated content
+    if (!isAdmin && lesson.meta?._start_date) {
+      const startDate = new Date(lesson.meta._start_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (startDate > today) {
+        setSelectedLesson(lesson);
+        return;
+      }
+    }
+
     // Determine the type and navigate accordingly
     const type = isStep ? (step?.type || 'default') : lessonType;
     
