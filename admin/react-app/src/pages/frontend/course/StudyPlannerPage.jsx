@@ -13,28 +13,39 @@ import { createNotification } from '../../../api/services/notificationsService';
 /**
  * LessonDetailModal - Modal to show lesson details when clicked
  */
-const LessonDetailModal = ({ lesson, onClose, pageColors, getColor, isDarkMode }) => {
+const LessonDetailModal = ({ event, onClose, pageColors, getColor, isDarkMode }) => {
   const { t } = useTranslation();
-  
-  if (!lesson) return null;
 
-  const lessonType = lesson.meta?._lesson_type || 'default';
-  const startDate = lesson.meta?._start_date 
-    ? new Date(lesson.meta._start_date).toLocaleDateString('es-ES', { 
-        day: '2-digit', 
+  if (!event) return null;
+
+  const { lesson, step, isStep, lessonType: eventLessonType } = event;
+
+  // For step events, the type and title come from the step; otherwise from the lesson meta
+  const lessonType = eventLessonType || lesson?.meta?._lesson_type || 'default';
+
+  // Use event.start (Date already set to midnight by the calendar) — covers both step and lesson dates
+  const startDate = event.start
+    ? event.start.toLocaleDateString('es-ES', {
+        day: '2-digit',
         month: 'long',
         year: 'numeric'
       })
     : t('calendar.noDate', 'Sin fecha');
-  
+
+  // Title: step title takes precedence for step events
+  const title = isStep
+    ? (step?.title || event.title)
+    : (lesson?.title?.rendered || lesson?.title || event.title || t('calendar.untitledLesson', 'Lección sin título'));
+
   const typeLabels = {
     video: t('lessons.types.video', 'Video'),
     test: t('lessons.types.test', 'Test'),
+    quiz: t('lessons.types.test', 'Test'),
     pdf: t('lessons.types.pdf', 'PDF'),
     default: t('lessons.types.lesson', 'Lección'),
   };
 
-  const TypeIcon = lessonType === 'video' ? Video : lessonType === 'test' ? ClipboardList : FileText;
+  const TypeIcon = lessonType === 'video' ? Video : (lessonType === 'test' || lessonType === 'quiz') ? ClipboardList : FileText;
 
   return (
     <div 
@@ -76,12 +87,12 @@ const LessonDetailModal = ({ lesson, onClose, pageColors, getColor, isDarkMode }
 
         {/* Title */}
         <h3 className="text-xl font-bold mb-4" style={{ color: pageColors.text }}>
-          {lesson.title?.rendered || lesson.title || t('calendar.untitledLesson', 'Lección sin título')}
+          {title}
         </h3>
 
         {/* Details */}
         <div className="space-y-3">
-          <div 
+          <div
             className="flex items-center gap-3 p-3 rounded-lg"
             style={{ backgroundColor: pageColors.bgSubtle }}
           >
@@ -96,8 +107,8 @@ const LessonDetailModal = ({ lesson, onClose, pageColors, getColor, isDarkMode }
             </div>
           </div>
 
-          {lesson.meta?._lesson_order !== undefined && (
-            <div 
+          {!isStep && lesson?.meta?._lesson_order !== undefined && (
+            <div
               className="flex items-center gap-3 p-3 rounded-lg"
               style={{ backgroundColor: pageColors.bgSubtle }}
             >
@@ -778,7 +789,7 @@ const StudyPlannerPage = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (eventStart > today) {
-        setSelectedLesson(lesson);
+        setSelectedLesson(event);
         return;
       }
     }
@@ -827,7 +838,7 @@ const StudyPlannerPage = () => {
         
       default:
         // For default/text lessons, show the modal with details
-        setSelectedLesson(lesson);
+        setSelectedLesson(event);
         break;
     }
   }, [courseId, navigate]);
@@ -1164,7 +1175,7 @@ const StudyPlannerPage = () => {
           {/* Lesson detail modal */}
           {selectedLesson && (
             <LessonDetailModal
-              lesson={selectedLesson}
+              event={selectedLesson}
               onClose={handleCloseModal}
               pageColors={pageColors}
               getColor={getColor}
