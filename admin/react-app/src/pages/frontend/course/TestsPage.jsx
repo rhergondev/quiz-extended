@@ -1684,7 +1684,7 @@ const TestsPage = () => {
                                           )}
                                           
                                           {/* Fecha de inicio - solo en desktop, solo si no está bloqueado (el badge ya muestra la fecha) */}
-                                          {!stepLocked && (
+                                          {!stepLocked && startDate && (
                                             <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
                                               <Calendar size={12} style={{ color: pageColors.textMuted }} />
                                               <span className="text-xs" style={{ color: pageColors.textMuted }}>
