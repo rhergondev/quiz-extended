@@ -773,11 +773,11 @@ const StudyPlannerPage = () => {
     if (!lesson) return;
 
     // Block non-admin students from accessing future-dated content
-    if (!isAdmin && lesson.meta?._start_date) {
-      const startDate = new Date(lesson.meta._start_date);
+    if (!isAdmin) {
+      const eventStart = event.start; // already a Date set to midnight by the calendar
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      if (startDate > today) {
+      if (eventStart > today) {
         setSelectedLesson(lesson);
         return;
       }
