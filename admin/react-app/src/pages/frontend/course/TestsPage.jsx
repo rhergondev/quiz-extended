@@ -1289,10 +1289,10 @@ const TestsPage = () => {
                     })
                     .map((lesson, lessonIndex, filteredLessons) => {
                     const isExpanded = expandedLessons.has(lesson.id);
-                    // For non-admins, only count visible & unlocked tests
+                    // For non-admins: hide completely hidden tests, but show locked ones (with no start button)
                     const visibleQuizSteps = userIsAdmin
                       ? lesson.quizSteps
-                      : lesson.quizSteps.filter(s => !isTestHidden(s) && !isTestLocked(s));
+                      : lesson.quizSteps.filter(s => !isTestHidden(s));
                     const testsCount = visibleQuizSteps.length;
                     const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
                     const isFirst = lessonIndex === 0;
@@ -1589,7 +1589,7 @@ const TestsPage = () => {
                               const stepLocked = isTestLocked(step);
                               const difficulty = step.data?.difficulty || 'medium';
                               const timeLimit = step.data?.time_limit || null;
-                              const startDate = step.data?.start_date || null;
+                              const startDate = step.start_date || null;
                               const questionCount = step.data?.question_count || null;
                               
                               // Format start date
@@ -1696,10 +1696,10 @@ const TestsPage = () => {
                                     </div>
                                     {/* Action buttons */}
                                     <div className="flex items-center gap-2 flex-shrink-0">
-                                      {/* Admin: Status badges for locked/hidden tests */}
-                                      {userIsAdmin && (stepHidden || stepLocked) && (
+                                      {/* Status badges for locked/hidden tests */}
+                                      {(stepHidden || stepLocked) && (
                                         <div className="flex items-center gap-1.5 flex-shrink-0">
-                                          {stepHidden && (
+                                          {userIsAdmin && stepHidden && (
                                             <span
                                               className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
                                               style={{
