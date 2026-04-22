@@ -1577,7 +1577,6 @@ const TestsPage = () => {
                               .filter(step => {
                                 if (userIsAdmin) return true;
                                 if (isTestHidden(step)) return false;
-                                if (isTestLocked(step)) return false;
                                 return true;
                               })
                               .map((step, stepIndex) => {
@@ -1684,13 +1683,15 @@ const TestsPage = () => {
                                             </div>
                                           )}
                                           
-                                          {/* Fecha de inicio - solo en desktop */}
-                                          <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
-                                            <Calendar size={12} style={{ color: pageColors.textMuted }} />
-                                            <span className="text-xs" style={{ color: pageColors.textMuted }}>
-                                              {t('tests.startDate')}: {formatStartDate(startDate)}
-                                            </span>
-                                          </div>
+                                          {/* Fecha de inicio - solo en desktop, solo si no está bloqueado (el badge ya muestra la fecha) */}
+                                          {!stepLocked && (
+                                            <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
+                                              <Calendar size={12} style={{ color: pageColors.textMuted }} />
+                                              <span className="text-xs" style={{ color: pageColors.textMuted }}>
+                                                {t('tests.startDate')}: {formatStartDate(startDate)}
+                                              </span>
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
                                     </div>

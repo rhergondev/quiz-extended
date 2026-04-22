@@ -825,10 +825,10 @@ const VideosPage = () => {
                   })
                   .map((lesson, lessonIndex, filteredLessons) => {
                   const isExpanded = expandedLessons.has(lesson.id);
-                  // For non-admins, only count visible & unlocked videos
+                  // For non-admins: hide completely hidden videos, but show locked ones (with no play button)
                   const visibleVideoSteps = userIsAdmin
                     ? lesson.videoSteps
-                    : lesson.videoSteps.filter(s => !isVideoHidden(s) && !isVideoLocked(s));
+                    : lesson.videoSteps.filter(s => !isVideoHidden(s));
                   const videoCount = visibleVideoSteps.length;
                   const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
                   const isFirst = lessonIndex === 0;
@@ -1091,7 +1091,6 @@ const VideosPage = () => {
                             .filter(step => {
                               if (userIsAdmin) return true;
                               if (isVideoHidden(step)) return false;
-                              if (isVideoLocked(step)) return false;
                               return true;
                             })
                             .map((step, index) => {
@@ -1154,10 +1153,10 @@ const VideosPage = () => {
                                     )}
                                   </div>
 
-                                  {/* Admin: Status badges for locked/hidden videos */}
-                                  {userIsAdmin && (isLocked || isHidden) && (
+                                  {/* Status badges for locked/hidden videos */}
+                                  {(isLocked || isHidden) && (
                                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                                      {isHidden && (
+                                      {userIsAdmin && isHidden && (
                                         <span
                                           className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
                                           style={{

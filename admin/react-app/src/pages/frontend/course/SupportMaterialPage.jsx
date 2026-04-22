@@ -845,10 +845,10 @@ const SupportMaterialPage = () => {
                 {displayLessons
                   .map((lesson, lessonIndex, filteredLessons) => {
                   const isExpanded = expandedLessons.has(lesson.id);
-                  // For non-admins, only count visible & unlocked materials
+                  // For non-admins: hide completely hidden materials, but show locked ones (with no open button)
                   const visibleMaterialSteps = userIsAdmin
                     ? lesson.materialSteps
-                    : lesson.materialSteps.filter(s => !isMaterialHidden(s) && !isMaterialLocked(s));
+                    : lesson.materialSteps.filter(s => !isMaterialHidden(s));
                   const materialCount = visibleMaterialSteps.length;
                   const lessonTitle = lesson.title?.rendered || lesson.title || t('courses.untitledLesson');
                   const isFirst = lessonIndex === 0;
@@ -1076,10 +1076,8 @@ const SupportMaterialPage = () => {
 
                           {reorderingStepsLessonId !== lesson.id && lesson.materialSteps
                             .filter(step => {
-                              // Non-admin users: hide materials that are hidden or date-locked
                               if (userIsAdmin) return true;
                               if (isMaterialHidden(step)) return false;
-                              if (isMaterialLocked(step)) return false;
                               return true;
                             })
                             .map((step, index) => {
@@ -1134,10 +1132,10 @@ const SupportMaterialPage = () => {
                                   {step.title}
                                 </span>
 
-                                {/* Admin: Status badges for locked/hidden materials */}
-                                {userIsAdmin && (isLocked || isHidden) && (
+                                {/* Status badges for locked/hidden materials */}
+                                {(isLocked || isHidden) && (
                                   <div className="flex items-center gap-1.5 flex-shrink-0">
-                                    {isHidden && (
+                                    {userIsAdmin && isHidden && (
                                       <span
                                         className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
                                         style={{
