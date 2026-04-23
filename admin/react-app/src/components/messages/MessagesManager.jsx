@@ -483,17 +483,19 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
       // Subtracting it gives the element's top in visual-viewport coordinates.
       const rect = rootRef.current.getBoundingClientRect();
       const elTopInVisualVP = rect.top - (window.visualViewport?.offsetTop ?? 0);
-      const h = Math.max(100, vvHeight - Math.max(0, elTopInVisualVP));
+      // Do NOT clamp elTopInVisualVP to 0 — when iOS scrolls the page up on
+      // keyboard open, elTopInVisualVP goes negative and the height must grow
+      // to compensate, keeping the reply input pinned just above the keyboard.
+      const h = Math.max(100, vvHeight - elTopInVisualVP);
       rootRef.current.style.height = h + 'px';
       rootRef.current.style.maxHeight = h + 'px';
-      // When keyboard opens (viewport shrinks), scroll the focused element into
-      // view so the user can see where they are typing — handles both textarea
-      // and ReactQuill contenteditable cases.
+      // When keyboard opens, scroll the chat container (not the page) to the
+      // bottom so the reply input stays in view. Using scrollIntoView here
+      // would bubble up to window and fight iOS's own scroll, causing layout glitches.
       if (vvHeight < prevVVHeight) {
         setTimeout(() => {
-          const focused = document.activeElement;
-          if (focused && focused !== document.body && rootRef.current?.contains(focused)) {
-            focused.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          if (chatScrollRef.current) {
+            chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
           }
         }, 200);
       }
@@ -1070,11 +1072,16 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                     <textarea
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
-                      onFocus={(e) => {
-                        // iOS: after keyboard slides up, scroll this element into view
-                        // so the user can see where they are typing.
-                        const el = e.currentTarget;
-                        setTimeout(() => { el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 350);
+                      onFocus={() => {
+                        // iOS: scroll the chat container to the bottom so the reply
+                        // input (which is a sibling of chatScrollRef, not inside it)
+                        // becomes visible above the keyboard. Avoid scrollIntoView
+                        // here — it bubbles to window and fights iOS's own scroll.
+                        setTimeout(() => {
+                          if (chatScrollRef.current) {
+                            chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+                          }
+                        }, 350);
                       }}
                       placeholder="Escribe tu respuesta..."
                       rows={3}

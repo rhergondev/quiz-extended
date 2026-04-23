@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Send, Loader, MessageSquareWarning, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
 import { messageService } from '../../api/services/messageService';
@@ -27,6 +27,7 @@ const QuestionFeedbackModal = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const submittingRef = useRef(false);
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
 
@@ -57,6 +58,9 @@ const QuestionFeedbackModal = ({
       return;
     }
 
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+
     setLoading(true);
     setError('');
     setSuccess(false);
@@ -78,6 +82,7 @@ const QuestionFeedbackModal = ({
       setError(err.userMessage || t('quizzes.feedbackModal.errorSending'));
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
   };
 
