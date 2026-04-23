@@ -1030,6 +1030,22 @@ body.qe-quiz-focus-mode #qe-topbar {
   }
 }
 
+/* ===================================
+   iOS SAFARI - Prevent zoom on input focus
+   ===================================
+   iOS Safari auto-zooms into any input/textarea/select whose computed
+   font-size is < 16px on focus. The zoom widens the layout past the
+   viewport (horizontal scroll appears) and shifts content upward,
+   which fights our visual-viewport height handler. Forcing 16px on
+   mobile stops the zoom at its source. */
+@media (max-width: 768px) {
+  .qe-lms-app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  .qe-lms-app textarea,
+  .qe-lms-app select {
+    font-size: 16px !important;
+  }
+}
+
 :root {
   --toastify-color-light: #fff;
   --toastify-color-dark: #121212;
