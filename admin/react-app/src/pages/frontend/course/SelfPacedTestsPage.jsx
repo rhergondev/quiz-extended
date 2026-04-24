@@ -644,6 +644,8 @@ const SelfPacedTestsPage = () => {
                     onNavigate={handleNavigateQuestion}
                     onClose={handleClosePractice}
                     onAnswered={handleQuestionAnswered}
+                    courseId={courseId}
+                    courseName={courseName}
                   />
                 ) : (
                   <div className="h-full flex items-center justify-center p-8">

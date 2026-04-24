@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   ChevronLeft, ChevronRight, Check, X, Star, BookOpen,
-  AlertCircle, Lightbulb, SkipForward
+  AlertCircle, Lightbulb, SkipForward, MessageSquare, AlertTriangle
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { toggleFavoriteQuestion } from '../../api/services/favoriteService';
+import QuestionFeedbackModal from './QuestionFeedbackModal';
 
-const SelfPacedQuestion = ({ 
-  questions = [], 
-  currentIndex = 0, 
+const SelfPacedQuestion = ({
+  questions = [],
+  currentIndex = 0,
   onNavigate,
   onClose,
-  onAnswered
+  onAnswered,
+  courseId = null,
+  courseName = null,
 }) => {
   const { t } = useTranslation();
   const { getColor, isDarkMode } = useTheme();
@@ -32,6 +35,8 @@ const SelfPacedQuestion = ({
   const [showResult, setShowResult] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [isFavorite, setIsFavorite] = useState(question?.is_favorite || false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [feedbackType, setFeedbackType] = useState('feedback');
 
   // Reset state when question changes
   useEffect(() => {
@@ -125,6 +130,11 @@ const SelfPacedQuestion = ({
       });
   };
 
+  const handleOpenModal = (type) => {
+    setFeedbackType(type);
+    setIsFeedbackModalOpen(true);
+  };
+
   const getDifficultyColor = () => {
     switch (difficulty) {
       case 'easy': return '#10b981';
@@ -184,6 +194,7 @@ const SelfPacedQuestion = ({
   };
 
   return (
+    <>
     <div className="max-w-4xl mx-auto px-4 py-6">
       {/* Question Header */}
       <div
@@ -208,21 +219,57 @@ const SelfPacedQuestion = ({
           </div>
         </div>
 
-        <button
-          onClick={handleToggleFavorite}
-          disabled={isTogglingFavorite}
-          className="p-2 rounded-lg transition-all"
-          style={{ backgroundColor: 'transparent' }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-          title={isFavorite ? t('common.removeFromFavorites') : t('common.addToFavorites')}
-        >
-          <Star
-            size={20}
-            style={{ color: isFavorite ? '#fbbf24' : colors.textMuted }}
-            fill={isFavorite ? '#fbbf24' : 'none'}
-          />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleToggleFavorite}
+            disabled={isTogglingFavorite}
+            className="p-2 rounded-lg transition-all"
+            style={{ backgroundColor: 'transparent' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            title={isFavorite ? t('common.removeFromFavorites') : t('common.addToFavorites')}
+          >
+            <Star
+              size={20}
+              style={{ color: isFavorite ? '#fbbf24' : colors.textMuted }}
+              fill={isFavorite ? '#fbbf24' : 'none'}
+            />
+          </button>
+
+          <button
+            onClick={() => handleOpenModal('feedback')}
+            className="p-2 rounded-lg transition-all"
+            style={{ color: colors.textMuted, backgroundColor: 'transparent' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : `${colors.primary}10`;
+              e.currentTarget.style.color = isDarkMode ? '#f9fafb' : colors.primary;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = colors.textMuted;
+            }}
+            title={t('quizzes.reviewedQuestion.addComment')}
+          >
+            <MessageSquare size={18} strokeWidth={2} />
+          </button>
+
+          <button
+            onClick={() => handleOpenModal('challenge')}
+            className="p-2 rounded-lg transition-all"
+            style={{ color: colors.textMuted, backgroundColor: 'transparent' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+              e.currentTarget.style.color = '#ef4444';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = colors.textMuted;
+            }}
+            title={t('quizzes.reviewedQuestion.challenge')}
+          >
+            <AlertTriangle size={18} strokeWidth={2} />
+          </button>
+        </div>
       </div>
 
       {/* Question Content */}
@@ -387,6 +434,17 @@ const SelfPacedQuestion = ({
         </button>
       </div>
     </div>
+
+    {isFeedbackModalOpen && (
+      <QuestionFeedbackModal
+        question={question}
+        initialFeedbackType={feedbackType}
+        onClose={() => setIsFeedbackModalOpen(false)}
+        courseId={courseId}
+        courseName={courseName}
+      />
+    )}
+    </>
   );
 };
 
