@@ -169,6 +169,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   const [showQuestionEditor, setShowQuestionEditor] = useState(false);
   const chatScrollRef = useRef(null);
   const rootRef = useRef(null);
+  const detailPanelRef = useRef(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [batchLoading, setBatchLoading] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -489,13 +490,20 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
       const h = Math.max(100, vvHeight - elTopInVisualVP);
       rootRef.current.style.height = h + 'px';
       rootRef.current.style.maxHeight = h + 'px';
-      // When keyboard opens, scroll the chat container (not the page) to the
-      // bottom so the reply input stays in view. Using scrollIntoView here
-      // would bubble up to window and fight iOS's own scroll, causing layout glitches.
+      // When the keyboard opens, surface the focused field. The reply textarea
+      // is a sibling of chatScrollRef (below the chat), while the question
+      // editor's fields live INSIDE chatScrollRef. Use chatScrollRef.contains()
+      // to distinguish: pin the chat to the bottom only when the focus is
+      // outside (reply input); otherwise scrollIntoView the focused element.
       if (vvHeight < prevVVHeight) {
         setTimeout(() => {
-          if (chatScrollRef.current) {
-            chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+          const focused = document.activeElement;
+          const scroll = chatScrollRef.current;
+          if (!scroll || !focused) return;
+          if (!scroll.contains(focused)) {
+            scroll.scrollTop = scroll.scrollHeight;
+          } else {
+            focused.scrollIntoView({ block: 'nearest' });
           }
         }, 200);
       }
@@ -527,6 +535,90 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
       }
     };
   }, []);
+
+  // Mobile-only: pin the message detail panel to the visual viewport using
+  // position:fixed, so the iOS keyboard cannot rearrange parent layouts.
+  // The panel detaches from its scrollable ancestors and is sized exactly
+  // to visualViewport.{offsetTop, offsetLeft, width, height}, which already
+  // excludes the keyboard. Slide-out animations are preserved by deferring
+  // the unpin by ~350ms (slightly longer than the 300ms transition).
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
+    if (!isMobile()) return;
+
+    const clearPin = () => {
+      const panel = detailPanelRef.current;
+      if (!panel) return;
+      panel.style.position = '';
+      panel.style.top = '';
+      panel.style.left = '';
+      panel.style.width = '';
+      panel.style.height = '';
+      panel.style.zIndex = '';
+    };
+
+    if (!isPanelOpen) {
+      // Slide-out: keep the panel pinned for the transform animation, then clear.
+      const t = setTimeout(clearPin, 350);
+      return () => clearTimeout(t);
+    }
+
+    let prevVVHeight = vv.height;
+    let kbTimer;
+
+    const update = () => {
+      const panel = detailPanelRef.current;
+      if (!panel) return;
+      panel.style.position = 'fixed';
+      panel.style.top = vv.offsetTop + 'px';
+      panel.style.left = vv.offsetLeft + 'px';
+      panel.style.width = vv.width + 'px';
+      panel.style.height = vv.height + 'px';
+      panel.style.zIndex = '50';
+
+      // When the keyboard opens, surface the focused field. The reply textarea
+      // sits OUTSIDE chatScrollRef; the question editor's fields sit INSIDE it.
+      // Pin chat to bottom only when the focus is outside; otherwise
+      // scrollIntoView the focused element so it isn't hidden by the
+      // scroll-to-bottom.
+      if (vv.height < prevVVHeight) {
+        setTimeout(() => {
+          const focused = document.activeElement;
+          const scroll = chatScrollRef.current;
+          if (!scroll || !focused) return;
+          if (!scroll.contains(focused)) {
+            scroll.scrollTop = scroll.scrollHeight;
+          } else {
+            focused.scrollIntoView({ block: 'nearest' });
+          }
+        }, 200);
+      }
+      prevVVHeight = vv.height;
+    };
+
+    // iOS Safari: vv.resize fires on keyboard OPEN but not reliably on CLOSE.
+    // Run staggered updates after focusout to catch the close animation.
+    const onFocusOut = () => {
+      clearTimeout(kbTimer);
+      kbTimer = setTimeout(() => { update(); setTimeout(update, 150); }, 300);
+    };
+
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    document.addEventListener('focusout', onFocusOut);
+
+    return () => {
+      clearTimeout(kbTimer);
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+      document.removeEventListener('focusout', onFocusOut);
+    };
+  }, [isPanelOpen]);
 
   return (
     <div ref={rootRef} className="flex flex-col h-full relative overflow-hidden" style={{ backgroundColor: pageColors.bgPage, maxHeight: '100%' }}>
@@ -947,6 +1039,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
 
         {/* DETAIL VIEW - Slides in from right */}
         <div
+          ref={detailPanelRef}
           className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${
             isPanelOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
