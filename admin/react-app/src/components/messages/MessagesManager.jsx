@@ -625,7 +625,14 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   // question editor (i.e. inside chatScrollRef while showQuestionEditor is on).
   // Otherwise the reply textarea covers the question fields when the iOS
   // keyboard pushes everything up. Shown again as soon as focus leaves.
+  // Mobile only — on desktop the reply input never covers anything, so hiding
+  // it on focus would just be a regression.
   useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    if (!mql.matches) {
+      setIsQuestionFieldFocused(false);
+      return;
+    }
     if (!showQuestionEditor) {
       setIsQuestionFieldFocused(false);
       return;
