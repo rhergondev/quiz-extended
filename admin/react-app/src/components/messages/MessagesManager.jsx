@@ -167,6 +167,7 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [showQuestionEditor, setShowQuestionEditor] = useState(false);
+  const [isQuestionFieldFocused, setIsQuestionFieldFocused] = useState(false);
   const chatScrollRef = useRef(null);
   const rootRef = useRef(null);
   const detailPanelRef = useRef(null);
@@ -619,6 +620,48 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
       document.removeEventListener('focusout', onFocusOut);
     };
   }, [isPanelOpen]);
+
+  // Hide the reply input whenever focus is on an editable field INSIDE the
+  // question editor (i.e. inside chatScrollRef while showQuestionEditor is on).
+  // Otherwise the reply textarea covers the question fields when the iOS
+  // keyboard pushes everything up. Shown again as soon as focus leaves.
+  useEffect(() => {
+    if (!showQuestionEditor) {
+      setIsQuestionFieldFocused(false);
+      return;
+    }
+    const scroll = chatScrollRef.current;
+    if (!scroll) return;
+
+    const isEditable = (el) => {
+      if (!el) return false;
+      const tag = el.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+    };
+
+    const onFocusIn = (e) => {
+      if (isEditable(e.target) && scroll.contains(e.target)) {
+        setIsQuestionFieldFocused(true);
+      }
+    };
+    // Defer the check so a focus-jump between two question-editor fields
+    // doesn't briefly flip the flag off (focusout → focusin race).
+    const onFocusOut = () => {
+      setTimeout(() => {
+        const a = document.activeElement;
+        if (!isEditable(a) || !scroll.contains(a)) {
+          setIsQuestionFieldFocused(false);
+        }
+      }, 100);
+    };
+
+    scroll.addEventListener('focusin', onFocusIn);
+    scroll.addEventListener('focusout', onFocusOut);
+    return () => {
+      scroll.removeEventListener('focusin', onFocusIn);
+      scroll.removeEventListener('focusout', onFocusOut);
+    };
+  }, [showQuestionEditor]);
 
   return (
     <div ref={rootRef} className="flex flex-col h-full relative overflow-hidden" style={{ backgroundColor: pageColors.bgPage, maxHeight: '100%' }}>
@@ -1158,8 +1201,9 @@ const MessagesManager = ({ initialSearch = '', courseMode: courseModeProp = fals
                 ))}
               </div>
 
-              {/* Reply input */}
-              <div className="p-2 sm:p-3 flex-shrink-0 overflow-x-hidden" style={{ backgroundColor: pageColors.bgCard, borderTop: `1px solid ${pageColors.cardBorder}` }}>
+              {/* Reply input — hidden while a question-editor field is focused
+                  so it doesn't cover the field on iOS keyboard open. */}
+              <div className={`p-2 sm:p-3 flex-shrink-0 overflow-x-hidden ${isQuestionFieldFocused ? 'hidden' : ''}`} style={{ backgroundColor: pageColors.bgCard, borderTop: `1px solid ${pageColors.cardBorder}` }}>
                 <div className="flex flex-col gap-2 w-full max-w-4xl mx-auto">
                   <div className="flex gap-2 items-end min-w-0">
                     <textarea
