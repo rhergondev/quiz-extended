@@ -591,6 +591,7 @@ const LiveClassModal = ({ liveClass, onSave, onDelete, onClose, pageColors, getC
 const NoteDetailModal = ({ note, onClose, onEdit, pageColors, getColor, isDarkMode, t, isAdmin }) => {
   if (!note) return null;
 
+  const mouseDownOnBackdrop = useRef(false);
   const isLiveClass = note.type === 'live_class';
   
   const formattedDate = note.note_date 
@@ -606,11 +607,12 @@ const NoteDetailModal = ({ note, onClose, onEdit, pageColors, getColor, isDarkMo
     : '';
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
+      onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={() => { if (mouseDownOnBackdrop.current) onClose(); }}
     >
-      <div 
+      <div
         className="rounded-xl shadow-2xl max-w-md w-full p-6"
         style={{ backgroundColor: pageColors.bgCard }}
         onClick={(e) => e.stopPropagation()}
